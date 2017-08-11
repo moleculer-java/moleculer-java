@@ -1,0 +1,26 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+
+buildscript {
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+    jcenter()
+}
+
+dependencies {
+    compile 'org.slf4j:slf4j-api:1.7.21'
+    testCompile 'junit:junit:4.12'
+
+    // --- DATATREE ---
+    	    
+	// DataTree API
+	compile group: 'com.github.berkesa', name: 'datatree-core', version: '1.0.2'
+
+}
