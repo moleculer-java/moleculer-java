@@ -18,9 +18,14 @@ dependencies {
     compile 'org.slf4j:slf4j-api:1.7.21'
     testCompile 'junit:junit:4.12'
 
+	// --- REDIS CLIENT ---
+	
+	// https://mvnrepository.com/artifact/biz.paluch.redis/lettuce
+	compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.4.0.Final'
+
     // --- DATATREE ---
     	    
-	// DataTree API
+	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-core
 	compile group: 'com.github.berkesa', name: 'datatree-core', version: '1.0.2'
 
 }
