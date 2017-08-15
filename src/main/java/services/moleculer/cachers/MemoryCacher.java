@@ -1,85 +1,135 @@
 package services.moleculer.cachers;
 
 import java.util.Iterator;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import services.moleculer.ServiceBroker;
 
 public class MemoryCacher extends Cacher {
 
-	// --- CONSTANTS ---
+	// --- CACHE VARIABLES ---
 
-	public static final int DEFAULT_CAPACITY = 2048;
-	public static final float DEFAULT_LOAD_FACTOR = 0.75F;
-	public static final int DEFAULT_CONCURRENCY_LEVEL = 16;
+	private int capacity = 2048;
 
-	// --- CACHE INSTANCE ---
+	private Lock readerLock;
+	private Lock writerLock;
 
-	protected final ConcurrentHashMap<String, Object> cache;
+	private LinkedHashMap<String, Object> cache;
 
 	// --- CONSTUCTORS ---
 
 	public MemoryCacher() {
-		this(EMPTY_PREFIX, UNLIMITED_TTL, DEFAULT_CAPACITY, DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL);
+		super();
 	}
 
 	public MemoryCacher(String prefix) {
-		this(prefix, UNLIMITED_TTL, DEFAULT_CAPACITY, DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL);
+		super(prefix);
 	}
 
 	public MemoryCacher(String prefix, long ttl) {
-		this(prefix, ttl, DEFAULT_CAPACITY, DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL);
+		super(prefix, ttl);
 	}
 
-	public MemoryCacher(String prefix, long ttl, int initialCapacity, float loadFactor, int concurrencyLevel) {
+	public MemoryCacher(String prefix, long ttl, int capacity) {
 		super(prefix, ttl);
-		
-		// Create memory cache
-		cache = new ConcurrentHashMap<>(initialCapacity, loadFactor, concurrencyLevel);
+		this.capacity = capacity;
+	}
+
+	// --- INIT CACHE INSTANCE ---
+
+	/**
+	 * Initializes cacher instance.
+	 * 
+	 * @param broker
+	 */
+	public void init(ServiceBroker broker) {
+		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);
+		readerLock = lock.readLock();
+		writerLock = lock.writeLock();
+		cache = new LinkedHashMap<String, Object>(capacity + 1, 1.0f, true) {
+
+			private static final long serialVersionUID = 5994447707758047152L;
+
+			protected final boolean removeEldestEntry(Map.Entry<String, Object> entry) {
+				if (this.size() > capacity) {
+					return true;
+				}
+				return false;
+			};
+		};
 	}
 
 	// --- CLOSE CACHE INSTANCE ---
-	
+
 	@Override
 	public void close() {
 		cache.clear();
 	}
-	
+
 	// --- CACHE METHODS ---
 
 	@Override
 	public Object get(String key) {
-		return cache.get(key);
+		readerLock.lock();
+		try {
+			return cache.get(key);
+		} finally {
+			readerLock.unlock();
+		}
 	}
 
 	@Override
 	public void set(String key, Object value) {
-		cache.put(key, value);
+		writerLock.lock();
+		try {
+			cache.put(key, value);
+		} finally {
+			writerLock.unlock();
+		}
 	}
 
 	@Override
 	public void del(String key) {
-		cache.remove(key);
+		writerLock.lock();
+		try {
+			cache.remove(key);
+		} finally {
+			writerLock.unlock();
+		}
 	}
 
 	@Override
 	public void clean(String match) {
-		if (match == null) {
-			cache.clear();
-		} else {
-			match = match.trim();
-			if (match.isEmpty() || ALL_ITEMS.equals(match)) {
+		writerLock.lock();
+		try {
+			if (match == null) {
 				cache.clear();
 			} else {
-				Iterator<String> i = cache.keySet().iterator();
-				String key;
-				while (i.hasNext()) {
-					key = i.next();
+				match = match.trim();
+				
+				// TODO Wich is the correct; "*" or "**"?
+				if (match.isEmpty() || "*".equals(match) || "**".equals(match)) {
+					cache.clear();
+				} else if (match.indexOf('*') == -1) {
+					cache.remove(match);		
+				} else {
+					Iterator<String> i = cache.keySet().iterator();
+					String key;
+					while (i.hasNext()) {
+						key = i.next();
 
-					// TODO implement matcher
-					if (key != null) {
-						i.remove();
+						// TODO implement matcher
+						if (key != null) {
+							i.remove();
+						}
 					}
 				}
 			}
+		} finally {
+			writerLock.unlock();
 		}
 	}
 

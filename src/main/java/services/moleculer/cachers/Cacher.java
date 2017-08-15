@@ -5,10 +5,9 @@ import services.moleculer.ServiceBroker;
 public abstract class Cacher {
 
 	// --- CONSTANTS ---
-	
-	public static final String ALL_ITEMS = "**";
-	public static final long UNLIMITED_TTL = -1;
-	public static final String EMPTY_PREFIX = "";
+
+	protected static final String DEFAULT_PREFIX = "";
+	protected static final long UNLIMITED_TTL = -1;
 	
 	// --- VARIABLES ---
 	
@@ -23,7 +22,7 @@ public abstract class Cacher {
 	 * @param prefix
 	 */
 	public Cacher() {
-		this(EMPTY_PREFIX, UNLIMITED_TTL);
+		this(DEFAULT_PREFIX, UNLIMITED_TTL);
 	}
 
 	/**
@@ -71,9 +70,7 @@ public abstract class Cacher {
 	 * 
 	 * @param key
 	 */
-	public Object get(String key) {
-		throw new UnsupportedOperationException("Not implemented method!");
-	}
+	public abstract Object get(String key);
 
 	/**
 	 * Sets a content by key into the cache.
@@ -81,25 +78,14 @@ public abstract class Cacher {
 	 * @param key
 	 * @param value
 	 */
-	public void set(String key, Object value) {
-		throw new UnsupportedOperationException("Not implemented method!");
-	}
+	public abstract void set(String key, Object value);
 
 	/**
 	 * Deletes a content from this cache.
 	 * 
 	 * @param key
 	 */
-	public void del(String key) {
-		throw new UnsupportedOperationException("Not implemented method!");
-	}
-
-	/**
-	 * Removes all entries from this cache.
-	 */
-	public void clean() {
-		clean(ALL_ITEMS);
-	}
+	public abstract void del(String key);
 	
 	/**
 	 * Cleans this cache. Removes every key by a match string. The default match
@@ -107,9 +93,7 @@ public abstract class Cacher {
 	 * 
 	 * @param match
 	 */
-	public void clean(String match) {
-		throw new UnsupportedOperationException("Not implemented method!");
-	}
+	public abstract void clean(String match);
 
 	// --- INTERNAL METHODS ---
 	
