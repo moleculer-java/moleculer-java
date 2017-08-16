@@ -19,8 +19,7 @@ public abstract class Transporter {
 	
 	protected Transit transit;
 	
-	// TODO What is this?
-	protected Object messageHandler;
+	protected MessageHandler messageHandler;
 	protected AfterConnect afterConnect;
 	
 	protected ServiceBroker broker;
@@ -38,11 +37,15 @@ public abstract class Transporter {
 
 	// --- INIT TRANSPORTER INSTANCE ---
 
-	public void init(Transit transit, Object messageHandler, AfterConnect afterConnect) {
+	public void init(Transit transit, MessageHandler messageHandler, AfterConnect afterConnect) {
 		if (transit != null) {
 			this.transit = transit;
 			this.broker = transit.getServiceBroker();
 			this.nodeID = transit.getNodeID();
+			
+			if (this.broker != null) {
+				//this.logger = this.broker.getLogger("transporter");
+			}
 		}
 		this.messageHandler = messageHandler;
 		this.afterConnect = afterConnect;

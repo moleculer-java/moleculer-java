@@ -66,6 +66,8 @@ public class RedisTransporter extends Transporter {
 	@Override
 	public void connect() {
 		if (clientSub == null) {
+			
+			MessageHandler messageHandler = this.messageHandler;
 
 			// Create Redis connection
 			List<RedisURI> redisURIs = RedisUtilities.parseURLs(urls, password, useSSL, startTLS);
@@ -106,6 +108,9 @@ public class RedisTransporter extends Transporter {
 							rawValue = rawNode.asObject();
 						}
 						System.out.println(rawValue);
+						
+						// TODO
+						messageHandler.onMessage(parsed);
 
 					} catch (Exception cause) {
 
