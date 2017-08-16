@@ -9,7 +9,7 @@ public class Context {
 	/**
 	 * Context ID
 	 */
-	public final String id;
+	public String id;
 
 	/**
 	 * Broker instance
@@ -24,42 +24,54 @@ public class Context {
 	/**
 	 * Node ID
 	 */
-	public final String nodeID;
+	public String nodeID;
 
 	/**
 	 * Parent Context ID
 	 */
-	public final String parentID;
+	public String parentID;
 
 	/**
 	 * Need send metrics events
 	 */
-	public final boolean metrics;
+	public boolean metrics;
 
 	/**
 	 * Level of context
 	 */
-	public final int level;
+	public int level;
 
 	/**
-	 * 
+	 * Calling timeout
 	 */
-	public final long timeout;
+	public long timeout;
 
 	/**
-	 * 
+	 * Count of retries
 	 */
-	public final int retryCount;
+	public int retryCount;
 
 	/**
-	 * 
+	 * Parameters
 	 */
-	public final Tree params;
+	public Tree params;
 
 	/**
-	 * 
+	 * Metadata
 	 */
 	public final Tree meta;
+	
+	// --- METRICS PROPERTIES ---
+	
+	public String requestID;
+	
+	public long startTime;
+	
+	public long stopTime;
+	
+	public double duration;
+
+	public boolean cachedResult;
 
 	// --- CONSTUCTORS ---
 
@@ -83,4 +95,27 @@ public class Context {
 
 	}
 
+	protected void generateID() {
+		//this.id = utils.generateToken();
+	}
+	
+	protected void setParams(Tree params, boolean cloning) {
+		//
+	}
+	
+	public Object call(String actionName, Tree params, CallingOptions opts) {
+		return null;
+	}
+	
+	public void emit(String eventName, Object payload) {
+		//
+	}
+	
+	protected void metricStart(boolean emitEvent) {
+		
+	}
+	
+	protected void metricFinish(Throwable error, boolean emitEvent) {
+		
+	}
 }

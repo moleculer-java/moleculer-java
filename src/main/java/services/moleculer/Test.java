@@ -32,7 +32,7 @@ public class Test {
 
 		ServiceBroker broker = new ServiceBroker();
 
-		Service svc = broker.createService(new Service("test") {
+		Service svc = broker.createService(new Service(broker, "test", null) {
 
 			// --- CREATED ---
 

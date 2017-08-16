@@ -173,11 +173,11 @@ public class RedisTransporter extends Transporter {
 
 			// Convert Object to JSON / MessagePack / etc			
 			byte[] bytes;
-			if (packet.data instanceof Tree) {
-				bytes = ((Tree) packet.data).toBinary("json", true);
+			if (packet.payload instanceof Tree) {
+				bytes = ((Tree) packet.payload).toBinary("json", true);
 			} else {
 				HashMap<String, Object> map = new HashMap<>();
-				map.put(RAW_VALUE, packet.data);
+				map.put(RAW_VALUE, packet.payload);
 				bytes = TreeWriterRegistry.getWriter("json").toBinary(map, null, true);
 			}
 

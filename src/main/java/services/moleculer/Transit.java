@@ -12,4 +12,13 @@ public class Transit {
 		return null;
 	}
 
+	public Object serialize(Object data, String type) {
+		// TODO 
+		return null;
+	}
+	
+	public Packet deserialize(Object data, String type) {
+		// TODO 
+		return null;
+	}	
 }

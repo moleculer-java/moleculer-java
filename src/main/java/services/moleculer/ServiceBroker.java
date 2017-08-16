@@ -1,9 +1,18 @@
 package services.moleculer;
 
+import java.util.LinkedList;
+import java.util.List;
+
 import io.datatree.Tree;
 import services.moleculer.cachers.Cacher;
 
 public class ServiceBroker {
+	
+	// Local services
+	private List<Service> services = new LinkedList<Service>();
+	
+	// Registered middlewares
+	//private List<Object> middlewares = new LinkedList<Object>();
 	
 	public String namespace = "";
 	
@@ -18,7 +27,8 @@ public class ServiceBroker {
 	 * 
 	 * @param options
 	 */
-	public ServiceBroker(Object options) {
+	public ServiceBroker() {
+		//this.logger = this.getLogger("broker");
 		
 	}
 	
@@ -26,13 +36,22 @@ public class ServiceBroker {
 	 * Start broker. If has transporter, transporter.connect will be called.
 	 */
 	public void start() {
-		
+		// Call `started` of all services
+		// Start transit.connect if transporter is defined
 	}
 	
 	/**
 	 * Stop broker. If has transporter, transporter.disconnect will be called.
 	 */
 	public void stop() {
+		// Call `stopped` of all services
+		// Start transit.disconnect if transporter is defined
+	}
+	
+	/**
+	 * Switch the console to REPL mode 
+	 */
+	public void repl() {
 		
 	}
 	
@@ -55,6 +74,7 @@ public class ServiceBroker {
 	 * @return
 	 */
 	public <T extends Service> T createService(T service) {
+		this.services.add(service);
 			
 		return service;
 	}
@@ -65,7 +85,10 @@ public class ServiceBroker {
 	 * @param service
 	 */
 	public void destroyService(Service service) {
+		service.stopped();
+		this.services.remove(service);
 		
+		// TODO: Notify all other nodes
 	}
 	
 	/**
@@ -166,7 +189,7 @@ public class ServiceBroker {
 	 * @param opts
 	 * @return
 	 */
-	public Context createNewContext(Action action, String nodeID, Tree params, Object opts) {
+	public Context createNewContext(Action action, String nodeID, Tree params, CallingOptions opts) {
 		return null;
 	}
 	
@@ -178,7 +201,7 @@ public class ServiceBroker {
 	 * @param opts
 	 * @return
 	 */
-	public Object call(String actionName, Tree params, Object opts) {
+	public Object call(String actionName, Tree params, CallingOptions opts) {
 		return null;
 	}
 	
@@ -188,7 +211,7 @@ public class ServiceBroker {
 	 * @param eventName
 	 * @param payload
 	 */
-	public void emit(String eventName, Tree payload) {
+	public void emit(String eventName, Object payload) {
 		
 	}
 	
@@ -199,7 +222,7 @@ public class ServiceBroker {
 	 * @param payload
 	 * @param sender
 	 */
-	public void emitLocal(String eventName, Tree payload, String sender) {
+	public void emitLocal(String eventName, Object payload, String sender) {
 		
 	}
 }
