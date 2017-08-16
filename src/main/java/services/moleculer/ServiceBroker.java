@@ -1,5 +1,7 @@
 package services.moleculer;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -18,7 +20,7 @@ public class ServiceBroker {
 	
 	public String nodeID;
 	
-	//public Logger logger;
+	public Logger logger;
 	
 	public Cacher cacher;
 	
@@ -28,9 +30,18 @@ public class ServiceBroker {
 	 * @param options
 	 */
 	public ServiceBroker() {
-		//this.logger = this.getLogger("broker");
+		this.logger = this.getLogger("broker");
 		
+		if (this.nodeID == null || this.nodeID.isEmpty()) {
+			
+			try {
+				this.nodeID = InetAddress.getLocalHost().getHostName();
+			} catch (UnknownHostException e) {
+				this.logger.warn("Can't resolve hostname!");
+			}
+		}
 	}
+	
 	
 	/**
 	 * Start broker. If has transporter, transporter.connect will be called.
@@ -38,6 +49,8 @@ public class ServiceBroker {
 	public void start() {
 		// Call `started` of all services
 		// Start transit.connect if transporter is defined
+		
+		this.logger.info("Broker started! NodeID: " + this.nodeID);
 	}
 	
 	/**
@@ -46,7 +59,9 @@ public class ServiceBroker {
 	public void stop() {
 		// Call `stopped` of all services
 		// Start transit.disconnect if transporter is defined
-	}
+
+		this.logger.info("Broker stopped! NodeID: " + this.nodeID);
+}
 	
 	/**
 	 * Switch the console to REPL mode 
@@ -59,13 +74,23 @@ public class ServiceBroker {
 	 * Get a custom logger for sub-modules (service, transporter, cacher, context...etc)
 	 * 
 	 * @param module
+	 * @return
+	 */
+	public Logger getLogger(String module) {
+		return new Logger();
+	}
+
+	/**
+	 * Get a custom logger for sub-modules (service, transporter, cacher, context...etc)
+	 * 
+	 * @param module
 	 * @param service
 	 * @param version
 	 * @return
 	 */
-	/*public Logger getLogger(String module, String service, Object version) {
-		
-	}*/
+	public Logger getLogger(String module, String service, String version) {
+		return new Logger();
+	}	
 	
 	/**
 	 * Create a new service by schema

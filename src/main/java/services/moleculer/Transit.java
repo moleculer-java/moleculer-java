@@ -15,7 +15,7 @@ public class Transit {
 	
 	private ServiceBroker broker;
 	private Transporter tx;
-	//private Logger logger;
+	private Logger logger;
 	
 	public Map<String, Node> nodes = new HashMap<String, Node>();
 	
@@ -28,7 +28,7 @@ public class Transit {
 		this.broker = broker;
 		this.tx = tx;
 		if (this.broker != null) {
-			//this.logger = this.broker.getLogger("transit");
+			this.logger = this.broker.getLogger("transit");
 		}
 		
 		this.messageHandler = new MessageHandler() {

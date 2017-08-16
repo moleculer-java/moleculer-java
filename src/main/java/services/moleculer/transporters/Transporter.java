@@ -2,6 +2,7 @@ package services.moleculer.transporters;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import services.moleculer.Logger;
 import services.moleculer.ServiceBroker;
 import services.moleculer.Transit;
 
@@ -18,6 +19,7 @@ public abstract class Transporter {
 	protected final AtomicBoolean connected = new AtomicBoolean();
 	
 	protected Transit transit;
+	private Logger logger;
 	
 	protected MessageHandler messageHandler;
 	protected AfterConnect afterConnect;
@@ -44,7 +46,7 @@ public abstract class Transporter {
 			this.nodeID = transit.getNodeID();
 			
 			if (this.broker != null) {
-				//this.logger = this.broker.getLogger("transporter");
+				this.logger = this.broker.getLogger("transporter");
 			}
 		}
 		this.messageHandler = messageHandler;

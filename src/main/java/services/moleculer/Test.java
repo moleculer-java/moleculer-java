@@ -31,7 +31,7 @@ public class Test {
 	public static void main(String[] args) throws Exception {
 
 		ServiceBroker broker = new ServiceBroker();
-
+		
 		Service svc = broker.createService(new Service(broker, "test", null) {
 
 			// --- CREATED ---
@@ -40,6 +40,7 @@ public class Test {
 			public void created() {
 
 				// Created
+				this.logger.debug("Service created!");
 				processData();
 			}
 
@@ -60,10 +61,13 @@ public class Test {
 			// --- METHODS ---
 
 			int processData() {
+				this.logger.info("Process data invoked!");
 				return 1;
 			}
 
 		});
+		
+		broker.start();
 
 		// ---------
 
