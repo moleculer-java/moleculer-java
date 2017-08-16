@@ -83,44 +83,8 @@ public class RedisTransporter extends Transporter {
 				clientSub = client.connectPubSub(new ByteArrayCodec());
 
 			}
-		}
-		clientPub = clientSub.async();
-	}
-
-	// --- DISCONNECT ---
-
-	@Override
-	public void disconnect() {
-		clientPub = null;
-		if (clientSub != null) {
-			clientSub.close();
-			clientSub = null;
-		}
-	}
-
-	// --- SUBSCRIBE ---
-
-	public void subscribe(String cmd, String nodeID) {
-		if (clientSub != null) {
+			
 			clientSub.addListener(new RedisPubSubListener<byte[], byte[]>() {
-
-				private final byte[] filter = getTopicName(cmd, nodeID).getBytes(StandardCharsets.UTF_8);
-
-				@Override
-				public final void unsubscribed(byte[] channel, long count) {
-				}
-
-				@Override
-				public final void subscribed(byte[] channel, long count) {
-				}
-
-				@Override
-				public final void punsubscribed(byte[] pattern, long count) {
-				}
-
-				@Override
-				public final void psubscribed(byte[] pattern, long count) {
-				}
 
 				@Override
 				public final void message(byte[] pattern, byte[] channel, byte[] message) {
@@ -129,19 +93,6 @@ public class RedisTransporter extends Transporter {
 
 				@Override
 				public final void message(byte[] channel, byte[] message) {
-
-					// Message received
-					int p = filter.length;
-					if (channel.length < p) {
-						return;
-					}
-					int i = 0;
-					while (--p >= 0) {
-						if (channel[i] != filter[i]) {
-							return;
-						}
-						i++;
-					}
 
 					// TODO format?
 					try {
@@ -162,7 +113,54 @@ public class RedisTransporter extends Transporter {
 					}
 				}
 
+				@Override
+				public void subscribed(byte[] channel, long count) {
+					// TODO Auto-generated method stub
+					
+				}
+
+				@Override
+				public void psubscribed(byte[] pattern, long count) {
+					// TODO Auto-generated method stub
+					
+				}
+
+				@Override
+				public void unsubscribed(byte[] channel, long count) {
+					// TODO Auto-generated method stub
+					
+				}
+
+				@Override
+				public void punsubscribed(byte[] pattern, long count) {
+					// TODO Auto-generated method stub
+					
+				}
+
 			});
+			
+			
+		}
+		clientPub = clientSub.async();
+		
+	}
+
+	// --- DISCONNECT ---
+
+	@Override
+	public void disconnect() {
+		clientPub = null;
+		if (clientSub != null) {
+			clientSub.close();
+			clientSub = null;
+		}
+	}
+
+	// --- SUBSCRIBE ---
+
+	public void subscribe(String cmd, String nodeID) {
+		if (clientPub != null) {
+			clientPub.subscribe(getTopicName(cmd, nodeID).getBytes(StandardCharsets.UTF_8));		
 		}
 	}
 
