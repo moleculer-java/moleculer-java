@@ -4,6 +4,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 
+import services.moleculer.cachers.MemoryCacher;
+
 public class Test {
 
 	@SuppressWarnings("unused")
@@ -37,6 +39,13 @@ public class Test {
 				return null;
 			};
 
+			// --- EVENT LISTENERS ---
+			
+			// Context, Tree, or Object????
+			public Listener test = (input) -> {
+				
+			};
+			
 			// --- METHODS ---
 
 			int processData() {
@@ -88,7 +97,24 @@ public class Test {
 		});
 		
 		broker.emit("testX", "Hello EventBus1!");
-				
+		
+		// -------------------
+		
+		MemoryCacher c = new MemoryCacher();
+	    
+		c.set("a.1", "a.1!");
+		c.set("a.a.a", "a.a.a!");
+		c.set("a.xxx", "a.xxx!");
+		
+		System.out.println(c.get("a.1"));
+		System.out.println(c.get("a.a.a"));
+		System.out.println(c.get("a.xxx"));
+		
+		c.clean("a.*");
+
+		System.out.println(c.get("a.1"));
+		System.out.println(c.get("a.a.a"));
+		System.out.println(c.get("a.xxx"));
 	}
 
 }

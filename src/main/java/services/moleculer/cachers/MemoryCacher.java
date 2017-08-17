@@ -1,121 +1,139 @@
 package services.moleculer.cachers;
 
+import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import services.moleculer.ServiceBroker;
 import services.moleculer.utils.GlobMatcher;
 
 public class MemoryCacher extends Cacher {
 
 	// --- CACHE VARIABLES ---
 
-	private int capacity = 2048;
+	private final int capacityPerPartition;
 
-	private Lock readerLock;
-	private Lock writerLock;
+	private final Lock readerLock;
+	private final Lock writerLock;
 
-	private LinkedHashMap<String, Object> cache;
+	// --- PARTITIONS / CACHE REGIONS ---
+
+	private final HashMap<String, MemoryPartition> partitions = new HashMap<>();
 
 	// --- CONSTUCTORS ---
 
 	public MemoryCacher() {
-		super();
+		this(DEFAULT_PREFIX, 1024);
 	}
 
 	public MemoryCacher(String prefix) {
+		this(prefix, 1024);
+	}
+
+	public MemoryCacher(String prefix, int capacityPerPartition) {
 		super(prefix);
-	}
-
-	public MemoryCacher(String prefix, long ttl) {
-		super(prefix, ttl);
-	}
-
-	public MemoryCacher(String prefix, long ttl, int capacity) {
-		super(prefix, ttl);
-		this.capacity = capacity;
-	}
-
-	// --- INIT CACHE INSTANCE ---
-
-	/**
-	 * Initializes cacher instance.
-	 * 
-	 * @param broker
-	 */
-	public void init(ServiceBroker broker) {
+		this.capacityPerPartition = capacityPerPartition;
 		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);
 		readerLock = lock.readLock();
 		writerLock = lock.writeLock();
-		cache = new LinkedHashMap<String, Object>(capacity + 1, 1.0f, true) {
-
-			private static final long serialVersionUID = 5994447707758047152L;
-
-			protected final boolean removeEldestEntry(Map.Entry<String, Object> entry) {
-				if (this.size() > capacity) {
-					return true;
-				}
-				return false;
-			};
-		};
 	}
 
 	// --- CLOSE CACHE INSTANCE ---
 
 	@Override
 	public void close() {
-		cache.clear();
+		partitions.clear();
 	}
 
 	// --- CACHE METHODS ---
 
 	@Override
 	public Object get(String key) {
-		readerLock.lock();
-		try {
-			return cache.get(key);
-		} finally {
-			readerLock.unlock();
+		int pos = key.indexOf('.');
+		if (pos > 0) {
+			String prefix = key.substring(0, pos);
+			MemoryPartition partition;
+			readerLock.lock();
+			try {
+				partition = partitions.get(prefix);
+			} finally {
+				readerLock.unlock();
+			}
+			if (partition == null) {
+				return null;
+			}
+			return partition.get(key.substring(pos + 1));
 		}
+		return null;
 	}
 
 	@Override
 	public void set(String key, Object value) {
-		writerLock.lock();
-		try {
-			cache.put(key, value);
-		} finally {
-			writerLock.unlock();
+		int pos = key.indexOf('.');
+		if (pos > 0) {
+			String prefix = key.substring(0, pos);
+			MemoryPartition partition;
+			writerLock.lock();
+			try {
+				partition = partitions.get(prefix);
+				if (partition == null) {
+					partition = new MemoryPartition(capacityPerPartition);
+					partitions.put(prefix, partition);
+				}
+			} finally {
+				writerLock.unlock();
+			}
+			partition.set(key.substring(pos + 1), value);
 		}
 	}
 
 	@Override
 	public void del(String key) {
-		writerLock.lock();
-		try {
-			cache.remove(key);
-		} finally {
-			writerLock.unlock();
+		int pos = key.indexOf('.');
+		if (pos > 0) {
+			String prefix = key.substring(0, pos);
+			MemoryPartition partition;
+			readerLock.lock();
+			try {
+				partition = partitions.get(prefix);
+			} finally {
+				readerLock.unlock();
+			}
+			if (partition != null) {
+				partition.del(key.substring(pos + 1));
+			}
 		}
 	}
 
 	@Override
 	public void clean(String match) {
-		writerLock.lock();
-		try {
-			if (match == null) {
-				cache.clear();
-			} else {
-				match = match.trim();
-				if (match.isEmpty() || "*".equals(match) || "**".equals(match)) {
-					cache.clear();
+		int pos = match.indexOf('.');
+		if (pos > 0) {
+			
+			// Remove items in partitions
+			String prefix = match.substring(0, pos);
+			MemoryPartition partition;
+			readerLock.lock();
+			try {
+				partition = partitions.get(prefix);
+			} finally {
+				readerLock.unlock();
+			}
+			if (partition != null) {
+				partition.clean(match.substring(pos + 1));
+			}
+			
+		} else {
+			
+			// Remove entire partitions
+			writerLock.lock();
+			try {
+				if (match.isEmpty() || match.startsWith("*")) {
+					partitions.clear();
 				} else if (match.indexOf('*') == -1) {
-					cache.remove(match);		
+					partitions.remove(match);
 				} else {
-					Iterator<String> i = cache.keySet().iterator();
+					Iterator<String> i = partitions.keySet().iterator();
 					String key;
 					while (i.hasNext()) {
 						key = i.next();
@@ -124,9 +142,9 @@ public class MemoryCacher extends Cacher {
 						}
 					}
 				}
+			} finally {
+				writerLock.unlock();
 			}
-		} finally {
-			writerLock.unlock();
 		}
 	}
 

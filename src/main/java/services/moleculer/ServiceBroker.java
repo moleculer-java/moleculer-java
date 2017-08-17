@@ -2,18 +2,12 @@ package services.moleculer;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map.Entry;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.datatree.Tree;
 import services.moleculer.cachers.Cacher;
-import services.moleculer.utils.GlobMatcher;
+import services.moleculer.utils.EventBus;
 
 public class ServiceBroker {
 
@@ -28,28 +22,10 @@ public class ServiceBroker {
 	public Logger logger;
 	public Cacher cacher;
 
-	// --- EVENT BUS VARIABLES ---
-
-	/**
-	 * Main listener registry of the Event Bus
-	 */
-	private final HashMap<String, HashMap<Listener, Boolean>> listeners;
-
-	/**
-	 * Cache of the Event Bus
-	 */
-	private final io.datatree.dom.Cache<String, Listener[]> listenerCache;
-
-	/**
-	 * Reader lock of the Event Bus
-	 */
-	private final Lock readerLock;
-
-	/**
-	 * Writer lock of the Event Bus
-	 */
-	private final Lock writerLock;
-
+	// --- INTERNAL EVENT BUS ---
+	
+	private final EventBus eventBus = new EventBus();
+	
 	// --- CONSTRUCTOR ---
 
 	/**
@@ -66,13 +42,6 @@ public class ServiceBroker {
 				this.logger.warn("Can't resolve hostname!");
 			}
 		}
-		
-		// Init Event Bus
-		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
-		readerLock = lock.readLock();
-		writerLock = lock.writeLock();
-		listeners = new HashMap<>(2048);
-		listenerCache = new io.datatree.dom.Cache<>(2048, true);
 	}
 
 	/**
@@ -243,36 +212,17 @@ public class ServiceBroker {
 	 * @param handler
 	 */
 	public void on(String name, Listener handler) {
-		register(name, handler, false);
+		eventBus.on(name, handler, false);
 	}
 
 	/**
 	 * Subscribe to an event once
 	 * 
 	 * @param name
-	 * @param handler
+	 * @param listener
 	 */
 	public void once(String name, Listener handler) {
-		register(name, handler, true);
-	}
-	
-	private void register(String name, Listener handler, boolean once) {
-
-		// Lock getter and setter threads
-		writerLock.lock();
-		try {
-			HashMap<Listener, Boolean> handlers = listeners.get(name);
-			if (handlers == null) {
-				handlers = new HashMap<>();
-				listeners.put(name, handlers);
-			}
-			handlers.put(handler, once);
-		} finally {
-			writerLock.unlock();
-		}
-
-		// Clear cache
-		listenerCache.clear();
+		eventBus.on(name, handler, true);
 	}
 	
 	// --- REMOVE EVENT LISTENER FROM THE EVENT BUS ---
@@ -281,47 +231,10 @@ public class ServiceBroker {
 	 * Unsubscribe from an event
 	 * 
 	 * @param name
-	 * @param handler
+	 * @param listener
 	 */
-	public void off(String name, Object handler) {
-		
-		// Check listener
-		boolean found = false;
-
-		// Lock setter threads
-		readerLock.lock();
-		try {
-			HashMap<Listener, Boolean> handlers = listeners.get(name);
-			if (handlers != null) {
-				found = handlers.containsKey(handler);
-			}
-		} finally {
-			readerLock.unlock();
-		}
-
-		// Remove listener
-		if (found) {
-
-			// Lock getter and setter threads
-			writerLock.lock();
-			try {
-				HashMap<Listener, Boolean> handlers = listeners.get(name);
-				if (handlers != null) {
-
-					// Remove listener
-					handlers.remove(handler);
-					if (handlers.isEmpty()) {
-						listeners.remove(name);
-					}
-
-				}
-			} finally {
-				writerLock.unlock();
-			}
-
-			// Clear cache
-			listenerCache.clear();
-		}
+	public void off(String name, Listener handler) {
+		eventBus.off(name, handler);
 	}
 	
 	// --- EMIT EVENTS VIA EVENT BUS ---
@@ -333,9 +246,7 @@ public class ServiceBroker {
 	 * @param payload
 	 */
 	public void emit(String name, Object payload) {
-		emitLocal(name, payload, null);
-		
-		// + Send via transporter?
+		eventBus.emit(name, payload, nodeID);
 	}
 	
 	/**
@@ -345,98 +256,7 @@ public class ServiceBroker {
 	 * @param payload
 	 */
 	public void emitLocal(String name, Object payload, String sender) {
-
-		// Get from cache
-		Listener[] cachedListeners = listenerCache.get(name);
-		
-		// If not found...
-		if (cachedListeners == null) {
-
-			// Collected handlers
-			final HashSet<Listener> collected = new HashSet<Listener>();
-
-			// Processing variables
-			Entry<String, HashMap<Listener, Boolean>> mappedEntry;
-			HashMap<Listener, Boolean> listenersAndOnce;
-			Iterator<Entry<Listener, Boolean>> listenersAndOnceIterator;
-			Entry<Listener, Boolean> listenerAndOnce;
-			boolean foundOnce = false;
-
-			// Lock getter and setter threads
-			writerLock.lock();
-			try {
-
-				// Iterator of all listener mappings
-				final Iterator<Entry<String, HashMap<Listener, Boolean>>> mappingIterator = listeners.entrySet()
-						.iterator();
-
-				// Collect listeners
-				while (mappingIterator.hasNext()) {
-					mappedEntry = mappingIterator.next();
-					listenersAndOnce = mappedEntry.getValue();
-
-					// Matches?
-					if (GlobMatcher.matches(name, mappedEntry.getKey())) {
-						listenersAndOnceIterator = listenersAndOnce.entrySet().iterator();
-						while (listenersAndOnceIterator.hasNext()) {
-							listenerAndOnce = listenersAndOnceIterator.next();
-
-							// Invoke once?
-							if (listenerAndOnce.getValue()) {
-								listenersAndOnceIterator.remove();
-								foundOnce = true;
-							}
-
-							// Add to listener set
-							collected.add(listenerAndOnce.getKey());
-						}
-					}
-
-					// Empty map?
-					if (listenersAndOnce.isEmpty()) {
-						mappingIterator.remove();
-						continue;
-					}
-				}
-
-			} finally {
-				writerLock.unlock();
-			}
-
-			// Convert listener set to array
-			if (collected.isEmpty()) {
-				cachedListeners = new Listener[0];
-			} else {
-				cachedListeners = new Listener[collected.size()];
-				collected.toArray(cachedListeners);
-			}
-
-			// Store into cache
-			if (!foundOnce) {
-				listenerCache.put(name, cachedListeners);
-			}
-		}
-		
-		// Invoke one listener without looping
-		if (cachedListeners.length == 1) {
-			try {
-				cachedListeners[0].on(payload);
-			} catch (Exception cause) {
-				cause.printStackTrace();
-			}
-			return;
-		}
-
-		// Invoke more listeners in loop
-		if (cachedListeners.length > 1) {
-			for (Listener listener : cachedListeners) {
-				try {
-					listener.on(payload);
-				} catch (Exception cause) {
-					cause.printStackTrace();
-				}
-			}
-		}
+		eventBus.emit(name, payload, sender);
 	}
 	
 }
