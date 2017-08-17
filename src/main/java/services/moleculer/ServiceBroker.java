@@ -13,6 +13,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.datatree.Tree;
 import services.moleculer.cachers.Cacher;
+import services.moleculer.utils.GlobMatcher;
 
 public class ServiceBroker {
 
@@ -32,12 +33,12 @@ public class ServiceBroker {
 	/**
 	 * Main listener registry of the Event Bus
 	 */
-	private final HashMap<String, HashMap<EventHandler, Boolean>> listeners;
+	private final HashMap<String, HashMap<Listener, Boolean>> listeners;
 
 	/**
 	 * Cache of the Event Bus
 	 */
-	private final io.datatree.dom.Cache<String, EventHandler[]> listenerCache;
+	private final io.datatree.dom.Cache<String, Listener[]> listenerCache;
 
 	/**
 	 * Reader lock of the Event Bus
@@ -241,7 +242,7 @@ public class ServiceBroker {
 	 * @param name
 	 * @param handler
 	 */
-	public void on(String name, EventHandler handler) {
+	public void on(String name, Listener handler) {
 		register(name, handler, false);
 	}
 
@@ -251,16 +252,16 @@ public class ServiceBroker {
 	 * @param name
 	 * @param handler
 	 */
-	public void once(String name, EventHandler handler) {
+	public void once(String name, Listener handler) {
 		register(name, handler, true);
 	}
 	
-	private void register(String name, EventHandler handler, boolean once) {
+	private void register(String name, Listener handler, boolean once) {
 
 		// Lock getter and setter threads
 		writerLock.lock();
 		try {
-			HashMap<EventHandler, Boolean> handlers = listeners.get(name);
+			HashMap<Listener, Boolean> handlers = listeners.get(name);
 			if (handlers == null) {
 				handlers = new HashMap<>();
 				listeners.put(name, handlers);
@@ -290,7 +291,7 @@ public class ServiceBroker {
 		// Lock setter threads
 		readerLock.lock();
 		try {
-			HashMap<EventHandler, Boolean> handlers = listeners.get(name);
+			HashMap<Listener, Boolean> handlers = listeners.get(name);
 			if (handlers != null) {
 				found = handlers.containsKey(handler);
 			}
@@ -304,7 +305,7 @@ public class ServiceBroker {
 			// Lock getter and setter threads
 			writerLock.lock();
 			try {
-				HashMap<EventHandler, Boolean> handlers = listeners.get(name);
+				HashMap<Listener, Boolean> handlers = listeners.get(name);
 				if (handlers != null) {
 
 					// Remove listener
@@ -346,19 +347,19 @@ public class ServiceBroker {
 	public void emitLocal(String name, Object payload, String sender) {
 
 		// Get from cache
-		EventHandler[] cachedListeners = listenerCache.get(name);
+		Listener[] cachedListeners = listenerCache.get(name);
 		
 		// If not found...
 		if (cachedListeners == null) {
 
 			// Collected handlers
-			final HashSet<EventHandler> collected = new HashSet<EventHandler>();
+			final HashSet<Listener> collected = new HashSet<Listener>();
 
 			// Processing variables
-			Entry<String, HashMap<EventHandler, Boolean>> mappedEntry;
-			HashMap<EventHandler, Boolean> listenersAndOnce;
-			Iterator<Entry<EventHandler, Boolean>> listenersAndOnceIterator;
-			Entry<EventHandler, Boolean> listenerAndOnce;
+			Entry<String, HashMap<Listener, Boolean>> mappedEntry;
+			HashMap<Listener, Boolean> listenersAndOnce;
+			Iterator<Entry<Listener, Boolean>> listenersAndOnceIterator;
+			Entry<Listener, Boolean> listenerAndOnce;
 			boolean foundOnce = false;
 
 			// Lock getter and setter threads
@@ -366,7 +367,7 @@ public class ServiceBroker {
 			try {
 
 				// Iterator of all listener mappings
-				final Iterator<Entry<String, HashMap<EventHandler, Boolean>>> mappingIterator = listeners.entrySet()
+				final Iterator<Entry<String, HashMap<Listener, Boolean>>> mappingIterator = listeners.entrySet()
 						.iterator();
 
 				// Collect listeners
@@ -374,8 +375,8 @@ public class ServiceBroker {
 					mappedEntry = mappingIterator.next();
 					listenersAndOnce = mappedEntry.getValue();
 
-					// TODO Matches?
-					if (mappedEntry.getKey().startsWith(name)) {
+					// Matches?
+					if (GlobMatcher.matches(name, mappedEntry.getKey())) {
 						listenersAndOnceIterator = listenersAndOnce.entrySet().iterator();
 						while (listenersAndOnceIterator.hasNext()) {
 							listenerAndOnce = listenersAndOnceIterator.next();
@@ -404,9 +405,9 @@ public class ServiceBroker {
 
 			// Convert listener set to array
 			if (collected.isEmpty()) {
-				cachedListeners = new EventHandler[0];
+				cachedListeners = new Listener[0];
 			} else {
-				cachedListeners = new EventHandler[collected.size()];
+				cachedListeners = new Listener[collected.size()];
 				collected.toArray(cachedListeners);
 			}
 
@@ -428,7 +429,7 @@ public class ServiceBroker {
 
 		// Invoke more listeners in loop
 		if (cachedListeners.length > 1) {
-			for (EventHandler listener : cachedListeners) {
+			for (Listener listener : cachedListeners) {
 				try {
 					listener.on(payload);
 				} catch (Exception cause) {

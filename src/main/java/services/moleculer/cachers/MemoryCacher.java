@@ -7,6 +7,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import services.moleculer.ServiceBroker;
+import services.moleculer.utils.GlobMatcher;
 
 public class MemoryCacher extends Cacher {
 
@@ -109,8 +110,6 @@ public class MemoryCacher extends Cacher {
 				cache.clear();
 			} else {
 				match = match.trim();
-				
-				// TODO Wich is the correct; "*" or "**"?
 				if (match.isEmpty() || "*".equals(match) || "**".equals(match)) {
 					cache.clear();
 				} else if (match.indexOf('*') == -1) {
@@ -120,9 +119,7 @@ public class MemoryCacher extends Cacher {
 					String key;
 					while (i.hasNext()) {
 						key = i.next();
-
-						// TODO implement matcher
-						if (key != null) {
+						if (GlobMatcher.matches(key, match)) {
 							i.remove();
 						}
 					}

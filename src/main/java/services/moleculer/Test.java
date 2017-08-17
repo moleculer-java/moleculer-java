@@ -81,13 +81,14 @@ public class Test {
 
 		// ------------------
 
-		broker.on("test", (payload) -> {
+		broker.on("tes?X", (payload) -> {
 			
 			System.out.println("RECEIVED: " + payload);
 			
 		});
 		
-		broker.emit("test", "Hello EventBus!");
+		broker.emit("testX", "Hello EventBus1!");
+				
 	}
 
 }

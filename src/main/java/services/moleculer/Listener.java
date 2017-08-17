@@ -1,7 +1,7 @@
 package services.moleculer;
 
 @FunctionalInterface
-public interface EventHandler {
+public interface Listener {
 
 	void on(Object payload) throws Exception;
 	
