@@ -118,4 +118,9 @@ public class Context {
 	protected void metricFinish(Throwable error, boolean emitEvent) {
 		
 	}
+	
+	public static Context create(ServiceBroker broker, Action action, String nodeID, Tree params, CallingOptions opts) {
+		// TODO
+		return new Context(broker, action);		
+	}
 }

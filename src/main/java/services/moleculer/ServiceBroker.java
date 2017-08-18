@@ -179,19 +179,6 @@ public class ServiceBroker {
 	}
 
 	/**
-	 * Create a new Context instance
-	 * 
-	 * @param action
-	 * @param nodeID
-	 * @param params
-	 * @param opts
-	 * @return
-	 */
-	public Context createNewContext(Action action, String nodeID, Tree params, CallingOptions opts) {
-		return null;
-	}
-
-	/**
 	 * Call an action (local or remote)
 	 * 
 	 * @param actionName
@@ -247,6 +234,9 @@ public class ServiceBroker {
 	 */
 	public void emit(String name, Object payload) {
 		eventBus.emit(name, payload, nodeID);
+		
+		//if (this.transit)
+		//	this.transit.emit(name, payload);
 	}
 	
 	/**

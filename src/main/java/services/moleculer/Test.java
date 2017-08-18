@@ -90,13 +90,25 @@ public class Test {
 
 		// ------------------
 
-		broker.on("tes?X", (payload) -> {
-			
-			System.out.println("RECEIVED: " + payload);
-			
+		broker.on("user.create", (payload) -> {			
+			System.out.println("RECEIVED in 'user.create': " + payload);			
 		});
-		
-		broker.emit("testX", "Hello EventBus1!");
+		broker.on("user.created", (payload) -> {			
+			System.out.println("RECEIVED in 'user.created': " + payload);			
+		});
+		broker.on("user.*", (payload) -> {			
+			System.out.println("RECEIVED in 'user.*': " + payload);			
+		});
+		broker.on("post.*", (payload) -> {			
+			System.out.println("RECEIVED in 'post.*': " + payload);			
+		});
+		broker.on("*", (payload) -> {			
+			System.out.println("RECEIVED in '*': " + payload);			
+		});
+		broker.on("**", (payload) -> {			
+			System.out.println("RECEIVED in '**': " + payload);			
+		});		
+		broker.emit("user.created", "Hello EventBus1!");
 		
 		// -------------------
 		
