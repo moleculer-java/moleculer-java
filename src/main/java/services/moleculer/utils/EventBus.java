@@ -41,7 +41,7 @@ public final class EventBus {
 		readerLock = lock.readLock();
 		writerLock = lock.writeLock();
 		listeners = new HashMap<>(2048);
-		listenerCache = new io.datatree.dom.Cache<>(2048, true);
+		listenerCache = new Cache<>(2048, true);
 	}
 	
 	// --- REGISTER LISTENER ----
