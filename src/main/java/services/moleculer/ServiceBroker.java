@@ -24,7 +24,7 @@ public class ServiceBroker {
 
 	// --- INTERNAL EVENT BUS ---
 	
-	private final EventBus eventBus = new EventBus();
+	private final EventBus bus = new EventBus();
 	
 	// --- CONSTRUCTOR ---
 
@@ -199,7 +199,7 @@ public class ServiceBroker {
 	 * @param handler
 	 */
 	public void on(String name, Listener handler) {
-		eventBus.on(name, handler, false);
+		this.bus.on(name, handler, false);
 	}
 
 	/**
@@ -209,7 +209,7 @@ public class ServiceBroker {
 	 * @param listener
 	 */
 	public void once(String name, Listener handler) {
-		eventBus.on(name, handler, true);
+		this.bus.on(name, handler, true);
 	}
 	
 	// --- REMOVE EVENT LISTENER FROM THE EVENT BUS ---
@@ -221,7 +221,7 @@ public class ServiceBroker {
 	 * @param listener
 	 */
 	public void off(String name, Listener handler) {
-		eventBus.off(name, handler);
+		this.bus.off(name, handler);
 	}
 	
 	// --- EMIT EVENTS VIA EVENT BUS ---
@@ -233,7 +233,7 @@ public class ServiceBroker {
 	 * @param payload
 	 */
 	public void emit(String name, Object payload) {
-		eventBus.emit(name, payload, nodeID);
+		this.bus.emit(name, payload, nodeID);
 		
 		//if (this.transit)
 		//	this.transit.emit(name, payload);
@@ -246,7 +246,7 @@ public class ServiceBroker {
 	 * @param payload
 	 */
 	public void emitLocal(String name, Object payload, String sender) {
-		eventBus.emit(name, payload, sender);
+		this.bus.emit(name, payload, sender);
 	}
 	
 }

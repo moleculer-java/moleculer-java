@@ -7,8 +7,8 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.FIELD, ElementType.TYPE })
-public @interface Cache {
+public @interface Version {
 
-	boolean value() default true;
+	String value() default "1";
 	
 }

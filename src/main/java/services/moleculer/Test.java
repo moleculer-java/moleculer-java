@@ -27,14 +27,15 @@ public class Test {
 
 			// --- ACTIONS ---
 
-			@Cache(true)
+			@Cache()
+			@Version()
 			public Action list = (ctx) -> {
 				return this.processData();
 			};
 
 			@Cache(false)
+			@Version("v2")
 			public Action add = (ctx) -> {
-				
 				
 				return null;
 			};
