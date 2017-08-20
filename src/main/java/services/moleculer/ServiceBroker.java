@@ -186,7 +186,7 @@ public class ServiceBroker {
 	 * @param opts
 	 * @return
 	 */
-	public Object call(String actionName, Tree params, CallingOptions opts) {
+	public Object call(String actionName, Tree params, CallingOptions opts) throws Exception {
 		return null;
 	}
 
