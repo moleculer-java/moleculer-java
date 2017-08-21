@@ -9,6 +9,6 @@ import java.lang.annotation.Target;
 @Target({ ElementType.FIELD, ElementType.TYPE })
 public @interface Version {
 
-	String value() default "1";
+	String value();
 	
 }

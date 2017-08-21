@@ -28,7 +28,7 @@ public class Test {
 			// --- ACTIONS ---
 
 			@Cache()
-			@Version()
+			@Version("v1")
 			public Action list = (ctx) -> {
 				return this.processData();
 			};

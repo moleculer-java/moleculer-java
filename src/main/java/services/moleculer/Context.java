@@ -17,14 +17,14 @@ public class Context {
 	public final ServiceBroker broker;
 
 	/**
-	 * Action definition
+	 * Node ID
 	 */
-	public final Action action;
+	public String nodeID;
 
 	/**
 	 * Node ID
 	 */
-	public String nodeID;
+	public String name;
 
 	/**
 	 * Parent Context ID
@@ -75,12 +75,12 @@ public class Context {
 
 	// --- CONSTUCTORS ---
 
-	public Context(ServiceBroker broker, Action action) {
+	public Context(ServiceBroker broker, String nodeID, String name) {
 
 		this.id = null;
 
 		this.broker = broker;
-		this.action = action;
+		this.name = name;
 		this.nodeID = null;
 		this.parentID = null;
 
@@ -121,6 +121,6 @@ public class Context {
 	
 	public static Context create(ServiceBroker broker, Action action, String nodeID, Tree params, CallingOptions opts) {
 		// TODO
-		return new Context(broker, action);		
+		return null;		
 	}
 }

@@ -30,7 +30,7 @@ public abstract class Service {
 	public void created() {
 	}
 
-	public void started() {
+	public void started() throws Exception {
 	}
 	
 	public void stopped() {

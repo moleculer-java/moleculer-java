@@ -80,7 +80,7 @@ public class RedisCacher extends Cacher {
 	 * 
 	 * @param broker
 	 */
-	public void init(ServiceBroker broker) {
+	public void init(ServiceBroker broker) throws Exception {
 		super.init(broker);
 		if (client == null && clusteredClient == null) {
 

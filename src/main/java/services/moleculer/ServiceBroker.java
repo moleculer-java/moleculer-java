@@ -2,65 +2,119 @@ package services.moleculer;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.HashMap;
 
 import io.datatree.Tree;
+import services.moleculer.actions.ActionRegistry;
 import services.moleculer.cachers.Cacher;
+import services.moleculer.transporters.Transporter;
 import services.moleculer.utils.EventBus;
 
 public class ServiceBroker {
 
 	// Local services
-	private List<Service> services = new LinkedList<Service>();
+	private HashMap<String, Service> services = new HashMap<>();
 
-	// Registered middlewares
-	// private List<Object> middlewares = new LinkedList<Object>();
+	private final Logger logger;
 
-	public String namespace = "";
-	public String nodeID;
-	public Logger logger;
-	public Cacher cacher;
+	// --- INTERNAL OBJECTS ---
 
-	// --- INTERNAL EVENT BUS ---
-	
-	private final EventBus bus = new EventBus();
-	
-	// --- CONSTRUCTOR ---
+	private final String nodeID;
+	private final EventBus bus;
+	private final Cacher cacher;
+	private final Transporter transporter;
+	private final InvocationStrategy invocationStrategy;
+	private final ActionRegistry actionRegistry;
 
-	/**
-	 * Creates an instance of ServiceBroker.
-	 * 
-	 * @param options
-	 */
+	// --- CONSTRUCTORS ---
+
 	public ServiceBroker() {
+		this(null, null, null, null);
+	}
+
+	public ServiceBroker(String nodeID, Cacher cacher, Transporter transporter, InvocationStrategy invocationStrategy) {
+
+		// TODO
 		this.logger = this.getLogger("broker");
-		if (this.nodeID == null || this.nodeID.isEmpty()) {
+		int initialCapacity = 2048;
+		boolean fair = true;
+		
+		// Init internal objects
+		String id = nodeID;
+		if (id == null || id.isEmpty()) {
 			try {
-				this.nodeID = InetAddress.getLocalHost().getHostName();
+				id = InetAddress.getLocalHost().getHostName();
 			} catch (UnknownHostException e) {
 				this.logger.warn("Can't resolve hostname!");
 			}
 		}
+		this.nodeID = id == null || id.isEmpty() ? "default" : id;
+		this.bus = new EventBus(initialCapacity, fair);
+		this.cacher = cacher;
+		this.transporter = transporter;
+		this.invocationStrategy = invocationStrategy;
+		this.actionRegistry = new ActionRegistry(this, fair);
 	}
+
+	// --- START BROKER INSTANCE ---
 
 	/**
 	 * Start broker. If has transporter, transporter.connect will be called.
 	 */
-	public void start() {
-		// Call `started` of all services
-		// Start transit.connect if transporter is defined
+	public void start() throws Exception {
 
-		this.logger.info("Broker started! NodeID: " + this.nodeID);
+		// Init services
+		for (Service service : services.values()) {
+			service.started();
+		}
+
+		// Init cacher
+		if (cacher != null) {
+			cacher.init(this);
+		}
+
+		// Init transporter
+		if (transporter != null) {
+			transporter.init(this);
+		}
+
+		// Log
+		logger.info("Broker started! NodeID: " + this.nodeID);
 	}
 
 	/**
 	 * Stop broker. If has transporter, transporter.disconnect will be called.
 	 */
 	public void stop() {
-		// Call `stopped` of all services
-		// Start transit.disconnect if transporter is defined
 
+		// Init services
+		for (Service service : services.values()) {
+			try {
+				service.stopped();
+			} catch (Throwable cause) {
+				logger.warn("Unable to stop service!");
+			}
+		}
+
+		// Stop cacher
+		if (cacher != null) {
+			try {
+				cacher.close();
+			} catch (Throwable cause) {
+				logger.warn("Unable to stop cacher!");
+			}
+		}
+
+		// Stop transporter
+		if (transporter != null) {
+			try {
+				transporter.disconnect();
+			} catch (Throwable cause) {
+				logger.warn("Unable to stop transporter!");
+			}
+		}
+
+		// Log
 		this.logger.info("Broker stopped! NodeID: " + this.nodeID);
 	}
 
@@ -102,8 +156,10 @@ public class ServiceBroker {
 	 * @return
 	 */
 	public <T extends Service> T createService(T service) {
-		this.services.add(service);
 
+		services.put(service.name, service);
+
+		service.created();
 		return service;
 	}
 
@@ -114,7 +170,8 @@ public class ServiceBroker {
 	 */
 	public void destroyService(Service service) {
 		service.stopped();
-		this.services.remove(service);
+
+		services.remove(service.name);
 
 		// TODO: Notify all other nodes
 	}
@@ -126,7 +183,7 @@ public class ServiceBroker {
 	 * @return
 	 */
 	public Service getService(String serviceName) {
-		return null;
+		return services.get(serviceName);
 	}
 
 	/**
@@ -136,7 +193,7 @@ public class ServiceBroker {
 	 * @return
 	 */
 	public boolean hasService(String serviceName) {
-		return false;
+		return services.containsKey(serviceName);
 	}
 
 	/**
@@ -145,8 +202,18 @@ public class ServiceBroker {
 	 * @param actionName
 	 * @return
 	 */
+	public boolean hasAction(String nodeID, String actionName) {
+		return getAction(nodeID, actionName) != null;
+	}
+	
+	/**
+	 * Has an action by name
+	 * 
+	 * @param actionName
+	 * @return
+	 */
 	public boolean hasAction(String actionName) {
-		return false;
+		return getAction(actionName) != null;
 	}
 
 	/**
@@ -156,7 +223,17 @@ public class ServiceBroker {
 	 * @return
 	 */
 	public Action getAction(String actionName) {
-		return null;
+		return actionRegistry.getAction(null, actionName);
+	}
+
+	/**
+	 * Get an action by name
+	 * 
+	 * @param actionName
+	 * @return
+	 */
+	public Action getAction(String nodeID, String actionName) {
+		return actionRegistry.getAction(nodeID, actionName);
 	}
 
 	/**
@@ -187,11 +264,12 @@ public class ServiceBroker {
 	 * @return
 	 */
 	public Object call(String actionName, Tree params, CallingOptions opts) throws Exception {
-		return null;
+		Context ctx = null;
+		return actionRegistry.handler(ctx);
 	}
 
 	// --- ADD EVENT LISTENER TO THE EVENT BUS ---
-	
+
 	/**
 	 * Subscribe to an event
 	 * 
@@ -199,7 +277,7 @@ public class ServiceBroker {
 	 * @param handler
 	 */
 	public void on(String name, Listener handler) {
-		this.bus.on(name, handler, false);
+		bus.on(name, handler, false);
 	}
 
 	/**
@@ -209,11 +287,11 @@ public class ServiceBroker {
 	 * @param listener
 	 */
 	public void once(String name, Listener handler) {
-		this.bus.on(name, handler, true);
+		bus.on(name, handler, true);
 	}
-	
+
 	// --- REMOVE EVENT LISTENER FROM THE EVENT BUS ---
-	
+
 	/**
 	 * Unsubscribe from an event
 	 * 
@@ -221,9 +299,9 @@ public class ServiceBroker {
 	 * @param listener
 	 */
 	public void off(String name, Listener handler) {
-		this.bus.off(name, handler);
+		bus.off(name, handler);
 	}
-	
+
 	// --- EMIT EVENTS VIA EVENT BUS ---
 
 	/**
@@ -233,12 +311,12 @@ public class ServiceBroker {
 	 * @param payload
 	 */
 	public void emit(String name, Object payload) {
-		this.bus.emit(name, payload, nodeID);
-		
-		//if (this.transit)
-		//	this.transit.emit(name, payload);
+		bus.emit(name, payload, nodeID);
+		if (transporter != null) {
+			transporter.publish(null);
+		}
 	}
-	
+
 	/**
 	 * Emit an event (global & local)
 	 * 
@@ -246,7 +324,25 @@ public class ServiceBroker {
 	 * @param payload
 	 */
 	public void emitLocal(String name, Object payload, String sender) {
-		this.bus.emit(name, payload, sender);
+		bus.emit(name, payload, sender);
 	}
-	
+
+	// --- GETTERS ---
+
+	public Cacher getCacher() {
+		return cacher;
+	}
+
+	public String getNodeID() {
+		return nodeID;
+	}
+
+	public Transporter getTransporter() {
+		return transporter;
+	}
+
+	public InvocationStrategy getInvocationStrategy() {
+		return invocationStrategy;
+	}
+
 }

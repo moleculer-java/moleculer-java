@@ -39,12 +39,11 @@ public abstract class Transporter {
 
 	// --- INIT TRANSPORTER INSTANCE ---
 
-	public void init(Transit transit, MessageHandler messageHandler, AfterConnect afterConnect) {
+	public void init(ServiceBroker broker) {
 		if (transit != null) {
 			this.transit = transit;
 			this.broker = transit.getServiceBroker();
 			this.nodeID = transit.getNodeID();
-			
 			if (this.broker != null) {
 				this.logger = this.broker.getLogger("transporter");
 			}

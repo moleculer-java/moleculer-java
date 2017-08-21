@@ -45,17 +45,17 @@ public abstract class Cacher {
 		this.ttl = ttl;
 	}
 
-	// --- INIT CACHE INSTANCE ---
+	// --- START CACHE INSTANCE ---
 	
 	/**
 	 * Initializes cacher instance.
 	 * 
 	 * @param broker
 	 */
-	public void init(ServiceBroker broker) {
+	public void init(ServiceBroker broker) throws Exception {
 	}
 
-	// --- CLOSE CACHE INSTANCE ---
+	// --- STOP CACHE INSTANCE ---
 	
 	/**
 	 * Closes cacher.

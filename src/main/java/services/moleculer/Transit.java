@@ -66,7 +66,7 @@ public class Transit {
 		};
 		
 		if (this.tx != null) {
-			this.tx.init(this, messageHandler, afterConnect);
+			//this.tx.init(this, messageHandler, afterConnect);
 		}
 	}
 	
