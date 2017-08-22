@@ -9,7 +9,7 @@ public class Context {
 	/**
 	 * Context ID
 	 */
-	public String id;
+	public final String id;
 
 	/**
 	 * Broker instance
@@ -19,18 +19,29 @@ public class Context {
 	/**
 	 * Node ID
 	 */
-	public String nodeID;
+	public final String nodeID;
 
 	/**
-	 * Node ID
+	 * Action
 	 */
-	public String name;
+	public final Action action;
 
 	/**
 	 * Parent Context ID
 	 */
-	public String parentID;
+	public final String parentID;
 
+	/**
+	 * Parameters
+	 */
+	public final Tree params;
+
+	/**
+	 * Metadata
+	 */
+	public final Tree meta;
+	
+	
 	/**
 	 * Need send metrics events
 	 */
@@ -50,16 +61,6 @@ public class Context {
 	 * Count of retries
 	 */
 	public int retryCount;
-
-	/**
-	 * Parameters
-	 */
-	public Tree params;
-
-	/**
-	 * Metadata
-	 */
-	public final Tree meta;
 	
 	// --- METRICS PROPERTIES ---
 	
@@ -75,24 +76,14 @@ public class Context {
 
 	// --- CONSTUCTORS ---
 
-	public Context(ServiceBroker broker, String nodeID, String name) {
-
-		this.id = null;
-
+	public Context(ServiceBroker broker, Action action, Tree params) {
 		this.broker = broker;
-		this.name = name;
-		this.nodeID = null;
+		this.id = "";
+		this.action = action;
+		this.nodeID = action.getNodeID();
 		this.parentID = null;
-
-		this.metrics = false;
-		this.level = 1;
-
-		this.timeout = 0;
-		this.retryCount = 0;
-
-		this.params = new Tree();
+		this.params = params;
 		this.meta = new Tree();
-
 	}
 
 	protected void generateID() {
@@ -118,9 +109,5 @@ public class Context {
 	protected void metricFinish(Throwable error, boolean emitEvent) {
 		
 	}
-	
-	public static Context create(ServiceBroker broker, Action action, String nodeID, Tree params, CallingOptions opts) {
-		// TODO
-		return null;		
-	}
+
 }

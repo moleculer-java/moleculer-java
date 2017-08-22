@@ -15,6 +15,7 @@ abstract class ActionContainer implements Action {
 
 	protected final ServiceBroker broker;
 	protected final String nodeID;
+
 	protected final String name;
 	protected final Cacher cacher;
 	protected final boolean local;
@@ -69,12 +70,22 @@ abstract class ActionContainer implements Action {
 
 	abstract Object invoke(Context ctx) throws Exception;
 
-	// --- LOCAL / REMOTE ---
+	// --- GETTERS ---
 
-	final boolean isLocal() {
+	public final boolean isLocal() {
 		return local;
 	}
 
+	@Override
+	public final String getName() {
+		return name;
+	}
+	
+	@Override
+	public final String getNodeID() {
+		return nodeID;
+	}
+	
 	// --- EQUALS ---
 
 	@Override

@@ -2,9 +2,8 @@ package services.moleculer;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.util.HashMap;
 
-import services.moleculer.cachers.MemoryCacher;
+import io.datatree.Tree;
 
 public class Test {
 
@@ -59,34 +58,8 @@ public class Test {
 		broker.start();
 
 		// ---------
-
-		HashMap<String, Action> map = new HashMap<>();
-
-		Field[] fields = svc.getClass().getFields();
-		for (Field field : fields) {
-			if (Action.class.isAssignableFrom(field.getType())) {
-
-				// "list"
-				String name = field.getName();
-
-				// Action instance
-				Action action = (Action) field.get(svc);
-
-				Annotation[] as = field.getAnnotations();
-				for (Annotation a : as) {
-					boolean cache = ((Cache) a).value();
-				}
-
-				map.put(name, action);
-
-			}
-		}
-
-		Action action = map.get("list");
-
-		Context ctx = null;
-		Object result = action.handler(ctx);
-
+		
+		Object result = broker.call("v1.test.list", new Tree().put("a", 5), null);
 		System.out.println("RESULT: " + result);
 
 		// ------------------
@@ -110,24 +83,7 @@ public class Test {
 			System.out.println("RECEIVED in '**': " + payload);			
 		});		
 		broker.emit("user.created", "Hello EventBus1!");
-		
-		// -------------------
-		
-		MemoryCacher c = new MemoryCacher();
-	    
-		c.set("a.1", "a.1!");
-		c.set("a.a.a", "a.a.a!");
-		c.set("a.xxx", "a.xxx!");
-		
-		System.out.println(c.get("a.1"));
-		System.out.println(c.get("a.a.a"));
-		System.out.println(c.get("a.xxx"));
-		
-		c.clean("a.*");
 
-		System.out.println(c.get("a.1"));
-		System.out.println(c.get("a.a.a"));
-		System.out.println(c.get("a.xxx"));
 	}
 
 }

@@ -7,13 +7,12 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import services.moleculer.Action;
 import services.moleculer.Cache;
-import services.moleculer.Context;
 import services.moleculer.InvocationStrategy;
 import services.moleculer.ServiceBroker;
 import services.moleculer.Version;
 import services.moleculer.cachers.Cacher;
 
-public class ActionRegistry implements Action {
+public class ActionRegistry {
 
 	// --- VARIABLES ---
 
@@ -68,13 +67,6 @@ public class ActionRegistry implements Action {
 		// Init action / strategy map
 		strategies = new HashMap<>(2048);
 	}
-
-	// --- INVOKE ACTION ---
-
-	@Override
-	public Object handler(Context ctx) throws Exception {
-		return getAction(ctx.nodeID, ctx.name).handler(ctx);
-	}
 	
 	// --- GET ACTION ---
 	
@@ -99,26 +91,32 @@ public class ActionRegistry implements Action {
 
 	// --- REGISTER LOCAL ACTION ---
 
-	public final void registerLocalAction(String name, Action action) {
-		registerAction(name, newLocalAction(name, action));
+	public final void registerLocalAction(String name, boolean cached, Action action) {
+		ActionContainer container;
+		if (action instanceof ActionContainer) {
+			container = (ActionContainer) action;
+		} else {
+			container = new LocalAction(broker, cached ? cacher : null, name, action);
+		}
+		registerAction(name, container);
 	}
 
 	// --- UNREGISTER LOCAL ACTION ---
 
 	public final void unregisterLocalAction(String name, Action action) {
-		unregisterAction(name, newLocalAction(name, action));
+		unregisterAction(name, new LocalAction(null, null, name, action));
 	}
 
 	// --- REGISTER REMOTE ACTION ---
 
 	public final void registerRemoteAction(String name, boolean cached, String nodeID) {
-		registerAction(name, newRemoteAction(name, cached, nodeID));
+		registerAction(name, new RemoteAction(broker, cached ? cacher : null, nodeID, name));
 	}
 
 	// --- UNREGISTER REMOTE ACTION ---
 
 	public final void unregisterRemoteAction(String name, boolean cached, String nodeID) {
-		unregisterAction(name, newRemoteAction(name, cached, nodeID));
+		unregisterAction(name, new RemoteAction(null, null, nodeID, name));
 	}
 
 	// --- COMMON REGISTER METHOD ----
@@ -160,12 +158,6 @@ public class ActionRegistry implements Action {
 		}
 	}
 
-	// --- WRAP REMOTE ACTION ---
-
-	private final ActionContainer newRemoteAction(String name, boolean cached, String nodeID) {
-		return new RemoteAction(broker, cached ? cacher : null, nodeID, name);
-	}
-	
 	// --- WRAP LOCAL ACTION ---
 
 	private final ActionContainer newLocalAction(String name, Action action) {
@@ -173,7 +165,7 @@ public class ActionRegistry implements Action {
 			return (ActionContainer) action;
 		}
 		Annotation[] annotations = action.getClass().getAnnotations();
-
+		
 		// Annotation values
 		boolean cached = false;
 		String version = null;

@@ -10,7 +10,7 @@ public abstract class Service {
 	
 	protected Logger logger;
 
-	public Service(ServiceBroker broker, String name, String version) {
+	public Service(ServiceBroker broker, String name, String version) throws Exception {
 		this.broker = broker;
 		this.name = name;
 		this.version = version;
@@ -27,13 +27,13 @@ public abstract class Service {
 		this.created();
 	}
 
-	public void created() {
+	public void created() throws Exception {
 	}
 
 	public void started() throws Exception {
 	}
 	
-	public void stopped() {
+	public void stopped() throws Exception {
 	}
 	
 }

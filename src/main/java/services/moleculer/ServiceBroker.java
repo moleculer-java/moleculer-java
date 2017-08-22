@@ -1,5 +1,7 @@
 package services.moleculer;
 
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
@@ -154,11 +156,51 @@ public class ServiceBroker {
 	 * 
 	 * @param service
 	 * @return
+	 * @throws Exception 
 	 */
-	public <T extends Service> T createService(T service) {
+	public <T extends Service> T createService(T service) throws Exception {
 
 		services.put(service.name, service);
 
+		Field[] fields = service.getClass().getFields();
+		for (Field field : fields) {
+			if (Action.class.isAssignableFrom(field.getType())) {
+
+				// "list"
+				String name = field.getName();
+
+
+				Annotation[] annotations = field.getAnnotations();
+				
+				// Annotation values
+				boolean cached = false;
+				String version = null;
+
+				for (Annotation annotation : annotations) {
+					if (annotation instanceof Cache) {
+						cached = ((Cache) annotation).value();
+						continue;
+					}
+					if (annotation instanceof Version) {
+						version = ((Version) annotation).value();
+						continue;
+					}
+				}
+				if (version != null && !version.isEmpty()) {
+					name = version + '.' + service.name + '.' + name;
+				} else {
+					name = service.name + '.' + name;
+				}
+				
+				// Action instance
+				Action action = (Action) field.get(service);
+				
+				// Register
+				actionRegistry.registerLocalAction(name, cached, action);
+				
+			}
+		}
+				
 		service.created();
 		return service;
 	}
@@ -169,7 +211,12 @@ public class ServiceBroker {
 	 * @param service
 	 */
 	public void destroyService(Service service) {
-		service.stopped();
+		try {
+			service.stopped();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
 		services.remove(service.name);
 
@@ -264,8 +311,9 @@ public class ServiceBroker {
 	 * @return
 	 */
 	public Object call(String actionName, Tree params, CallingOptions opts) throws Exception {
-		Context ctx = null;
-		return actionRegistry.handler(ctx);
+		Action action = getAction(actionName);
+		Context ctx = new Context(this, action, params);
+		return action.handler(ctx);
 	}
 
 	// --- ADD EVENT LISTENER TO THE EVENT BUS ---
