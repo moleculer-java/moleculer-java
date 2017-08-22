@@ -1,5 +1,6 @@
 package services.moleculer.cachers;
 
+import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 
 public abstract class Cacher {
@@ -8,9 +9,9 @@ public abstract class Cacher {
 
 	protected static final String DEFAULT_PREFIX = "";
 	protected static final long UNLIMITED_TTL = -1;
-	
+
 	// --- VARIABLES ---
-	
+
 	protected final String prefix;
 	protected final long ttl;
 
@@ -46,7 +47,7 @@ public abstract class Cacher {
 	}
 
 	// --- START CACHE INSTANCE ---
-	
+
 	/**
 	 * Initializes cacher instance.
 	 * 
@@ -56,15 +57,73 @@ public abstract class Cacher {
 	}
 
 	// --- STOP CACHE INSTANCE ---
-	
+
 	/**
 	 * Closes cacher.
 	 */
 	public void close() {
 	}
-	
+
+	// --- GENERATE CACHE KEY ---
+
+	/**
+	 * Creates a cache key by name and params. Concatenates the name and the
+	 * hashed params.
+	 * 
+	 * @param name
+	 * @param params
+	 * @param keys
+	 * @return
+	 */
+	public String getCacheKey(String name, Tree params, String... keys) {
+		if (params == null) {
+			return name;
+		}
+		StringBuilder key = new StringBuilder(512);
+		key.append(name);
+		key.append(':');
+		if (keys == null) {
+			appendToKey(key, params);
+			return key.toString();
+		}
+		if (keys.length == 1) {
+			appendToKey(key, keys[0]);
+			return key.toString();
+		}
+		if (keys.length > 1) {
+			boolean first = true;
+			for (String k : keys) {
+				if (first) {
+					first = false;
+				} else {
+					key.append('|');
+				}
+				appendToKey(key, k);
+			}
+		}
+		return key.toString();
+	}
+
+	protected static final void appendToKey(StringBuilder key, Object object) {
+		if (object != null) {
+			if (object instanceof Tree) {
+				Tree tree = (Tree) object;
+				if (tree.isPrimitive()) {
+					key.append(tree.asObject());
+				} else {
+					String json = tree.toString(null, false, true);
+
+					// TODO generate hash from JSON					
+					key.append(json);
+				}
+			} else {
+				key.append(object);
+			}
+		}
+	}
+
 	// --- CACHE METHODS ---
-	
+
 	/**
 	 * Gets a cached content by a key.
 	 * 
@@ -86,7 +145,7 @@ public abstract class Cacher {
 	 * @param key
 	 */
 	public abstract void del(String key);
-	
+
 	/**
 	 * Cleans this cache. Removes every key by a match string. The default match
 	 * string is "**".
@@ -94,27 +153,5 @@ public abstract class Cacher {
 	 * @param match
 	 */
 	public abstract void clean(String match);
-
-	// --- INTERNAL METHODS ---
-	
-	/**
-	 * Creates a cache key by name and params. Concatenates the name and the
-	 * hashed params.
-	 * 
-	 * @param name
-	 * @param params
-	 * @param keys
-	 * @return
-	 */
-	protected String getCacheKey(String name, Object params, String... keys) {
-		return null;
-	}
-
-	/**
-	 * Registers this cacher as a middleware.
-	 */
-	protected void middleware() {
-
-	}
 
 }

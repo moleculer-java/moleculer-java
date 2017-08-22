@@ -41,7 +41,7 @@ abstract class ActionContainer implements Action {
 		}
 
 		// Generate cache key
-		String key = ctx.params == null ? name : name + '.' + ctx.params.toString(null, false, true);
+		String key = cacher.getCacheKey(name, ctx.params, (String[]) null);
 		
 		// Find in cache
 		Object result = cacher.get(key);

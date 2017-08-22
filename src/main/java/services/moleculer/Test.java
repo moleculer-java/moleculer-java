@@ -1,14 +1,8 @@
 package services.moleculer;
 
-import java.math.BigDecimal;
-
-import javax.swing.event.ChangeEvent;
-
-import com.google.common.eventbus.EventBus;
-import com.google.common.eventbus.Subscribe;
-
 import io.datatree.Tree;
 import services.moleculer.cachers.MemoryCacher;
+import services.moleculer.cachers.UIDGenerator;
 
 public class Test {
 
@@ -31,13 +25,13 @@ public class Test {
 
 			// --- ACTIONS ---
 
-			@Cache()
+			@Cache(false)
 			@Version("v1")
 			public Action list = (ctx) -> {
 				return this.processData(ctx.params.get("a", -1));
 			};
 
-			@Cache(false)
+			@Cache(true)
 			@Version("v2")
 			public Action add = (ctx) -> {
 				return ctx.call("v1.test.list", ctx.params, null);
@@ -66,9 +60,9 @@ public class Test {
 
 		Tree t = new Tree().put("a", 5);
 		long start = System.currentTimeMillis();
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < 1000; i++) {
 			Object result = broker.call("v2.test.add", t, null);
-			System.out.println("RESULT: " + result);
+			// System.out.println("RESULT: " + result);
 		}
 		System.out.println(System.currentTimeMillis() - start);
 
@@ -94,6 +88,14 @@ public class Test {
 		});
 		broker.emit("user.created", "Hello EventBus1!");
 
+		// ------------------
+
+		start = System.currentTimeMillis();
+		for (int i = 0; i < 10000000; i++) {
+			String s = UIDGenerator.generate();
+			//System.out.println(s);
+		}
+		System.out.println(System.currentTimeMillis() - start);
 	}
 
 }
