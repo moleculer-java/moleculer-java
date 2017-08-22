@@ -312,7 +312,7 @@ public class ServiceBroker {
 	 */
 	public Object call(String actionName, Tree params, CallingOptions opts) throws Exception {
 		Action action = getAction(actionName);
-		Context ctx = new Context(this, action, params);
+		Context ctx = new Context(this, action, params, null);
 		return action.handler(ctx);
 	}
 

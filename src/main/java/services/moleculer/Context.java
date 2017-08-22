@@ -45,12 +45,12 @@ public class Context {
 	/**
 	 * Need send metrics events
 	 */
-	public boolean metrics;
+	public final boolean metrics;
 
 	/**
 	 * Level of context
 	 */
-	public int level;
+	public final int level;
 
 	/**
 	 * Calling timeout
@@ -64,7 +64,7 @@ public class Context {
 	
 	// --- METRICS PROPERTIES ---
 	
-	public String requestID;
+	public final String requestID;
 	
 	public long startTime;
 	
@@ -76,14 +76,40 @@ public class Context {
 
 	// --- CONSTUCTORS ---
 
-	public Context(ServiceBroker broker, Action action, Tree params) {
+	public Context(ServiceBroker broker, Action action, Tree params, Tree meta) {
 		this.broker = broker;
 		this.id = "";
 		this.action = action;
 		this.nodeID = action.getNodeID();
 		this.parentID = null;
 		this.params = params;
-		this.meta = new Tree();
+		this.meta = meta == null ? new Tree() : meta;
+		this.requestID = null;
+		this.level = 1;
+		this.metrics = false;
+	}
+
+	public Context(ServiceBroker broker, Action action, Tree params, Tree meta, Context parent) {
+		this.broker = broker;
+		this.id = "";
+		this.action = action;
+		this.nodeID = action.getNodeID();
+		this.parentID = parent.id;
+		this.params = params;
+		this.requestID = parent.requestID;
+		this.level = parent.level + 1;
+		this.metrics = parent.metrics;
+		
+		Tree m;
+		if (parent.meta == null) {
+			m = meta;
+		} else {
+			m = parent.meta.clone();
+			if (meta != null) {
+				m.copyFrom(meta);
+			}
+		}		
+		this.meta = m;
 	}
 
 	protected void generateID() {
@@ -91,15 +117,16 @@ public class Context {
 	}
 	
 	protected void setParams(Tree params, boolean cloning) {
-		//
 	}
 	
-	public Object call(String actionName, Tree params, CallingOptions opts) {
-		return null;
+	public Object call(String actionName, Tree params, CallingOptions opts) throws Exception {
+		Action action = broker.getAction(actionName);
+		Context ctx = new Context(broker, action, params, null, this);
+		return action.handler(ctx);
 	}
 	
 	public void emit(String eventName, Object payload) {
-		//
+		broker.emit(eventName, payload);
 	}
 	
 	protected void metricStart(boolean emitEvent) {
