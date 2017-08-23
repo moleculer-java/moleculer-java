@@ -2,7 +2,7 @@ package services.moleculer;
 
 import io.datatree.Tree;
 import services.moleculer.cachers.MemoryCacher;
-import services.moleculer.cachers.UIDGenerator;
+import services.moleculer.utils.UIDGenerator;
 
 public class Test {
 
@@ -90,10 +90,11 @@ public class Test {
 
 		// ------------------
 
+		UIDGenerator gen = new UIDGenerator("host1");
 		start = System.currentTimeMillis();
-		for (int i = 0; i < 10000000; i++) {
-			String s = UIDGenerator.generate();
-			//System.out.println(s);
+		for (int i = 0; i < 100; i++) {
+			String s = gen.next();
+			System.out.println(s);
 		}
 		System.out.println(System.currentTimeMillis() - start);
 	}
