@@ -41,7 +41,6 @@ public class Context {
 	 */
 	public final Tree meta;
 	
-	
 	/**
 	 * Need send metrics events
 	 */
@@ -66,34 +65,34 @@ public class Context {
 	
 	public final String requestID;
 	
-	public long startTime;
+	// public long startTime;
 	
-	public long stopTime;
+	// public long stopTime;
 	
-	public double duration;
+	// public double duration;
 
-	public boolean cachedResult;
+	// public boolean cachedResult;
 
 	// --- CONSTUCTORS ---
 
-	public Context(ServiceBroker broker, Action action, Tree params, Tree meta) {
+	public Context(ServiceBroker broker, Action action, Tree params, Tree meta, String requestID) {
 		this.broker = broker;
-		this.id = "";
+		this.id = action.isLocal() ? null : broker.nextUID();
 		this.action = action;
-		this.nodeID = action.getNodeID();
+		this.nodeID = action.nodeID();
 		this.parentID = null;
 		this.params = params;
 		this.meta = meta == null ? new Tree() : meta;
-		this.requestID = null;
+		this.requestID = requestID;
 		this.level = 1;
 		this.metrics = false;
 	}
 
-	public Context(ServiceBroker broker, Action action, Tree params, Tree meta, Context parent) {
+	Context(ServiceBroker broker, Action action, Tree params, Tree meta, Context parent) {
 		this.broker = broker;
-		this.id = "";
+		this.id = action.isLocal() ? null : broker.nextUID();
 		this.action = action;
-		this.nodeID = action.getNodeID();
+		this.nodeID = action.nodeID();
 		this.parentID = parent.id;
 		this.params = params;
 		this.requestID = parent.requestID;
@@ -108,16 +107,12 @@ public class Context {
 			if (meta != null) {
 				m.copyFrom(meta);
 			}
-		}		
+		}
+		
 		this.meta = m;
 	}
 
-	protected void generateID() {
-		//this.id = utils.generateToken();
-	}
-	
-	protected void setParams(Tree params, boolean cloning) {
-	}
+	// --- ACTION CALL ---
 	
 	public Object call(String actionName, Tree params, CallingOptions opts) throws Exception {
 		Action action = broker.getAction(actionName);
@@ -125,9 +120,13 @@ public class Context {
 		return action.handler(ctx);
 	}
 	
+	// --- SUBMIT EVENT ---
+	
 	public void emit(String eventName, Object payload) {
 		broker.emit(eventName, payload);
 	}
+	
+	// --- METRICS ---
 	
 	protected void metricStart(boolean emitEvent) {
 		

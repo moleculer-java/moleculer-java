@@ -5,9 +5,9 @@ final class RandomActionInvoker extends ActionInvoker {
 	private volatile long rnd = System.currentTimeMillis();
 
 	@Override
-	public ActionContainer next() {
+	final ActionContainer next() {
 		
-		// Generate random
+		// Generate pseudo random
 		long idx;
 		synchronized (this) {
 			idx = rnd;

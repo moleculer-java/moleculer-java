@@ -3,7 +3,6 @@ package services.moleculer.actions;
 import services.moleculer.Action;
 import services.moleculer.Context;
 import services.moleculer.ServiceBroker;
-import services.moleculer.cachers.Cacher;
 import services.moleculer.transporters.Transporter;
 
 public final class RemoteAction extends ActionContainer implements Action {
@@ -14,9 +13,9 @@ public final class RemoteAction extends ActionContainer implements Action {
 	
 	// --- CONSTRUCTOR ---
 
-	RemoteAction(ServiceBroker broker, Cacher cacher, String nodeID, String name) {
-		super(broker, cacher, nodeID, name);
-		this.transporter = broker.getTransporter();
+	RemoteAction(ServiceBroker broker, String nodeID, String name, boolean cached) {
+		super(broker, nodeID, name, cached);
+		this.transporter = broker.transporter();
 	}
 	
 	// --- INVOKE REMOTE ACTION ---

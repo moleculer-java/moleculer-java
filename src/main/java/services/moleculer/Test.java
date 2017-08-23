@@ -2,7 +2,6 @@ package services.moleculer;
 
 import io.datatree.Tree;
 import services.moleculer.cachers.MemoryCacher;
-import services.moleculer.utils.UIDGenerator;
 
 public class Test {
 
@@ -60,9 +59,9 @@ public class Test {
 
 		Tree t = new Tree().put("a", 5);
 		long start = System.currentTimeMillis();
-		for (int i = 0; i < 1000; i++) {
-			Object result = broker.call("v2.test.add", t, null);
-			// System.out.println("RESULT: " + result);
+		for (int i = 0; i < 3; i++) {
+			Object result = broker.call("v2.test.add", t, null, "x");
+			System.out.println("RESULT: " + result);
 		}
 		System.out.println(System.currentTimeMillis() - start);
 
@@ -86,17 +85,6 @@ public class Test {
 		broker.on("**", (payload) -> {
 			System.out.println("RECEIVED in '**': " + payload);
 		});
-		broker.emit("user.created", "Hello EventBus1!");
-
-		// ------------------
-
-		UIDGenerator gen = new UIDGenerator("host1");
-		start = System.currentTimeMillis();
-		for (int i = 0; i < 100; i++) {
-			String s = gen.next();
-			System.out.println(s);
-		}
-		System.out.println(System.currentTimeMillis() - start);
 	}
 
 }

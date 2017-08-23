@@ -5,12 +5,16 @@ public interface Action {
 	
 	Object handler(Context ctx) throws Exception;
 
-	public default String getName() {
+	public default String name() {
 		return null;
 	}
 	
-	public default String getNodeID() {
+	public default String nodeID() {
 		return null;
+	}
+	
+	public default boolean isLocal() {
+		return true;
 	}
 	
 }

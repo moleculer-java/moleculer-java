@@ -11,23 +11,28 @@ import services.moleculer.actions.ActionRegistry;
 import services.moleculer.cachers.Cacher;
 import services.moleculer.transporters.Transporter;
 import services.moleculer.utils.EventBus;
+import services.moleculer.utils.UIDGenerator;
 
 public class ServiceBroker {
 
-	// Local services
-	private HashMap<String, Service> services = new HashMap<>();
+	// --- LOGGER ---
 
 	private final Logger logger;
 
-	// --- INTERNAL OBJECTS ---
+	// --- SERVICE REGISTRY ---
+
+	private final HashMap<String, Service> services = new HashMap<>();
+
+	// --- PROPERTIES AND COMPONENTS ---
 
 	private final String nodeID;
 	private final EventBus bus;
 	private final Cacher cacher;
 	private final Transporter transporter;
 	private final InvocationStrategy invocationStrategy;
+	private final UIDGenerator uidGenerator;
 	private final ActionRegistry actionRegistry;
-
+	
 	// --- CONSTRUCTORS ---
 
 	public ServiceBroker() {
@@ -40,7 +45,7 @@ public class ServiceBroker {
 		this.logger = this.getLogger("broker");
 		int initialCapacity = 2048;
 		boolean fair = true;
-		
+
 		// Init internal objects
 		String id = nodeID;
 		if (id == null || id.isEmpty()) {
@@ -55,7 +60,8 @@ public class ServiceBroker {
 		this.cacher = cacher;
 		this.transporter = transporter;
 		this.invocationStrategy = invocationStrategy;
-		this.actionRegistry = new ActionRegistry(this, fair);
+		this.actionRegistry = new ActionRegistry(this, initialCapacity, fair);
+		this.uidGenerator = new UIDGenerator(this.nodeID);
 	}
 
 	// --- START BROKER INSTANCE ---
@@ -156,7 +162,7 @@ public class ServiceBroker {
 	 * 
 	 * @param service
 	 * @return
-	 * @throws Exception 
+	 * @throws Exception
 	 */
 	public <T extends Service> T createService(T service) throws Exception {
 
@@ -169,9 +175,8 @@ public class ServiceBroker {
 				// "list"
 				String name = field.getName();
 
-
 				Annotation[] annotations = field.getAnnotations();
-				
+
 				// Annotation values
 				boolean cached = false;
 				String version = null;
@@ -191,16 +196,16 @@ public class ServiceBroker {
 				} else {
 					name = service.name + '.' + name;
 				}
-				
+
 				// Action instance
 				Action action = (Action) field.get(service);
-				
+
 				// Register
-				actionRegistry.registerLocalAction(name, cached, action);
-				
+				actionRegistry.add(name, cached, action);
+
 			}
 		}
-				
+
 		service.created();
 		return service;
 	}
@@ -252,7 +257,7 @@ public class ServiceBroker {
 	public boolean hasAction(String nodeID, String actionName) {
 		return getAction(nodeID, actionName) != null;
 	}
-	
+
 	/**
 	 * Has an action by name
 	 * 
@@ -270,7 +275,7 @@ public class ServiceBroker {
 	 * @return
 	 */
 	public Action getAction(String actionName) {
-		return actionRegistry.getAction(null, actionName);
+		return actionRegistry.get(null, actionName);
 	}
 
 	/**
@@ -280,7 +285,7 @@ public class ServiceBroker {
 	 * @return
 	 */
 	public Action getAction(String nodeID, String actionName) {
-		return actionRegistry.getAction(nodeID, actionName);
+		return actionRegistry.get(nodeID, actionName);
 	}
 
 	/**
@@ -310,9 +315,9 @@ public class ServiceBroker {
 	 * @param opts
 	 * @return
 	 */
-	public Object call(String actionName, Tree params, CallingOptions opts) throws Exception {
+	public Object call(String actionName, Tree params, CallingOptions opts, String requestID) throws Exception {
 		Action action = getAction(actionName);
-		Context ctx = new Context(this, action, params, null);
+		Context ctx = new Context(this, action, params, null, requestID);
 		return action.handler(ctx);
 	}
 
@@ -366,7 +371,7 @@ public class ServiceBroker {
 	}
 
 	/**
-	 * Emit an event (global & local)
+	 * Emit a local event
 	 * 
 	 * @param name
 	 * @param payload
@@ -375,21 +380,31 @@ public class ServiceBroker {
 		bus.emit(name, payload, sender);
 	}
 
-	// --- GETTERS ---
-
-	public Cacher getCacher() {
-		return cacher;
+	// --- SIMPLE UID GENERATOR ---
+	
+	public final String nextUID() {
+		return uidGenerator.next();
 	}
-
-	public String getNodeID() {
+	
+	// --- GETTERS ---
+	
+	public final String nodeID() {
 		return nodeID;
 	}
 
-	public Transporter getTransporter() {
+	public final EventBus eventBus() {
+		return bus;
+	}
+
+	public final Cacher cacher() {
+		return cacher;
+	}
+
+	public final Transporter transporter() {
 		return transporter;
 	}
 
-	public InvocationStrategy getInvocationStrategy() {
+	public final InvocationStrategy invocationStrategy() {
 		return invocationStrategy;
 	}
 

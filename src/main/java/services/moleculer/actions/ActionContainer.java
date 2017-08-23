@@ -15,19 +15,18 @@ abstract class ActionContainer implements Action {
 
 	protected final ServiceBroker broker;
 	protected final String nodeID;
-
 	protected final String name;
-	protected final Cacher cacher;
 	protected final boolean local;
+	protected final Cacher cacher;	
 
 	// --- CONSTRUCTOR ---
 
-	ActionContainer(ServiceBroker broker, Cacher cacher, String nodeID, String name) {
+	ActionContainer(ServiceBroker broker, String nodeID, String name, boolean cached) {
 		this.broker = broker;
 		this.nodeID = nodeID;
 		this.name = name;
-		this.cacher = cacher;
-		this.local = broker.getNodeID().equals(nodeID);
+		this.cacher = cached ? broker.cacher() : null;
+		this.local = broker.nodeID().equals(nodeID);
 	}
 
 	// --- INVOKE ACTION USING CACHE ---
@@ -69,22 +68,6 @@ abstract class ActionContainer implements Action {
 	// --- INVOKE ACTION ---
 
 	abstract Object invoke(Context ctx) throws Exception;
-
-	// --- GETTERS ---
-
-	public final boolean isLocal() {
-		return local;
-	}
-
-	@Override
-	public final String getName() {
-		return name;
-	}
-	
-	@Override
-	public final String getNodeID() {
-		return nodeID;
-	}
 	
 	// --- EQUALS ---
 
@@ -93,11 +76,28 @@ abstract class ActionContainer implements Action {
 		if (this == obj) {
 			return true;
 		}
-		if (obj != null && obj instanceof RemoteAction) {
-			RemoteAction other = (RemoteAction) obj;
+		if (obj != null && obj instanceof ActionContainer) {
+			ActionContainer other = (ActionContainer) obj;
 			return name.equals(other.name) && nodeID.equals(other.nodeID);
 		}
 		return false;
+	}
+
+	// --- GETTERS ---
+
+	@Override
+	public final String name() {
+		return name;
+	}
+	
+	@Override
+	public final String nodeID() {
+		return nodeID;
+	}
+
+	@Override
+	public final boolean isLocal() {
+		return local;
 	}
 	
 }

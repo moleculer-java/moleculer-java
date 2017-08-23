@@ -3,18 +3,17 @@ package services.moleculer.actions;
 import services.moleculer.Action;
 import services.moleculer.Context;
 import services.moleculer.ServiceBroker;
-import services.moleculer.cachers.Cacher;
 
 public final class LocalAction extends ActionContainer {
 
-	// --- VARIABLES ---
+	// --- PROPERTIES ---
 
-	final Action action;
+	private final Action action;
 
 	// --- CONSTRUCTOR ---
 
-	LocalAction(ServiceBroker broker, Cacher cacher, String name, Action action) {
-		super(broker, cacher, broker.getNodeID(), name);
+	LocalAction(ServiceBroker broker, String name, boolean cached, Action action) {
+		super(broker, broker.nodeID(), name, cached);
 		this.action = action;
 	}
 

@@ -8,7 +8,7 @@ final class RoundRobinActionInvoker extends ActionInvoker {
 	private final AtomicInteger counter = new AtomicInteger();
 	
 	@Override
-	public ActionContainer next() {
+	final ActionContainer next() {
 		return containers[counter.incrementAndGet() % containers.length];
 	}
 
