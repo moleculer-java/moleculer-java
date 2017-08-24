@@ -68,65 +68,58 @@ public class MemoryCacher extends Cacher {
 
 	@Override
 	public Object get(String key) {
-		int pos = key.indexOf('.');
-		if (pos > 0) {
-			String prefix = key.substring(0, pos);
-			MemoryPartition partition;
-			readerLock.lock();
-			try {
-				partition = partitions.get(prefix);
-			} finally {
-				readerLock.unlock();
-			}
-			if (partition == null) {
-				return null;
-			}
-			return partition.get(key.substring(pos + 1));
+		int pos = partitionPosition(key, true);
+		String prefix = key.substring(0, pos);
+		MemoryPartition partition;
+		readerLock.lock();
+		try {
+			partition = partitions.get(prefix);
+		} finally {
+			readerLock.unlock();
 		}
-		return null;
+		if (partition == null) {
+			return null;
+		}
+		return partition.get(key.substring(pos + 1));
 	}
 
 	@Override
 	public void set(String key, Object value) {
-		int pos = key.indexOf('.');
-		if (pos > 0) {
-			String prefix = key.substring(0, pos);
-			MemoryPartition partition;
-			writerLock.lock();
-			try {
-				partition = partitions.get(prefix);
-				if (partition == null) {
-					partition = new MemoryPartition(initialCapacityPerPartition,  maximumCapacityPerPartition);
-					partitions.put(prefix, partition);
-				}
-			} finally {
-				writerLock.unlock();
+		int pos = partitionPosition(key, true);
+		String prefix = key.substring(0, pos);
+		MemoryPartition partition;
+		writerLock.lock();
+		try {
+			partition = partitions.get(prefix);
+			if (partition == null) {
+				partition = new MemoryPartition(initialCapacityPerPartition, maximumCapacityPerPartition);
+				partitions.put(prefix, partition);
 			}
-			partition.set(key.substring(pos + 1), value);
+		} finally {
+			writerLock.unlock();
 		}
+		partition.set(key.substring(pos + 1), value);
 	}
 
 	@Override
 	public void del(String key) {
-		int pos = key.indexOf('.');
-		if (pos > 0) {
-			String prefix = key.substring(0, pos);
-			MemoryPartition partition;
-			readerLock.lock();
-			try {
-				partition = partitions.get(prefix);
-			} finally {
-				readerLock.unlock();
-			}
-			if (partition != null) {
-				partition.del(key.substring(pos + 1));
-			}
+		int pos = partitionPosition(key, true);
+		String prefix = key.substring(0, pos);
+		MemoryPartition partition;
+		readerLock.lock();
+		try {
+			partition = partitions.get(prefix);
+		} finally {
+			readerLock.unlock();
+		}
+		if (partition != null) {
+			partition.del(key.substring(pos + 1));
 		}
 	}
 
 	@Override
 	public void clean(String match) {
-		int pos = match.indexOf('.');
+		int pos = partitionPosition(match, false);
 		if (pos > 0) {
 
 			// Remove items in partitions
@@ -165,6 +158,19 @@ public class MemoryCacher extends Cacher {
 				writerLock.unlock();
 			}
 		}
+	}
+
+	private static final int partitionPosition(String key, boolean throwErrorIfMissing) {
+		int i = key.indexOf(':');
+		if (i == -1) {
+			i = key.lastIndexOf('.');
+		} else {
+			i = key.lastIndexOf('.', i);
+		}
+		if (i == -1 && throwErrorIfMissing) {
+			throw new IllegalArgumentException("Invalid cache key, a point is missing from the key (" + key + ")!");
+		}
+		return i;
 	}
 
 }

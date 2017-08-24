@@ -1,13 +1,14 @@
 package services.moleculer;
 
 import io.datatree.Tree;
+import services.moleculer.cachers.RedisCacher;
 
 public class Test {
 
 	@SuppressWarnings("unused")
 	public static void main(String[] args) throws Exception {
 
-		ServiceBroker broker = new ServiceBroker();
+		ServiceBroker broker = new ServiceBroker(null, null, new RedisCacher());
 
 		TestService service = new TestService();
 		
@@ -21,7 +22,7 @@ public class Test {
 		long start = System.currentTimeMillis();
 		for (int i = 0; i < 3; i++) {
 			Object result = broker.call("v2.test.add", t, null, "x");
-			System.out.println("RESULT: " + result);
+			//System.out.println("RESULT: " + result);
 		}
 		System.out.println(System.currentTimeMillis() - start);
 
@@ -63,7 +64,7 @@ public class Test {
 			// --- ACTIONS ---
 
 			public Action list = (ctx) -> {
-				return this.processData(ctx.params.get("a", -1), ctx.params.get("b", -1));
+				return processData(ctx.params.get("a", -1), ctx.params.get("b", -1));
 			};
 
 			@Cache({"a", "b"})
@@ -82,7 +83,7 @@ public class Test {
 			// --- METHODS ---
 
 			int processData(int a, int b) {
-				this.logger.info("Process data invoked: " + a + ", " + b);
+				//this.logger.info("Process data invoked: " + a + ", " + b);
 				return a + b;
 			}
 

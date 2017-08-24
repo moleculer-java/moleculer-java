@@ -10,6 +10,7 @@ import com.lambdaworks.redis.cluster.RedisClusterClient;
 import com.lambdaworks.redis.cluster.api.async.RedisAdvancedClusterAsyncCommands;
 import com.lambdaworks.redis.event.Event;
 import com.lambdaworks.redis.event.EventBus;
+import com.lambdaworks.redis.event.connection.ConnectionActivatedEvent;
 import com.lambdaworks.redis.resource.DefaultClientResources;
 
 import io.datatree.Tree;
@@ -82,6 +83,10 @@ public class RedisCacher extends Cacher {
 
 				@Override
 				public final void publish(Event event) {
+					if (event instanceof ConnectionActivatedEvent) {
+						ConnectionActivatedEvent e = (ConnectionActivatedEvent) event;
+						System.out.println("Redis cache connected successfully at " + e.remoteAddress() + '.');						
+					}
 				}
 
 				@Override
@@ -123,17 +128,21 @@ public class RedisCacher extends Cacher {
 	@Override
 	public Object get(String key) {
 		try {
-			RedisFuture<String> future;
+			RedisFuture<String> response;
 			if (client != null) {
-				future = client.get(key);
+				response = client.get(key);
 			} else if (clusteredClient != null) {
-				future = clusteredClient.get(key);
+				response = clusteredClient.get(key);
 			} else {
 				return null;
 			}
 
 			// TODO Do not block thread
-			String packet = future.get();
+			// response.thenAccept((packet) -> {
+			// System.out.println("GET " + packet);
+			// });
+			
+			String packet = response.get();
 			if (packet == null || "null".equals(packet)) {
 				return null;
 			}

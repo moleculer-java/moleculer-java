@@ -21,11 +21,11 @@ public abstract class Cacher {
 	}
 
 	// --- STORAGE TYPE ---
-	
+
 	public final boolean useSharedStorage() {
 		return useSharedStorage;
 	}
-	
+
 	// --- START CACHE INSTANCE ---
 
 	/**
@@ -55,19 +55,19 @@ public abstract class Cacher {
 	 * @param keys
 	 * @return
 	 */
-	public String getCacheKey(String name, Tree params, String... keys) {
+	public String getCacheKey(String name, Tree params, boolean useSharedStorage, String... keys) {
 		if (params == null) {
 			return name;
 		}
-		StringBuilder key = new StringBuilder(512);
+		StringBuilder key = new StringBuilder(128);
 		key.append(name);
 		key.append(':');
 		if (keys == null) {
-			appendToKey(key, params);
+			appendToKey(key, params, useSharedStorage);
 			return key.toString();
 		}
 		if (keys.length == 1) {
-			appendToKey(key, keys[0]);
+			appendToKey(key, keys[0], useSharedStorage);
 			return key.toString();
 		}
 		if (keys.length > 1) {
@@ -78,13 +78,13 @@ public abstract class Cacher {
 				} else {
 					key.append('|');
 				}
-				appendToKey(key, params.get(k));
+				appendToKey(key, params.get(k), useSharedStorage);
 			}
 		}
 		return key.toString();
 	}
 
-	protected static final void appendToKey(StringBuilder key, Object object) {
+	protected static final void appendToKey(StringBuilder key, Object object, boolean useSharedStorage) {
 		if (object != null) {
 			if (object instanceof Tree) {
 				Tree tree = (Tree) object;
@@ -92,10 +92,19 @@ public abstract class Cacher {
 					key.append(tree.asObject());
 				} else {
 					String json = tree.toString(null, false, true);
+					if (useSharedStorage) {
 
-					// TODO normalize json
-					
-					key.append(json);
+						// Create cross-platform, simplified JSON without
+						// formatting characters and quotation marks
+						for (char c : json.toCharArray()) {
+							if (c < 33 || c == '\"' || c == '\'') {
+								continue;
+							}
+							key.append(c);
+						}
+					} else {
+						key.append(json);
+					}
 				}
 			} else {
 				key.append(object);

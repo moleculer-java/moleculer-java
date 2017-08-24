@@ -18,9 +18,10 @@ abstract class ActionContainer implements Action {
 	protected final String name;
 	protected final boolean local;
 	protected final Cacher cacher;
+	protected final boolean useSharedStorage;
 	protected final boolean writeCache;
 	protected final String[] keys;
-	
+
 	// --- CONSTRUCTOR ---
 
 	ActionContainer(ServiceBroker broker, String nodeID, String name, boolean cached, String[] keys) {
@@ -30,11 +31,13 @@ abstract class ActionContainer implements Action {
 		this.local = broker.nodeID().equals(nodeID);
 		Cacher cacher = broker.cacher();
 		if (cacher != null) {
-			this.cacher = cached ? broker.cacher() : null;
-			this.writeCache = local || !broker.cacher().useSharedStorage();
+			this.cacher = cached ? cacher : null;
+			this.useSharedStorage = cacher.useSharedStorage();
+			this.writeCache = local || !useSharedStorage;
 			this.keys = keys;
 		} else {
 			this.cacher = null;
+			this.useSharedStorage = false;
 			this.writeCache = false;
 			this.keys = null;
 		}
@@ -51,7 +54,7 @@ abstract class ActionContainer implements Action {
 		}
 
 		// Generate cache key
-		String key = cacher.getCacheKey(name, ctx.params, keys);
+		String key = cacher.getCacheKey(name, ctx.params, useSharedStorage, keys);
 
 		// Find in cache
 		Object result = cacher.get(key);
