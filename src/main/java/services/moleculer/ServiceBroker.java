@@ -1,6 +1,5 @@
 package services.moleculer;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -86,7 +85,7 @@ public class ServiceBroker {
 			transporter.init(this);
 		}
 
-		// Log
+		// Ok, broker started
 		logger.info("Broker started! NodeID: " + this.nodeID);
 	}
 
@@ -165,43 +164,39 @@ public class ServiceBroker {
 	 * @throws Exception
 	 */
 	public <T extends Service> T createService(T service) throws Exception {
+		
+		// Register service
+		String serviceName = getServiceNameWithVersion(service);
+		services.put(serviceName, service);
 
-		services.put(service.name, service);
-
-		Field[] fields = service.getClass().getFields();
+		// Get annotations of actions
+		Class<? extends Service> clazz = service.getClass();
+		Field[] fields = clazz.getFields();
 		for (Field field : fields) {
 			if (Action.class.isAssignableFrom(field.getType())) {
 
-				// "list"
-				String name = field.getName();
+				// Name of the action (eg. "v2.service.add")
+				String name = serviceName + '.' + field.getName();
 
-				Annotation[] annotations = field.getAnnotations();
-
-				// Annotation values
+				// Process "Cache" annotation
+				Cache cache = field.getAnnotation(Cache.class);
 				boolean cached = false;
-				String version = null;
-
-				for (Annotation annotation : annotations) {
-					if (annotation instanceof Cache) {
-						cached = ((Cache) annotation).value();
-						continue;
+				String[] keys = null;
+				if (cache != null) {
+					cached = cache.enabled();
+					if (cached) {
+						keys = cache.keys();
+						if (keys != null && keys.length == 0) {
+							keys = null;
+						}
 					}
-					if (annotation instanceof Version) {
-						version = ((Version) annotation).value();
-						continue;
-					}
-				}
-				if (version != null && !version.isEmpty()) {
-					name = version + '.' + service.name + '.' + name;
-				} else {
-					name = service.name + '.' + name;
 				}
 
 				// Action instance
 				Action action = (Action) field.get(service);
 
-				// Register
-				actionRegistry.add(name, cached, action);
+				// Register action
+				actionRegistry.add(name, cached, keys, action);
 
 			}
 		}
@@ -210,22 +205,50 @@ public class ServiceBroker {
 		return service;
 	}
 
+	private static final String getServiceNameWithVersion(Service service) {
+		
+		// Process "Version" annotation
+		Class<? extends Service> clazz = service.getClass();
+		Version va = clazz.getAnnotation(Version.class);
+		String version = null;
+		if (va != null) {
+			version = va.value();
+		}
+
+		// Name of the service (eg. "v2.service")
+		String serviceName;
+		if (version != null && !version.isEmpty()) {
+			serviceName = version + '.' + service.name;
+		} else {
+			serviceName = service.name;
+		}
+		return serviceName;
+	}
+	
 	/**
 	 * Destroy a local service
 	 * 
 	 * @param service
 	 */
 	public void destroyService(Service service) {
+		
+		// Unregister service
+		String serviceName = getServiceNameWithVersion(service);		
+		boolean found = services.remove(serviceName) != null;
+		if (!found) {
+			throw new IllegalStateException("Service is not registered!");
+		}
+		
+		// TODO Unregister actions
+
+		// TODO Notify all other nodes
+		
+		// Invoke "stopped" method
 		try {
 			service.stopped();
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
-
-		services.remove(service.name);
-
-		// TODO: Notify all other nodes
+		}		
 	}
 
 	/**
@@ -364,9 +387,9 @@ public class ServiceBroker {
 	 * @param payload
 	 */
 	public void emit(String name, Object payload) {
-		bus.emit(name, payload, nodeID);
+		bus.emit(name, payload);
 		if (transporter != null) {
-			transporter.publish(null);
+			transporter.publish(name, null, payload);
 		}
 	}
 
@@ -376,8 +399,8 @@ public class ServiceBroker {
 	 * @param name
 	 * @param payload
 	 */
-	public void emitLocal(String name, Object payload, String sender) {
-		bus.emit(name, payload, sender);
+	public void emitLocal(String name, Object payload) {
+		bus.emit(name, payload);
 	}
 
 	// --- SIMPLE UID GENERATOR ---

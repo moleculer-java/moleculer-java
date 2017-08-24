@@ -10,48 +10,9 @@ public class Test {
 
 		ServiceBroker broker = new ServiceBroker(null, new MemoryCacher(), null, null);
 
-		Service svc = broker.createService(new Service(broker, "test", null) {
-
-			// --- CREATED ---
-
-			@Override
-			public void created() {
-
-				// Created
-				this.logger.debug("Service created!");
-
-			}
-
-			// --- ACTIONS ---
-
-			@Cache(false)
-			@Version("v1")
-			public Action list = (ctx) -> {
-				return this.processData(ctx.params.get("a", -1));
-			};
-
-			@Cache(true)
-			@Version("v2")
-			public Action add = (ctx) -> {
-				return ctx.call("v1.test.list", ctx.params, null);
-				// return 2;
-			};
-
-			// --- EVENT LISTENERS ---
-
-			// Context, Tree, or Object????
-			public Listener test = (input) -> {
-
-			};
-
-			// --- METHODS ---
-
-			int processData(int a) {
-				this.logger.info("Process data invoked: " + a);
-				return a * 2;
-			}
-
-		});
+		TestService service = new TestService();
+		
+		Service svc = broker.createService(service);
 
 		broker.start();
 
@@ -87,4 +48,45 @@ public class Test {
 		});
 	}
 
+	@Version("v2")
+	public static class TestService extends Service {
+		
+			// --- CREATED ---
+
+			@Override
+			public void created() {
+
+				// Created
+				logger.debug("Service created!");
+
+			}
+
+			// --- ACTIONS ---
+
+			public Action list = (ctx) -> {
+				return this.processData(ctx.params.get("a", -1));
+			};
+
+			@Cache(keys = {"name", "user"})
+			public Action add = (ctx) -> {
+				return ctx.call("v1.test.list", ctx.params, null);
+				// return 2;
+			};
+
+			// --- EVENT LISTENERS ---
+
+			// Context, Tree, or Object????
+			public Listener test = (input) -> {
+
+			};
+
+			// --- METHODS ---
+
+			int processData(int a) {
+				this.logger.info("Process data invoked: " + a);
+				return a * 2;
+			}
+
+	}
+	
 }

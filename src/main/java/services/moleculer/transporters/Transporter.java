@@ -1,36 +1,29 @@
 package services.moleculer.transporters;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import services.moleculer.Logger;
 import services.moleculer.ServiceBroker;
-import services.moleculer.Transit;
 
 public abstract class Transporter {
 
 	// --- CONSTANTS ---
-
-	protected static final String DEFAULT_PREFIX = "MOL";
-
-	// --- VARIABLES ---
+	
+	public static final String PACKET_UNKNOW		= "???";
+	public static final String PACKET_EVENT 		= "EVENT";
+	public static final String PACKET_REQUEST 		= "REQ";
+	public static final String PACKET_RESPONSE		= "RES";
+	public static final String PACKET_DISCOVER 		= "DISCOVER";
+	public static final String PACKET_INFO 			= "INFO";
+	public static final String PACKET_DISCONNECT 	= "DISCONNECT";
+	public static final String PACKET_HEARTBEAT 	= "HEARTBEAT";
+	
+	// --- PROPERTIES ---
 
 	protected final String prefix;
-
-	protected final AtomicBoolean connected = new AtomicBoolean();
-	
-	protected Transit transit;
-	private Logger logger;
-	
-	protected MessageHandler messageHandler;
-	protected AfterConnect afterConnect;
-	
 	protected ServiceBroker broker;
-	protected String nodeID;
 	
 	// --- CONSTUCTORS ---
 
 	public Transporter() {
-		this(DEFAULT_PREFIX);
+		this("MOL");
 	}
 
 	public Transporter(String prefix) {
@@ -40,58 +33,28 @@ public abstract class Transporter {
 	// --- INIT TRANSPORTER INSTANCE ---
 
 	public void init(ServiceBroker broker) {
-		if (transit != null) {
-			this.transit = transit;
-			this.broker = transit.getServiceBroker();
-			this.nodeID = transit.getNodeID();
-			if (this.broker != null) {
-				this.logger = this.broker.getLogger("transporter");
-			}
-		}
-		this.messageHandler = messageHandler;
-		this.afterConnect = afterConnect;
+		this.broker = broker;
 	}
 
 	// --- CONNECT ---
 
-	public void connect() {
-		throw new UnsupportedOperationException("Not implemented method!");
-	}
-
-	public void onConnected(boolean wasReconnect) {
-		if (connected.compareAndSet(false, true)) {
-			if (afterConnect != null) {
-				afterConnect.onConnected(wasReconnect);
-			}
-		}
-	}
+	public abstract void connect();
 
 	// --- DISCONNECT ---
 
-	public void disconnect() {
-		throw new UnsupportedOperationException("Not implemented method!");
-	}
+	public abstract void disconnect();
 	
-	public void onDisconnected() {
-		connected.set(false);
-	}
+	// --- PUBLISH ---
+
+	public abstract void publish(String cmd, String nodeID, Object payload);
 
 	// --- SUBSCRIBE ---
 
-	public void subscribe(String cmd, String nodeID) {
-		throw new UnsupportedOperationException("Not implemented method!");
+	public abstract void subscribe(String cmd, String nodeID);
 
-	}
+	// --- CREATE TOPIC NAME ---
 
-	// --- PUBLISH ---
-
-	public void publish(Object packet) {
-		throw new UnsupportedOperationException("Not implemented method!");
-	}
-
-	// --- GET NODE ID ---
-
-	protected String getTopicName(String cmd, String nodeID) {
+	protected final String nameOf(String cmd, String nodeID) {
 		StringBuilder name = new StringBuilder(64);
 		name.append(prefix);
 		name.append('.');

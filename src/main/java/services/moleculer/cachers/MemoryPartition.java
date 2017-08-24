@@ -10,25 +10,27 @@ import services.moleculer.utils.GlobMatcher;
 
 final class MemoryPartition {
 
-	// --- CACHE VARIABLES ---
-
+	// --- LOCKS ---
+	
 	private final Lock readerLock;
 	private final Lock writerLock;
 
+	// --- MEMORY CACHE PARTITION ---
+	
 	private final LinkedHashMap<String, Object> cache;
 
 	// --- CONSTUCTORS ---
 
-	MemoryPartition(int capacity) {
+	MemoryPartition(int initialCapacityPerPartition, int maximumCapacityPerPartition) {
 		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);
 		readerLock = lock.readLock();
 		writerLock = lock.writeLock();
-		cache = new LinkedHashMap<String, Object>(capacity + 1, 1.0f, true) {
+		cache = new LinkedHashMap<String, Object>(initialCapacityPerPartition, 1.0f, true) {
 
 			private static final long serialVersionUID = 5994447707758047152L;
 
 			protected final boolean removeEldestEntry(Map.Entry<String, Object> entry) {
-				if (this.size() > capacity) {
+				if (this.size() > maximumCapacityPerPartition) {
 					return true;
 				}
 				return false;

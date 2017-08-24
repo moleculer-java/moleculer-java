@@ -29,7 +29,7 @@ public final class RedisUtilities {
 
 		// Open new connection
 		List<RedisURI> redisURIs = parseURLs(urls, password, useSSL, startTLS);
-		DefaultClientResources clientResources = getDefaultClientResources();
+		DefaultClientResources clientResources = createClientResources(null);
 		RedisStringAsyncCommands<String, String> commands;
 		if (urls.length > 1) {
 
@@ -78,7 +78,7 @@ public final class RedisUtilities {
 		return list;
 	}
 
-	public static final DefaultClientResources getDefaultClientResources() {
+	public static final DefaultClientResources createClientResources(EventBus eventBus) {
 		DefaultClientResources.Builder builder = DefaultClientResources.builder();
 		EventLoopGroup group = new NioEventLoopGroup(1, Executors.newSingleThreadExecutor());
 		builder.eventExecutorGroup(group);
@@ -107,18 +107,24 @@ public final class RedisUtilities {
 			}
 
 		});
-		builder.eventBus(new EventBus() {
+		if (eventBus == null) {
+			eventBus = new EventBus() {
 
-			@Override
-			public void publish(Event event) {
-			}
+				@Override
+				public void publish(Event event) {
+					
+					// Ignore
+				}
 
-			@Override
-			public Observable<Event> get() {
-				return null;
-			}
+				@Override
+				public Observable<Event> get() {
 
-		});
+					// Ignore
+					return null;
+				}
+			};
+		}
+		builder.eventBus(eventBus);
 		return builder.build();
 	}
 

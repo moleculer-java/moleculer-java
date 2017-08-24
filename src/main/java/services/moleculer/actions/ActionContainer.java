@@ -17,16 +17,27 @@ abstract class ActionContainer implements Action {
 	protected final String nodeID;
 	protected final String name;
 	protected final boolean local;
-	protected final Cacher cacher;	
-
+	protected final Cacher cacher;
+	protected final boolean writeCache;
+	protected final String[] keys;
+	
 	// --- CONSTRUCTOR ---
 
-	ActionContainer(ServiceBroker broker, String nodeID, String name, boolean cached) {
+	ActionContainer(ServiceBroker broker, String nodeID, String name, boolean cached, String[] keys) {
 		this.broker = broker;
 		this.nodeID = nodeID;
 		this.name = name;
-		this.cacher = cached ? broker.cacher() : null;
 		this.local = broker.nodeID().equals(nodeID);
+		Cacher cacher = broker.cacher();
+		if (cacher != null) {
+			this.cacher = cached ? broker.cacher() : null;
+			this.writeCache = local || !broker.cacher().useSharedStorage();
+			this.keys = keys;
+		} else {
+			this.cacher = null;
+			this.writeCache = false;
+			this.keys = null;
+		}
 	}
 
 	// --- INVOKE ACTION USING CACHE ---
@@ -34,14 +45,14 @@ abstract class ActionContainer implements Action {
 	@Override
 	public final Object handler(Context ctx) throws Exception {
 		if (cacher == null) {
-			
+
 			// Invoke without cache
 			return invoke(ctx);
 		}
 
 		// Generate cache key
-		String key = cacher.getCacheKey(name, ctx.params, (String[]) null);
-		
+		String key = cacher.getCacheKey(name, ctx.params, keys);
+
 		// Find in cache
 		Object result = cacher.get(key);
 		if (result != null) {
@@ -50,17 +61,19 @@ abstract class ActionContainer implements Action {
 			}
 			return result;
 		}
-		
+
 		// Call action
 		result = invoke(ctx);
-		
+
 		// Store result into cache
-		if (result == null) {
-			cacher.set(key, NULL_VALUE);
-		} else {
-			cacher.set(key, result);
+		if (writeCache) {
+			if (result == null) {
+				cacher.set(key, NULL_VALUE);
+			} else {
+				cacher.set(key, result);
+			}
 		}
-		
+
 		// Return result
 		return result;
 	}
@@ -68,7 +81,7 @@ abstract class ActionContainer implements Action {
 	// --- INVOKE ACTION ---
 
 	abstract Object invoke(Context ctx) throws Exception;
-	
+
 	// --- EQUALS ---
 
 	@Override
@@ -89,15 +102,15 @@ abstract class ActionContainer implements Action {
 	public final String name() {
 		return name;
 	}
-	
+
 	@Override
 	public final String nodeID() {
 		return nodeID;
 	}
 
 	@Override
-	public final boolean isLocal() {
+	public final boolean local() {
 		return local;
 	}
-	
+
 }

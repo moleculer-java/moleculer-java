@@ -9,9 +9,12 @@ import services.moleculer.utils.GlobMatcher;
 
 public class MemoryCacher extends Cacher {
 
-	// --- CACHE VARIABLES ---
+	// --- PROPERTIES ---
 
-	private final int capacityPerPartition;
+	private final int initialCapacityPerPartition;
+	private final int maximumCapacityPerPartition;
+
+	// --- LOCKS ---
 
 	private final Lock readerLock;
 	private final Lock writerLock;
@@ -23,16 +26,32 @@ public class MemoryCacher extends Cacher {
 	// --- CONSTUCTORS ---
 
 	public MemoryCacher() {
-		this(DEFAULT_PREFIX, 1024);
+		this(512, 2048);
 	}
 
-	public MemoryCacher(String prefix) {
-		this(prefix, 1024);
-	}
+	public MemoryCacher(int initialCapacityPerPartition, int maximumCapacityPerPartition) {
+		super(false);
 
-	public MemoryCacher(String prefix, int capacityPerPartition) {
-		super(prefix);
-		this.capacityPerPartition = capacityPerPartition;
+		// Check variables
+		if (initialCapacityPerPartition < 1) {
+			throw new IllegalArgumentException(
+					"Zero or negative initialCapacityPerPartition property (" + initialCapacityPerPartition + ")!");
+		}
+		if (maximumCapacityPerPartition < 1) {
+			throw new IllegalArgumentException(
+					"Zero or negative maximumCapacityPerPartition property (" + maximumCapacityPerPartition + ")!");
+		}
+		if (initialCapacityPerPartition > maximumCapacityPerPartition) {
+			int tmp = initialCapacityPerPartition;
+			initialCapacityPerPartition = maximumCapacityPerPartition;
+			maximumCapacityPerPartition = tmp;
+		}
+
+		// Set properties
+		this.initialCapacityPerPartition = initialCapacityPerPartition;
+		this.maximumCapacityPerPartition = maximumCapacityPerPartition;
+
+		// Init locks
 		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);
 		readerLock = lock.readLock();
 		writerLock = lock.writeLock();
@@ -77,7 +96,7 @@ public class MemoryCacher extends Cacher {
 			try {
 				partition = partitions.get(prefix);
 				if (partition == null) {
-					partition = new MemoryPartition(capacityPerPartition);
+					partition = new MemoryPartition(initialCapacityPerPartition,  maximumCapacityPerPartition);
 					partitions.put(prefix, partition);
 				}
 			} finally {
@@ -109,7 +128,7 @@ public class MemoryCacher extends Cacher {
 	public void clean(String match) {
 		int pos = match.indexOf('.');
 		if (pos > 0) {
-			
+
 			// Remove items in partitions
 			String prefix = match.substring(0, pos);
 			MemoryPartition partition;
@@ -122,9 +141,9 @@ public class MemoryCacher extends Cacher {
 			if (partition != null) {
 				partition.clean(match.substring(pos + 1));
 			}
-			
+
 		} else {
-			
+
 			// Remove entire partitions
 			writerLock.lock();
 			try {

@@ -20,7 +20,7 @@ public final class ActionRegistry {
 	/**
 	 * Strategy
 	 */
-	private final Class<? extends ActionInvoker> strategyClass;
+	private final Class<? extends ActionInvoker> invokerClass;
 
 	/**
 	 * Action invokers
@@ -46,7 +46,7 @@ public final class ActionRegistry {
 
 		// Init invocation strategy
 		InvocationStrategy strategy = broker.invocationStrategy();
-		this.strategyClass = strategy == null || strategy == InvocationStrategy.ROUND_ROBIN
+		this.invokerClass = strategy == null || strategy == InvocationStrategy.ROUND_ROBIN
 				? RoundRobinActionInvoker.class : RandomActionInvoker.class;
 
 		// Init locker
@@ -60,40 +60,40 @@ public final class ActionRegistry {
 
 	// --- ADD ACTION ---
 
-	public final void add(String name, boolean cached, Action action) {
+	public final void add(String name, boolean cached, String[] keys, Action action) {
 		LocalAction localAction;
 		if (action instanceof LocalAction) {
 			localAction = (LocalAction) action;
 		} else {
-			localAction = new LocalAction(broker, name, cached, action);
+			localAction = new LocalAction(broker, name, cached, keys, action);
 		}
 		add(name, localAction);
 	}
 
-	public final void add(String name, boolean cached, String nodeID) {
-		add(name, new RemoteAction(broker, nodeID, name, cached));
+	public final void add(String name, boolean cached, String[] keys, String nodeID) {
+		add(name, new RemoteAction(broker, nodeID, name, cached, keys));
 	}
 
 	private final void add(String name, ActionContainer container) {
 		writerLock.lock();
 		try {
-			ActionInvoker strategy = invokers.get(name);
-			if (strategy == null) {
-				strategy = strategyClass.newInstance();
-				invokers.put(name, strategy);
+			ActionInvoker invoker = invokers.get(name);
+			if (invoker == null) {
+				invoker = invokerClass.newInstance();
+				invokers.put(name, invoker);
 			}
-			strategy.add(container);
+			invoker.add(container);
 		} catch (Exception cause) {
 			throw new IllegalArgumentException("Invalid strategy type!", cause);
 		} finally {
 			writerLock.unlock();
 		}
 	}
-	
+
 	// --- REMOVE ACTION ---
 
 	public final void remove(String name, String nodeID) {
-		remove(name, new RemoteAction(broker, nodeID, name, false));
+		remove(name, new RemoteAction(broker, nodeID, name, false, null));
 	}
 
 	public final void remove(String name, Action action) {
@@ -101,7 +101,7 @@ public final class ActionRegistry {
 		if (action instanceof LocalAction) {
 			localAction = (LocalAction) action;
 		} else {
-			localAction = new LocalAction(broker, name, false, action);
+			localAction = new LocalAction(broker, name, false, null, action);
 		}
 		remove(name, localAction);
 	}
@@ -126,7 +126,7 @@ public final class ActionRegistry {
 	public final Action get(String name) {
 		return get(null, name);
 	}
-	
+
 	public final Action get(String nodeID, String name) {
 		readerLock.lock();
 		try {

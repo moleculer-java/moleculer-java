@@ -13,7 +13,7 @@ public interface Action {
 		return null;
 	}
 	
-	public default boolean isLocal() {
+	public default boolean local() {
 		return true;
 	}
 	

@@ -116,7 +116,7 @@ public final class EventBus {
 	
 	// --- EMIT EVENT TO LISTENERS ---
 	
-	public final void emit(String name, Object payload, String sender) {
+	public final void emit(String name, Object payload) {
 
 		// Get from cache
 		Listener[] cachedListeners = listenerCache.get(name);

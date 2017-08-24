@@ -9,6 +9,8 @@ import java.lang.annotation.Target;
 @Target({ ElementType.FIELD, ElementType.TYPE })
 public @interface Cache {
 
-	boolean value() default true;
+	boolean enabled() default true;
+	
+	String[] keys() default {};
 	
 }

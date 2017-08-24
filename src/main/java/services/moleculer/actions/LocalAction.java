@@ -12,8 +12,8 @@ public final class LocalAction extends ActionContainer {
 
 	// --- CONSTRUCTOR ---
 
-	LocalAction(ServiceBroker broker, String name, boolean cached, Action action) {
-		super(broker, broker.nodeID(), name, cached);
+	LocalAction(ServiceBroker broker, String name, boolean cached, String[] keys, Action action) {
+		super(broker, broker.nodeID(), name, cached, keys);
 		this.action = action;
 	}
 

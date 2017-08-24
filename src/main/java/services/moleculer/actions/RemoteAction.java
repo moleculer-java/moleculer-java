@@ -13,8 +13,8 @@ public final class RemoteAction extends ActionContainer implements Action {
 	
 	// --- CONSTRUCTOR ---
 
-	RemoteAction(ServiceBroker broker, String nodeID, String name, boolean cached) {
-		super(broker, nodeID, name, cached);
+	RemoteAction(ServiceBroker broker, String nodeID, String name, boolean cached, String[] keys) {
+		super(broker, nodeID, name, cached, keys);
 		this.transporter = broker.transporter();
 	}
 	

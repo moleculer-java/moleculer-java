@@ -77,7 +77,7 @@ public class Context {
 
 	public Context(ServiceBroker broker, Action action, Tree params, Tree meta, String requestID) {
 		this.broker = broker;
-		this.id = action.isLocal() ? null : broker.nextUID();
+		this.id = action.local() ? null : broker.nextUID();
 		this.action = action;
 		this.nodeID = action.nodeID();
 		this.parentID = null;
@@ -90,7 +90,7 @@ public class Context {
 
 	Context(ServiceBroker broker, Action action, Tree params, Tree meta, Context parent) {
 		this.broker = broker;
-		this.id = action.isLocal() ? null : broker.nextUID();
+		this.id = action.local() ? null : broker.nextUID();
 		this.action = action;
 		this.nodeID = action.nodeID();
 		this.parentID = parent.id;

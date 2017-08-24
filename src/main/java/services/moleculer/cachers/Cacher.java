@@ -5,15 +5,9 @@ import services.moleculer.ServiceBroker;
 
 public abstract class Cacher {
 
-	// --- CONSTANTS ---
+	// --- PROPERTIES ---
 
-	protected static final String DEFAULT_PREFIX = "";
-	protected static final long UNLIMITED_TTL = -1;
-
-	// --- VARIABLES ---
-
-	protected final String prefix;
-	protected final long ttl;
+	protected final boolean useSharedStorage;
 
 	// --- CONSTUCTORS ---
 
@@ -22,30 +16,16 @@ public abstract class Cacher {
 	 * 
 	 * @param prefix
 	 */
-	public Cacher() {
-		this(DEFAULT_PREFIX, UNLIMITED_TTL);
+	public Cacher(boolean useSharedStorage) {
+		this.useSharedStorage = useSharedStorage;
 	}
 
-	/**
-	 * Creates an instance of Cacher.
-	 * 
-	 * @param prefix
-	 */
-	public Cacher(String prefix) {
-		this(prefix, UNLIMITED_TTL);
+	// --- STORAGE TYPE ---
+	
+	public final boolean useSharedStorage() {
+		return useSharedStorage;
 	}
-
-	/**
-	 * Creates an instance of Cacher.
-	 * 
-	 * @param prefix
-	 * @param ttl
-	 */
-	public Cacher(String prefix, long ttl) {
-		this.prefix = prefix;
-		this.ttl = ttl;
-	}
-
+	
 	// --- START CACHE INSTANCE ---
 
 	/**
@@ -98,7 +78,7 @@ public abstract class Cacher {
 				} else {
 					key.append('|');
 				}
-				appendToKey(key, k);
+				appendToKey(key, params.get(k));
 			}
 		}
 		return key.toString();
@@ -113,7 +93,8 @@ public abstract class Cacher {
 				} else {
 					String json = tree.toString(null, false, true);
 
-					// TODO generate hash from JSON					
+					// TODO normalize json
+					
 					key.append(json);
 				}
 			} else {

@@ -4,7 +4,7 @@ import java.util.Arrays;
 
 abstract class ActionInvoker {
 
-	// --- PROPERTIES ---
+	// --- ARRAY OF THE ACTION CONTAINERS ---
 
 	protected ActionContainer[] containers = new ActionContainer[0];
 
