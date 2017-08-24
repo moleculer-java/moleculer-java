@@ -18,14 +18,19 @@ public final class ActionRegistry {
 	private final ServiceBroker broker;
 
 	/**
-	 * Strategy
+	 * Prefer local calls
 	 */
-	private final Class<? extends ActionInvoker> invokerClass;
+	private final boolean preferLocal;
+	
+	/**
+	 * Invoker type
+	 */
+	private final Class<? extends ActionSelector> selectorClass;
 
 	/**
-	 * Action invokers
+	 * Action selectors
 	 */
-	private final HashMap<String, ActionInvoker> invokers;
+	private final HashMap<String, ActionSelector> selectors;
 
 	/**
 	 * Reader lock
@@ -39,14 +44,15 @@ public final class ActionRegistry {
 
 	// --- CONSTRUCTOR ---
 
-	public ActionRegistry(ServiceBroker broker, int initialCapacity, boolean fair) {
+	public ActionRegistry(ServiceBroker broker, boolean preferLocal, int initialCapacity, boolean fair) {
 
 		// Init internal objects
 		this.broker = broker;
+		this.preferLocal = preferLocal;
 
 		// Init invocation strategy
 		InvocationStrategy strategy = broker.invocationStrategy();
-		this.invokerClass = strategy == null || strategy == InvocationStrategy.ROUND_ROBIN
+		this.selectorClass = strategy == null || strategy == InvocationStrategy.ROUND_ROBIN
 				? RoundRobinActionInvoker.class : RandomActionInvoker.class;
 
 		// Init locker
@@ -54,8 +60,8 @@ public final class ActionRegistry {
 		readerLock = lock.readLock();
 		writerLock = lock.writeLock();
 
-		// Init action / strategy map
-		invokers = new HashMap<>(initialCapacity);
+		// Init action / selector map
+		selectors = new HashMap<>(initialCapacity);
 	}
 
 	// --- ADD ACTION ---
@@ -77,14 +83,14 @@ public final class ActionRegistry {
 	private final void add(String name, ActionContainer container) {
 		writerLock.lock();
 		try {
-			ActionInvoker invoker = invokers.get(name);
-			if (invoker == null) {
-				invoker = invokerClass.newInstance();
-				invokers.put(name, invoker);
+			ActionSelector selector = selectors.get(name);
+			if (selector == null) {
+				selector = selectorClass.newInstance();
+				selectors.put(name, selector);
 			}
-			invoker.add(container);
+			selector.add(container);
 		} catch (Exception cause) {
-			throw new IllegalArgumentException("Invalid strategy type!", cause);
+			throw new IllegalArgumentException("Invalid invocation strategy type!", cause);
 		} finally {
 			writerLock.unlock();
 		}
@@ -109,11 +115,11 @@ public final class ActionRegistry {
 	private final void remove(String name, ActionContainer container) {
 		writerLock.lock();
 		try {
-			ActionInvoker strategy = invokers.get(name);
-			if (strategy != null) {
-				strategy.remove(container);
-				if (strategy.containers.length == 0) {
-					invokers.remove(name);
+			ActionSelector selector = selectors.get(name);
+			if (selector != null) {
+				selector.remove(container);
+				if (selector.containers.length == 0) {
+					selectors.remove(name);
 				}
 			}
 		} finally {
@@ -130,17 +136,20 @@ public final class ActionRegistry {
 	public final Action get(String nodeID, String name) {
 		readerLock.lock();
 		try {
-			ActionInvoker strategy = invokers.get(name);
-			if (strategy != null) {
+			ActionSelector selector = selectors.get(name);
+			if (selector != null) {
 				if (nodeID == null) {
-					return strategy.next();
+					if (preferLocal) {
+						return selector.nextButPreferLocal();
+					}
+					return selector.next();
 				}
-				return strategy.get(nodeID);
+				return selector.get(nodeID);
 			}
 		} finally {
 			readerLock.unlock();
 		}
-		throw new IllegalArgumentException("Unable to invoke action (NodeID: " + nodeID + ", name: " + name + ")!");
+		throw new IllegalArgumentException("Unable to find action (NodeID: " + nodeID + ", name: " + name + ")!");
 	}
 
 }

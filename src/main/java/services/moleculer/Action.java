@@ -5,6 +5,8 @@ public interface Action {
 	
 	Object handler(Context ctx) throws Exception;
 
+	// --- GETTERS ---
+	
 	public default String name() {
 		return null;
 	}

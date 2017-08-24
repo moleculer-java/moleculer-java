@@ -2,15 +2,44 @@ package services.moleculer;
 
 public abstract class Service {
 	
-	protected ServiceBroker broker;
-	
+	// --- PROPERTIES ---
+
 	protected Logger logger;
+	protected ServiceBroker broker;
+	protected String name;
 	
-	public String name;
-	public String version;
+	// --- CONSTRUCTOR ---
+
+	public Service() {
+		Name n = getClass().getAnnotation(Name.class);
+		String name = null;
+		if (n != null) {
+			name = n.value();
+		}
+		if (name != null) {
+			name = name.trim();
+		}
+		if (name == null || name.isEmpty()) {
+			name = getClass().getName();
+			int i = Math.max(name.lastIndexOf('.'), name.lastIndexOf('$'));
+			if (i > -1) {
+				name = name.substring(i + 1);
+			}
+			name = Character.toLowerCase(name.charAt(0)) + name.substring(1);
+		}
+		this.name = name;
+	}
 	
-	public void init(ServiceBroker broker, String name, String version) throws Exception {
-		created();
+	public Service(String name) {
+		this.name = name;
+	}
+	
+	// --- INIT SERVICE ---
+	
+	public void init(ServiceBroker broker, String name) throws Exception {
+		this.broker = broker;
+		this.name = name;
+		this.logger = broker.getLogger(name);
 	}
 
 	public void created() throws Exception {
@@ -21,6 +50,6 @@ public abstract class Service {
 	
 	public void stopped() throws Exception {
 	}
-	
+		
 }
 

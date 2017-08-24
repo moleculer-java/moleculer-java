@@ -9,8 +9,11 @@ import java.lang.annotation.Target;
 @Target({ ElementType.FIELD, ElementType.TYPE })
 public @interface Cache {
 
-	boolean enabled() default true;
-	
-	String[] keys() default {};
+	/**
+	 * Cache keys (names of the key values in input JSON map, eg "userID")  
+	 * 
+	 * @return cache keys
+	 */
+	String[] value() default {};
 	
 }

@@ -1,14 +1,13 @@
 package services.moleculer;
 
 import io.datatree.Tree;
-import services.moleculer.cachers.MemoryCacher;
 
 public class Test {
 
 	@SuppressWarnings("unused")
 	public static void main(String[] args) throws Exception {
 
-		ServiceBroker broker = new ServiceBroker(null, new MemoryCacher(), null, null);
+		ServiceBroker broker = new ServiceBroker();
 
 		TestService service = new TestService();
 		
@@ -18,7 +17,7 @@ public class Test {
 
 		// ---------
 
-		Tree t = new Tree().put("a", 5);
+		Tree t = new Tree().put("a", 5).put("b", 3);
 		long start = System.currentTimeMillis();
 		for (int i = 0; i < 3; i++) {
 			Object result = broker.call("v2.test.add", t, null, "x");
@@ -48,7 +47,7 @@ public class Test {
 		});
 	}
 
-	@Version("v2")
+	@Name("v2.test")
 	public static class TestService extends Service {
 		
 			// --- CREATED ---
@@ -64,12 +63,12 @@ public class Test {
 			// --- ACTIONS ---
 
 			public Action list = (ctx) -> {
-				return this.processData(ctx.params.get("a", -1));
+				return this.processData(ctx.params.get("a", -1), ctx.params.get("b", -1));
 			};
 
-			@Cache(keys = {"name", "user"})
+			@Cache({"a", "b"})
 			public Action add = (ctx) -> {
-				return ctx.call("v1.test.list", ctx.params, null);
+				return ctx.call("v2.test.list", ctx.params, null);
 				// return 2;
 			};
 
@@ -82,9 +81,9 @@ public class Test {
 
 			// --- METHODS ---
 
-			int processData(int a) {
-				this.logger.info("Process data invoked: " + a);
-				return a * 2;
+			int processData(int a, int b) {
+				this.logger.info("Process data invoked: " + a + ", " + b);
+				return a + b;
 			}
 
 	}

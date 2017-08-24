@@ -1,9 +1,13 @@
 package services.moleculer.actions;
 
-final class RandomActionInvoker extends ActionInvoker {
+final class RandomActionInvoker extends ActionSelector {
 
+	// --- PROPERTIES ---
+	
 	private volatile long rnd = System.currentTimeMillis();
-
+	
+	// --- GET NEXT ACTION CONTAINER ---
+	
 	@Override
 	final ActionContainer next() {
 		

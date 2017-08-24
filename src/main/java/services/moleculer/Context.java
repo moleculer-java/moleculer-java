@@ -37,11 +37,6 @@ public class Context {
 	public final Tree params;
 
 	/**
-	 * Metadata
-	 */
-	public final Tree meta;
-	
-	/**
 	 * Need send metrics events
 	 */
 	public final boolean metrics;
@@ -75,20 +70,19 @@ public class Context {
 
 	// --- CONSTUCTORS ---
 
-	public Context(ServiceBroker broker, Action action, Tree params, Tree meta, String requestID) {
+	public Context(ServiceBroker broker, Action action, Tree params, String requestID) {
 		this.broker = broker;
 		this.id = action.local() ? null : broker.nextUID();
 		this.action = action;
 		this.nodeID = action.nodeID();
 		this.parentID = null;
 		this.params = params;
-		this.meta = meta == null ? new Tree() : meta;
 		this.requestID = requestID;
 		this.level = 1;
 		this.metrics = false;
 	}
 
-	Context(ServiceBroker broker, Action action, Tree params, Tree meta, Context parent) {
+	Context(ServiceBroker broker, Action action, Tree params, Context parent) {
 		this.broker = broker;
 		this.id = action.local() ? null : broker.nextUID();
 		this.action = action;
@@ -98,25 +92,19 @@ public class Context {
 		this.requestID = parent.requestID;
 		this.level = parent.level + 1;
 		this.metrics = parent.metrics;
-		
-		Tree m;
-		if (parent.meta == null) {
-			m = meta;
-		} else {
-			m = parent.meta.clone();
-			if (meta != null) {
-				m.copyFrom(meta);
+		if (params != null && parent.params != null) {
+			Tree parentMeta = parent.params.getMeta(false);
+			if (parentMeta != null) {
+				params.getMeta().copyFrom(parentMeta);
 			}
 		}
-		
-		this.meta = m;
 	}
 
 	// --- ACTION CALL ---
 	
 	public Object call(String actionName, Tree params, CallingOptions opts) throws Exception {
 		Action action = broker.getAction(actionName);
-		Context ctx = new Context(broker, action, params, null, this);
+		Context ctx = new Context(broker, action, params, this);
 		return action.handler(ctx);
 	}
 	

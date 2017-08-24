@@ -8,6 +8,7 @@ import java.util.HashMap;
 import io.datatree.Tree;
 import services.moleculer.actions.ActionRegistry;
 import services.moleculer.cachers.Cacher;
+import services.moleculer.cachers.MemoryCacher;
 import services.moleculer.transporters.Transporter;
 import services.moleculer.utils.EventBus;
 import services.moleculer.utils.UIDGenerator;
@@ -26,8 +27,8 @@ public class ServiceBroker {
 
 	private final String nodeID;
 	private final EventBus bus;
-	private final Cacher cacher;
 	private final Transporter transporter;
+	private final Cacher cacher;
 	private final InvocationStrategy invocationStrategy;
 	private final UIDGenerator uidGenerator;
 	private final ActionRegistry actionRegistry;
@@ -35,10 +36,18 @@ public class ServiceBroker {
 	// --- CONSTRUCTORS ---
 
 	public ServiceBroker() {
-		this(null, null, null, null);
+		this(null, null);
 	}
 
-	public ServiceBroker(String nodeID, Cacher cacher, Transporter transporter, InvocationStrategy invocationStrategy) {
+	public ServiceBroker(String nodeID, Transporter transporter) {
+		this(nodeID, transporter, new MemoryCacher());
+	}
+
+	public ServiceBroker(String nodeID, Transporter transporter, Cacher cacher) {
+		this(nodeID, transporter, cacher, InvocationStrategy.ROUND_ROBIN, true);
+	}
+	
+	public ServiceBroker(String nodeID, Transporter transporter, Cacher cacher, InvocationStrategy invocationStrategy, boolean preferLocal) {
 
 		// TODO
 		this.logger = this.getLogger("broker");
@@ -59,7 +68,7 @@ public class ServiceBroker {
 		this.cacher = cacher;
 		this.transporter = transporter;
 		this.invocationStrategy = invocationStrategy;
-		this.actionRegistry = new ActionRegistry(this, initialCapacity, fair);
+		this.actionRegistry = new ActionRegistry(this, preferLocal, initialCapacity, fair);
 		this.uidGenerator = new UIDGenerator(this.nodeID);
 	}
 
@@ -165,9 +174,11 @@ public class ServiceBroker {
 	 */
 	public <T extends Service> T createService(T service) throws Exception {
 		
+		// Init service
+		service.init(this, service.name);
+		
 		// Register service
-		String serviceName = getServiceNameWithVersion(service);
-		services.put(serviceName, service);
+		services.put(service.name, service);
 
 		// Get annotations of actions
 		Class<? extends Service> clazz = service.getClass();
@@ -176,16 +187,16 @@ public class ServiceBroker {
 			if (Action.class.isAssignableFrom(field.getType())) {
 
 				// Name of the action (eg. "v2.service.add")
-				String name = serviceName + '.' + field.getName();
+				String name = service.name + '.' + field.getName();
 
 				// Process "Cache" annotation
 				Cache cache = field.getAnnotation(Cache.class);
 				boolean cached = false;
 				String[] keys = null;
 				if (cache != null) {
-					cached = cache.enabled();
+					cached = true;
 					if (cached) {
-						keys = cache.keys();
+						keys = cache.value();
 						if (keys != null && keys.length == 0) {
 							keys = null;
 						}
@@ -205,26 +216,6 @@ public class ServiceBroker {
 		return service;
 	}
 
-	private static final String getServiceNameWithVersion(Service service) {
-		
-		// Process "Version" annotation
-		Class<? extends Service> clazz = service.getClass();
-		Version va = clazz.getAnnotation(Version.class);
-		String version = null;
-		if (va != null) {
-			version = va.value();
-		}
-
-		// Name of the service (eg. "v2.service")
-		String serviceName;
-		if (version != null && !version.isEmpty()) {
-			serviceName = version + '.' + service.name;
-		} else {
-			serviceName = service.name;
-		}
-		return serviceName;
-	}
-	
 	/**
 	 * Destroy a local service
 	 * 
@@ -232,9 +223,8 @@ public class ServiceBroker {
 	 */
 	public void destroyService(Service service) {
 		
-		// Unregister service
-		String serviceName = getServiceNameWithVersion(service);		
-		boolean found = services.remove(serviceName) != null;
+		// Unregister service	
+		boolean found = services.remove(service.name) != null;
 		if (!found) {
 			throw new IllegalStateException("Service is not registered!");
 		}
@@ -340,7 +330,7 @@ public class ServiceBroker {
 	 */
 	public Object call(String actionName, Tree params, CallingOptions opts, String requestID) throws Exception {
 		Action action = getAction(actionName);
-		Context ctx = new Context(this, action, params, null, requestID);
+		Context ctx = new Context(this, action, params, requestID);
 		return action.handler(ctx);
 	}
 
