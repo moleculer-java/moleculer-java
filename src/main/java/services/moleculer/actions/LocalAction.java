@@ -1,6 +1,5 @@
 package services.moleculer.actions;
 
-import services.moleculer.Action;
 import services.moleculer.Context;
 import services.moleculer.ServiceBroker;
 

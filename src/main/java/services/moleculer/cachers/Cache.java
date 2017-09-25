@@ -1,4 +1,4 @@
-package services.moleculer;
+package services.moleculer.cachers;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

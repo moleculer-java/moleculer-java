@@ -1,5 +1,7 @@
 package services.moleculer;
 
+import services.moleculer.logger.Logger;
+
 public abstract class Service {
 	
 	// --- PROPERTIES ---

@@ -4,9 +4,9 @@ import java.util.HashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import services.moleculer.Action;
-import services.moleculer.InvocationStrategy;
 import services.moleculer.ServiceBroker;
+import services.moleculer.strategies.InvocationStrategy;
+import services.moleculer.strategies.InvocationStrategyFactory;
 
 public final class ActionRegistry {
 
@@ -18,19 +18,19 @@ public final class ActionRegistry {
 	private final ServiceBroker broker;
 
 	/**
-	 * Prefer local calls
+	 * Default invocation strategy factory
 	 */
-	private final boolean preferLocal;
-	
-	/**
-	 * Invoker type
-	 */
-	private final Class<? extends ActionSelector> selectorClass;
+	private final InvocationStrategyFactory strategyFactory;
 
 	/**
-	 * Action selectors
+	 * Default "preferLocal" flag
 	 */
-	private final HashMap<String, ActionSelector> selectors;
+	private final boolean preferLocal;
+
+	/**
+	 * Invocation strategies by service
+	 */
+	private final HashMap<String, InvocationStrategy> strategies;
 
 	/**
 	 * Reader lock
@@ -44,24 +44,22 @@ public final class ActionRegistry {
 
 	// --- CONSTRUCTOR ---
 
-	public ActionRegistry(ServiceBroker broker, boolean preferLocal, int initialCapacity, boolean fair) {
+	public ActionRegistry(ServiceBroker broker) {
 
 		// Init internal objects
 		this.broker = broker;
-		this.preferLocal = preferLocal;
 
-		// Init invocation strategy
-		InvocationStrategy strategy = broker.invocationStrategy();
-		this.selectorClass = strategy == null || strategy == InvocationStrategy.ROUND_ROBIN
-				? RoundRobinActionInvoker.class : RandomActionInvoker.class;
+		// Set the default invocation strategy and "preferLocal" flag
+		strategyFactory = broker.invocationStrategy();
+		preferLocal = broker.isPreferLocal();
 
-		// Init locker
-		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(fair);
+		// Init locks
+		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
 		readerLock = lock.readLock();
 		writerLock = lock.writeLock();
 
 		// Init action / selector map
-		selectors = new HashMap<>(initialCapacity);
+		strategies = new HashMap<>(512);
 	}
 
 	// --- ADD ACTION ---
@@ -83,10 +81,9 @@ public final class ActionRegistry {
 	private final void add(String name, ActionContainer container) {
 		writerLock.lock();
 		try {
-			ActionSelector selector = selectors.get(name);
-			if (selector == null) {
-				selector = selectorClass.newInstance();
-				selectors.put(name, selector);
+			InvocationStrategy serviceStrategy = strategies.get(name);
+			if (serviceStrategy == null) {
+				strategies.put(name, strategy);
 			}
 			selector.add(container);
 		} catch (Exception cause) {
@@ -115,11 +112,11 @@ public final class ActionRegistry {
 	private final void remove(String name, ActionContainer container) {
 		writerLock.lock();
 		try {
-			ActionSelector selector = selectors.get(name);
+			InvocationStrategy selector = strategies.get(name);
 			if (selector != null) {
 				selector.remove(container);
-				if (selector.containers.length == 0) {
-					selectors.remove(name);
+				if (selector.isEmpty()) {
+					strategies.remove(name);
 				}
 			}
 		} finally {
@@ -136,7 +133,7 @@ public final class ActionRegistry {
 	public final Action get(String nodeID, String name) {
 		readerLock.lock();
 		try {
-			ActionSelector selector = selectors.get(name);
+			InvocationStrategy selector = strategies.get(name);
 			if (selector != null) {
 				if (nodeID == null) {
 					if (preferLocal) {

@@ -1,75 +1,61 @@
 package services.moleculer;
 
 import java.lang.reflect.Field;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.HashMap;
 
 import io.datatree.Tree;
+import services.moleculer.actions.Action;
 import services.moleculer.actions.ActionRegistry;
+import services.moleculer.cachers.Cache;
 import services.moleculer.cachers.Cacher;
-import services.moleculer.cachers.MemoryCacher;
+import services.moleculer.config.ServiceBrokerConfig;
+import services.moleculer.logger.Logger;
 import services.moleculer.transporters.Transporter;
 import services.moleculer.utils.EventBus;
 import services.moleculer.utils.UIDGenerator;
 
 public class ServiceBroker {
 
+	// --- CONFIGURATION ---
+
+	private ServiceBrokerConfig config;
+
 	// --- LOGGER ---
 
-	private final Logger logger;
+	private Logger logger;
 
 	// --- SERVICE REGISTRY ---
 
 	private final HashMap<String, Service> services = new HashMap<>();
 
-	// --- PROPERTIES AND COMPONENTS ---
+	// --- INTERNAL ACTION REGISTRY ---
 
-	private final String nodeID;
-	private final EventBus bus;
-	private final Transporter transporter;
-	private final Cacher cacher;
-	private final InvocationStrategy invocationStrategy;
-	private final UIDGenerator uidGenerator;
 	private final ActionRegistry actionRegistry;
-	
+
+	// --- INTERNAL EVENT BUS ---
+
+	private final EventBus bus = new EventBus();
+
+	// --- INTERNAL UUID GENERATOR ---
+
+	private UIDGenerator uidGenerator;
+
 	// --- CONSTRUCTORS ---
 
 	public ServiceBroker() {
-		this(null, null);
-	}
-
-	public ServiceBroker(String nodeID, Transporter transporter) {
-		this(nodeID, transporter, new MemoryCacher());
+		this(new ServiceBrokerConfig());
 	}
 
 	public ServiceBroker(String nodeID, Transporter transporter, Cacher cacher) {
-		this(nodeID, transporter, cacher, InvocationStrategy.ROUND_ROBIN, true);
+		ServiceBrokerConfig config = new ServiceBrokerConfig();
+		config.setNodeID(nodeID);
+		config.setTransporter(transporter);
+		config.setCacher(cacher);
+		this.config = config;
 	}
-	
-	public ServiceBroker(String nodeID, Transporter transporter, Cacher cacher, InvocationStrategy invocationStrategy, boolean preferLocal) {
 
-		// TODO
-		this.logger = this.getLogger("broker");
-		int initialCapacity = 2048;
-		boolean fair = true;
-
-		// Init internal objects
-		String id = nodeID;
-		if (id == null || id.isEmpty()) {
-			try {
-				id = InetAddress.getLocalHost().getHostName();
-			} catch (UnknownHostException e) {
-				this.logger.warn("Can't resolve hostname!");
-			}
-		}
-		this.nodeID = id == null || id.isEmpty() ? "default" : id;
-		this.bus = new EventBus(initialCapacity, fair);
-		this.cacher = cacher;
-		this.transporter = transporter;
-		this.invocationStrategy = invocationStrategy;
-		this.actionRegistry = new ActionRegistry(this, preferLocal, initialCapacity, fair);
-		this.uidGenerator = new UIDGenerator(this.nodeID);
+	public ServiceBroker(ServiceBrokerConfig config) {
+		this.config = config;
 	}
 
 	// --- START BROKER INSTANCE ---
@@ -131,7 +117,7 @@ public class ServiceBroker {
 		}
 
 		// Log
-		this.logger.info("Broker stopped! NodeID: " + this.nodeID);
+		this.logger.info("Broker stopped! NodeID: " + config.getNodeID());
 	}
 
 	/**
@@ -149,7 +135,7 @@ public class ServiceBroker {
 	 * @return
 	 */
 	public Logger getLogger(String module) {
-		return new Logger();
+		return config.getLoggerFactory().getLogger(module);
 	}
 
 	/**
@@ -162,7 +148,7 @@ public class ServiceBroker {
 	 * @return
 	 */
 	public Logger getLogger(String module, String service, String version) {
-		return new Logger();
+		return config.getLoggerFactory().getLogger(module + '.' + service + '.' + version);
 	}
 
 	/**
@@ -173,10 +159,10 @@ public class ServiceBroker {
 	 * @throws Exception
 	 */
 	public <T extends Service> T createService(T service) throws Exception {
-		
+
 		// Init service
 		service.init(this, service.name);
-		
+
 		// Register service
 		services.put(service.name, service);
 
@@ -222,23 +208,23 @@ public class ServiceBroker {
 	 * @param service
 	 */
 	public void destroyService(Service service) {
-		
-		// Unregister service	
+
+		// Unregister service
 		boolean found = services.remove(service.name) != null;
 		if (!found) {
 			throw new IllegalStateException("Service is not registered!");
 		}
-		
+
 		// TODO Unregister actions
 
 		// TODO Notify all other nodes
-		
+
 		// Invoke "stopped" method
 		try {
 			service.stopped();
 		} catch (Exception e) {
 			e.printStackTrace();
-		}		
+		}
 	}
 
 	/**
@@ -393,32 +379,10 @@ public class ServiceBroker {
 		bus.emit(name, payload);
 	}
 
-	// --- SIMPLE UID GENERATOR ---
-	
-	public final String nextUID() {
+	// --- UUID GENERATOR ---
+
+	protected String nextUID() {
 		return uidGenerator.next();
-	}
-	
-	// --- GETTERS ---
-	
-	public final String nodeID() {
-		return nodeID;
-	}
-
-	public final EventBus eventBus() {
-		return bus;
-	}
-
-	public final Cacher cacher() {
-		return cacher;
-	}
-
-	public final Transporter transporter() {
-		return transporter;
-	}
-
-	public final InvocationStrategy invocationStrategy() {
-		return invocationStrategy;
 	}
 
 }

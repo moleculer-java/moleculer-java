@@ -1,6 +1,11 @@
-package services.moleculer.actions;
+package services.moleculer.strategies;
 
-final class RandomActionInvoker extends ActionSelector {
+import services.moleculer.actions.Action;
+
+/**
+ * XORSHIFT-based pseudo-random invocation strategy.
+ */
+public final class XORShiftInvocationStrategy extends AbstractStrategy {
 
 	// --- PROPERTIES ---
 	
@@ -9,7 +14,7 @@ final class RandomActionInvoker extends ActionSelector {
 	// --- GET NEXT ACTION CONTAINER ---
 	
 	@Override
-	final ActionContainer next() {
+	public final Action next() {
 		
 		// Generate pseudo random
 		long idx;
@@ -23,7 +28,7 @@ final class RandomActionInvoker extends ActionSelector {
 		}
 		
 		// Return ActionContainer
-		return containers[(int) Math.abs(idx % containers.length)];
+		return actions[(int) Math.abs(idx % actions.length)];
 	}
 
 }

@@ -1,4 +1,6 @@
-package services.moleculer;
+package services.moleculer.actions;
+
+import services.moleculer.Context;
 
 @FunctionalInterface
 public interface Action {

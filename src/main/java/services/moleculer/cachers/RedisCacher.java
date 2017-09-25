@@ -13,14 +13,15 @@ import com.lambdaworks.redis.event.EventBus;
 import com.lambdaworks.redis.event.connection.ConnectionActivatedEvent;
 import com.lambdaworks.redis.resource.DefaultClientResources;
 
-import io.datatree.Tree;
 import io.datatree.dom.TreeWriter;
 import io.datatree.dom.TreeWriterRegistry;
-import io.datatree.dom.builtin.JsonBuiltin;
 import rx.Observable;
 import services.moleculer.ServiceBroker;
 import services.moleculer.utils.RedisUtilities;
 
+/**
+ * Redis-based cache implementation. Supports SSL and password authentication.
+ */
 public class RedisCacher extends Cacher {
 
 	// --- PROPERTIES ---
@@ -142,23 +143,7 @@ public class RedisCacher extends Cacher {
 			// System.out.println("GET " + packet);
 			// });
 			
-			String packet = response.get();
-			if (packet == null || "null".equals(packet)) {
-				return null;
-			}
-			if (packet.isEmpty()) {
-				return packet;
-			}
-			final int c = packet.charAt(0);
-
-			// JSON value
-			if (c == '{' || c == '[') {
-				return new Tree(packet);
-			}
-
-			// Scalar value (String, Boolean, etc.)
-			return new JsonBuiltin().parse(packet);
-
+			return deserialize(response.get());
 		} catch (Exception cause) {
 			cause.printStackTrace();
 		}
@@ -168,32 +153,21 @@ public class RedisCacher extends Cacher {
 	@Override
 	public void set(String key, Object value) {
 
-		// Convert Object to JSON
-		String json;
-		if (value == null) {
-
-			// Null value
-			json = "null";
-
-		} else if (value instanceof Tree) {
-
-			// Hierarchial JSON value
-			json = ((Tree) value).toString(null, false, true);
-
-		} else {
-
-			// Scalar value (String, Boolean, etc.)
-			json = JsonBuiltin.serialize(value, null);
-
-		}
-
 		// Send to Redis
 		if (client != null) {
-			client.set(key, json);
+			if (value == null) {
+				client.del(key);
+			} else {
+				client.set(key, serialize(value));
+			}
 			return;
 		}
 		if (clusteredClient != null) {
-			clusteredClient.set(key, json);
+			if (value == null) {
+				clusteredClient.del(key);
+			} else {
+				clusteredClient.set(key, serialize(value));
+			}
 		}
 	}
 

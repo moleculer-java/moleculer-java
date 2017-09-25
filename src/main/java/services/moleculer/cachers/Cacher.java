@@ -1,11 +1,15 @@
 package services.moleculer.cachers;
 
 import io.datatree.Tree;
+import io.datatree.dom.builtin.JsonBuiltin;
 import services.moleculer.ServiceBroker;
 
+/**
+ * Abstract class of all Cacher implementations.
+ */
 public abstract class Cacher {
 
-	// --- PROPERTIES ---
+	// --- IS SHARED (EG. REDIS) ---
 
 	protected final boolean useSharedStorage;
 
@@ -14,16 +18,10 @@ public abstract class Cacher {
 	/**
 	 * Creates an instance of Cacher.
 	 * 
-	 * @param prefix
+	 * @param useSharedStorage
 	 */
 	public Cacher(boolean useSharedStorage) {
 		this.useSharedStorage = useSharedStorage;
-	}
-
-	// --- STORAGE TYPE ---
-
-	public final boolean useSharedStorage() {
-		return useSharedStorage;
 	}
 
 	// --- START CACHE INSTANCE ---
@@ -44,11 +42,57 @@ public abstract class Cacher {
 	public void close() {
 	}
 
+	// --- OBJECT TO BYTE ARRAY ---
+
+	protected static final String serialize(Object value) {
+		try {
+
+			// Null value
+			if (value == null) {
+				return "null";
+			}
+
+			// Hierarchial JSON value
+			if (value instanceof Tree) {
+				return ((Tree) value).toString(null, false, true);
+			}
+
+			// Scalar value (String, Boolean, etc.)
+			return JsonBuiltin.serialize(value, null);
+		} catch (Exception ignored) {
+		}
+		return "null";
+	}
+
+	// --- BYTE ARRAY TO OBJECT ---
+
+	protected static final Object deserialize(String text) {
+		try {
+			if (text == null || "null".equals(text)) {
+				return null;
+			}
+			if (text.isEmpty()) {
+				return text;
+			}
+			final int c = text.charAt(0);
+
+			// JSON value
+			if (c == '{' || c == '[') {
+				return new Tree(text);
+			}
+
+			// Scalar value (String, Boolean, etc.)
+			return new JsonBuiltin().parse(text);
+		} catch (Exception ignored) {
+		}
+		return null;
+	}
+
 	// --- GENERATE CACHE KEY ---
 
 	/**
-	 * Creates a cache key by name and params. Concatenates the name and the
-	 * hashed params.
+	 * Creates a cacher-specific key by name and params. Concatenates the name
+	 * and the hashed params.
 	 * 
 	 * @param name
 	 * @param params

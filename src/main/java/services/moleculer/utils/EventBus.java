@@ -36,12 +36,12 @@ public final class EventBus {
 	
 	// --- CONSTRUCTOR ---
 	
-	public EventBus(int initialCapacity, boolean fair) {
-		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(fair);
+	public EventBus() {
+		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
 		readerLock = lock.readLock();
 		writerLock = lock.writeLock();
-		listeners = new HashMap<>(initialCapacity);
-		listenerCache = new Cache<>(initialCapacity, fair);
+		listeners = new HashMap<>(2048);
+		listenerCache = new Cache<>(2048, true);
 	}
 	
 	// --- REGISTER LISTENER ----

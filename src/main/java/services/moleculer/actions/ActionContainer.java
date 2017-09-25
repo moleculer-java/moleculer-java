@@ -1,11 +1,10 @@
 package services.moleculer.actions;
 
-import services.moleculer.Action;
 import services.moleculer.Context;
 import services.moleculer.ServiceBroker;
 import services.moleculer.cachers.Cacher;
 
-abstract class ActionContainer implements Action {
+public abstract class ActionContainer implements Action {
 
 	// --- CONSTANTS ---
 
