@@ -9,10 +9,16 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.datatree.Tree;
 import io.datatree.dom.DeepCloner;
-import services.moleculer.utils.GlobMatcher;
+import services.moleculer.eventbus.GlobMatcher;
 
 public class MemoryCacher extends Cacher {
 
+	// --- NAME OF THE MOLECULER COMPONENT ---
+	
+	public String name() {
+		return "On-heap Memory Cacher";
+	}
+	
 	// --- PROPERTIES ---
 
 	private final int initialCapacityPerPartition;

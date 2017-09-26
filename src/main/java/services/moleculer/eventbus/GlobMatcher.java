@@ -1,4 +1,4 @@
-package services.moleculer.utils;
+package services.moleculer.eventbus;
 
 public final class GlobMatcher {
 

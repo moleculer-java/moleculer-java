@@ -1,9 +1,17 @@
 package services.moleculer.transporters;
 
 import services.moleculer.ServiceBroker;
+import services.moleculer.utils.MoleculerComponent;
 
-public abstract class Transporter {
+public abstract class Transporter implements MoleculerComponent {
 
+	// --- NAME OF THE MOLECULER COMPONENT ---
+	
+	@Override
+	public String name() {
+		return "Transporter";
+	}
+	
 	// --- CONSTANTS ---
 	
 	public static final String PACKET_UNKNOW		= "???";
@@ -30,19 +38,25 @@ public abstract class Transporter {
 		this.prefix = prefix;
 	}
 
-	// --- INIT TRANSPORTER INSTANCE ---
+	// --- START TRANSPORTER ---
 
-	public void init(ServiceBroker broker) {
-		this.broker = broker;
+	/**
+	 * Initializes transporter instance.
+	 * 
+	 * @param broker
+	 */
+	@Override
+	public void init(ServiceBroker broker) throws Exception {
 	}
 
-	// --- CONNECT ---
+	// --- STOP TRANSPORTER ---
 
-	public abstract void connect();
-
-	// --- DISCONNECT ---
-
-	public abstract void disconnect();
+	/**
+	 * Closes transporter.
+	 */
+	@Override
+	public void close() {
+	}
 	
 	// --- PUBLISH ---
 

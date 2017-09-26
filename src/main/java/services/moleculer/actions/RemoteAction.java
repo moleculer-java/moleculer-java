@@ -1,7 +1,7 @@
 package services.moleculer.actions;
 
-import services.moleculer.Context;
 import services.moleculer.ServiceBroker;
+import services.moleculer.context.Context;
 import services.moleculer.transporters.Transporter;
 
 public final class RemoteAction extends ActionContainer implements Action {

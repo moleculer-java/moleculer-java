@@ -1,21 +1,21 @@
-package services.moleculer.uids;
+package services.moleculer.context;
 
 import services.moleculer.ServiceBroker;
 import services.moleculer.utils.MoleculerComponent;
 
-public abstract class UIDGenerator implements MoleculerComponent {
+public abstract class ContextFactory implements MoleculerComponent {
 
 	// --- NAME OF THE MOLECULER COMPONENT ---
 	
 	@Override
 	public String name() {
-		return "UID Generator";
+		return "Context Factory";
 	}
 	
-	// --- START GENERATOR ---
+	// --- START CONTEXT FACTORY ---
 
 	/**
-	 * Initializes UID generator instance.
+	 * Initializes Context Factory instance.
 	 * 
 	 * @param broker
 	 */
@@ -23,17 +23,17 @@ public abstract class UIDGenerator implements MoleculerComponent {
 	public void init(ServiceBroker broker) throws Exception {
 	}
 
-	// --- STOP GENERATOR ---
+	// --- STOP CONTEXT FACTORY ---
 
 	/**
-	 * Closes UID generator.
+	 * Closes Context Factory.
 	 */
 	@Override
 	public void close() {
 	}
 	
-	// --- GENERATE UID ---
+	// --- GET / CREATE CONTEXT ---
 	
-	public abstract String nextUID();
+	public abstract Context create();
 	
 }

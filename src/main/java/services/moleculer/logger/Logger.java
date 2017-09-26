@@ -2,6 +2,8 @@ package services.moleculer.logger;
 
 public interface Logger {
 
+	// --- LOGGER METHODS ---
+	
 	public void trace(Object msg);
 
 	public boolean isTraceEnabled();
@@ -12,6 +14,8 @@ public interface Logger {
 	
 	public void info(Object msg);
 
+	public boolean isInfoEnabled();
+	
 	public void warn(Object msg);
 
 	public void warn(Object msg, Throwable cause);

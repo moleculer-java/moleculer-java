@@ -47,6 +47,11 @@ public final class SystemOutLogger implements Logger {
 	}
 
 	@Override
+	public final boolean isInfoEnabled() {
+		return level <= SystemOutLoggerFactory.LEVEL_INFO;
+	}
+	
+	@Override
 	public final void warn(Object msg) {
 		log("WARN ", msg, null);
 	}

@@ -16,10 +16,18 @@ import com.lambdaworks.redis.resource.DefaultClientResources;
 
 import io.datatree.Tree;
 import rx.Observable;
+import services.moleculer.ServiceBroker;
 import services.moleculer.utils.RedisUtilities;
 
 public final class RedisTransporter extends Transporter {
 
+	// --- NAME OF THE MOLECULER COMPONENT ---
+	
+	@Override
+	public final String name() {
+		return "Redis Transporter";
+	}
+	
 	// --- VARIABLES ---
 
 	protected String[] urls = new String[] { "localhost" };
@@ -57,10 +65,15 @@ public final class RedisTransporter extends Transporter {
 		this.clientSub = clientSub;
 	}
 
-	// --- CONNECT ---
+	// --- START TRANSPORTER ---
 
+	/**
+	 * Initializes transporter instance.
+	 * 
+	 * @param broker
+	 */
 	@Override
-	public final void connect() {
+	public void init(ServiceBroker broker) throws Exception {
 		if (clientSub == null) {
 
 			// Create Redis connection
@@ -193,10 +206,13 @@ public final class RedisTransporter extends Transporter {
 		clientPub = clientSub.async();
 	}
 
-	// --- DISCONNECT ---
+	// --- STOP TRANSPORTER ---
 
+	/**
+	 * Closes transporter.
+	 */
 	@Override
-	public final void disconnect() {
+	public void close() {
 		clientPub = null;
 		if (clientSub != null) {
 			clientSub.close();
@@ -235,56 +251,6 @@ public final class RedisTransporter extends Transporter {
 			// Send in JSON / MessagePack / etc. format
 			clientPub.publish(channel, outgoing);
 		}
-	}
-
-	// --- GETTERS / SETTERS ---
-
-	public final String[] getUrls() {
-		return urls;
-	}
-
-	public final void setUrls(String[] urls) {
-		this.urls = urls;
-	}
-
-	public final String getPassword() {
-		return password;
-	}
-
-	public final void setPassword(String password) {
-		this.password = password;
-	}
-
-	public final boolean isUseSSL() {
-		return useSSL;
-	}
-
-	public final void setUseSSL(boolean useSSL) {
-		this.useSSL = useSSL;
-	}
-
-	public final boolean isStartTLS() {
-		return startTLS;
-	}
-
-	public final void setStartTLS(boolean startTLS) {
-		this.startTLS = startTLS;
-	}
-
-	public final StatefulRedisPubSubConnection<byte[], byte[]> getClientSub() {
-		return clientSub;
-	}
-
-	public final void setClientSub(StatefulRedisPubSubConnection<byte[], byte[]> clientSub) {
-		this.clientSub = clientSub;
-	}
-
-	public final RedisPubSubAsyncCommands<byte[], byte[]> getClientPub() {
-		return clientPub;
-	}
-
-	public final void setClientPub(RedisPubSubAsyncCommands<byte[], byte[]> clientPub) {
-		this.clientPub = clientPub;
 	}
 
 }

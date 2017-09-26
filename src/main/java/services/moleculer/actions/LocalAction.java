@@ -1,7 +1,7 @@
 package services.moleculer.actions;
 
-import services.moleculer.Context;
 import services.moleculer.ServiceBroker;
+import services.moleculer.context.Context;
 
 public final class LocalAction extends ActionContainer {
 

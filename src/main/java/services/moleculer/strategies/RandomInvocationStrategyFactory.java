@@ -1,7 +1,7 @@
 package services.moleculer.strategies;
 
 /**
- * Factory of all random invocation strategies. Usage:<br>
+ * MoleculerComponentFactory of all random invocation strategies. Usage:<br>
  * <br>
  * InvocationStrategyFactory isf = InvocationStrategyFactory.xorShiftBased();
  */

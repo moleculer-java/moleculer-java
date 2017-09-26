@@ -1,10 +1,42 @@
 package services.moleculer.logger;
 
-public interface LoggerFactory {
+import services.moleculer.ServiceBroker;
+import services.moleculer.utils.MoleculerComponent;
 
-	public Logger getLogger(String name);
+public abstract class LoggerFactory implements MoleculerComponent {
 
-	public default Logger getLogger(Class<?> clazz) {
+	// --- NAME OF THE MOLECULER COMPONENT ---
+	
+	@Override
+	public String name() {
+		return "Logger Factory";
+	}
+	
+	// --- START LOGGER FACILITY ---
+
+	/**
+	 * Initializes logger instance.
+	 * 
+	 * @param broker
+	 */
+	@Override
+	public void init(ServiceBroker broker) throws Exception {
+	}
+
+	// --- STOP LOGGER FACILITY ---
+
+	/**
+	 * Closes logger.
+	 */
+	@Override
+	public void close() {
+	}
+	
+	// --- GET / CREATE LOGGER INSTANCE ---
+	
+	public abstract Logger getLogger(String name);
+
+	public Logger getLogger(Class<?> clazz) {
 		return getLogger(clazz.getName());
 	}
 

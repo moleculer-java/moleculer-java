@@ -1,4 +1,4 @@
-package services.moleculer.utils;
+package services.moleculer.eventbus;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -8,10 +8,16 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.datatree.dom.Cache;
-import services.moleculer.Listener;
 
-public final class EventBus {
+public final class CachedArrayEventBus extends EventBus {
 
+	// --- NAME OF THE MOLECULER COMPONENT ---
+	
+	@Override
+	public final String name() {
+		return "Default Event Bus";
+	}
+	
 	// --- EVENT BUS VARIABLES ---
 
 	/**
@@ -36,7 +42,7 @@ public final class EventBus {
 	
 	// --- CONSTRUCTOR ---
 	
-	public EventBus() {
+	public CachedArrayEventBus() {
 		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
 		readerLock = lock.readLock();
 		writerLock = lock.writeLock();
@@ -46,6 +52,7 @@ public final class EventBus {
 	
 	// --- REGISTER LISTENER ----
 	
+	@Override
 	public final void on(String name, Listener listener, boolean once) {
 
 		// Lock getter and setter threads
@@ -73,6 +80,7 @@ public final class EventBus {
 	 * @param name
 	 * @param handler
 	 */
+	@Override
 	public final void off(String name, Listener listener) {
 		
 		// Check listener
@@ -116,6 +124,7 @@ public final class EventBus {
 	
 	// --- EMIT EVENT TO LISTENERS ---
 	
+	@Override
 	public final void emit(String name, Object payload) {
 
 		// Get from cache

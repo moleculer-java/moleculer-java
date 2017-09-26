@@ -9,6 +9,13 @@ import services.moleculer.ServiceBroker;
  */
 public final class TimeSequenceUIDGenerator extends UIDGenerator {
 
+	// --- NAME OF THE MOLECULER COMPONENT ---
+	
+	@Override
+	public final String name() {
+		return "Time-Sequence UID Generator";
+	}
+	
 	// --- HOST/NODE PREFIX ---
 
 	private char[] prefix;
@@ -17,14 +24,14 @@ public final class TimeSequenceUIDGenerator extends UIDGenerator {
 
 	private final AtomicLong counter = new AtomicLong();
 
-	// --- INIT GENERATOR ---
+	// --- START GENERATOR ---
 
 	@Override
 	public final void init(ServiceBroker broker) {
-		// prefix = (broker.nodeID() + ':').toCharArray();
+		prefix = (broker.nodeID() + ':').toCharArray();
 	}
 
-	// --- NEXT ID ---
+	// --- GENERATE UID ---
 
 	@Override
 	public final String nextUID() {

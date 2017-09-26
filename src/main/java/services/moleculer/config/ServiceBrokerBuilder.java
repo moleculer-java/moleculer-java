@@ -1,7 +1,7 @@
 package services.moleculer.config;
 
-import services.moleculer.CircuitBreaker;
 import services.moleculer.ServiceBroker;
+import services.moleculer.breakers.CircuitBreaker;
 import services.moleculer.cachers.Cacher;
 import services.moleculer.logger.LoggerFactory;
 import services.moleculer.strategies.InvocationStrategyFactory;

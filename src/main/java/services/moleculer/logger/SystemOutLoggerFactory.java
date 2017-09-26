@@ -2,8 +2,15 @@ package services.moleculer.logger;
 
 import java.util.HashMap;
 
-public final class SystemOutLoggerFactory implements LoggerFactory {
+public final class SystemOutLoggerFactory extends LoggerFactory {
 
+	// --- NAME OF THE MOLECULER COMPONENT ---
+	
+	@Override
+	public final String name() {
+		return "Standard Output Logger Factory";
+	}
+	
 	// --- LEVELS ---
 	
 	public static final byte LEVEL_ALL = 0;
@@ -46,4 +53,14 @@ public final class SystemOutLoggerFactory implements LoggerFactory {
 		return logger;
 	}
 
+	// --- STOP LOGGER FACILITY ---
+
+	/**
+	 * Closes logger.
+	 */
+	@Override
+	public final void close() {
+		loggers.clear();
+	}
+	
 }

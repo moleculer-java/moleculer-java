@@ -4,6 +4,9 @@ import io.datatree.Tree;
 import services.moleculer.actions.Action;
 import services.moleculer.cachers.Cache;
 import services.moleculer.cachers.RedisCacher;
+import services.moleculer.eventbus.Listener;
+import services.moleculer.services.Name;
+import services.moleculer.services.Service;
 
 public class Test {
 

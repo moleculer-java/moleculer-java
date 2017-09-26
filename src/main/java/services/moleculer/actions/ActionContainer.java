@@ -1,8 +1,8 @@
 package services.moleculer.actions;
 
-import services.moleculer.Context;
 import services.moleculer.ServiceBroker;
 import services.moleculer.cachers.Cacher;
+import services.moleculer.context.Context;
 
 public abstract class ActionContainer implements Action {
 
@@ -23,7 +23,7 @@ public abstract class ActionContainer implements Action {
 
 	// --- CONSTRUCTOR ---
 
-	ActionContainer(ServiceBroker broker, String nodeID, String name, boolean cached, String[] keys) {
+	ActionContainer(ServiceBroker broker, String name, boolean cached, String[] keys) {
 		this.broker = broker;
 		this.nodeID = nodeID;
 		this.name = name;

@@ -3,13 +3,20 @@ package services.moleculer.cachers;
 import io.datatree.Tree;
 import io.datatree.dom.builtin.JsonBuiltin;
 import services.moleculer.ServiceBroker;
+import services.moleculer.utils.MoleculerComponent;
 
 /**
  * Abstract class of all Cacher implementations.
  */
-public abstract class Cacher {
+public abstract class Cacher implements MoleculerComponent {
 
-	// --- IS SHARED (EG. REDIS) ---
+	// --- NAME OF THE MOLECULER COMPONENT ---
+	
+	public String name() {
+		return "Cacher";
+	}
+	
+	// --- USES SHARED STORAGE (EG. REDIS) ---
 
 	protected final boolean useSharedStorage;
 
@@ -31,6 +38,7 @@ public abstract class Cacher {
 	 * 
 	 * @param broker
 	 */
+	@Override
 	public void init(ServiceBroker broker) throws Exception {
 	}
 
@@ -39,6 +47,7 @@ public abstract class Cacher {
 	/**
 	 * Closes cacher.
 	 */
+	@Override
 	public void close() {
 	}
 
@@ -99,7 +108,7 @@ public abstract class Cacher {
 	 * @param keys
 	 * @return
 	 */
-	public String getCacheKey(String name, Tree params, boolean useSharedStorage, String... keys) {
+	public String getCacheKey(String name, Tree params, String... keys) {
 		if (params == null) {
 			return name;
 		}
@@ -107,11 +116,11 @@ public abstract class Cacher {
 		key.append(name);
 		key.append(':');
 		if (keys == null) {
-			appendToKey(key, params, useSharedStorage);
+			appendToKey(key, params);
 			return key.toString();
 		}
 		if (keys.length == 1) {
-			appendToKey(key, keys[0], useSharedStorage);
+			appendToKey(key, keys[0]);
 			return key.toString();
 		}
 		if (keys.length > 1) {
@@ -122,13 +131,13 @@ public abstract class Cacher {
 				} else {
 					key.append('|');
 				}
-				appendToKey(key, params.get(k), useSharedStorage);
+				appendToKey(key, params.get(k));
 			}
 		}
 		return key.toString();
 	}
 
-	protected static final void appendToKey(StringBuilder key, Object object, boolean useSharedStorage) {
+	protected void appendToKey(StringBuilder key, Object object) {
 		if (object != null) {
 			if (object instanceof Tree) {
 				Tree tree = (Tree) object;
@@ -187,5 +196,5 @@ public abstract class Cacher {
 	 * @param match
 	 */
 	public abstract void clean(String match);
-
+	
 }

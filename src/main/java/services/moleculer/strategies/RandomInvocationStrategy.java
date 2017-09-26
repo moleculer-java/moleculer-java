@@ -8,8 +8,14 @@ import services.moleculer.actions.Action;
 /**
  * Java Random/SecureRandom-based invocation strategy.
  */
-public final class RandomInvocationStrategy extends AbstractStrategy {
+public final class RandomInvocationStrategy extends ArrayBasedInvocationStrategy {
 
+	// --- NAME OF THE MOLECULER COMPONENT ---
+	
+	public String name() {
+		return "Random Invocation Strategy";
+	}
+	
 	// --- PROPERTIES ---
 	
 	private final Random rnd;

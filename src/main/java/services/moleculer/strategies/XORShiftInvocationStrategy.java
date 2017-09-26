@@ -3,10 +3,16 @@ package services.moleculer.strategies;
 import services.moleculer.actions.Action;
 
 /**
- * XORSHIFT-based pseudo-random invocation strategy.
+ * XORSHIFT-based pseudorandom invocation strategy.
  */
-public final class XORShiftInvocationStrategy extends AbstractStrategy {
+public final class XORShiftInvocationStrategy extends ArrayBasedInvocationStrategy {
 
+	// --- NAME OF THE MOLECULER COMPONENT ---
+	
+	public String name() {
+		return "XORSHIFT Pseudorandom Invocation Strategy";
+	}
+	
 	// --- PROPERTIES ---
 	
 	private volatile long rnd = System.currentTimeMillis();

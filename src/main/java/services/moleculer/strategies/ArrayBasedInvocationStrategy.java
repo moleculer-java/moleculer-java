@@ -5,7 +5,7 @@ import java.util.Arrays;
 import services.moleculer.actions.Action;
 import services.moleculer.actions.LocalAction;
 
-public abstract class AbstractStrategy implements InvocationStrategy {
+public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 
 	// --- ARRAY OF THE ALL ACTION INSTANCES ---
 

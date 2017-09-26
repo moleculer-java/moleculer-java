@@ -42,6 +42,11 @@ public final class JDKLogger implements Logger {
 	}
 
 	@Override
+	public final boolean isInfoEnabled() {
+		return logger.isLoggable(Level.INFO);		
+	}
+	
+	@Override
 	public final void warn(Object msg) {
 		log(Level.WARNING, msg, null);
 	}

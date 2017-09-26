@@ -1,10 +1,20 @@
 package services.moleculer.config;
 
-import services.moleculer.CircuitBreaker;
+import services.moleculer.actions.ActionRegistry;
+import services.moleculer.breakers.CircuitBreaker;
 import services.moleculer.cachers.Cacher;
+import services.moleculer.cachers.MemoryCacher;
+import services.moleculer.eventbus.CachedArrayEventBus;
+import services.moleculer.eventbus.EventBus;
+import services.moleculer.logger.DefaultLoggerFactory;
 import services.moleculer.logger.LoggerFactory;
+import services.moleculer.services.MapBasedServiceRegistry;
+import services.moleculer.services.ServiceRegistry;
 import services.moleculer.strategies.InvocationStrategyFactory;
+import services.moleculer.strategies.RoundRobinInvocationStrategyFactory;
 import services.moleculer.transporters.Transporter;
+import services.moleculer.uids.TimeSequenceUIDGenerator;
+import services.moleculer.uids.UIDGenerator;
 
 /**
  * POJO-style ServiceBroker factory (eg. for Spring Framework). Sample of usage:<br>
@@ -20,9 +30,14 @@ public final class ServiceBrokerConfig {
 	private String namespace = "";
 	private String nodeID;
 
-	private LoggerFactory loggerFactory;
-
+	private LoggerFactory loggerFactory = new DefaultLoggerFactory();
+	private ServiceRegistry serviceRegistry = new MapBasedServiceRegistry();
+	private ActionRegistry actionRegistry = null;
+	private EventBus eventBus = new CachedArrayEventBus();	
+	private UIDGenerator uidGenerator = new TimeSequenceUIDGenerator();
+	
 	private Transporter transporter;
+	
 	private long requestTimeout;
 	private int requestRetry;
 	private int maxCallLevel = 100;
@@ -31,13 +46,13 @@ public final class ServiceBrokerConfig {
 
 	private boolean disableBalancer;
 
-	private InvocationStrategyFactory strategyFactory;
-	private boolean preferLocal;
+	private InvocationStrategyFactory strategyFactory = new RoundRobinInvocationStrategyFactory();
+	private boolean preferLocal = true;
 
-	private CircuitBreaker circuitBreaker;
+	private CircuitBreaker circuitBreaker = new CircuitBreaker();
 
-	private Cacher cacher;
-	private String serializer;
+	private Cacher cacher = new MemoryCacher();
+	private String serializer = "json";
 
 	// validation: true,
 	// validator: null,
@@ -49,6 +64,17 @@ public final class ServiceBrokerConfig {
 	// ServiceFactory: null,
 	// ContextFactory: null
 
+	// --- CONSTRUCTORS ---
+	
+	public ServiceBrokerConfig() {
+	}
+
+	public ServiceBrokerConfig(String nodeID, Transporter transporter, Cacher cacher) {
+		setNodeID(nodeID);
+		setTransporter(transporter);
+		setCacher(cacher);
+	}
+	
 	// --- GETTERS AND SETTERS ---
 
 	public final String getNamespace() {
@@ -169,6 +195,38 @@ public final class ServiceBrokerConfig {
 
 	public final void setSerializer(String serializer) {
 		this.serializer = serializer;
+	}
+
+	public final ServiceRegistry getServiceRegistry() {
+		return serviceRegistry;
+	}
+
+	public final void setServiceRegistry(ServiceRegistry serviceRegistry) {
+		this.serviceRegistry = serviceRegistry;
+	}
+
+	public final ActionRegistry getActionRegistry() {
+		return actionRegistry;
+	}
+
+	public final void setActionRegistry(ActionRegistry actionRegistry) {
+		this.actionRegistry = actionRegistry;
+	}
+
+	public final EventBus getEventBus() {
+		return eventBus;
+	}
+
+	public final void setEventBus(EventBus eventBus) {
+		this.eventBus = eventBus;
+	}
+
+	public final UIDGenerator getUIDGenerator() {
+		return uidGenerator;
+	}
+
+	public final void setUIDGenerator(UIDGenerator uidGenerator) {
+		this.uidGenerator = uidGenerator;
 	}
 
 }

@@ -1,7 +1,6 @@
 package services.moleculer;
 
 import java.lang.reflect.Field;
-import java.util.HashMap;
 
 import io.datatree.Tree;
 import services.moleculer.actions.Action;
@@ -9,36 +8,42 @@ import services.moleculer.actions.ActionRegistry;
 import services.moleculer.cachers.Cache;
 import services.moleculer.cachers.Cacher;
 import services.moleculer.config.ServiceBrokerConfig;
+import services.moleculer.context.CallingOptions;
+import services.moleculer.context.Context;
+import services.moleculer.eventbus.EventBus;
+import services.moleculer.eventbus.Listener;
 import services.moleculer.logger.Logger;
+import services.moleculer.logger.LoggerFactory;
+import services.moleculer.logger.NoOpLoggerFactory;
+import services.moleculer.services.Service;
+import services.moleculer.services.ServiceRegistry;
 import services.moleculer.transporters.Transporter;
-import services.moleculer.utils.EventBus;
-import services.moleculer.utils.UIDGenerator;
+import services.moleculer.uids.UIDGenerator;
+import services.moleculer.utils.MoleculerComponent;
 
-public class ServiceBroker {
+public final class ServiceBroker {
 
-	// --- CONFIGURATION ---
+	// --- VERSION ---
 
-	private ServiceBrokerConfig config;
+	public static final String VERSION = "1.2";
 
-	// --- LOGGER ---
+	// --- UNIQUE NODE IDENTIFIER ---
 
-	private Logger logger;
+	private final String nodeID;
 
-	// --- SERVICE REGISTRY ---
+	// --- INTERNAL COMPONENTS ---
 
-	private final HashMap<String, Service> services = new HashMap<>();
-
-	// --- INTERNAL ACTION REGISTRY ---
-
+	private final LoggerFactory loggerFactory;
+	private final UIDGenerator uidGenerator;
+	private final ServiceRegistry serviceRegistry;
 	private final ActionRegistry actionRegistry;
+	private final Cacher cacher;
+	private final EventBus eventBus;
+	private final Transporter transporter;
 
-	// --- INTERNAL EVENT BUS ---
+	// --- BROKER'S LOGGER ---
 
-	private final EventBus bus = new EventBus();
-
-	// --- INTERNAL UUID GENERATOR ---
-
-	private UIDGenerator uidGenerator;
+	private Logger logger = NoOpLoggerFactory.getInstance();
 
 	// --- CONSTRUCTORS ---
 
@@ -47,15 +52,24 @@ public class ServiceBroker {
 	}
 
 	public ServiceBroker(String nodeID, Transporter transporter, Cacher cacher) {
-		ServiceBrokerConfig config = new ServiceBrokerConfig();
-		config.setNodeID(nodeID);
-		config.setTransporter(transporter);
-		config.setCacher(cacher);
-		this.config = config;
+		this(new ServiceBrokerConfig(nodeID, transporter, cacher));
 	}
 
 	public ServiceBroker(ServiceBrokerConfig config) {
-		this.config = config;
+		nodeID = config.getNodeID();
+		loggerFactory = config.getLoggerFactory();
+		uidGenerator = config.getUIDGenerator();
+		serviceRegistry = config.getServiceRegistry();
+		actionRegistry = config.getActionRegistry();
+		cacher = config.getCacher();
+		eventBus = config.getEventBus();
+		transporter = config.getTransporter();
+	}
+
+	// --- GET NODE ID ---
+
+	public String nodeID() {
+		return nodeID;
 	}
 
 	// --- START BROKER INSTANCE ---
@@ -63,61 +77,83 @@ public class ServiceBroker {
 	/**
 	 * Start broker. If has transporter, transporter.connect will be called.
 	 */
-	public void start() throws Exception {
+	public final void start() throws Exception {
 
-		// Init services
-		for (Service service : services.values()) {
-			service.started();
+		// Start logger factory
+		loggerFactory.init(this);
+
+		// Create logger of broker instance
+		logger = loggerFactory.getLogger(ServiceBroker.class);
+
+		// Starting Moleculer Service Broker
+		logger.info("Moleculer Service Broker (version " + VERSION + ") starting node \"" + nodeID + "\"...");
+
+		// Start internal components
+		start(uidGenerator);
+		start(eventBus);
+		start(cacher);
+		start(transporter);
+		start(serviceRegistry);
+		start(actionRegistry);
+
+		// Ok, all components started successfully
+		logger.info("Node \" + nodeID + \" started successfully.");
+	}
+
+	private final void start(MoleculerComponent component) throws Exception {
+		if (component != null) {
+			String info = component.name();
+			if (info == null || info.isEmpty()) {
+				info = component.getClass().toString();
+			}
+			try {
+				logger.info("Starting " + info + "...");
+				component.init(this);
+				logger.info(info + " started.");
+			} catch (Exception cause) {
+				logger.fatal("Unable to start " + info + "!", cause);
+				throw cause;
+			}
 		}
-
-		// Init cacher
-		if (cacher != null) {
-			cacher.init(this);
-		}
-
-		// Init transporter
-		if (transporter != null) {
-			transporter.init(this);
-		}
-
-		// Ok, broker started
-		logger.info("Broker started! NodeID: " + this.nodeID);
 	}
 
 	/**
 	 * Stop broker. If has transporter, transporter.disconnect will be called.
 	 */
-	public void stop() {
+	public final void stop() {
 
-		// Init services
-		for (Service service : services.values()) {
+		// Starting Moleculer Service Broker
+		logger.info("Moleculer Service Broker stopping node \"" + nodeID + "\"...");
+
+		// Stop internal components
+		stop(actionRegistry);
+		stop(serviceRegistry);
+		stop(transporter);
+		stop(cacher);
+		stop(eventBus);
+		stop(uidGenerator);
+
+		// Ok, broker stopped
+		logger.info("Node \" + nodeID + \" stopped successfully.");
+
+		// Stop logger factory
+		loggerFactory.close();
+	}
+
+	private final void stop(MoleculerComponent component) {
+		if (component != null) {
+			String info = component.name();
+			if (info == null || info.isEmpty()) {
+				info = component.getClass().toString();
+			}
 			try {
-				service.stopped();
+				logger.info("Stopping " + info + "...");
+				component.init(this);
+				logger.info(info + " stopped.");
 			} catch (Throwable cause) {
-				logger.warn("Unable to stop service!");
+				logger.fatal("Unable to stop " + info + "!", cause);
 			}
 		}
-
-		// Stop cacher
-		if (cacher != null) {
-			try {
-				cacher.close();
-			} catch (Throwable cause) {
-				logger.warn("Unable to stop cacher!");
-			}
-		}
-
-		// Stop transporter
-		if (transporter != null) {
-			try {
-				transporter.disconnect();
-			} catch (Throwable cause) {
-				logger.warn("Unable to stop transporter!");
-			}
-		}
-
-		// Log
-		this.logger.info("Broker stopped! NodeID: " + config.getNodeID());
 	}
 
 	/**
@@ -131,24 +167,15 @@ public class ServiceBroker {
 	 * Get a custom logger for sub-modules (service, transporter, cacher,
 	 * context...etc)
 	 * 
-	 * @param module
+	 * @param name
 	 * @return
 	 */
-	public Logger getLogger(String module) {
-		return config.getLoggerFactory().getLogger(module);
+	public Logger getLogger(String name) {
+		return loggerFactory.getLogger(name);
 	}
 
-	/**
-	 * Get a custom logger for sub-modules (service, transporter, cacher,
-	 * context...etc)
-	 * 
-	 * @param module
-	 * @param service
-	 * @param version
-	 * @return
-	 */
-	public Logger getLogger(String module, String service, String version) {
-		return config.getLoggerFactory().getLogger(module + '.' + service + '.' + version);
+	public Logger getLogger(Class<?> clazz) {
+		return loggerFactory.getLogger(clazz);
 	}
 
 	/**
@@ -160,12 +187,6 @@ public class ServiceBroker {
 	 */
 	public <T extends Service> T createService(T service) throws Exception {
 
-		// Init service
-		service.init(this, service.name);
-
-		// Register service
-		services.put(service.name, service);
-
 		// Get annotations of actions
 		Class<? extends Service> clazz = service.getClass();
 		Field[] fields = clazz.getFields();
@@ -173,7 +194,7 @@ public class ServiceBroker {
 			if (Action.class.isAssignableFrom(field.getType())) {
 
 				// Name of the action (eg. "v2.service.add")
-				String name = service.name + '.' + field.getName();
+				String name = service.name() + '.' + field.getName();
 
 				// Process "Cache" annotation
 				Cache cache = field.getAnnotation(Cache.class);
@@ -198,7 +219,10 @@ public class ServiceBroker {
 			}
 		}
 
-		service.created();
+		// Register service
+		// TODO remove actions on error
+		serviceRegistry.add(service);
+		
 		return service;
 	}
 
@@ -207,24 +231,8 @@ public class ServiceBroker {
 	 * 
 	 * @param service
 	 */
-	public void destroyService(Service service) {
-
-		// Unregister service
-		boolean found = services.remove(service.name) != null;
-		if (!found) {
-			throw new IllegalStateException("Service is not registered!");
-		}
-
-		// TODO Unregister actions
-
-		// TODO Notify all other nodes
-
-		// Invoke "stopped" method
-		try {
-			service.stopped();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+	public boolean destroyService(Service service) {
+		return serviceRegistry.remove(service.name());
 	}
 
 	/**
@@ -234,7 +242,7 @@ public class ServiceBroker {
 	 * @return
 	 */
 	public Service getService(String serviceName) {
-		return services.get(serviceName);
+		return serviceRegistry.get(serviceName);
 	}
 
 	/**
@@ -244,7 +252,7 @@ public class ServiceBroker {
 	 * @return
 	 */
 	public boolean hasService(String serviceName) {
-		return services.containsKey(serviceName);
+		return serviceRegistry.contains(serviceName);
 	}
 
 	/**
@@ -329,7 +337,7 @@ public class ServiceBroker {
 	 * @param handler
 	 */
 	public void on(String name, Listener handler) {
-		bus.on(name, handler, false);
+		eventBus.on(name, handler, false);
 	}
 
 	/**
@@ -339,7 +347,7 @@ public class ServiceBroker {
 	 * @param listener
 	 */
 	public void once(String name, Listener handler) {
-		bus.on(name, handler, true);
+		eventBus.on(name, handler, true);
 	}
 
 	// --- REMOVE EVENT LISTENER FROM THE EVENT BUS ---
@@ -351,7 +359,7 @@ public class ServiceBroker {
 	 * @param listener
 	 */
 	public void off(String name, Listener handler) {
-		bus.off(name, handler);
+		eventBus.off(name, handler);
 	}
 
 	// --- EMIT EVENTS VIA EVENT BUS ---
@@ -363,7 +371,7 @@ public class ServiceBroker {
 	 * @param payload
 	 */
 	public void emit(String name, Object payload) {
-		bus.emit(name, payload);
+		eventBus.emit(name, payload);
 		if (transporter != null) {
 			transporter.publish(name, null, payload);
 		}
@@ -376,13 +384,7 @@ public class ServiceBroker {
 	 * @param payload
 	 */
 	public void emitLocal(String name, Object payload) {
-		bus.emit(name, payload);
-	}
-
-	// --- UUID GENERATOR ---
-
-	protected String nextUID() {
-		return uidGenerator.next();
+		eventBus.emit(name, payload);
 	}
 
 }

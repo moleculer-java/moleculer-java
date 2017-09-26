@@ -2,8 +2,15 @@ package services.moleculer.logger;
 
 import java.util.HashMap;
 
-public final class SLF4JLoggerFactory implements LoggerFactory {
+public final class SLF4JLoggerFactory extends LoggerFactory {
 
+	// --- NAME OF THE MOLECULER COMPONENT ---
+	
+	@Override
+	public final String name() {
+		return "SLF4J Logger Factory";
+	}
+	
 	// --- FACTORY METHOD ---
 	
 	private final HashMap<String, SLF4JLogger> loggers = new HashMap<>();
@@ -21,4 +28,14 @@ public final class SLF4JLoggerFactory implements LoggerFactory {
 		return logger;
 	}
 
+	// --- STOP LOGGER FACILITY ---
+
+	/**
+	 * Closes logger.
+	 */
+	@Override
+	public final void close() {
+		loggers.clear();
+	}
+	
 }

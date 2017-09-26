@@ -24,6 +24,12 @@ import services.moleculer.utils.RedisUtilities;
  */
 public class RedisCacher extends Cacher {
 
+	// --- NAME OF THE MOLECULER COMPONENT ---
+	
+	public String name() {
+		return "Redis Cacher";
+	}
+	
 	// --- PROPERTIES ---
 
 	protected String[] urls = new String[] { "localhost" };

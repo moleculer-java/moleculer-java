@@ -1,4 +1,4 @@
-package services.moleculer;
+package services.moleculer.eventbus;
 
 @FunctionalInterface
 public interface Listener {

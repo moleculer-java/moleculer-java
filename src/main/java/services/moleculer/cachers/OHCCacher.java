@@ -6,7 +6,7 @@ import org.caffinitas.ohc.OHCache;
 import org.caffinitas.ohc.OHCacheBuilder;
 
 import services.moleculer.ServiceBroker;
-import services.moleculer.utils.GlobMatcher;
+import services.moleculer.eventbus.GlobMatcher;
 
 /**
  * Off-heap cache implementation (it's similar to MemoryCacher, but stores
@@ -17,6 +17,12 @@ import services.moleculer.utils.GlobMatcher;
  */
 public class OHCCacher extends Cacher {
 
+	// --- NAME OF THE MOLECULER COMPONENT ---
+	
+	public String name() {
+		return "Off-heap Cacher";
+	}
+	
 	// --- PROPERTIES ---
 
 	private final long capacity;
@@ -48,7 +54,6 @@ public class OHCCacher extends Cacher {
 	 * @param broker
 	 */
 	public final void init(ServiceBroker broker) throws Exception {
-		super.init(broker);
 		OHCacheBuilder<String, String> builder = OHCacheBuilder.newBuilder();
 		if (capacity > 0) {
 			builder.capacity(capacity);
