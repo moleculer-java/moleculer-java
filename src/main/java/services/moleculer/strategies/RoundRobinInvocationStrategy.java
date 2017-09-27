@@ -2,7 +2,7 @@ package services.moleculer.strategies;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import services.moleculer.actions.Action;
+import services.moleculer.services.Action;
 
 /**
  * Round-robin invocation strategy.

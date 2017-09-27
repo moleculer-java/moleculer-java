@@ -1,10 +1,12 @@
 package services.moleculer;
 
 import io.datatree.Tree;
-import services.moleculer.actions.Action;
 import services.moleculer.cachers.Cache;
 import services.moleculer.cachers.RedisCacher;
+import services.moleculer.config.ServiceBrokerBuilder;
 import services.moleculer.eventbus.Listener;
+import services.moleculer.logger.SystemOutLoggerFactory;
+import services.moleculer.services.Action;
 import services.moleculer.services.Name;
 import services.moleculer.services.Service;
 
@@ -13,10 +15,10 @@ public class Test {
 	@SuppressWarnings("unused")
 	public static void main(String[] args) throws Exception {
 
-		ServiceBroker broker = new ServiceBroker(null, null, new RedisCacher());
+		ServiceBroker broker = ServiceBroker.builder().loggerFactory(new SystemOutLoggerFactory()).build();
 
 		TestService service = new TestService();
-		
+
 		Service svc = broker.createService(service);
 
 		broker.start();
@@ -26,8 +28,8 @@ public class Test {
 		Tree t = new Tree().put("a", 5).put("b", 3);
 		long start = System.currentTimeMillis();
 		for (int i = 0; i < 3; i++) {
-			Object result = broker.call("v2.test.add", t, null, "x");
-			//System.out.println("RESULT: " + result);
+			Object result = broker.call("v2.test.add", t, null);
+			// System.out.println("RESULT: " + result);
 		}
 		System.out.println(System.currentTimeMillis() - start);
 
@@ -55,43 +57,43 @@ public class Test {
 
 	@Name("v2.test")
 	public static class TestService extends Service {
-		
-			// --- CREATED ---
 
-			@Override
-			public void created() {
+		// --- CREATED ---
 
-				// Created
-				logger.debug("Service created!");
+		@Override
+		public void created() {
 
-			}
+			// Created
+			logger.debug("Service created!");
 
-			// --- ACTIONS ---
+		}
 
-			public Action list = (ctx) -> {
-				return processData(ctx.params.get("a", -1), ctx.params.get("b", -1));
-			};
+		// --- ACTIONS ---
 
-			@Cache({"a", "b"})
-			public Action add = (ctx) -> {
-				return ctx.call("v2.test.list", ctx.params, null);
-				// return 2;
-			};
+		public Action list = (ctx) -> {
+			return processData(ctx.params().get("a", -1), ctx.params().get("b", -1));
+		};
 
-			// --- EVENT LISTENERS ---
+		@Cache({ "a", "b" })
+		public Action add = (ctx) -> {
+			return ctx.call("v2.test.list", ctx.params(), null);
+			// return 2;
+		};
 
-			// Context, Tree, or Object????
-			public Listener test = (input) -> {
+		// --- EVENT LISTENERS ---
 
-			};
+		// Context, Tree, or Object????
+		public Listener test = (input) -> {
 
-			// --- METHODS ---
+		};
 
-			int processData(int a, int b) {
-				//this.logger.info("Process data invoked: " + a + ", " + b);
-				return a + b;
-			}
+		// --- METHODS ---
+
+		int processData(int a, int b) {
+			// this.logger.info("Process data invoked: " + a + ", " + b);
+			return a + b;
+		}
 
 	}
-	
+
 }

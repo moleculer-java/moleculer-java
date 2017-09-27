@@ -36,8 +36,4 @@ public abstract class LoggerFactory implements MoleculerComponent {
 	
 	public abstract Logger getLogger(String name);
 
-	public Logger getLogger(Class<?> clazz) {
-		return getLogger(clazz.getName());
-	}
-
 }

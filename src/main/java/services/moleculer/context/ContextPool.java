@@ -3,13 +3,13 @@ package services.moleculer.context;
 import services.moleculer.ServiceBroker;
 import services.moleculer.utils.MoleculerComponent;
 
-public abstract class ContextFactory implements MoleculerComponent {
+public abstract class ContextPool implements MoleculerComponent {
 
 	// --- NAME OF THE MOLECULER COMPONENT ---
 	
 	@Override
 	public String name() {
-		return "Context Factory";
+		return "Context Pool";
 	}
 	
 	// --- START CONTEXT FACTORY ---
@@ -32,8 +32,14 @@ public abstract class ContextFactory implements MoleculerComponent {
 	public void close() {
 	}
 	
-	// --- GET / CREATE CONTEXT ---
+	// --- GET CONTEXT FROM POOL ---
 	
-	public abstract Context create();
+	// TODO add parameters to "borrow"
+	
+	public abstract Context borrow();
+
+	// --- PUSHBACK CONTEXT INTO THE POOL ---
+	
+	public abstract void release(Context ctx);
 	
 }

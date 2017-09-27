@@ -3,7 +3,7 @@ package services.moleculer.strategies;
 import java.security.SecureRandom;
 import java.util.Random;
 
-import services.moleculer.actions.Action;
+import services.moleculer.services.Action;
 
 /**
  * Java Random/SecureRandom-based invocation strategy.

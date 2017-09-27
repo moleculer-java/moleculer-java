@@ -1,22 +1,21 @@
 package services.moleculer;
 
-import java.lang.reflect.Field;
-
 import io.datatree.Tree;
-import services.moleculer.actions.Action;
-import services.moleculer.actions.ActionRegistry;
-import services.moleculer.cachers.Cache;
 import services.moleculer.cachers.Cacher;
+import services.moleculer.config.ServiceBrokerBuilder;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
+import services.moleculer.context.ContextPool;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.logger.Logger;
 import services.moleculer.logger.LoggerFactory;
 import services.moleculer.logger.NoOpLoggerFactory;
+import services.moleculer.services.Action;
 import services.moleculer.services.Service;
 import services.moleculer.services.ServiceRegistry;
+import services.moleculer.strategies.InvocationStrategyFactory;
 import services.moleculer.transporters.Transporter;
 import services.moleculer.uids.UIDGenerator;
 import services.moleculer.utils.MoleculerComponent;
@@ -34,9 +33,10 @@ public final class ServiceBroker {
 	// --- INTERNAL COMPONENTS ---
 
 	private final LoggerFactory loggerFactory;
+	private final ContextPool contextPool;
 	private final UIDGenerator uidGenerator;
+	private final InvocationStrategyFactory invocationStrategyFactory;
 	private final ServiceRegistry serviceRegistry;
-	private final ActionRegistry actionRegistry;
 	private final Cacher cacher;
 	private final EventBus eventBus;
 	private final Transporter transporter;
@@ -45,6 +45,12 @@ public final class ServiceBroker {
 
 	private Logger logger = NoOpLoggerFactory.getInstance();
 
+	// --- STATIC CONSTRUCTOR ---
+
+	public static final ServiceBrokerBuilder builder() {
+		return new ServiceBrokerBuilder(new ServiceBrokerConfig());
+	}
+	
 	// --- CONSTRUCTORS ---
 
 	public ServiceBroker() {
@@ -56,20 +62,78 @@ public final class ServiceBroker {
 	}
 
 	public ServiceBroker(ServiceBrokerConfig config) {
+		
+		// Set components
 		nodeID = config.getNodeID();
 		loggerFactory = config.getLoggerFactory();
+		contextPool = config.getContextPool();
 		uidGenerator = config.getUIDGenerator();
+		invocationStrategyFactory = config.getInvocationStrategyFactory();
 		serviceRegistry = config.getServiceRegistry();
-		actionRegistry = config.getActionRegistry();
 		cacher = config.getCacher();
 		eventBus = config.getEventBus();
 		transporter = config.getTransporter();
+		
+		// Init base components
+		try {
+			
+			// Init logger factory
+			loggerFactory.init(this);
+			
+			// Create logger of broker instance
+			logger = loggerFactory.getLogger(nodeID);
+			
+			// Start service registry
+			start(serviceRegistry);
+			
+		} catch (Exception cause) {
+			throw new RuntimeException("Unable to init logger!", cause);
+		}
+
+		// Starting Moleculer Service Broker
+		logger.info("Moleculer Service Broker (version " + VERSION + ") initalized.");
 	}
 
 	// --- GET NODE ID ---
 
 	public String nodeID() {
 		return nodeID;
+	}
+
+	// --- GET COMPONENTS ---
+
+	// TODO remove unecessary getters
+	
+	public final LoggerFactory loggerFactory() {
+		return loggerFactory;
+	}
+
+	public final ContextPool contextPool() {
+		return contextPool;
+	}
+
+	public final UIDGenerator uidGenerator() {
+		return uidGenerator;
+	}
+
+	public final InvocationStrategyFactory invocationStrategyFactory() {
+		return invocationStrategyFactory;
+	}
+
+	public final ServiceRegistry serviceRegistry() {
+		return serviceRegistry;
+	}
+
+	public final Cacher cacher() {
+		return cacher;
+	}
+
+	public final EventBus eventBus() {
+		return eventBus;
+	}
+
+	public final Transporter transporter() {
+		return transporter;
 	}
 
 	// --- START BROKER INSTANCE ---
@@ -79,25 +143,23 @@ public final class ServiceBroker {
 	 */
 	public final void start() throws Exception {
 
-		// Start logger factory
-		loggerFactory.init(this);
-
-		// Create logger of broker instance
-		logger = loggerFactory.getLogger(ServiceBroker.class);
-
-		// Starting Moleculer Service Broker
-		logger.info("Moleculer Service Broker (version " + VERSION + ") starting node \"" + nodeID + "\"...");
+		// Starting thread-based components
+		logger.info("Starting node \"" + nodeID + "\"...");
 
 		// Start internal components
+		start(contextPool);
 		start(uidGenerator);
 		start(eventBus);
 		start(cacher);
 		start(transporter);
-		start(serviceRegistry);
-		start(actionRegistry);
 
 		// Ok, all components started successfully
-		logger.info("Node \" + nodeID + \" started successfully.");
+		int services = serviceRegistry.countServices();
+		String info = services + " service";
+		if (services > 1) {
+			info += "s";
+		}
+		logger.info("Node \"" + nodeID + "\" started successfully with " + info + '.');
 	}
 
 	private final void start(MoleculerComponent component) throws Exception {
@@ -107,7 +169,6 @@ public final class ServiceBroker {
 				info = component.getClass().toString();
 			}
 			try {
-				logger.info("Starting " + info + "...");
 				component.init(this);
 				logger.info(info + " started.");
 			} catch (Exception cause) {
@@ -126,15 +187,15 @@ public final class ServiceBroker {
 		logger.info("Moleculer Service Broker stopping node \"" + nodeID + "\"...");
 
 		// Stop internal components
-		stop(actionRegistry);
 		stop(serviceRegistry);
 		stop(transporter);
 		stop(cacher);
 		stop(eventBus);
 		stop(uidGenerator);
+		stop(contextPool);
 
 		// Ok, broker stopped
-		logger.info("Node \" + nodeID + \" stopped successfully.");
+		logger.info("Node \"" + nodeID + "\" stopped.");
 
 		// Stop logger factory
 		loggerFactory.close();
@@ -147,7 +208,6 @@ public final class ServiceBroker {
 				info = component.getClass().toString();
 			}
 			try {
-				logger.info("Stopping " + info + "...");
 				component.init(this);
 				logger.info(info + " stopped.");
 			} catch (Throwable cause) {
@@ -174,10 +234,6 @@ public final class ServiceBroker {
 		return loggerFactory.getLogger(name);
 	}
 
-	public Logger getLogger(Class<?> clazz) {
-		return loggerFactory.getLogger(clazz);
-	}
-
 	/**
 	 * Create a new service by schema
 	 * 
@@ -186,43 +242,7 @@ public final class ServiceBroker {
 	 * @throws Exception
 	 */
 	public <T extends Service> T createService(T service) throws Exception {
-
-		// Get annotations of actions
-		Class<? extends Service> clazz = service.getClass();
-		Field[] fields = clazz.getFields();
-		for (Field field : fields) {
-			if (Action.class.isAssignableFrom(field.getType())) {
-
-				// Name of the action (eg. "v2.service.add")
-				String name = service.name() + '.' + field.getName();
-
-				// Process "Cache" annotation
-				Cache cache = field.getAnnotation(Cache.class);
-				boolean cached = false;
-				String[] keys = null;
-				if (cache != null) {
-					cached = true;
-					if (cached) {
-						keys = cache.value();
-						if (keys != null && keys.length == 0) {
-							keys = null;
-						}
-					}
-				}
-
-				// Action instance
-				Action action = (Action) field.get(service);
-
-				// Register action
-				actionRegistry.add(name, cached, keys, action);
-
-			}
-		}
-
-		// Register service
-		// TODO remove actions on error
-		serviceRegistry.add(service);
-		
+		serviceRegistry.addService(service);
 		return service;
 	}
 
@@ -232,7 +252,7 @@ public final class ServiceBroker {
 	 * @param service
 	 */
 	public boolean destroyService(Service service) {
-		return serviceRegistry.remove(service.name());
+		return serviceRegistry.removeService(service.name());
 	}
 
 	/**
@@ -242,7 +262,7 @@ public final class ServiceBroker {
 	 * @return
 	 */
 	public Service getService(String serviceName) {
-		return serviceRegistry.get(serviceName);
+		return serviceRegistry.getService(serviceName);
 	}
 
 	/**
@@ -252,7 +272,7 @@ public final class ServiceBroker {
 	 * @return
 	 */
 	public boolean hasService(String serviceName) {
-		return serviceRegistry.contains(serviceName);
+		return getService(serviceName) != null;
 	}
 
 	/**
@@ -282,7 +302,7 @@ public final class ServiceBroker {
 	 * @return
 	 */
 	public Action getAction(String actionName) {
-		return actionRegistry.get(null, actionName);
+		return serviceRegistry.getAction(null, actionName);
 	}
 
 	/**
@@ -292,7 +312,7 @@ public final class ServiceBroker {
 	 * @return
 	 */
 	public Action getAction(String nodeID, String actionName) {
-		return actionRegistry.get(nodeID, actionName);
+		return serviceRegistry.getAction(nodeID, actionName);
 	}
 
 	/**
@@ -320,12 +340,20 @@ public final class ServiceBroker {
 	 * @param actionName
 	 * @param params
 	 * @param opts
+	 * 
 	 * @return
 	 */
-	public Object call(String actionName, Tree params, CallingOptions opts, String requestID) throws Exception {
+	public Object call(String actionName, Tree params, CallingOptions opts) throws Exception {
 		Action action = getAction(actionName);
-		Context ctx = new Context(this, action, params, requestID);
-		return action.handler(ctx);
+		Context ctx = null;
+		try {
+			ctx = contextPool.borrow();
+			return action.handler(ctx);
+		} finally {
+			if (ctx != null) {
+				contextPool.release(ctx);
+			}
+		}
 	}
 
 	// --- ADD EVENT LISTENER TO THE EVENT BUS ---

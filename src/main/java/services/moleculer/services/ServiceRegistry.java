@@ -1,5 +1,6 @@
 package services.moleculer.services;
 
+import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.utils.MoleculerComponent;
 
@@ -24,20 +25,28 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 	public void close() {
 	}
 
-	// --- ADD SERVICE ---
+	// --- ADD LOCAL SERVICE(S) ---
 	
-	public abstract void add(Service service) throws Exception;
+	public abstract void addService(Service... services) throws Exception;
+
+	// --- ADD REMOTE ACTION ---
+	
+	public abstract void addAction(String nodeID, String name, Tree parameters) throws Exception;
 
 	// --- GET SERVICE ---
 	
-	public abstract Service get(String name);
+	public abstract Service getService(String name);
 	
 	// --- REMOVE SERVICE ---
 	
-	public abstract boolean remove(String name);
-
-	// --- QUERY SERVICE ---
+	public abstract boolean removeService(String name);
 	
-	public abstract boolean contains(String name);
+	// --- GET THE NUMBER OF SERVICES ---
+	
+	public abstract int countServices();
+
+	// --- GET ACTION ---
+	
+	public abstract Action getAction(String nodeID, String name);
 	
 }

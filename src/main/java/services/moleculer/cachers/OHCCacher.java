@@ -20,7 +20,7 @@ public class OHCCacher extends Cacher {
 	// --- NAME OF THE MOLECULER COMPONENT ---
 	
 	public String name() {
-		return "Off-heap Cacher";
+		return "Off-heap Memory Cacher";
 	}
 	
 	// --- PROPERTIES ---

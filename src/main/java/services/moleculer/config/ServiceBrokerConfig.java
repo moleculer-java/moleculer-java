@@ -1,14 +1,17 @@
 package services.moleculer.config;
 
-import services.moleculer.actions.ActionRegistry;
+import java.net.InetAddress;
+
 import services.moleculer.breakers.CircuitBreaker;
 import services.moleculer.cachers.Cacher;
 import services.moleculer.cachers.MemoryCacher;
+import services.moleculer.context.ContextPool;
+import services.moleculer.context.ThreadBasedContextPool;
 import services.moleculer.eventbus.CachedArrayEventBus;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.logger.DefaultLoggerFactory;
 import services.moleculer.logger.LoggerFactory;
-import services.moleculer.services.MapBasedServiceRegistry;
+import services.moleculer.services.DefaultServiceRegistry;
 import services.moleculer.services.ServiceRegistry;
 import services.moleculer.strategies.InvocationStrategyFactory;
 import services.moleculer.strategies.RoundRobinInvocationStrategyFactory;
@@ -17,7 +20,8 @@ import services.moleculer.uids.TimeSequenceUIDGenerator;
 import services.moleculer.uids.UIDGenerator;
 
 /**
- * POJO-style ServiceBroker factory (eg. for Spring Framework). Sample of usage:<br>
+ * POJO-style ServiceBroker factory (eg. for Spring Framework). Sample of usage:
+ * <br>
  * <br>
  * ServiceBrokerConfig config = new ServiceBrokerConfig();<br>
  * config.setCacher(cacher);<br>
@@ -31,13 +35,14 @@ public final class ServiceBrokerConfig {
 	private String nodeID;
 
 	private LoggerFactory loggerFactory = new DefaultLoggerFactory();
-	private ServiceRegistry serviceRegistry = new MapBasedServiceRegistry();
-	private ActionRegistry actionRegistry = null;
-	private EventBus eventBus = new CachedArrayEventBus();	
+	private ContextPool contextPool = new ThreadBasedContextPool();
+	private ServiceRegistry serviceRegistry = new DefaultServiceRegistry();
+	private EventBus eventBus = new CachedArrayEventBus();
 	private UIDGenerator uidGenerator = new TimeSequenceUIDGenerator();
-	
+	private InvocationStrategyFactory invocationStrategyFactory = new RoundRobinInvocationStrategyFactory();
+		
 	private Transporter transporter;
-	
+
 	private long requestTimeout;
 	private int requestRetry;
 	private int maxCallLevel = 100;
@@ -62,11 +67,18 @@ public final class ServiceBrokerConfig {
 	// internalServices: true,
 
 	// ServiceFactory: null,
-	// ContextFactory: null
+	// ContextPool: null
 
 	// --- CONSTRUCTORS ---
-	
+
 	public ServiceBrokerConfig() {
+		try {
+			nodeID = InetAddress.getLocalHost().getHostName();
+		} catch (Exception ignored) {
+		}
+		if (nodeID == null || nodeID.isEmpty()) {
+			nodeID = "default";
+		}
 	}
 
 	public ServiceBrokerConfig(String nodeID, Transporter transporter, Cacher cacher) {
@@ -74,7 +86,7 @@ public final class ServiceBrokerConfig {
 		setTransporter(transporter);
 		setCacher(cacher);
 	}
-	
+
 	// --- GETTERS AND SETTERS ---
 
 	public final String getNamespace() {
@@ -205,14 +217,6 @@ public final class ServiceBrokerConfig {
 		this.serviceRegistry = serviceRegistry;
 	}
 
-	public final ActionRegistry getActionRegistry() {
-		return actionRegistry;
-	}
-
-	public final void setActionRegistry(ActionRegistry actionRegistry) {
-		this.actionRegistry = actionRegistry;
-	}
-
 	public final EventBus getEventBus() {
 		return eventBus;
 	}
@@ -227,6 +231,22 @@ public final class ServiceBrokerConfig {
 
 	public final void setUIDGenerator(UIDGenerator uidGenerator) {
 		this.uidGenerator = uidGenerator;
+	}
+
+	public final ContextPool getContextPool() {
+		return contextPool;
+	}
+
+	public final void setContextPool(ContextPool contextPool) {
+		this.contextPool = contextPool;
+	}
+
+	public final InvocationStrategyFactory getInvocationStrategyFactory() {
+		return invocationStrategyFactory;
+	}
+
+	public final void setInvocationStrategyFactory(InvocationStrategyFactory invocationStrategyFactory) {
+		this.invocationStrategyFactory = invocationStrategyFactory;
 	}
 
 }

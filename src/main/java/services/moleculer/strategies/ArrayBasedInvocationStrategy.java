@@ -2,8 +2,7 @@ package services.moleculer.strategies;
 
 import java.util.Arrays;
 
-import services.moleculer.actions.Action;
-import services.moleculer.actions.LocalAction;
+import services.moleculer.services.Action;
 
 public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 
@@ -18,9 +17,6 @@ public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 	// --- ADD ACCTION ---
 
 	public final void add(Action action) {
-		if (action instanceof LocalAction) {
-			localAction = (LocalAction) action;
-		}
 		if (actions.length == 0) {
 			actions = new Action[1];
 			actions[0] = action;

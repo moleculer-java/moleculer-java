@@ -26,7 +26,7 @@ dependencies {
     // --- DATATREE ---
     	    
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-core
-	compile group: 'com.github.berkesa', name: 'datatree-core', version: '1.0.2'
+	compile group: 'com.github.berkesa', name: 'datatree-core', version: '1.0.3'
 
 	// --- OFF-HEAP CACHE ---
 	

@@ -8,42 +8,47 @@ import services.moleculer.utils.MoleculerComponent;
 public abstract class Service implements MoleculerComponent {
 
 	// --- NAME OF THE MOLECULER COMPONENT ---
-	
+
 	@Override
 	public final String name() {
 		return name;
 	}
-	
+
 	// --- PROPERTIES ---
-	
+
 	protected final String name;
-	
+
 	protected ServiceBroker broker;
-	
+
 	protected Logger logger = NoOpLoggerFactory.getInstance();
-	
+
 	// --- CONSTRUCTOR ---
-	
+
 	public Service() {
-		Name n = getClass().getAnnotation(Name.class);
-		String name = null;
-		if (n != null) {
-			name = n.value();
-		}
-		if (name != null) {
-			name = name.trim();
-		}
-		if (name == null || name.isEmpty()) {
-			name = getClass().getName();
-			int i = Math.max(name.lastIndexOf('.'), name.lastIndexOf('$'));
-			if (i > -1) {
-				name = name.substring(i + 1);
-			}
-			name = Character.toLowerCase(name.charAt(0)) + name.substring(1);
-		}
-		this.name = name;		
+		this(null);
 	}
-		
+
+	public Service(String name) {
+		if (name == null || name.isEmpty()) {
+			Name n = getClass().getAnnotation(Name.class);
+			if (n != null) {
+				name = n.value();
+			}
+			if (name != null) {
+				name = name.trim();
+			}
+			if (name == null || name.isEmpty()) {
+				name = getClass().getName();
+				int i = Math.max(name.lastIndexOf('.'), name.lastIndexOf('$'));
+				if (i > -1) {
+					name = name.substring(i + 1);
+				}
+				name = Character.toLowerCase(name.charAt(0)) + name.substring(1);
+			}
+		}
+		this.name = name;
+	}
+
 	// --- START SERVICE ---
 
 	/**
@@ -54,7 +59,7 @@ public abstract class Service implements MoleculerComponent {
 	@Override
 	public final void init(ServiceBroker broker) throws Exception {
 		this.broker = broker;
-		this.logger = broker.getLogger(getClass());
+		this.logger = broker.getLogger(name);
 		created();
 	}
 
@@ -62,10 +67,10 @@ public abstract class Service implements MoleculerComponent {
 	}
 
 	// --- SERVICE INITED ---
-	
+
 	public void started() throws Exception {
 	}
-	
+
 	// --- STOP SERVICE ---
 
 	/**
@@ -74,5 +79,5 @@ public abstract class Service implements MoleculerComponent {
 	@Override
 	public void close() {
 	}
-	
+
 }

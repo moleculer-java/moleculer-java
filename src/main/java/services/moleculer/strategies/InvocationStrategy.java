@@ -1,7 +1,7 @@
 package services.moleculer.strategies;
 
 import services.moleculer.ServiceBroker;
-import services.moleculer.actions.Action;
+import services.moleculer.services.Action;
 import services.moleculer.utils.MoleculerComponent;
 
 public abstract class InvocationStrategy implements MoleculerComponent {

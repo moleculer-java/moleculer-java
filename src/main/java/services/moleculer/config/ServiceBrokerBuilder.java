@@ -18,15 +18,9 @@ public class ServiceBrokerBuilder {
 
 	private final ServiceBrokerConfig config;
 
-	// --- STATIC CONSTRUCTOR ---
+	// --- CONSTRUCTOR ---
 
-	public static final ServiceBrokerBuilder newBuilder() {
-		return new ServiceBrokerBuilder(new ServiceBrokerConfig());
-	}
-
-	// --- PRIVATE CONSTRUCTOR ---
-
-	private ServiceBrokerBuilder(ServiceBrokerConfig config) {
+	public ServiceBrokerBuilder(ServiceBrokerConfig config) {
 		this.config = config;
 	}
 

@@ -1,6 +1,6 @@
 package services.moleculer.strategies;
 
-import services.moleculer.actions.Action;
+import services.moleculer.services.Action;
 
 /**
  * XORSHIFT-based pseudorandom invocation strategy.

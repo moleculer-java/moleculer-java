@@ -1,4 +1,4 @@
-package services.moleculer.actions;
+package services.moleculer.services;
 
 import services.moleculer.context.Context;
 

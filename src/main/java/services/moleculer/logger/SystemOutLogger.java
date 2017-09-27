@@ -101,6 +101,7 @@ public final class SystemOutLogger implements Logger {
 	private static final SimpleDateFormat FORMAT = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss");
 	private static final String SEPARATOR = System.getProperty("line.separator", "\r\n");
 	private static final char[] SPACER = " - ".toCharArray();
+	private static final char[] COLON = ": ".toCharArray();
 	
 	private final void log(String level, Object msg, Throwable cause) {
 		StringBuilder line = new StringBuilder(128);
@@ -111,15 +112,14 @@ public final class SystemOutLogger implements Logger {
 		line.append(level);
 		line.append(SPACER);
 		line.append(name);
-		line.append(SPACER);
+		line.append(COLON);
 		line.append(msg);
-		line.append(SEPARATOR);
 		if (cause != null) {
 			StringWriter sw = new StringWriter();
 			PrintWriter pw = new PrintWriter(sw);
 			cause.printStackTrace(pw);
-			line.append(sw.toString());
 			line.append(SEPARATOR);
+			line.append(sw.toString());
 		}
 		System.out.println(line);
 	}
