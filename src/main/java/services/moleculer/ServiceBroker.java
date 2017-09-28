@@ -280,6 +280,8 @@ public final class ServiceBroker {
 	/**
 	 * Find the next available endpoint for action
 	 * 
+	 * PRIVATE!
+	 * 
 	 * @param actionName
 	 * @param nodeID
 	 * @return
@@ -320,40 +322,6 @@ public final class ServiceBroker {
 		}
 	}
 
-	// --- ADD EVENT LISTENER TO THE EVENT BUS ---
-
-	// /**
-	// * Subscribe to an event
-	// *
-	// * @param name
-	// * @param handler
-	// */
-	// public void on(String name, Listener handler) {
-	// eventBus.on(name, handler, false);
-	// }
-	//
-	// /**
-	// * Subscribe to an event once
-	// *
-	// * @param name
-	// * @param listener
-	// */
-	// public void once(String name, Listener handler) {
-	// eventBus.on(name, handler, true);
-	// }
-	//
-	// // --- REMOVE EVENT LISTENER FROM THE EVENT BUS ---
-	//
-	// /**
-	// * Unsubscribe from an event
-	// *
-	// * @param name
-	// * @param listener
-	// */
-	// public void off(String name, Listener handler) {
-	// eventBus.off(name, handler);
-	// }
-
 	// --- EMIT EVENTS VIA EVENT BUS ---
 
 	/**
@@ -363,7 +331,7 @@ public final class ServiceBroker {
 	 * @param payload
 	 * @param groups
 	 */
-	public void emit(String name, Object payload, String[] groups) {
+	public void emit(String name, Object payload, String... groups) {
 		eventBus.emit(name, payload);
 		if (transporter != null) {
 			transporter.publish(name, null, payload);
