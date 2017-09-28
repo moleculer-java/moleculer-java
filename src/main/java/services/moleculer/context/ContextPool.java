@@ -1,6 +1,9 @@
 package services.moleculer.context;
 
+import org.slf4j.Logger;
+
 import services.moleculer.ServiceBroker;
+import services.moleculer.logger.AsyncLoggerFactory;
 import services.moleculer.utils.MoleculerComponent;
 
 public abstract class ContextPool implements MoleculerComponent {
@@ -10,6 +13,16 @@ public abstract class ContextPool implements MoleculerComponent {
 	@Override
 	public String name() {
 		return "Context Pool";
+	}
+
+	// --- LOGGER ---
+
+	protected final Logger logger;
+
+	// --- CONSTUCTOR ---
+
+	public ContextPool() {
+		logger = AsyncLoggerFactory.getLogger(name());
 	}
 	
 	// --- START CONTEXT FACTORY ---

@@ -2,10 +2,7 @@ package services.moleculer;
 
 import io.datatree.Tree;
 import services.moleculer.cachers.Cache;
-import services.moleculer.cachers.RedisCacher;
-import services.moleculer.config.ServiceBrokerBuilder;
 import services.moleculer.eventbus.Listener;
-import services.moleculer.logger.SystemOutLoggerFactory;
 import services.moleculer.services.Action;
 import services.moleculer.services.Name;
 import services.moleculer.services.Service;
@@ -15,7 +12,7 @@ public class Test {
 	@SuppressWarnings("unused")
 	public static void main(String[] args) throws Exception {
 
-		ServiceBroker broker = ServiceBroker.builder().loggerFactory(new SystemOutLoggerFactory()).build();
+		ServiceBroker broker = ServiceBroker.builder().build();
 
 		TestService service = new TestService();
 

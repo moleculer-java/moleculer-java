@@ -1,7 +1,10 @@
 package services.moleculer.services;
 
+import org.slf4j.Logger;
+
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.logger.AsyncLoggerFactory;
 import services.moleculer.utils.MoleculerComponent;
 
 public abstract class ServiceRegistry implements MoleculerComponent {
@@ -11,6 +14,16 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 	@Override
 	public String name() {
 		return "Service Registry";
+	}
+	
+	// --- LOGGER ---
+
+	protected final Logger logger;
+
+	// --- CONSTUCTOR ---
+
+	public ServiceRegistry() {
+		logger = AsyncLoggerFactory.getLogger(name());
 	}
 	
 	// --- INIT SERVICE REGISTRY ---
@@ -41,10 +54,6 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 	
 	public abstract boolean removeService(String name);
 	
-	// --- GET THE NUMBER OF SERVICES ---
-	
-	public abstract int countServices();
-
 	// --- GET ACTION ---
 	
 	public abstract Action getAction(String nodeID, String name);

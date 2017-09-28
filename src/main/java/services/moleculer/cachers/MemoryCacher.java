@@ -40,7 +40,6 @@ public class MemoryCacher extends Cacher {
 	}
 
 	public MemoryCacher(int initialCapacityPerPartition, int maximumCapacityPerPartition) {
-		super(false);
 
 		// Check variables
 		if (initialCapacityPerPartition < 1) {

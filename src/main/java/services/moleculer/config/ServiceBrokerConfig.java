@@ -1,7 +1,14 @@
 package services.moleculer.config;
 
 import java.net.InetAddress;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
 
+import co.paralleluniverse.fibers.FiberExecutorScheduler;
+import co.paralleluniverse.fibers.FiberScheduler;
+import co.paralleluniverse.fibers.Instrumented;
+import co.paralleluniverse.fibers.SuspendExecution;
+import co.paralleluniverse.strands.SuspendableCallable;
 import services.moleculer.breakers.CircuitBreaker;
 import services.moleculer.cachers.Cacher;
 import services.moleculer.cachers.MemoryCacher;
@@ -9,8 +16,7 @@ import services.moleculer.context.ContextPool;
 import services.moleculer.context.ThreadBasedContextPool;
 import services.moleculer.eventbus.CachedArrayEventBus;
 import services.moleculer.eventbus.EventBus;
-import services.moleculer.logger.DefaultLoggerFactory;
-import services.moleculer.logger.LoggerFactory;
+import services.moleculer.fibers.SchedulerFactory;
 import services.moleculer.services.DefaultServiceRegistry;
 import services.moleculer.services.ServiceRegistry;
 import services.moleculer.strategies.InvocationStrategyFactory;
@@ -29,12 +35,26 @@ import services.moleculer.uids.UIDGenerator;
  */
 public final class ServiceBrokerConfig {
 
+	// --- STATIC PROPERTIES ---
+	
+	// Scheduler factory
+	// -Dmoleculer.scheduler.factory=
+	public static final SchedulerFactory SCHEDULER_FACTORY;
+
+	// Enable lightweight threads (or use "heavyweight" native threads)
+	// -Dmoleculer.agent.enabled=true
+	public static final boolean AGENT_ENABLED;
+
+	// Redirect logging events from lightweight threads into the heavyweight
+	// thread pool
+	// -Dmoleculer.async.logging.enabled=true
+	public static final boolean ASYNC_LOGGING_ENABLED;
+	
 	// --- PROPERTIES AND COMPONENTS ---
 
 	private String namespace = "";
 	private String nodeID;
 
-	private LoggerFactory loggerFactory = new DefaultLoggerFactory();
 	private ContextPool contextPool = new ThreadBasedContextPool();
 	private ServiceRegistry serviceRegistry = new DefaultServiceRegistry();
 	private EventBus eventBus = new CachedArrayEventBus();
@@ -69,6 +89,66 @@ public final class ServiceBrokerConfig {
 	// ServiceFactory: null,
 	// ContextPool: null
 
+	// --- STATIC CONSTRUCTOR ---
+	
+	// --- INIT PROPERTIES ---
+
+	static {
+
+		// Create faster scheduler for the suspendable non-blocking tasks, and a
+		// scheduler for blocking tasks (eg. network and filesystem I/O tasks)
+		String className = System.getProperty("moleculer.scheduler.factory");
+		SchedulerFactory factory = null;
+		if (className != null) {
+			try {
+				ClassLoader loader = Thread.currentThread().getContextClassLoader();
+				factory = (SchedulerFactory) loader.loadClass(className).newInstance();
+			} catch (Throwable cause) {
+				cause.printStackTrace();
+			}
+		}
+		if (factory == null) {
+			SCHEDULER_FACTORY = new SchedulerFactory() {
+
+				private final ExecutorService forkJoinPool = ForkJoinPool.commonPool();
+				
+				@Override
+				public final FiberScheduler createNonBlockingScheduler() {
+					return new FiberExecutorScheduler("fibers", forkJoinPool);
+				}
+
+				@Override
+				public final ExecutorService createBlockingExecutor() {
+					return forkJoinPool;
+				}
+
+			};
+		} else {
+			SCHEDULER_FACTORY = factory;
+		}
+
+		// Is Quasar Agent enabled and running?
+		boolean agentEnabled = Boolean.parseBoolean(System.getProperty("moleculer.agent.enabled", "true"));
+		if (agentEnabled) {
+			agentEnabled = FiberTest.class.isAnnotationPresent(Instrumented.class);
+		}
+		AGENT_ENABLED = agentEnabled;
+
+		// Logger never blocks lightweight thread pool
+		ASYNC_LOGGING_ENABLED = Boolean.parseBoolean(System.getProperty("moleculer.async.logging.enabled", "false"));
+	}
+
+	private static final class FiberTest implements SuspendableCallable<Void> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Void run() throws SuspendExecution, InterruptedException {
+			return null;
+		}
+
+	}
+	
 	// --- CONSTRUCTORS ---
 
 	public ServiceBrokerConfig() {
@@ -103,14 +183,6 @@ public final class ServiceBrokerConfig {
 
 	public final void setNodeID(String nodeID) {
 		this.nodeID = nodeID;
-	}
-
-	public final LoggerFactory getLoggerFactory() {
-		return loggerFactory;
-	}
-
-	public final void setLoggerFactory(LoggerFactory loggerFactory) {
-		this.loggerFactory = loggerFactory;
 	}
 
 	public final Transporter getTransporter() {

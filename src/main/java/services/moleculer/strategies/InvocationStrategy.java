@@ -1,6 +1,9 @@
 package services.moleculer.strategies;
 
+import org.slf4j.Logger;
+
 import services.moleculer.ServiceBroker;
+import services.moleculer.logger.AsyncLoggerFactory;
 import services.moleculer.services.Action;
 import services.moleculer.utils.MoleculerComponent;
 
@@ -11,7 +14,17 @@ public abstract class InvocationStrategy implements MoleculerComponent {
 	public String name() {
 		return "Invocation Strategy";
 	}
-	
+
+	// --- LOGGER ---
+
+	protected final Logger logger;
+
+	// --- CONSTUCTOR ---
+
+	public InvocationStrategy() {
+		logger = AsyncLoggerFactory.getLogger(name());
+	}
+
 	// --- START INVOCATION STRATEGY ---
 
 	/**

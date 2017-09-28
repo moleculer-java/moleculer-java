@@ -1,12 +1,14 @@
 package services.moleculer.cachers;
 
 import java.util.Iterator;
+import java.util.concurrent.Executors;
 
 import org.caffinitas.ohc.OHCache;
 import org.caffinitas.ohc.OHCacheBuilder;
 
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.GlobMatcher;
+import services.moleculer.utils.Serializer;
 
 /**
  * Off-heap cache implementation (it's similar to MemoryCacher, but stores
@@ -25,22 +27,24 @@ public class OHCCacher extends Cacher {
 	
 	// --- PROPERTIES ---
 
+	private final String format;
+	
 	private final long capacity;
 	private final int segmentCount;
 	private final int hashTableSize;
 
 	// --- OFF-HEAP CACHE INSTANCE ---
 
-	private OHCache<String, String> cache;
+	private OHCache<String, byte[]> cache;
 
 	// --- CONSTRUCTORS ---
 
 	public OHCCacher() {
-		this(0, 0, 0);
+		this(null, 0, 0, 0);
 	}
 
-	public OHCCacher(long capacity, int segmentCount, int hashTableSize) {
-		super(false);
+	public OHCCacher(String format, long capacity, int segmentCount, int hashTableSize) {
+		this.format = format;
 		this.capacity = capacity;
 		this.segmentCount = segmentCount;
 		this.hashTableSize = hashTableSize;
@@ -54,7 +58,7 @@ public class OHCCacher extends Cacher {
 	 * @param broker
 	 */
 	public final void init(ServiceBroker broker) throws Exception {
-		OHCacheBuilder<String, String> builder = OHCacheBuilder.newBuilder();
+		OHCacheBuilder<String, byte[]> builder = OHCacheBuilder.newBuilder();
 		if (capacity > 0) {
 			builder.capacity(capacity);
 		}
@@ -64,6 +68,7 @@ public class OHCCacher extends Cacher {
 		if (hashTableSize > 0) {
 			builder.hashTableSize(hashTableSize);
 		}
+		builder.executorService(Executors.newSingleThreadScheduledExecutor());
 		cache = builder.build();
 	}
 
@@ -84,7 +89,7 @@ public class OHCCacher extends Cacher {
 
 	@Override
 	public Object get(String key) {
-		return deserialize(cache.get(key));
+		return Serializer.deserialize(cache.get(key), format);
 	}
 
 	@Override
@@ -92,7 +97,7 @@ public class OHCCacher extends Cacher {
 		if (value == null) {
 			cache.remove(key);
 		} else {
-			cache.put(key, serialize(value));
+			cache.put(key, Serializer.serialize(value, format));
 		}
 	}
 

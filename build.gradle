@@ -18,19 +18,39 @@ dependencies {
     compile 'org.slf4j:slf4j-api:1.7.21'
     testCompile 'junit:junit:4.12'
 
-	// --- REDIS CLIENT ---
+    // --- LOGGER ---
+
+	// http://mvnrepository.com/artifact/org.slf4j/slf4j-api
+	compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.21'
+       
+	// http://mvnrepository.com/artifact/org.slf4j/slf4j-jdk14
+	compile group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.7.21'
+
+	// https://mvnrepository.com/artifact/com.dorkbox/MinLog-SLF4J
+	compile group: 'com.dorkbox', name: 'MinLog-SLF4J', version: '1.8'
+
+    // --- QUASAR FRAMEWORK ---
+        
+    // http://mvnrepository.com/artifact/co.paralleluniverse/quasar-core
+	compile (group: 'co.paralleluniverse', name: 'quasar-core', version: '0.7.6') {
 	
-	// https://mvnrepository.com/artifact/biz.paluch.redis/lettuce
-	compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.4.0.Final'
+		// https://mvnrepository.com/artifact/com.esotericsoftware/minlog
+		exclude group: 'com.esotericsoftware', module: 'minlog'
+	}
 
     // --- DATATREE ---
     	    
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-core
 	compile group: 'com.github.berkesa', name: 'datatree-core', version: '1.0.3'
+		
+	// --- REDIS CLIENT ---
+	
+	// https://mvnrepository.com/artifact/biz.paluch.redis/lettuce
+	compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.4.0.Final'
 
 	// --- OFF-HEAP CACHE ---
 	
 	// https://mvnrepository.com/artifact/org.caffinitas.ohc/ohc-core-j8
 	compile group: 'org.caffinitas.ohc', name: 'ohc-core-j8', version: '0.6.1'
-
+	
 }

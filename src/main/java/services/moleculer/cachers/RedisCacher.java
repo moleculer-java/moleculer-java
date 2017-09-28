@@ -1,5 +1,6 @@
 package services.moleculer.cachers;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import com.lambdaworks.redis.RedisClient;
@@ -17,7 +18,9 @@ import io.datatree.dom.TreeWriter;
 import io.datatree.dom.TreeWriterRegistry;
 import rx.Observable;
 import services.moleculer.ServiceBroker;
+import services.moleculer.fibers.FiberEngine;
 import services.moleculer.utils.RedisUtilities;
+import services.moleculer.utils.Serializer;
 
 /**
  * Redis-based cache implementation. Supports SSL and password authentication.
@@ -49,7 +52,6 @@ public class RedisCacher extends Cacher {
 	// --- CONSTUCTORS ---
 
 	public RedisCacher() {
-		super(true);
 	}
 
 	public RedisCacher(String... urls) {
@@ -57,19 +59,16 @@ public class RedisCacher extends Cacher {
 	}
 
 	public RedisCacher(boolean useSSL, boolean startTLS, String... urls) {
-		super(true);
 		this.urls = urls;
 		this.useSSL = useSSL;
 		this.startTLS = startTLS;
 	}
 
 	public RedisCacher(RedisAsyncCommands<String, String> client) {
-		super(true);
 		this.client = client;
 	}
 
 	public RedisCacher(RedisAdvancedClusterAsyncCommands<String, String> clusteredClient) {
-		super(true);
 		this.clusteredClient = clusteredClient;
 	}
 
@@ -92,7 +91,7 @@ public class RedisCacher extends Cacher {
 				public final void publish(Event event) {
 					if (event instanceof ConnectionActivatedEvent) {
 						ConnectionActivatedEvent e = (ConnectionActivatedEvent) event;
-						System.out.println("Redis cache connected successfully at " + e.remoteAddress() + '.');						
+						logger.info("Redis cache connected successfully to " + e.remoteAddress() + '.');						
 					}
 				}
 
@@ -135,7 +134,9 @@ public class RedisCacher extends Cacher {
 	@Override
 	public Object get(String key) {
 		try {
-			RedisFuture<String> response;
+			
+			// Get future
+			final RedisFuture<String> response;
 			if (client != null) {
 				response = client.get(key);
 			} else if (clusteredClient != null) {
@@ -144,14 +145,15 @@ public class RedisCacher extends Cacher {
 				return null;
 			}
 
-			// TODO Do not block thread
-			// response.thenAccept((packet) -> {
-			// System.out.println("GET " + packet);
-			// });
+			// Read non-blocking mode
+			return FiberEngine.invokeCallback((callback) -> {
+				response.thenAccept((packet) -> {
+					callback.invoke(packet, null);
+				});				
+			});
 			
-			return deserialize(response.get());
-		} catch (Exception cause) {
-			cause.printStackTrace();
+		} catch (Throwable cause) {
+			logger.warn("Unable to read data from Redis!", cause);
 		}
 		return null;
 	}
@@ -159,12 +161,15 @@ public class RedisCacher extends Cacher {
 	@Override
 	public void set(String key, Object value) {
 
+		// Convert value to JSON
+		String json = new String(Serializer.serialize(value, null), StandardCharsets.UTF_8);
+		
 		// Send to Redis
 		if (client != null) {
 			if (value == null) {
 				client.del(key);
 			} else {
-				client.set(key, serialize(value));
+				client.set(key, json);
 			}
 			return;
 		}
@@ -172,15 +177,13 @@ public class RedisCacher extends Cacher {
 			if (value == null) {
 				clusteredClient.del(key);
 			} else {
-				clusteredClient.set(key, serialize(value));
+				clusteredClient.set(key, json);
 			}
 		}
 	}
 
 	@Override
 	public void del(String key) {
-
-		// TODO wait for finished state?
 		if (client != null) {
 			client.del(key);
 			return;
@@ -194,7 +197,7 @@ public class RedisCacher extends Cacher {
 	public void clean(String match) {
 	}
 
-	// --- GETTERS / SETTERS ---
+	// --- GETTERS / SETTERS FOR SPRING FRAMEWORK ---
 
 	public String[] getUrls() {
 		return urls;

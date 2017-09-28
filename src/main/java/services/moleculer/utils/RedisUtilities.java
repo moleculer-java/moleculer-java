@@ -111,13 +111,13 @@ public final class RedisUtilities {
 			eventBus = new EventBus() {
 
 				@Override
-				public void publish(Event event) {
+				public final void publish(Event event) {
 					
 					// Ignore
 				}
 
 				@Override
-				public Observable<Event> get() {
+				public final Observable<Event> get() {
 
 					// Ignore
 					return null;

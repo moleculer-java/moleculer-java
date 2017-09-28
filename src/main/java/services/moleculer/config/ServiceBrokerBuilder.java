@@ -3,7 +3,6 @@ package services.moleculer.config;
 import services.moleculer.ServiceBroker;
 import services.moleculer.breakers.CircuitBreaker;
 import services.moleculer.cachers.Cacher;
-import services.moleculer.logger.LoggerFactory;
 import services.moleculer.strategies.InvocationStrategyFactory;
 import services.moleculer.transporters.Transporter;
 
@@ -39,11 +38,6 @@ public class ServiceBrokerBuilder {
 
 	public final ServiceBrokerBuilder nodeID(String nodeID) {
 		config.setNodeID(nodeID);
-		return this;
-	}
-
-	public final ServiceBrokerBuilder loggerFactory(LoggerFactory loggerFactory) {
-		config.setLoggerFactory(loggerFactory);
 		return this;
 	}
 

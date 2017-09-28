@@ -1,8 +1,10 @@
 package services.moleculer.cachers;
 
+import org.slf4j.Logger;
+
 import io.datatree.Tree;
-import io.datatree.dom.builtin.JsonBuiltin;
 import services.moleculer.ServiceBroker;
+import services.moleculer.logger.AsyncLoggerFactory;
 import services.moleculer.utils.MoleculerComponent;
 
 /**
@@ -11,24 +13,19 @@ import services.moleculer.utils.MoleculerComponent;
 public abstract class Cacher implements MoleculerComponent {
 
 	// --- NAME OF THE MOLECULER COMPONENT ---
-	
+
 	public String name() {
 		return "Cacher";
 	}
-	
-	// --- USES SHARED STORAGE (EG. REDIS) ---
 
-	protected final boolean useSharedStorage;
+	// --- LOGGER ---
 
-	// --- CONSTUCTORS ---
+	protected final Logger logger;
 
-	/**
-	 * Creates an instance of Cacher.
-	 * 
-	 * @param useSharedStorage
-	 */
-	public Cacher(boolean useSharedStorage) {
-		this.useSharedStorage = useSharedStorage;
+	// --- CONSTUCTOR ---
+
+	public Cacher() {
+		logger = AsyncLoggerFactory.getLogger(name());
 	}
 
 	// --- START CACHE INSTANCE ---
@@ -49,52 +46,6 @@ public abstract class Cacher implements MoleculerComponent {
 	 */
 	@Override
 	public void close() {
-	}
-
-	// --- OBJECT TO BYTE ARRAY ---
-
-	protected static final String serialize(Object value) {
-		try {
-
-			// Null value
-			if (value == null) {
-				return "null";
-			}
-
-			// Hierarchial JSON value
-			if (value instanceof Tree) {
-				return ((Tree) value).toString(null, false, true);
-			}
-
-			// Scalar value (String, Boolean, etc.)
-			return JsonBuiltin.serialize(value, null);
-		} catch (Exception ignored) {
-		}
-		return "null";
-	}
-
-	// --- BYTE ARRAY TO OBJECT ---
-
-	protected static final Object deserialize(String text) {
-		try {
-			if (text == null || "null".equals(text)) {
-				return null;
-			}
-			if (text.isEmpty()) {
-				return text;
-			}
-			final int c = text.charAt(0);
-
-			// JSON value
-			if (c == '{' || c == '[') {
-				return new Tree(text);
-			}
-
-			// Scalar value (String, Boolean, etc.)
-			return new JsonBuiltin().parse(text);
-		} catch (Exception ignored) {
-		}
-		return null;
 	}
 
 	// --- GENERATE CACHE KEY ---
@@ -145,18 +96,14 @@ public abstract class Cacher implements MoleculerComponent {
 					key.append(tree.asObject());
 				} else {
 					String json = tree.toString(null, false, true);
-					if (useSharedStorage) {
 
-						// Create cross-platform, simplified JSON without
-						// formatting characters and quotation marks
-						for (char c : json.toCharArray()) {
-							if (c < 33 || c == '\"' || c == '\'') {
-								continue;
-							}
-							key.append(c);
+					// Create cross-platform, simplified JSON without
+					// formatting characters and quotation marks
+					for (char c : json.toCharArray()) {
+						if (c < 33 || c == '\"' || c == '\'') {
+							continue;
 						}
-					} else {
-						key.append(json);
+						key.append(c);
 					}
 				}
 			} else {
@@ -196,5 +143,5 @@ public abstract class Cacher implements MoleculerComponent {
 	 * @param match
 	 */
 	public abstract void clean(String match);
-	
+
 }

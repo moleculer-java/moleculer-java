@@ -1,5 +1,7 @@
 package services.moleculer;
 
+import org.slf4j.Logger;
+
 import io.datatree.Tree;
 import services.moleculer.cachers.Cacher;
 import services.moleculer.config.ServiceBrokerBuilder;
@@ -8,10 +10,7 @@ import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
 import services.moleculer.context.ContextPool;
 import services.moleculer.eventbus.EventBus;
-import services.moleculer.eventbus.Listener;
-import services.moleculer.logger.Logger;
-import services.moleculer.logger.LoggerFactory;
-import services.moleculer.logger.NoOpLoggerFactory;
+import services.moleculer.logger.AsyncLoggerFactory;
 import services.moleculer.services.Action;
 import services.moleculer.services.Service;
 import services.moleculer.services.ServiceRegistry;
@@ -32,7 +31,7 @@ public final class ServiceBroker {
 
 	// --- INTERNAL COMPONENTS ---
 
-	private final LoggerFactory loggerFactory;
+	private final Logger logger;
 	private final ContextPool contextPool;
 	private final UIDGenerator uidGenerator;
 	private final InvocationStrategyFactory invocationStrategyFactory;
@@ -40,10 +39,6 @@ public final class ServiceBroker {
 	private final Cacher cacher;
 	private final EventBus eventBus;
 	private final Transporter transporter;
-
-	// --- BROKER'S LOGGER ---
-
-	private Logger logger = NoOpLoggerFactory.getInstance();
 
 	// --- STATIC CONSTRUCTOR ---
 
@@ -65,7 +60,6 @@ public final class ServiceBroker {
 
 		// Set components
 		nodeID = config.getNodeID();
-		loggerFactory = config.getLoggerFactory();
 		contextPool = config.getContextPool();
 		uidGenerator = config.getUIDGenerator();
 		invocationStrategyFactory = config.getInvocationStrategyFactory();
@@ -77,11 +71,10 @@ public final class ServiceBroker {
 		// Init base components
 		try {
 
-			// Init logger factory
-			loggerFactory.init(this);
-
-			// Create logger of broker instance
-			logger = loggerFactory.getLogger(nodeID);
+			logger = AsyncLoggerFactory.getLogger(nodeID);
+			
+			// Starting Moleculer Service Broker
+			logger.info("Starting Moleculer Service Broker (version " + VERSION + ")...");
 
 			// Start service registry
 			start(serviceRegistry);
@@ -89,9 +82,6 @@ public final class ServiceBroker {
 		} catch (Exception cause) {
 			throw new RuntimeException("Unable to init logger!", cause);
 		}
-
-		// Starting Moleculer Service Broker
-		logger.info("Moleculer Service Broker (version " + VERSION + ") initalized.");
 	}
 
 	// --- GET NODE ID ---
@@ -103,10 +93,6 @@ public final class ServiceBroker {
 	// --- GET COMPONENTS ---
 
 	// TODO remove unecessary getters
-
-	public final LoggerFactory loggerFactory() {
-		return loggerFactory;
-	}
 
 	public final ContextPool contextPool() {
 		return contextPool;
@@ -145,7 +131,7 @@ public final class ServiceBroker {
 
 		// Starting thread-based components
 		logger.info("Starting node \"" + nodeID + "\"...");
-
+		
 		// Start internal components
 		start(contextPool);
 		start(uidGenerator);
@@ -154,12 +140,7 @@ public final class ServiceBroker {
 		start(transporter);
 
 		// Ok, all components started successfully
-		int services = serviceRegistry.countServices();
-		String info = services + " service";
-		if (services > 1) {
-			info += "s";
-		}
-		logger.info("Node \"" + nodeID + "\" started successfully with " + info + '.');
+		logger.info("Node \"" + nodeID + "\" started successfully.");
 	}
 
 	private final void start(MoleculerComponent component) throws Exception {
@@ -172,7 +153,7 @@ public final class ServiceBroker {
 				component.init(this);
 				logger.info(info + " started.");
 			} catch (Exception cause) {
-				logger.fatal("Unable to start " + info + "!", cause);
+				logger.error("Unable to start " + info + "!", cause);
 				throw cause;
 			}
 		}
@@ -196,9 +177,6 @@ public final class ServiceBroker {
 
 		// Ok, broker stopped
 		logger.info("Node \"" + nodeID + "\" stopped.");
-
-		// Stop logger factory
-		loggerFactory.close();
 	}
 
 	private final void stop(MoleculerComponent component) {
@@ -211,7 +189,7 @@ public final class ServiceBroker {
 				component.init(this);
 				logger.info(info + " stopped.");
 			} catch (Throwable cause) {
-				logger.fatal("Unable to stop " + info + "!", cause);
+				logger.error("Unable to stop " + info + "!", cause);
 			}
 		}
 	}
@@ -231,7 +209,7 @@ public final class ServiceBroker {
 	 * @return
 	 */
 	public Logger getLogger(String name) {
-		return loggerFactory.getLogger(name);
+		return AsyncLoggerFactory.getLogger(name);
 	}
 
 	/**

@@ -5,11 +5,12 @@ import java.util.HashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import org.slf4j.Logger;
+
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.cachers.Cache;
-import services.moleculer.logger.Logger;
-import services.moleculer.logger.NoOpLoggerFactory;
+import services.moleculer.logger.AsyncLoggerFactory;
 
 public final class DefaultServiceRegistry extends ServiceRegistry {
 
@@ -24,9 +25,9 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 
 	private final HashMap<String, Service> serviceMap = new HashMap<>(256);
 
-	private ServiceBroker broker;
+	private final Logger logger = AsyncLoggerFactory.getLogger(name());
 
-	private Logger logger = NoOpLoggerFactory.getInstance();
+	private ServiceBroker broker;
 
 	// --- VARIABLES ---
 
@@ -53,7 +54,6 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 	@Override
 	public final void init(ServiceBroker broker) throws Exception {
 		this.broker = broker;
-		this.logger = broker.getLogger(name());
 	}
 
 	// --- STOP SERVICE REGISTRY ---
@@ -99,7 +99,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 					initedServices[i] = service;
 				} catch (Exception cause) {
 					blocker = cause;
-					logger.fatal("Unable to initialize service \"" + service.name + "\"!", cause);
+					logger.error("Unable to initialize service \"" + service.name + "\"!", cause);
 					break;
 				}
 			}
@@ -140,7 +140,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 						logger.info("Service \"" + service.name + "\" started.");
 					} catch (Exception cause) {
 						blocker = cause;
-						logger.fatal("Unable to start service \"" + service.name + "\"!", cause);
+						logger.error("Unable to start service \"" + service.name + "\"!", cause);
 						break;
 					}
 				}
@@ -170,6 +170,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 
 	// --- ADD REMOTE ACTION ---
 	
+	@Override
 	public final void addAction(String nodeID, String name, Tree parameters) throws Exception {
 		
 		// TODO register action
@@ -209,20 +210,10 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 			writerLock.unlock();
 		}
 	}
-
-	// --- GET THE NUMBER OF SERVICES ---
-	
-	public final int countServices() {
-		readerLock.lock();
-		try {
-			return serviceMap.size();
-		} finally {
-			readerLock.unlock();
-		}
-	}
 	
 	// --- GET ACTION ---
 	
+	@Override
 	public final Action getAction(String nodeID, String name) {
 		readerLock.lock();
 		try {

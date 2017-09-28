@@ -1,6 +1,9 @@
 package services.moleculer.eventbus;
 
+import org.slf4j.Logger;
+
 import services.moleculer.ServiceBroker;
+import services.moleculer.logger.AsyncLoggerFactory;
 import services.moleculer.utils.MoleculerComponent;
 
 public abstract class EventBus implements MoleculerComponent {
@@ -12,6 +15,16 @@ public abstract class EventBus implements MoleculerComponent {
 		return "Event Bus";
 	}
 
+	// --- LOGGER ---
+
+	protected final Logger logger;
+
+	// --- CONSTUCTOR ---
+
+	public EventBus() {
+		logger = AsyncLoggerFactory.getLogger(name());
+	}
+	
 	// --- INIT EVENT BUS ---
 	
 	@Override

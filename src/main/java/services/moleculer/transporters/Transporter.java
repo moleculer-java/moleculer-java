@@ -1,6 +1,9 @@
 package services.moleculer.transporters;
 
+import org.slf4j.Logger;
+
 import services.moleculer.ServiceBroker;
+import services.moleculer.logger.AsyncLoggerFactory;
 import services.moleculer.utils.MoleculerComponent;
 
 public abstract class Transporter implements MoleculerComponent {
@@ -22,11 +25,15 @@ public abstract class Transporter implements MoleculerComponent {
 	public static final String PACKET_INFO 			= "INFO";
 	public static final String PACKET_DISCONNECT 	= "DISCONNECT";
 	public static final String PACKET_HEARTBEAT 	= "HEARTBEAT";
-	
+		
 	// --- PROPERTIES ---
 
 	protected final String prefix;
 	protected ServiceBroker broker;
+	
+	// --- LOGGER ---
+
+	protected final Logger logger;
 	
 	// --- CONSTUCTORS ---
 
@@ -36,6 +43,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 	public Transporter(String prefix) {
 		this.prefix = prefix;
+		this.logger = AsyncLoggerFactory.getLogger(name());
 	}
 
 	// --- START TRANSPORTER ---
