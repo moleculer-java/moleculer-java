@@ -35,6 +35,7 @@ public class Test {
 
 		// ------------------
 
+		/*
 		broker.on("user.create", (payload) -> {
 			System.out.println("RECEIVED in 'user.create': " + payload);
 		});
@@ -53,6 +54,7 @@ public class Test {
 		broker.on("**", (payload) -> {
 			System.out.println("RECEIVED in '**': " + payload);
 		});
+		*/
 	}
 
 	@Name("v2.test")

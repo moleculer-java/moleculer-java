@@ -50,7 +50,7 @@ public final class ServiceBroker {
 	public static final ServiceBrokerBuilder builder() {
 		return new ServiceBrokerBuilder(new ServiceBrokerConfig());
 	}
-	
+
 	// --- CONSTRUCTORS ---
 
 	public ServiceBroker() {
@@ -62,7 +62,7 @@ public final class ServiceBroker {
 	}
 
 	public ServiceBroker(ServiceBrokerConfig config) {
-		
+
 		// Set components
 		nodeID = config.getNodeID();
 		loggerFactory = config.getLoggerFactory();
@@ -73,19 +73,19 @@ public final class ServiceBroker {
 		cacher = config.getCacher();
 		eventBus = config.getEventBus();
 		transporter = config.getTransporter();
-		
+
 		// Init base components
 		try {
-			
+
 			// Init logger factory
 			loggerFactory.init(this);
-			
+
 			// Create logger of broker instance
 			logger = loggerFactory.getLogger(nodeID);
-			
+
 			// Start service registry
 			start(serviceRegistry);
-			
+
 		} catch (Exception cause) {
 			throw new RuntimeException("Unable to init logger!", cause);
 		}
@@ -103,7 +103,7 @@ public final class ServiceBroker {
 	// --- GET COMPONENTS ---
 
 	// TODO remove unecessary getters
-	
+
 	public final LoggerFactory loggerFactory() {
 		return loggerFactory;
 	}
@@ -261,38 +261,8 @@ public final class ServiceBroker {
 	 * @param serviceName
 	 * @return
 	 */
-	public Service getService(String serviceName) {
+	public Service getLocalService(String serviceName) {
 		return serviceRegistry.getService(serviceName);
-	}
-
-	/**
-	 * Has a local service by name
-	 * 
-	 * @param serviceName
-	 * @return
-	 */
-	public boolean hasService(String serviceName) {
-		return getService(serviceName) != null;
-	}
-
-	/**
-	 * Has an action by name
-	 * 
-	 * @param actionName
-	 * @return
-	 */
-	public boolean hasAction(String nodeID, String actionName) {
-		return getAction(nodeID, actionName) != null;
-	}
-
-	/**
-	 * Has an action by name
-	 * 
-	 * @param actionName
-	 * @return
-	 */
-	public boolean hasAction(String actionName) {
-		return getAction(actionName) != null;
 	}
 
 	/**
@@ -302,27 +272,21 @@ public final class ServiceBroker {
 	 * @return
 	 */
 	public Action getAction(String actionName) {
+		// TODO: it returns an Endpoint instance
+
 		return serviceRegistry.getAction(null, actionName);
 	}
 
 	/**
-	 * Get an action by name
+	 * Find the next available endpoint for action
 	 * 
 	 * @param actionName
+	 * @param nodeID
 	 * @return
 	 */
-	public Action getAction(String nodeID, String actionName) {
+	public Action findNextActionEndpoint(String actionName, String nodeID) {
+		// TODO: it returns an Endpoint instance
 		return serviceRegistry.getAction(nodeID, actionName);
-	}
-
-	/**
-	 * Check has callable action handler
-	 * 
-	 * @param actionName
-	 * @return
-	 */
-	public boolean isActionAvailable(String actionName) {
-		return false;
 	}
 
 	/**
@@ -358,47 +322,48 @@ public final class ServiceBroker {
 
 	// --- ADD EVENT LISTENER TO THE EVENT BUS ---
 
-	/**
-	 * Subscribe to an event
-	 * 
-	 * @param name
-	 * @param handler
-	 */
-	public void on(String name, Listener handler) {
-		eventBus.on(name, handler, false);
-	}
-
-	/**
-	 * Subscribe to an event once
-	 * 
-	 * @param name
-	 * @param listener
-	 */
-	public void once(String name, Listener handler) {
-		eventBus.on(name, handler, true);
-	}
-
-	// --- REMOVE EVENT LISTENER FROM THE EVENT BUS ---
-
-	/**
-	 * Unsubscribe from an event
-	 * 
-	 * @param name
-	 * @param listener
-	 */
-	public void off(String name, Listener handler) {
-		eventBus.off(name, handler);
-	}
+	// /**
+	// * Subscribe to an event
+	// *
+	// * @param name
+	// * @param handler
+	// */
+	// public void on(String name, Listener handler) {
+	// eventBus.on(name, handler, false);
+	// }
+	//
+	// /**
+	// * Subscribe to an event once
+	// *
+	// * @param name
+	// * @param listener
+	// */
+	// public void once(String name, Listener handler) {
+	// eventBus.on(name, handler, true);
+	// }
+	//
+	// // --- REMOVE EVENT LISTENER FROM THE EVENT BUS ---
+	//
+	// /**
+	// * Unsubscribe from an event
+	// *
+	// * @param name
+	// * @param listener
+	// */
+	// public void off(String name, Listener handler) {
+	// eventBus.off(name, handler);
+	// }
 
 	// --- EMIT EVENTS VIA EVENT BUS ---
 
 	/**
-	 * Emit an event (global & local)
+	 * Emit an event (grouped & balanced global event)
 	 * 
 	 * @param name
 	 * @param payload
+	 * @param groups
 	 */
-	public void emit(String name, Object payload) {
+	public void emit(String name, Object payload, String[] groups) {
 		eventBus.emit(name, payload);
 		if (transporter != null) {
 			transporter.publish(name, null, payload);
@@ -406,12 +371,22 @@ public final class ServiceBroker {
 	}
 
 	/**
-	 * Emit a local event
+	 * Emit an event for all local & remote services
 	 * 
 	 * @param name
 	 * @param payload
 	 */
-	public void emitLocal(String name, Object payload) {
+	public void broadcast(String name, Object payload) {
+		eventBus.emit(name, payload);
+	}
+
+	/**
+	 * Emit an event for all local services
+	 * 
+	 * @param name
+	 * @param payload
+	 */
+	public void broadcastLocal(String name, Object payload) {
 		eventBus.emit(name, payload);
 	}
 
