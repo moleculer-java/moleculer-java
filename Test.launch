@@ -12,4 +12,5 @@
 </listAttribute>
 <stringAttribute key="org.eclipse.jdt.launching.MAIN_TYPE" value="services.moleculer.Test"/>
 <stringAttribute key="org.eclipse.jdt.launching.PROJECT_ATTR" value="moleculer-java"/>
+<stringAttribute key="org.eclipse.jdt.launching.VM_ARGUMENTS" value="-Djava.util.logging.config.file=C:\test-eclipse\workspace\moleculer-java\config\logging.properties"/>
 </launchConfiguration>

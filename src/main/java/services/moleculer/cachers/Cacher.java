@@ -1,10 +1,10 @@
 package services.moleculer.cachers;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.logger.AsyncLoggerFactory;
 import services.moleculer.utils.MoleculerComponent;
 
 /**
@@ -20,12 +20,11 @@ public abstract class Cacher implements MoleculerComponent {
 
 	// --- LOGGER ---
 
-	protected final Logger logger;
+	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
 	// --- CONSTUCTOR ---
 
 	public Cacher() {
-		logger = AsyncLoggerFactory.getLogger(name());
 	}
 
 	// --- START CACHE INSTANCE ---

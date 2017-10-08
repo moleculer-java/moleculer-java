@@ -1,6 +1,7 @@
 package services.moleculer;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
 import services.moleculer.cachers.Cacher;
@@ -10,7 +11,6 @@ import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
 import services.moleculer.context.ContextPool;
 import services.moleculer.eventbus.EventBus;
-import services.moleculer.logger.AsyncLoggerFactory;
 import services.moleculer.services.Action;
 import services.moleculer.services.Service;
 import services.moleculer.services.ServiceRegistry;
@@ -25,13 +25,16 @@ public final class ServiceBroker {
 
 	public static final String VERSION = "1.2";
 
+	// --- LOGGER ---
+
+	protected final Logger logger = LoggerFactory.getLogger(getClass());
+	
 	// --- UNIQUE NODE IDENTIFIER ---
 
 	private final String nodeID;
 
 	// --- INTERNAL COMPONENTS ---
 
-	private final Logger logger;
 	private final ContextPool contextPool;
 	private final UIDGenerator uidGenerator;
 	private final InvocationStrategyFactory invocationStrategyFactory;
@@ -70,8 +73,6 @@ public final class ServiceBroker {
 
 		// Init base components
 		try {
-
-			logger = AsyncLoggerFactory.getLogger(nodeID);
 			
 			// Starting Moleculer Service Broker
 			logger.info("Starting Moleculer Service Broker (version " + VERSION + ")...");
@@ -209,7 +210,7 @@ public final class ServiceBroker {
 	 * @return
 	 */
 	public Logger getLogger(String name) {
-		return AsyncLoggerFactory.getLogger(name);
+		return LoggerFactory.getLogger(name);
 	}
 
 	/**

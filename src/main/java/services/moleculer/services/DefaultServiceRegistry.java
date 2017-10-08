@@ -5,12 +5,9 @@ import java.util.HashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.slf4j.Logger;
-
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.cachers.Cache;
-import services.moleculer.logger.AsyncLoggerFactory;
 
 public final class DefaultServiceRegistry extends ServiceRegistry {
 
@@ -24,8 +21,6 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 	// --- INTERNAL COMPONENTS ---
 
 	private final HashMap<String, Service> serviceMap = new HashMap<>(256);
-
-	private final Logger logger = AsyncLoggerFactory.getLogger(name());
 
 	private ServiceBroker broker;
 

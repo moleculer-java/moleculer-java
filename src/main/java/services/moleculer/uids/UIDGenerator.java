@@ -1,9 +1,9 @@
 package services.moleculer.uids;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import services.moleculer.ServiceBroker;
-import services.moleculer.logger.AsyncLoggerFactory;
 import services.moleculer.utils.MoleculerComponent;
 
 public abstract class UIDGenerator implements MoleculerComponent {
@@ -17,12 +17,11 @@ public abstract class UIDGenerator implements MoleculerComponent {
 	
 	// --- LOGGER ---
 
-	protected final Logger logger;
+	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
 	// --- CONSTUCTOR ---
 
 	public UIDGenerator() {
-		logger = AsyncLoggerFactory.getLogger(name());
 	}
 	
 	// --- START GENERATOR ---

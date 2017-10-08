@@ -1,10 +1,10 @@
 package services.moleculer.services;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.logger.AsyncLoggerFactory;
 import services.moleculer.utils.MoleculerComponent;
 
 public abstract class ServiceRegistry implements MoleculerComponent {
@@ -18,12 +18,11 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 	
 	// --- LOGGER ---
 
-	protected final Logger logger;
+	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
 	// --- CONSTUCTOR ---
 
 	public ServiceRegistry() {
-		logger = AsyncLoggerFactory.getLogger(name());
 	}
 	
 	// --- INIT SERVICE REGISTRY ---

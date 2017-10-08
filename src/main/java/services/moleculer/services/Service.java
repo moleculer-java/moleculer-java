@@ -1,9 +1,9 @@
 package services.moleculer.services;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import services.moleculer.ServiceBroker;
-import services.moleculer.logger.AsyncLoggerFactory;
 import services.moleculer.utils.MoleculerComponent;
 
 public abstract class Service implements MoleculerComponent {
@@ -15,11 +15,13 @@ public abstract class Service implements MoleculerComponent {
 		return name;
 	}
 
+	// --- LOGGER ---
+
+	protected final Logger logger = LoggerFactory.getLogger(getClass());
+	
 	// --- PROPERTIES ---
 
 	protected final String name;
-
-	protected final Logger logger;
 
 	protected ServiceBroker broker;
 
@@ -48,7 +50,6 @@ public abstract class Service implements MoleculerComponent {
 			}
 		}
 		this.name = name;
-		this.logger = AsyncLoggerFactory.getLogger(name);
 	}
 
 	// --- START SERVICE ---
