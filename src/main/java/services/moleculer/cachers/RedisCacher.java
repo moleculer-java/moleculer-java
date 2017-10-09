@@ -20,19 +20,15 @@ import io.datatree.dom.TreeWriter;
 import io.datatree.dom.TreeWriterRegistry;
 import rx.Observable;
 import services.moleculer.ServiceBroker;
+import services.moleculer.services.Name;
 import services.moleculer.utils.RedisUtilities;
 import services.moleculer.utils.Serializer;
 
 /**
  * Redis-based cache implementation. Supports SSL and password authentication.
  */
+@Name("Redis Cacher")
 public class RedisCacher extends Cacher {
-
-	// --- NAME OF THE MOLECULER COMPONENT ---
-
-	public String name() {
-		return "Redis Cacher";
-	}
 
 	// --- PROPERTIES ---
 
@@ -161,7 +157,7 @@ public class RedisCacher extends Cacher {
 			} else if (clusteredClient != null) {
 				response = clusteredClient.get(binaryKey);
 			} else {
-				return CompletableFuture.completedFuture(null);
+				return null;
 			}
 			final CompletableFuture rsp = new CompletableFuture<>();
 			response.thenAccept((bytes) -> {
@@ -177,7 +173,7 @@ public class RedisCacher extends Cacher {
 		} catch (Throwable cause) {
 			logger.warn("Unable to read data from Redis!", cause);
 		}
-		return CompletableFuture.completedFuture(null);
+		return null;
 	}
 
 	@Override

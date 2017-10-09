@@ -4,17 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import services.moleculer.ServiceBroker;
+import services.moleculer.services.Name;
 import services.moleculer.utils.MoleculerComponent;
 
+@Name("Transporter")
 public abstract class Transporter implements MoleculerComponent {
 
-	// --- NAME OF THE MOLECULER COMPONENT ---
-	
-	@Override
-	public String name() {
-		return "Transporter";
-	}
-	
 	// --- CONSTANTS ---
 	
 	public static final String PACKET_EVENT 		= "EVENT";

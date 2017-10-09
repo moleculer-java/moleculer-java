@@ -11,14 +11,10 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import io.datatree.Tree;
 import io.datatree.dom.DeepCloner;
 import services.moleculer.eventbus.GlobMatcher;
+import services.moleculer.services.Name;
 
+@Name("On-heap Memory Cacher")
 public class MemoryCacher extends Cacher {
-
-	// --- NAME OF THE MOLECULER COMPONENT ---
-	
-	public String name() {
-		return "On-heap Memory Cacher";
-	}
 	
 	// --- PROPERTIES ---
 
@@ -226,7 +222,7 @@ public class MemoryCacher extends Cacher {
 				readerLock.unlock();
 			}
 			if (value == null) {
-				return CompletableFuture.completedFuture(null);
+				return null;
 			}
 			try {
 				if (value instanceof Tree) {
@@ -234,7 +230,7 @@ public class MemoryCacher extends Cacher {
 				}
 				return CompletableFuture.completedFuture(DeepCloner.clone(value));				
 			} catch (Exception e) {
-				return CompletableFuture.completedFuture(value);
+				return null;
 			}
 		}
 

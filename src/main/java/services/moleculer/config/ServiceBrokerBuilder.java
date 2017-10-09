@@ -1,6 +1,6 @@
 package services.moleculer.config;
 
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 
 import services.moleculer.ServiceBroker;
 import services.moleculer.breakers.CircuitBreaker;
@@ -37,8 +37,8 @@ public class ServiceBrokerBuilder {
 
 	// --- SETTER METHODS ---
 
-	public final ServiceBrokerBuilder executor(Executor executor) {
-		config.setExecutor(executor);
+	public final ServiceBrokerBuilder executorService(ExecutorService executorService) {
+		config.setExecutorService(executorService);
 		return this;
 	}
 	

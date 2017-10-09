@@ -1,7 +1,7 @@
 package services.moleculer.config;
 
 import java.net.InetAddress;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 
 import services.moleculer.breakers.CircuitBreaker;
@@ -34,7 +34,7 @@ public final class ServiceBrokerConfig {
 	private String namespace = "";
 	private String nodeID;
 
-	private Executor executor = ForkJoinPool.commonPool();
+	private ExecutorService executorService = ForkJoinPool.commonPool();
 	private ContextPool contextPool = new ThreadBasedContextPool();
 	private ServiceRegistry serviceRegistry = new DefaultServiceRegistry();
 	private EventBus eventBus = new CachedArrayEventBus();
@@ -221,12 +221,12 @@ public final class ServiceBrokerConfig {
 		this.invocationStrategyFactory = invocationStrategyFactory;
 	}
 
-	public final Executor getExecutor() {
-		return executor;
+	public final ExecutorService getExecutorService() {
+		return executorService;
 	}
 
-	public final void setExecutor(Executor executor) {
-		this.executor = executor;
+	public final void setExecutorService(ExecutorService executorService) {
+		this.executorService = executorService;
 	}
 
 }

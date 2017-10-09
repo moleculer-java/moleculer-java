@@ -21,7 +21,7 @@ public final class FastLogFormatter extends Formatter {
 	private static final char[] FINER   = " | FINER   | ".toCharArray();
 	private static final char[] FINEST  = " | FINEST  | ".toCharArray();
 	
-	private static final char[] SEPARATOR = ": ".toCharArray();
+	private static final char[] SEPARATOR = " | ".toCharArray();
 	
 	private static final char[] BREAK = System.getProperty("line.separator", "\r\n").toCharArray();
 	
@@ -46,8 +46,23 @@ public final class FastLogFormatter extends Formatter {
 		} else {
 			line.append(FINEST);
 		}
-		line.append(record.getSourceClassName());
-		line.append(SEPARATOR);	
+		String className = record.getSourceClassName();
+		if (className == null) {
+			className = "unknown";
+		} else {
+			int i = className.lastIndexOf('$');
+			if (i > -1) {
+				className = className.substring(0, i);
+			}
+		}
+		line.append(className);
+		if (line.length() < 86) {
+			int spaces = 86 - line.length();
+			for (int i = 0; i < spaces; i++) {
+				line.append(' ');
+			}
+		}
+		line.append(SEPARATOR);
 		line.append(formatMessage(record));
 		line.append(BREAK);
 		return line.toString();

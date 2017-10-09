@@ -4,16 +4,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import services.moleculer.ServiceBroker;
+import services.moleculer.services.Name;
 import services.moleculer.utils.MoleculerComponent;
 
+@Name("Event Bus")
 public abstract class EventBus implements MoleculerComponent {
-
-	// --- NAME OF THE MOLECULER COMPONENT ---
-	
-	@Override
-	public String name() {
-		return "Event Bus";
-	}
 
 	// --- LOGGER ---
 

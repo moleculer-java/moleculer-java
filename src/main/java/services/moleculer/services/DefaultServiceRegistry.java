@@ -9,14 +9,8 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.cachers.Cache;
 
+@Name("Default Service Registry")
 public final class DefaultServiceRegistry extends ServiceRegistry {
-
-	// --- NAME OF THE MOLECULER COMPONENT ---
-
-	@Override
-	public final String name() {
-		return "Default Service Registry";
-	}
 
 	// --- INTERNAL COMPONENTS ---
 
@@ -58,15 +52,11 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 		writerLock.lock();
 		try {
 			for (Service service : serviceMap.values()) {
-				String info = service.name();
-				if (info == null || info.isEmpty()) {
-					info = service.getClass().toString();
-				}
 				try {
 					service.close();
-					logger.info("Service \"" + info + "\" stopped.");
+					logger.info("Service \"" + service.name + "\" stopped.");
 				} catch (Throwable cause) {
-					logger.warn("Unable to stop \"" + info + "\" service!", cause);
+					logger.warn("Unable to stop \"" + service.name + "\" service!", cause);
 				}
 			}
 			serviceMap.clear();
@@ -84,7 +74,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 			Service[] initedServices = new Service[services.length];
 			Service service = null;
 			Exception blocker = null;
-			
+
 			// Initialize services
 			for (int i = 0; i < services.length; i++) {
 				try {
@@ -121,11 +111,11 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 							}
 						}
 					}
-			
+
 					// TODO register actions
 				}
 			}
-			
+
 			// Start services
 			if (blocker == null) {
 				for (int i = 0; i < services.length; i++) {
@@ -140,7 +130,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 					}
 				}
 			}
-			
+
 			// Stop initialized services on error
 			if (blocker != null) {
 				for (int i = 0; i < services.length; i++) {
@@ -164,14 +154,14 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 	}
 
 	// --- ADD REMOTE ACTION ---
-	
+
 	@Override
 	public final void addAction(String nodeID, String name, Tree parameters) throws Exception {
-		
+
 		// TODO register action
-		
+
 	}
-	
+
 	// --- GET SERVICE ---
 
 	@Override
@@ -187,35 +177,35 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 	// --- REMOVE SERVICE ---
 
 	@Override
-	public final boolean removeService(String name) {
+	public final void removeService(Service... services) {
 		writerLock.lock();
 		try {
-			Service service = serviceMap.remove(name);
-			if (service == null) {
-				return false;
+			for (Service service : services) {
+				Service removed = serviceMap.remove(service.name);
+				if (removed != null) {
+					try {
+						removed.close();
+						logger.info("Service \"" + removed.name + "\" stopped.");
+					} catch (Exception cause) {
+						logger.warn("Service removed, but it threw an exception in the \"close\" method!", cause);
+					}
+				}
 			}
-			try {
-				service.close();
-				logger.info("Service \"" + name + "\" stopped.");
-			} catch (Exception cause) {
-				logger.warn("Service removed, but it threw an exception in the \"close\" method!", cause);
-			}
-			return true;
 		} finally {
 			writerLock.unlock();
 		}
 	}
-	
+
 	// --- GET ACTION ---
-	
+
 	@Override
 	public final ActionContainer getAction(String nodeID, String name) {
 		readerLock.lock();
 		try {
-			
+
 			// TODO find action
 			return null;
-			
+
 		} finally {
 			readerLock.unlock();
 		}

@@ -7,15 +7,9 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.utils.MoleculerComponent;
 
+@Name("Service Registry")
 public abstract class ServiceRegistry implements MoleculerComponent {
 
-	// --- NAME OF THE MOLECULER COMPONENT ---
-	
-	@Override
-	public String name() {
-		return "Service Registry";
-	}
-	
 	// --- LOGGER ---
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
@@ -41,18 +35,18 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 	
 	public abstract void addService(Service... services) throws Exception;
 
+	// --- REMOVE LOCAL SERVICE(S) ---
+	
+	public abstract void removeService(Service... services);
+
 	// --- ADD REMOTE ACTION ---
 	
 	public abstract void addAction(String nodeID, String name, Tree parameters) throws Exception;
 
-	// --- GET SERVICE ---
+	// --- GET LOCAL SERVICE ---
 	
 	public abstract Service getService(String name);
-	
-	// --- REMOVE SERVICE ---
-	
-	public abstract boolean removeService(String name);
-	
+		
 	// --- GET ACTION ---
 	
 	public abstract ActionContainer getAction(String nodeID, String name);

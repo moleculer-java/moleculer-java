@@ -8,13 +8,6 @@ import services.moleculer.utils.MoleculerComponent;
 
 public abstract class Service implements MoleculerComponent {
 
-	// --- NAME OF THE MOLECULER COMPONENT ---
-
-	@Override
-	public final String name() {
-		return name;
-	}
-
 	// --- LOGGER ---
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());

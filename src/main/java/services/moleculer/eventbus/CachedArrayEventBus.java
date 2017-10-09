@@ -8,15 +8,10 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.datatree.dom.Cache;
+import services.moleculer.services.Name;
 
+@Name("Default Event Bus")
 public final class CachedArrayEventBus extends EventBus {
-
-	// --- NAME OF THE MOLECULER COMPONENT ---
-	
-	@Override
-	public final String name() {
-		return "Default Event Bus";
-	}
 	
 	// --- EVENT BUS VARIABLES ---
 

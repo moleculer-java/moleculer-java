@@ -2,6 +2,7 @@ package services.moleculer.transporters;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 import com.lambdaworks.redis.RedisClient;
 import com.lambdaworks.redis.RedisURI;
@@ -16,20 +17,14 @@ import com.lambdaworks.redis.pubsub.StatefulRedisPubSubConnection;
 import com.lambdaworks.redis.pubsub.api.async.RedisPubSubAsyncCommands;
 import com.lambdaworks.redis.resource.DefaultClientResources;
 
-import io.datatree.Tree;
 import rx.Observable;
 import services.moleculer.ServiceBroker;
+import services.moleculer.services.Name;
 import services.moleculer.utils.RedisUtilities;
 import services.moleculer.utils.Serializer;
 
+@Name("Redis Transporter")
 public final class RedisTransporter extends Transporter {
-
-	// --- NAME OF THE MOLECULER COMPONENT ---
-
-	@Override
-	public final String name() {
-		return "Redis Transporter";
-	}
 
 	// --- VARIABLES ---
 
@@ -77,10 +72,13 @@ public final class RedisTransporter extends Transporter {
 	 */
 	@Override
 	public void init(ServiceBroker broker) throws Exception {
-		
+
 		// Init superclass
 		super.init(broker);
-		
+
+		// Get the common executor
+		final ExecutorService executorService = broker.components().executorService();
+
 		// Init Redis client
 		if (clientSub == null) {
 
@@ -96,11 +94,13 @@ public final class RedisTransporter extends Transporter {
 					if (event instanceof ConnectionActivatedEvent) {
 						ConnectionActivatedEvent e = (ConnectionActivatedEvent) event;
 						logger.info("Redis server connected (" + e.remoteAddress() + ").");
-						try {
-							self.connected();
-						} catch (Exception cause) {
-							logger.error("Unexpected error occured in \"connected\" method!", cause);
-						}
+						executorService.execute(() -> {
+							try {
+								self.connected();
+							} catch (Exception cause) {
+								logger.error("Unexpected error occured in \"connected\" method!", cause);
+							}
+						});
 						return;
 					}
 
@@ -115,9 +115,6 @@ public final class RedisTransporter extends Transporter {
 						}
 						return;
 					}
-					
-					System.out.println(event);
-
 				}
 
 				@Override
@@ -150,33 +147,21 @@ public final class RedisTransporter extends Transporter {
 
 				@Override
 				public final void message(byte[] channel, byte[] message) {
-					try {
-
-						// TODO Parse packet (move to superclass)
-
-						/*
-						 * 1. Deserialize data 2. Check sender !== this.nodeID
-						 * 3. if PACKET_REQUEST call `this.requestHandler` 4. if
-						 * PACKET_RESPONSE call `this.responseHandler` 5. if
-						 * PACKET_EVENT call `this.broker.emitLocal` 6. if
-						 * PACKET_INFO || PACKET_DISCOVER call
-						 * `this.processNodeInfo` 7. if PACKET_DISCONNECT call
-						 * `this.nodeDisconnected` 8. if PACKET_HEARTBEAT call
-						 * `this.nodeHeartbeat` 8. else throw Invalid packet!
-						 */
-						
-						Object data = Serializer.deserialize(message, format);
-						String nameOfChannel = new String(channel, StandardCharsets.UTF_8);
-						System.out.println(nameOfChannel + " -> " + data);
-
-					} catch (Exception cause) {
-
-						// TODO: invalid messaage format
-					}
+					executorService.execute(() -> {
+						try {
+							Object data = Serializer.deserialize(message, format);
+							String nameOfChannel = new String(channel, StandardCharsets.UTF_8);
+							System.out.println("message: " + Thread.currentThread());
+							System.out.println(nameOfChannel + " -> " + data);
+						} catch (Exception cause) {
+							// TODO: invalid messaage format
+						}
+					});
 				}
 
 				@Override
 				public final void subscribed(byte[] channel, long count) {
+					logger.info("Redis channel \"" + new String(channel, StandardCharsets.UTF_8) + "\" subscribed.");
 				}
 
 				@Override
@@ -217,7 +202,6 @@ public final class RedisTransporter extends Transporter {
 		if (clientPub != null) {
 			String channel = nameOfChannel(cmd, nodeID);
 			clientPub.subscribe(channel.getBytes(StandardCharsets.UTF_8));
-			logger.info("Redis channel \"" + channel + "\" subscribed.");
 		}
 	}
 
@@ -227,18 +211,9 @@ public final class RedisTransporter extends Transporter {
 	public final void publish(String cmd, String nodeID, Object payload) {
 		if (clientPub != null) {
 
-			// TODO Serialize packet (move to superclass)
+			// Serialize data
 			byte[] channel = nameOfChannel(cmd, nodeID).getBytes(StandardCharsets.UTF_8);
-
-			// Convert Object to JSON / MessagePack / etc
-			Tree structure;
-			byte[] outgoing;
-			if (payload instanceof Tree) {
-				structure = (Tree) payload;
-			} else {
-				structure = new Tree().setObject(payload);
-			}
-			outgoing = structure.toBinary("json", true);
+			byte[] outgoing = Serializer.serialize(payload, format);
 
 			// Send in JSON / MessagePack / etc. format
 			clientPub.publish(channel, outgoing);

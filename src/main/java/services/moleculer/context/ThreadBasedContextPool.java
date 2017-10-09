@@ -1,16 +1,11 @@
 package services.moleculer.context;
 
 import services.moleculer.ServiceBroker;
+import services.moleculer.services.Name;
 import services.moleculer.uids.UIDGenerator;
 
+@Name("Thread-based Context Pool")
 public final class ThreadBasedContextPool extends ContextPool {
-
-	// --- NAME OF THE MOLECULER COMPONENT ---
-
-	@Override
-	public final String name() {
-		return "Thread-based Context Pool";
-	}
 
 	// --- INTERNAL COMPONENTS ---
 

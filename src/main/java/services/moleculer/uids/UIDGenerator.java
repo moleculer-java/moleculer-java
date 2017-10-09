@@ -1,23 +1,11 @@
 package services.moleculer.uids;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import services.moleculer.ServiceBroker;
+import services.moleculer.services.Name;
 import services.moleculer.utils.MoleculerComponent;
 
+@Name("UID Generator")
 public abstract class UIDGenerator implements MoleculerComponent {
-
-	// --- NAME OF THE MOLECULER COMPONENT ---
-	
-	@Override
-	public String name() {
-		return "UID Generator";
-	}
-	
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
 	// --- CONSTUCTOR ---
 

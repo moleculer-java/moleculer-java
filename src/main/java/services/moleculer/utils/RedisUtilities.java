@@ -2,8 +2,6 @@ package services.moleculer.utils;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import com.lambdaworks.redis.RedisClient;
 import com.lambdaworks.redis.RedisURI;
@@ -12,12 +10,7 @@ import com.lambdaworks.redis.cluster.RedisClusterClient;
 import com.lambdaworks.redis.event.Event;
 import com.lambdaworks.redis.event.EventBus;
 import com.lambdaworks.redis.resource.DefaultClientResources;
-import com.lambdaworks.redis.resource.EventLoopGroupProvider;
 
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.util.concurrent.EventExecutorGroup;
-import io.netty.util.concurrent.Future;
 import rx.Observable;
 
 public final class RedisUtilities {
@@ -79,39 +72,13 @@ public final class RedisUtilities {
 
 	public static final DefaultClientResources createClientResources(EventBus eventBus) {
 		DefaultClientResources.Builder builder = DefaultClientResources.builder();
-		EventLoopGroup group = new NioEventLoopGroup(1, Executors.newSingleThreadExecutor());
-		builder.eventExecutorGroup(group);
-		builder.eventLoopGroupProvider(new EventLoopGroupProvider() {
-
-			@Override
-			public int threadPoolSize() {
-				return 1;
-			}
-
-			@Override
-			public Future<Boolean> shutdown(long quietPeriod, long timeout, TimeUnit timeUnit) {
-				return null;
-			}
-
-			@Override
-			public Future<Boolean> release(EventExecutorGroup eventLoopGroup, long quietPeriod, long timeout,
-					TimeUnit unit) {
-				return null;
-			}
-
-			@SuppressWarnings("unchecked")
-			@Override
-			public <T extends EventLoopGroup> T allocate(Class<T> type) {
-				return (T) group;
-			}
-
-		});
+		builder.ioThreadPoolSize(1);
 		if (eventBus == null) {
 			eventBus = new EventBus() {
 
 				@Override
 				public final void publish(Event event) {
-					
+
 					// Ignore
 				}
 
@@ -123,7 +90,7 @@ public final class RedisUtilities {
 				}
 			};
 		}
-		builder.eventBus(eventBus);
+		builder.eventBus(eventBus);		
 		return builder.build();
 	}
 

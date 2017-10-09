@@ -7,18 +7,14 @@ import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.services.Name;
 import services.moleculer.utils.MoleculerComponent;
 
 /**
  * Abstract class of all Cacher implementations.
  */
+@Name("Cacher")
 public abstract class Cacher implements MoleculerComponent {
-
-	// --- NAME OF THE MOLECULER COMPONENT ---
-
-	public String name() {
-		return "Cacher";
-	}
 
 	// --- LOGGER ---
 

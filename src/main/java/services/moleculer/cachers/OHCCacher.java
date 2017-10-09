@@ -9,6 +9,7 @@ import org.caffinitas.ohc.OHCacheBuilder;
 
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.GlobMatcher;
+import services.moleculer.services.Name;
 import services.moleculer.utils.Serializer;
 
 /**
@@ -18,14 +19,9 @@ import services.moleculer.utils.Serializer;
  * version: '0.6.1'). See this gitHub project for a more description:
  * https://github.com/snazy/ohc.
  */
+@Name("Off-heap Memory Cacher")
 public class OHCCacher extends Cacher {
 
-	// --- NAME OF THE MOLECULER COMPONENT ---
-	
-	public String name() {
-		return "Off-heap Memory Cacher";
-	}
-	
 	// --- PROPERTIES ---
 
 	private final String format;
@@ -91,12 +87,10 @@ public class OHCCacher extends Cacher {
 	@Override
 	public CompletableFuture<Object> get(String key) {
 		byte[] bytes = cache.get(key);
-		Object value;
-		if (bytes == null || bytes.length == 0) {
-			value = null;
-		} else {
-			value = Serializer.deserialize(cache.get(key), format);
+		if (bytes == null) {
+			return null;
 		}
+		Object value = Serializer.deserialize(cache.get(key), format);
 		return CompletableFuture.completedFuture(value);
 	}
 

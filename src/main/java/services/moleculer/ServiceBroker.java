@@ -16,6 +16,7 @@ import services.moleculer.services.ActionContainer;
 import services.moleculer.services.Service;
 import services.moleculer.services.ServiceRegistry;
 import services.moleculer.transporters.Transporter;
+import services.moleculer.utils.CommonUtils;
 import services.moleculer.utils.MoleculerComponent;
 import services.moleculer.utils.MoleculerComponents;
 
@@ -121,15 +122,12 @@ public final class ServiceBroker {
 
 	private final void start(MoleculerComponent component) throws Exception {
 		if (component != null) {
-			String info = component.name();
-			if (info == null || info.isEmpty()) {
-				info = component.getClass().toString();
-			}
+			String name = CommonUtils.nameOf(component);
 			try {
 				component.init(this);
-				logger.info(info + " started.");
+				logger.info(name + " started.");
 			} catch (Exception cause) {
-				logger.error("Unable to start " + info + "!", cause);
+				logger.error("Unable to start " + name + "!", cause);
 				throw cause;
 			}
 		}
@@ -157,15 +155,12 @@ public final class ServiceBroker {
 
 	private final void stop(MoleculerComponent component) {
 		if (component != null) {
-			String info = component.name();
-			if (info == null || info.isEmpty()) {
-				info = component.getClass().toString();
-			}
+			String name = CommonUtils.nameOf(component);
 			try {
 				component.init(this);
-				logger.info(info + " stopped.");
+				logger.info(name + " stopped.");
 			} catch (Throwable cause) {
-				logger.error("Unable to stop " + info + "!", cause);
+				logger.error("Unable to stop " + name + "!", cause);
 			}
 		}
 	}
@@ -194,8 +189,8 @@ public final class ServiceBroker {
 	 * 
 	 * @param service
 	 */
-	public boolean destroyService(Service service) {
-		return serviceRegistry.removeService(service.name());
+	public void destroyService(Service... service) {
+		serviceRegistry.removeService(service);
 	}
 
 	/**

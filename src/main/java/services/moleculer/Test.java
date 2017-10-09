@@ -1,6 +1,5 @@
 package services.moleculer;
 
-import io.datatree.Tree;
 import services.moleculer.cachers.Cache;
 import services.moleculer.cachers.MemoryCacher;
 import services.moleculer.eventbus.Listener;
@@ -24,36 +23,28 @@ public class Test {
 
 		// ---------
 
-		Tree t = new Tree().put("a", 5).put("b", 3);
-		long start = System.currentTimeMillis();
-		for (int i = 0; i < 3; i++) {
-			// Object result = broker.call("v2.test.add", t, null);
-			// System.out.println("RESULT: " + result);
-		}
-		System.out.println(System.currentTimeMillis() - start);
+		// Tree t = new Tree().put("a", 5).put("b", 3);
+		// long start = System.currentTimeMillis();
+		// for (int i = 0; i < 3; i++) {
+		// Object result = broker.call("v2.test.add", t, null);
+		// System.out.println("RESULT: " + result);
+		// }
+		// System.out.println(System.currentTimeMillis() - start);
 
 		// ------------------
 
 		/*
-		broker.on("user.create", (payload) -> {
-			System.out.println("RECEIVED in 'user.create': " + payload);
-		});
-		broker.on("user.created", (payload) -> {
-			System.out.println("RECEIVED in 'user.created': " + payload);
-		});
-		broker.on("user.*", (payload) -> {
-			System.out.println("RECEIVED in 'user.*': " + payload);
-		});
-		broker.on("post.*", (payload) -> {
-			System.out.println("RECEIVED in 'post.*': " + payload);
-		});
-		broker.on("*", (payload) -> {
-			System.out.println("RECEIVED in '*': " + payload);
-		});
-		broker.on("**", (payload) -> {
-			System.out.println("RECEIVED in '**': " + payload);
-		});
-		*/
+		 * broker.on("user.create", (payload) -> { System.out.println(
+		 * "RECEIVED in 'user.create': " + payload); });
+		 * broker.on("user.created", (payload) -> { System.out.println(
+		 * "RECEIVED in 'user.created': " + payload); }); broker.on("user.*",
+		 * (payload) -> { System.out.println("RECEIVED in 'user.*': " +
+		 * payload); }); broker.on("post.*", (payload) -> { System.out.println(
+		 * "RECEIVED in 'post.*': " + payload); }); broker.on("*", (payload) ->
+		 * { System.out.println("RECEIVED in '*': " + payload); });
+		 * broker.on("**", (payload) -> { System.out.println(
+		 * "RECEIVED in '**': " + payload); });
+		 */
 	}
 
 	@Name("v2.test")

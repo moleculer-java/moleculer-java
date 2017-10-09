@@ -355,16 +355,16 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 		String day = getProperty(className + ".compressAfter", "");
 		if (!day.isEmpty()) {
 			if (!day.endsWith("days")) {
-				throw new IllegalArgumentException("The 'compressAfter' must be in days (eg. '14 days')!");
+				throw new IllegalArgumentException("The \"compressAfter\" must be in days (eg. \"14 days\")!");
 			}
 			compressAfterDays = Integer.parseInt(day.substring(0, day.length() - 4).trim());
 		}
 
-		// Set 'delete after days' property
+		// Set "delete after days" property
 		day = getProperty(className + ".deleteAfter", "");
 		if (!day.isEmpty()) {
 			if (!day.endsWith("days")) {
-				throw new IllegalArgumentException("The 'deleteAfter' must be in days (eg. '14 days')!");
+				throw new IllegalArgumentException("The \"deleteAfter\" must be in days (eg. \"14 days\")!");
 			}
 			deleteAfterDays = Integer.parseInt(day.substring(0, day.length() - 4).trim());
 			if (deleteAfterDays < compressAfterDays || compressAfterDays < 2 || deleteAfterDays < 2) {

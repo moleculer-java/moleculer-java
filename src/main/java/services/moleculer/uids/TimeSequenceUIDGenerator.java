@@ -3,18 +3,13 @@ package services.moleculer.uids;
 import java.util.concurrent.atomic.AtomicLong;
 
 import services.moleculer.ServiceBroker;
+import services.moleculer.services.Name;
 
 /**
  * Fast UIDGenerator, based on nodeID, timestamp and an atomic sequence number.
  */
+@Name("Time-Sequence UID Generator")
 public final class TimeSequenceUIDGenerator extends UIDGenerator {
-
-	// --- NAME OF THE MOLECULER COMPONENT ---
-	
-	@Override
-	public final String name() {
-		return "Time-Sequence UID Generator";
-	}
 	
 	// --- HOST/NODE PREFIX ---
 
