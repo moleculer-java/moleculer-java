@@ -2,17 +2,19 @@ package services.moleculer;
 
 import io.datatree.Tree;
 import services.moleculer.cachers.Cache;
+import services.moleculer.cachers.MemoryCacher;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.services.Action;
 import services.moleculer.services.Name;
 import services.moleculer.services.Service;
+import services.moleculer.transporters.RedisTransporter;
 
 public class Test {
 
 	@SuppressWarnings("unused")
 	public static void main(String[] args) throws Exception {
 
-		ServiceBroker broker = ServiceBroker.builder().build();
+		ServiceBroker broker = new ServiceBroker("server-2", new RedisTransporter(), new MemoryCacher());
 
 		TestService service = new TestService();
 
@@ -25,7 +27,7 @@ public class Test {
 		Tree t = new Tree().put("a", 5).put("b", 3);
 		long start = System.currentTimeMillis();
 		for (int i = 0; i < 3; i++) {
-			Object result = broker.call("v2.test.add", t, null);
+			// Object result = broker.call("v2.test.add", t, null);
 			// System.out.println("RESULT: " + result);
 		}
 		System.out.println(System.currentTimeMillis() - start);

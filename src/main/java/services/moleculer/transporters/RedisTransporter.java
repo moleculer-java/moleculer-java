@@ -9,6 +9,8 @@ import com.lambdaworks.redis.cluster.RedisClusterClient;
 import com.lambdaworks.redis.codec.ByteArrayCodec;
 import com.lambdaworks.redis.event.Event;
 import com.lambdaworks.redis.event.EventBus;
+import com.lambdaworks.redis.event.connection.ConnectionActivatedEvent;
+import com.lambdaworks.redis.event.connection.ConnectionDeactivatedEvent;
 import com.lambdaworks.redis.pubsub.RedisPubSubListener;
 import com.lambdaworks.redis.pubsub.StatefulRedisPubSubConnection;
 import com.lambdaworks.redis.pubsub.api.async.RedisPubSubAsyncCommands;
@@ -18,16 +20,17 @@ import io.datatree.Tree;
 import rx.Observable;
 import services.moleculer.ServiceBroker;
 import services.moleculer.utils.RedisUtilities;
+import services.moleculer.utils.Serializer;
 
 public final class RedisTransporter extends Transporter {
 
 	// --- NAME OF THE MOLECULER COMPONENT ---
-	
+
 	@Override
 	public final String name() {
 		return "Redis Transporter";
 	}
-	
+
 	// --- VARIABLES ---
 
 	protected String[] urls = new String[] { "localhost" };
@@ -74,56 +77,47 @@ public final class RedisTransporter extends Transporter {
 	 */
 	@Override
 	public void init(ServiceBroker broker) throws Exception {
+		
+		// Init superclass
+		super.init(broker);
+		
+		// Init Redis client
 		if (clientSub == null) {
 
 			// Create Redis connection
-			List<RedisURI> redisURIs = RedisUtilities.parseURLs(urls, password, useSSL, startTLS);
+			final List<RedisURI> redisURIs = RedisUtilities.parseURLs(urls, password, useSSL, startTLS);
+			final RedisTransporter self = this;
 			DefaultClientResources clientResources = RedisUtilities.createClientResources(new EventBus() {
 
 				@Override
 				public final void publish(Event event) {
-					
-					// TODO on connected (move to superclass):
-					
-					// Call `makeSubscriptions`
-					// Call `discoverNodes`
-					// Call `sendNodeInfo`
-					// Set `this.connected = true`
-					
-					// Call `this.tx.connect()`
-					// If failed, try again after 5 sec.
-					// If success
-					// 		Start heartbeat timer
-					//		Start checkNodes timer 
-					
-					// Subscribe to broadcast events
-					//this.subscribe(P.PACKET_EVENT),
 
-					// Subscribe to requests
-					//this.subscribe(P.PACKET_REQUEST, this.nodeID),
+					// Redis server connected
+					if (event instanceof ConnectionActivatedEvent) {
+						ConnectionActivatedEvent e = (ConnectionActivatedEvent) event;
+						logger.info("Redis server connected (" + e.remoteAddress() + ").");
+						try {
+							self.connected();
+						} catch (Exception cause) {
+							logger.error("Unexpected error occured in \"connected\" method!", cause);
+						}
+						return;
+					}
 
-					// Subscribe to node responses of requests
-					//this.subscribe(P.PACKET_RESPONSE, this.nodeID),
-
-					// Discover handler
-					//this.subscribe(P.PACKET_DISCOVER),
-
-					// NodeInfo handler
-					//this.subscribe(P.PACKET_INFO), // Broadcasted INFO. If a new node connected
-					//this.subscribe(P.PACKET_INFO, this.nodeID), // Response INFO to DISCOVER packet
-
-					// Disconnect handler
-					//this.subscribe(P.PACKET_DISCONNECT),
-
-					// Heart-beat handler
-					//this.subscribe(P.PACKET_HEARTBEAT),	
+					// Redis server disconnected
+					if (event instanceof ConnectionDeactivatedEvent) {
+						ConnectionDeactivatedEvent e = (ConnectionDeactivatedEvent) event;
+						logger.info("Redis server disconnected (" + e.remoteAddress() + ").");
+						try {
+							self.disconnected();
+						} catch (Exception cause) {
+							logger.error("Unexpected error occured in \"disconnected\" method!", cause);
+						}
+						return;
+					}
 					
-					// TODO on disconnected (move to superclass):
-					
-					// Stop heartbeat timer
-					// Stop checkNodes timer
-					// Call `sendDisconnectPacket()`
-					// Call `this.tx.disconnect()`
+					System.out.println(event);
+
 				}
 
 				@Override
@@ -170,14 +164,10 @@ public final class RedisTransporter extends Transporter {
 						 * `this.nodeDisconnected` 8. if PACKET_HEARTBEAT call
 						 * `this.nodeHeartbeat` 8. else throw Invalid packet!
 						 */
-
-						Tree deserialized = new Tree(message, "json");
-						Object incoming;
-						if (deserialized.isPrimitive()) {
-							incoming = deserialized.asObject();
-						} else {
-							incoming = deserialized;
-						}
+						
+						Object data = Serializer.deserialize(message, format);
+						String nameOfChannel = new String(channel, StandardCharsets.UTF_8);
+						System.out.println(nameOfChannel + " -> " + data);
 
 					} catch (Exception cause) {
 
@@ -225,7 +215,9 @@ public final class RedisTransporter extends Transporter {
 	@Override
 	public final void subscribe(String cmd, String nodeID) {
 		if (clientPub != null) {
-			clientPub.subscribe(nameOf(cmd, nodeID).getBytes(StandardCharsets.UTF_8));
+			String channel = nameOfChannel(cmd, nodeID);
+			clientPub.subscribe(channel.getBytes(StandardCharsets.UTF_8));
+			logger.info("Redis channel \"" + channel + "\" subscribed.");
 		}
 	}
 
@@ -236,7 +228,7 @@ public final class RedisTransporter extends Transporter {
 		if (clientPub != null) {
 
 			// TODO Serialize packet (move to superclass)
-			byte[] channel = nameOf(cmd, nodeID).getBytes(StandardCharsets.UTF_8);
+			byte[] channel = nameOfChannel(cmd, nodeID).getBytes(StandardCharsets.UTF_8);
 
 			// Convert Object to JSON / MessagePack / etc
 			Tree structure;
@@ -251,6 +243,18 @@ public final class RedisTransporter extends Transporter {
 			// Send in JSON / MessagePack / etc. format
 			clientPub.publish(channel, outgoing);
 		}
+	}
+
+	// --- IS CONNECTED ---
+
+	public final boolean isConnected() {
+		if (clientPub != null && clientSub != null) {
+			try {
+				return clientPub.isOpen() && clientSub.isOpen();
+			} catch (Exception ignored) {
+			}
+		}
+		return false;
 	}
 
 }

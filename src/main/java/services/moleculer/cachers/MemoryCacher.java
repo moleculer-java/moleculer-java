@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -76,7 +77,7 @@ public class MemoryCacher extends Cacher {
 	// --- CACHE METHODS ---
 
 	@Override
-	public Object get(String key) {
+	public CompletableFuture<Object> get(String key) {
 		int pos = partitionPosition(key, true);
 		String prefix = key.substring(0, pos);
 		MemoryPartition partition;
@@ -216,7 +217,7 @@ public class MemoryCacher extends Cacher {
 
 		// --- CACHE METHODS ---
 
-		private final Object get(String key) {
+		private final CompletableFuture<Object> get(String key) {
 			Object value;
 			readerLock.lock();
 			try {
@@ -225,15 +226,15 @@ public class MemoryCacher extends Cacher {
 				readerLock.unlock();
 			}
 			if (value == null) {
-				return null;
+				return CompletableFuture.completedFuture(null);
 			}
 			try {
 				if (value instanceof Tree) {
-					return ((Tree) value).clone();
+					return CompletableFuture.completedFuture(((Tree) value).clone());
 				}
-				return DeepCloner.clone(value);				
+				return CompletableFuture.completedFuture(DeepCloner.clone(value));				
 			} catch (Exception e) {
-				return value;
+				return CompletableFuture.completedFuture(value);
 			}
 		}
 

@@ -209,7 +209,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 	// --- GET ACTION ---
 	
 	@Override
-	public final Action getAction(String nodeID, String name) {
+	public final ActionContainer getAction(String nodeID, String name) {
 		readerLock.lock();
 		try {
 			

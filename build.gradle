@@ -26,17 +26,17 @@ dependencies {
 	// http://mvnrepository.com/artifact/org.slf4j/slf4j-jdk14
 	compile group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.7.21'
 
-	// https://mvnrepository.com/artifact/com.dorkbox/MinLog-SLF4J
-	compile group: 'com.dorkbox', name: 'MinLog-SLF4J', version: '1.8'
-
     // --- QUASAR FRAMEWORK ---
+
+	// https://mvnrepository.com/artifact/com.dorkbox/MinLog-SLF4J
+	// compile group: 'com.dorkbox', name: 'MinLog-SLF4J', version: '1.8'
         
     // http://mvnrepository.com/artifact/co.paralleluniverse/quasar-core
-	compile (group: 'co.paralleluniverse', name: 'quasar-core', version: '0.7.6') {
+	// compile (group: 'co.paralleluniverse', name: 'quasar-core', version: '0.7.6') {
 	
 		// https://mvnrepository.com/artifact/com.esotericsoftware/minlog
-		exclude group: 'com.esotericsoftware', module: 'minlog'
-	}
+		// exclude group: 'com.esotericsoftware', module: 'minlog'
+	// }
 
     // --- DATATREE ---
     	    

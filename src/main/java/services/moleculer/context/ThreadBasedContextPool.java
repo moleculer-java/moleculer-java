@@ -31,7 +31,7 @@ public final class ThreadBasedContextPool extends ContextPool {
 	@Override
 	public void init(ServiceBroker broker) throws Exception {
 		this.broker = broker;
-		this.uidGenerator = broker.uidGenerator();
+		this.uidGenerator = broker.components().uidGenerator();
 	}
 
 	// --- GET CONTEXT FROM POOL ---

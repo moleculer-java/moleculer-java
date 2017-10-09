@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import services.moleculer.ServiceBroker;
 import services.moleculer.services.Action;
+import services.moleculer.services.ActionContainer;
 import services.moleculer.utils.MoleculerComponent;
 
 public abstract class InvocationStrategy implements MoleculerComponent {
@@ -58,10 +59,10 @@ public abstract class InvocationStrategy implements MoleculerComponent {
 
 	// --- GET ACTION AT REMOTE NODE ---
 	
-	public abstract Action get(String nodeID);
+	public abstract ActionContainer get(String nodeID);
 	
 	// --- CALL LOCAL OR REMOTE INSTANCE ---
 	
-	public abstract Action get(boolean preferLocal);
+	public abstract ActionContainer get(boolean preferLocal);
 	
 }

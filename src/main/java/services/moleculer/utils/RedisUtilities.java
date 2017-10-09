@@ -42,7 +42,6 @@ public final class RedisUtilities {
 			// Single connection
 			RedisClient client = RedisClient.create(clientResources, redisURIs.get(0));
 			commands = client.connect().async();
-
 		}
 		return commands;
 	}

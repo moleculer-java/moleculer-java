@@ -1,6 +1,6 @@
 package services.moleculer.strategies;
 
-import services.moleculer.services.Action;
+import services.moleculer.services.ActionContainer;
 
 /**
  * XORSHIFT-based pseudorandom invocation strategy.
@@ -20,7 +20,7 @@ public final class XORShiftInvocationStrategy extends ArrayBasedInvocationStrate
 	// --- GET NEXT ACTION CONTAINER ---
 	
 	@Override
-	public final Action next() {
+	public final ActionContainer next() {
 		
 		// Generate pseudo random
 		long idx;

@@ -55,6 +55,6 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 	
 	// --- GET ACTION ---
 	
-	public abstract Action getAction(String nodeID, String name);
+	public abstract ActionContainer getAction(String nodeID, String name);
 	
 }

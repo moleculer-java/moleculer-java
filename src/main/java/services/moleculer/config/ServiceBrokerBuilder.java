@@ -1,10 +1,16 @@
 package services.moleculer.config;
 
+import java.util.concurrent.Executor;
+
 import services.moleculer.ServiceBroker;
 import services.moleculer.breakers.CircuitBreaker;
 import services.moleculer.cachers.Cacher;
+import services.moleculer.context.ContextPool;
+import services.moleculer.eventbus.EventBus;
+import services.moleculer.services.ServiceRegistry;
 import services.moleculer.strategies.InvocationStrategyFactory;
 import services.moleculer.transporters.Transporter;
+import services.moleculer.uids.UIDGenerator;
 
 /**
  * Builder-style ServiceBroker factory. Sample of usage:<br>
@@ -31,6 +37,36 @@ public class ServiceBrokerBuilder {
 
 	// --- SETTER METHODS ---
 
+	public final ServiceBrokerBuilder executor(Executor executor) {
+		config.setExecutor(executor);
+		return this;
+	}
+	
+	public final ServiceBrokerBuilder contextPool(ContextPool contextPool) {
+		config.setContextPool(contextPool);
+		return this;		
+	}
+	
+	public final ServiceBrokerBuilder serviceRegistry(ServiceRegistry serviceRegistry) {
+		config.setServiceRegistry(serviceRegistry);
+		return this;				
+	}
+	
+	public final ServiceBrokerBuilder eventBus(EventBus eventBus) {
+		config.setEventBus(eventBus);
+		return this;						
+	}
+	
+	public final ServiceBrokerBuilder uidGenerator(UIDGenerator uidGenerator) {
+		config.setUIDGenerator(uidGenerator);
+		return this;								
+	}
+	
+	public final ServiceBrokerBuilder invocationStrategyFactory(InvocationStrategyFactory invocationStrategyFactory) {
+		config.setInvocationStrategyFactory(invocationStrategyFactory);
+		return this;										
+	}
+	
 	public final ServiceBrokerBuilder namespace(String namespace) {
 		config.setNamespace(namespace);
 		return this;
@@ -73,11 +109,6 @@ public class ServiceBrokerBuilder {
 
 	public final ServiceBrokerBuilder disableBalancer(boolean disableBalancer) {
 		config.setDisableBalancer(disableBalancer);
-		return this;
-	}
-
-	public final ServiceBrokerBuilder strategyFactory(InvocationStrategyFactory strategyFactory) {
-		config.setStrategyFactory(strategyFactory);
 		return this;
 	}
 

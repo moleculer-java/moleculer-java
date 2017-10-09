@@ -1,6 +1,7 @@
 package services.moleculer.cachers;
 
 import java.util.Iterator;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 
 import org.caffinitas.ohc.OHCache;
@@ -88,8 +89,15 @@ public class OHCCacher extends Cacher {
 	// --- IMPLEMENTED CACHE METHODS ---
 
 	@Override
-	public Object get(String key) {
-		return Serializer.deserialize(cache.get(key), format);
+	public CompletableFuture<Object> get(String key) {
+		byte[] bytes = cache.get(key);
+		Object value;
+		if (bytes == null || bytes.length == 0) {
+			value = null;
+		} else {
+			value = Serializer.deserialize(cache.get(key), format);
+		}
+		return CompletableFuture.completedFuture(value);
 	}
 
 	@Override

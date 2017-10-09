@@ -17,7 +17,6 @@ public abstract class Transporter implements MoleculerComponent {
 	
 	// --- CONSTANTS ---
 	
-	public static final String PACKET_UNKNOW		= "???";
 	public static final String PACKET_EVENT 		= "EVENT";
 	public static final String PACKET_REQUEST 		= "REQ";
 	public static final String PACKET_RESPONSE		= "RES";
@@ -33,7 +32,10 @@ public abstract class Transporter implements MoleculerComponent {
 	// --- PROPERTIES ---
 
 	protected final String prefix;
+	
 	protected ServiceBroker broker;
+	protected String nodeID;
+	protected String format;
 	
 	// --- CONSTUCTORS ---
 
@@ -54,15 +56,61 @@ public abstract class Transporter implements MoleculerComponent {
 	 */
 	@Override
 	public void init(ServiceBroker broker) throws Exception {
+		this.broker = broker;
+		this.nodeID = broker.nodeID();
 	}
 
+	// --- SERVER CONNECTED ---
+	
+	protected void connected() throws Exception {
+		
+		// Subscribe to broadcast events
+		subscribe(PACKET_EVENT, null);
+
+		// Subscribe to requests
+		subscribe(PACKET_REQUEST, nodeID);
+
+		// Subscribe to node responses of requests
+		subscribe(PACKET_RESPONSE, nodeID);
+
+		// Discover handler
+		subscribe(PACKET_DISCOVER, null);
+
+		// Broadcasted INFO (if a new node connected)
+		subscribe(PACKET_INFO, null);
+		
+		// Response INFO to DISCOVER packet
+		subscribe(PACKET_INFO, nodeID);
+
+		// Disconnect handler
+		subscribe(PACKET_DISCONNECT, null);
+
+		// Heart-beat handler
+		subscribe(PACKET_HEARTBEAT, null);	
+
+		// TODO
+		// - Start heartbeat timer
+		// - Start checkNodes timer 
+	}
+	
+	// --- SERVER DISCONNECTED ---
+	
+	protected void disconnected() throws Exception {
+
+		// TODO on disconnected (move to superclass):		
+		// Stop heartbeat timer
+		// Stop checkNodes timer
+		// Call `this.tx.disconnect()`
+	}
+	
 	// --- STOP TRANSPORTER ---
 
 	/**
 	 * Closes transporter.
 	 */
 	@Override
-	public void close() {
+	public void close() {		
+		// If isConnected() call `sendDisconnectPacket()`
 	}
 	
 	// --- PUBLISH ---
@@ -73,9 +121,13 @@ public abstract class Transporter implements MoleculerComponent {
 
 	public abstract void subscribe(String cmd, String nodeID);
 
+	// --- IS CONNECTED ---
+	
+	public abstract boolean isConnected();
+	
 	// --- CREATE TOPIC NAME ---
 
-	protected final String nameOf(String cmd, String nodeID) {
+	protected final String nameOfChannel(String cmd, String nodeID) {
 		StringBuilder name = new StringBuilder(64);
 		name.append(prefix);
 		name.append('.');

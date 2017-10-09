@@ -1,6 +1,6 @@
 package services.moleculer.strategies;
 
-import services.moleculer.services.Action;
+import services.moleculer.services.ActionContainer;
 
 /**
  * Nanosec-based pseudorandom invocation strategy.
@@ -16,7 +16,7 @@ public final class NanoSecInvocationStrategy extends ArrayBasedInvocationStrateg
 	// --- GET NEXT ACTION CONTAINER ---
 	
 	@Override
-	public final Action next() {
+	public final ActionContainer next() {
 		return actions[(int) (System.nanoTime() % actions.length)];
 	}
 

@@ -3,23 +3,25 @@ package services.moleculer.strategies;
 import java.util.Arrays;
 
 import services.moleculer.services.Action;
+import services.moleculer.services.ActionContainer;
+import services.moleculer.services.LocalActionContainer;
 
 public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 
 	// --- ARRAY OF THE ALL ACTION INSTANCES ---
 
-	protected Action[] actions = new Action[0];
+	protected ActionContainer[] actions = new ActionContainer[0];
 
 	// --- POINTER TO A LOCAL ACTION INSTANCE ---
 	
-	protected Action localAction;
+	protected ActionContainer localAction;
 	
 	// --- ADD ACCTION ---
 
 	public final void add(Action action) {
 		if (actions.length == 0) {
-			actions = new Action[1];
-			actions[0] = action;
+			actions = new ActionContainer[1];
+			actions[0] = new LocalActionContainer(action);
 		} else {
 			for (int i = 0; i < actions.length; i++) {
 				if (actions[i].equals(action)) {
@@ -31,7 +33,7 @@ public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 
 			// Add to array
 			actions = Arrays.copyOf(actions, actions.length + 1);
-			actions[actions.length - 1] = action;
+			actions[actions.length - 1] = new LocalActionContainer(action);
 		}
 	}
 
@@ -43,7 +45,7 @@ public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 				if (actions[i].equals(localAction)) {
 					localAction = null;
 				}
-				Action[] copy = new Action[actions.length - 1];
+				ActionContainer[] copy = new ActionContainer[actions.length - 1];
 				System.arraycopy(actions, 0, copy, 0, i);
 				System.arraycopy(actions, i + 1, copy, i, actions.length - i - 1);
 				actions = copy;
@@ -60,8 +62,8 @@ public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 	
 	// --- GET ACTION AT NODE ---
 	
-	public final Action get(String nodeID) {
-		for (Action action: actions) {
+	public final ActionContainer get(String nodeID) {
+		for (ActionContainer action: actions) {
 			if (action.nodeID().equals(nodeID)) {
 				return action;
 			}
@@ -71,7 +73,7 @@ public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 	
 	// --- CALL LOCAL OR REMOTE INSTANCE ---
 	
-	public final Action get(boolean preferLocal) {
+	public final ActionContainer get(boolean preferLocal) {
 		if (!preferLocal || localAction == null) {
 			return next();
 		}
@@ -80,6 +82,6 @@ public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 	
 	// --- GET NEXT REMOTE INSTANCE ---
 
-	public abstract Action next();
+	public abstract ActionContainer next();
 	
 }
