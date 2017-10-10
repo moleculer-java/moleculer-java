@@ -3,6 +3,7 @@ package services.moleculer.transporters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.services.Name;
 import services.moleculer.utils.MoleculerComponent;
@@ -11,27 +12,27 @@ import services.moleculer.utils.MoleculerComponent;
 public abstract class Transporter implements MoleculerComponent {
 
 	// --- CONSTANTS ---
-	
-	public static final String PACKET_EVENT 		= "EVENT";
-	public static final String PACKET_REQUEST 		= "REQ";
-	public static final String PACKET_RESPONSE		= "RES";
-	public static final String PACKET_DISCOVER 		= "DISCOVER";
-	public static final String PACKET_INFO 			= "INFO";
-	public static final String PACKET_DISCONNECT 	= "DISCONNECT";
-	public static final String PACKET_HEARTBEAT 	= "HEARTBEAT";
-		
+
+	public static final String PACKET_EVENT = "EVENT";
+	public static final String PACKET_REQUEST = "REQ";
+	public static final String PACKET_RESPONSE = "RES";
+	public static final String PACKET_DISCOVER = "DISCOVER";
+	public static final String PACKET_INFO = "INFO";
+	public static final String PACKET_DISCONNECT = "DISCONNECT";
+	public static final String PACKET_HEARTBEAT = "HEARTBEAT";
+
 	// --- LOGGER ---
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
-	
+
 	// --- PROPERTIES ---
 
 	protected final String prefix;
-	
+
 	protected ServiceBroker broker;
 	protected String nodeID;
 	protected String format;
-	
+
 	// --- CONSTUCTORS ---
 
 	public Transporter() {
@@ -56,9 +57,9 @@ public abstract class Transporter implements MoleculerComponent {
 	}
 
 	// --- SERVER CONNECTED ---
-	
+
 	protected void connected() throws Exception {
-		
+
 		// Subscribe to broadcast events
 		subscribe(PACKET_EVENT, null);
 
@@ -73,7 +74,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 		// Broadcasted INFO (if a new node connected)
 		subscribe(PACKET_INFO, null);
-		
+
 		// Response INFO to DISCOVER packet
 		subscribe(PACKET_INFO, nodeID);
 
@@ -81,45 +82,45 @@ public abstract class Transporter implements MoleculerComponent {
 		subscribe(PACKET_DISCONNECT, null);
 
 		// Heart-beat handler
-		subscribe(PACKET_HEARTBEAT, null);	
+		subscribe(PACKET_HEARTBEAT, null);
 
 		// TODO
 		// - Start heartbeat timer
-		// - Start checkNodes timer 
+		// - Start checkNodes timer
 	}
-	
+
 	// --- SERVER DISCONNECTED ---
-	
+
 	protected void disconnected() throws Exception {
 
-		// TODO on disconnected (move to superclass):		
+		// TODO on disconnected (move to superclass):
 		// Stop heartbeat timer
 		// Stop checkNodes timer
 		// Call `this.tx.disconnect()`
 	}
-	
+
 	// --- STOP TRANSPORTER ---
 
 	/**
 	 * Closes transporter.
 	 */
 	@Override
-	public void close() {		
+	public void close() {
 		// If isConnected() call `sendDisconnectPacket()`
 	}
-	
+
 	// --- PUBLISH ---
 
-	public abstract void publish(String cmd, String nodeID, Object payload);
+	public abstract void publish(String cmd, String nodeID, Tree message);
 
 	// --- SUBSCRIBE ---
 
 	public abstract void subscribe(String cmd, String nodeID);
 
 	// --- IS CONNECTED ---
-	
+
 	public abstract boolean isConnected();
-	
+
 	// --- CREATE TOPIC NAME ---
 
 	protected final String nameOfChannel(String cmd, String nodeID) {

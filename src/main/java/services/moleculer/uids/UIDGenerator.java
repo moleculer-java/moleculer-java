@@ -11,7 +11,7 @@ public abstract class UIDGenerator implements MoleculerComponent {
 
 	public UIDGenerator() {
 	}
-	
+
 	// --- START GENERATOR ---
 
 	/**
@@ -31,9 +31,9 @@ public abstract class UIDGenerator implements MoleculerComponent {
 	@Override
 	public void close() {
 	}
-	
+
 	// --- GENERATE UID ---
-	
+
 	public abstract String nextUID();
-	
+
 }

@@ -7,8 +7,8 @@ import java.util.concurrent.ForkJoinPool;
 import services.moleculer.breakers.CircuitBreaker;
 import services.moleculer.cachers.Cacher;
 import services.moleculer.cachers.MemoryCacher;
-import services.moleculer.context.ContextPool;
-import services.moleculer.context.ThreadBasedContextPool;
+import services.moleculer.context.ContextFactory;
+import services.moleculer.context.DefaultContextFactory;
 import services.moleculer.eventbus.CachedArrayEventBus;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.services.DefaultServiceRegistry;
@@ -35,7 +35,7 @@ public final class ServiceBrokerConfig {
 	private String nodeID;
 
 	private ExecutorService executorService = ForkJoinPool.commonPool();
-	private ContextPool contextPool = new ThreadBasedContextPool();
+	private ContextFactory contextFactory = new DefaultContextFactory();
 	private ServiceRegistry serviceRegistry = new DefaultServiceRegistry();
 	private EventBus eventBus = new CachedArrayEventBus();
 	private UIDGenerator uidGenerator = new TimeSequenceUIDGenerator();
@@ -43,7 +43,7 @@ public final class ServiceBrokerConfig {
 	private Transporter transporter;
 
 	private boolean preferLocal = true;
-	
+
 	private long requestTimeout;
 	private int requestRetry;
 	private int maxCallLevel = 100;
@@ -205,12 +205,12 @@ public final class ServiceBrokerConfig {
 		this.uidGenerator = uidGenerator;
 	}
 
-	public final ContextPool getContextPool() {
-		return contextPool;
+	public final ContextFactory getContextFactory() {
+		return contextFactory;
 	}
 
-	public final void setContextPool(ContextPool contextPool) {
-		this.contextPool = contextPool;
+	public final void setContextFactory(ContextFactory contextFactory) {
+		this.contextFactory = contextFactory;
 	}
 
 	public final InvocationStrategyFactory getInvocationStrategyFactory() {

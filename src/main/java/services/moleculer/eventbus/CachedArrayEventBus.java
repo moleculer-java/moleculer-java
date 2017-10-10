@@ -12,7 +12,7 @@ import services.moleculer.services.Name;
 
 @Name("Default Event Bus")
 public final class CachedArrayEventBus extends EventBus {
-	
+
 	// --- EVENT BUS VARIABLES ---
 
 	/**
@@ -34,9 +34,9 @@ public final class CachedArrayEventBus extends EventBus {
 	 * Writer lock of the Event Bus
 	 */
 	private final Lock writerLock;
-	
+
 	// --- CONSTRUCTOR ---
-	
+
 	public CachedArrayEventBus() {
 		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
 		readerLock = lock.readLock();
@@ -44,9 +44,9 @@ public final class CachedArrayEventBus extends EventBus {
 		listeners = new HashMap<>(2048);
 		listenerCache = new Cache<>(2048, true);
 	}
-	
+
 	// --- REGISTER LISTENER ----
-	
+
 	@Override
 	public final void on(String name, Listener listener, boolean once) {
 
@@ -66,9 +66,9 @@ public final class CachedArrayEventBus extends EventBus {
 		// Clear cache
 		listenerCache.clear();
 	}
-	
+
 	// --- UNREGISTER LISTENER ---
-	
+
 	/**
 	 * Unsubscribe from an event
 	 * 
@@ -77,7 +77,7 @@ public final class CachedArrayEventBus extends EventBus {
 	 */
 	@Override
 	public final void off(String name, Listener listener) {
-		
+
 		// Check listener
 		boolean found = false;
 
@@ -116,15 +116,15 @@ public final class CachedArrayEventBus extends EventBus {
 			listenerCache.clear();
 		}
 	}
-	
+
 	// --- EMIT EVENT TO LISTENERS ---
-	
+
 	@Override
 	public final void emit(String name, Object payload) {
 
 		// Get from cache
 		Listener[] cachedListeners = listenerCache.get(name);
-		
+
 		// If not found...
 		if (cachedListeners == null) {
 
@@ -192,7 +192,7 @@ public final class CachedArrayEventBus extends EventBus {
 				listenerCache.put(name, cachedListeners);
 			}
 		}
-		
+
 		// Invoke one listener without looping
 		if (cachedListeners.length == 1) {
 			try {
@@ -214,5 +214,5 @@ public final class CachedArrayEventBus extends EventBus {
 			}
 		}
 	}
-	
+
 }

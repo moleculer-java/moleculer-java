@@ -2,7 +2,7 @@ package services.moleculer.cachers;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 import com.lambdaworks.redis.RedisClient;
 import com.lambdaworks.redis.RedisFuture;
@@ -19,6 +19,7 @@ import com.lambdaworks.redis.resource.DefaultClientResources;
 import io.datatree.dom.TreeWriter;
 import io.datatree.dom.TreeWriterRegistry;
 import rx.Observable;
+import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.services.Name;
 import services.moleculer.utils.RedisUtilities;
@@ -45,6 +46,10 @@ public class RedisCacher extends Cacher {
 	// --- CACHED JSON CONVERTER ---
 
 	protected final TreeWriter writer = TreeWriterRegistry.getWriter(null);
+
+	// --- COMMON EXECUTOR ---
+
+	protected ExecutorService executorService;
 
 	// --- CONSTUCTORS ---
 
@@ -91,6 +96,9 @@ public class RedisCacher extends Cacher {
 
 		// Init superclass
 		super.init(broker);
+
+		// Get the common executor
+		executorService = broker.components().executorService();
 
 		// Init Redis client
 		if (client == null && clusteredClient == null) {
@@ -145,10 +153,12 @@ public class RedisCacher extends Cacher {
 	// --- CACHE METHODS ---
 
 	@Override
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public CompletableFuture<Object> get(String key) {
-		byte[] binaryKey = key.getBytes(StandardCharsets.UTF_8);
+	public Promise get(String key) {
+		final Promise promise = new Promise();
 		try {
+
+			// Create cache key
+			byte[] binaryKey = key.getBytes(StandardCharsets.UTF_8);
 
 			// Get future
 			final RedisFuture<byte[]> response;
@@ -159,19 +169,36 @@ public class RedisCacher extends Cacher {
 			} else {
 				return null;
 			}
-			final CompletableFuture rsp = new CompletableFuture<>();
-			response.thenAccept((bytes) -> {
-				Object value;
-				if (bytes == null) {
-					value = null;
-				} else {
-					value = Serializer.deserialize(bytes, null);
-				}
-				rsp.complete(value);
+
+			// Async invocation
+			response.whenComplete((bytes, error) -> {
+				executorService.execute(() -> {
+					Object value = null;
+					try {
+						if (error != null) {
+							logger.warn("Unable to read data from Redis!", error);
+						} else {
+							if (bytes != null) {
+								try {
+									value = Serializer.deserialize(bytes, null);
+								} catch (Throwable cause) {
+									logger.warn("Unable to deserialize Redis data!", cause);
+								}
+							}
+						}
+					} finally {
+
+						// Continue processing (without any error)
+						promise.resolve(value);
+					}
+				});
 			});
-			return rsp;
+			return promise;
 		} catch (Throwable cause) {
-			logger.warn("Unable to read data from Redis!", cause);
+			logger.warn("Unable to communicate with Redis!", cause);
+
+			// Continue processing (without any error)
+			promise.resolve(null);
 		}
 		return null;
 	}

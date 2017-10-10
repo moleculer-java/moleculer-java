@@ -7,34 +7,34 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 
 /**
- * Fast, single-threaded log formatter for AsyncFileLogger. 
+ * Fast, single-threaded log formatter for AsyncFileLogger.
  */
 public final class FastLogFormatter extends Formatter {
 
 	private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss.SSS");
 
-	private static final char[] SEVERE  = " | SEVERE  | ".toCharArray();
+	private static final char[] SEVERE = " | SEVERE  | ".toCharArray();
 	private static final char[] WARNING = " | WARNING | ".toCharArray();
-	private static final char[] INFO    = " | INFO    | ".toCharArray();
-	private static final char[] CONFIG  = " | CONFIG  | ".toCharArray();
-	private static final char[] FINE    = " | FINE    | ".toCharArray();
-	private static final char[] FINER   = " | FINER   | ".toCharArray();
-	private static final char[] FINEST  = " | FINEST  | ".toCharArray();
-	
+	private static final char[] INFO = " | INFO    | ".toCharArray();
+	private static final char[] CONFIG = " | CONFIG  | ".toCharArray();
+	private static final char[] FINE = " | FINE    | ".toCharArray();
+	private static final char[] FINER = " | FINER   | ".toCharArray();
+	private static final char[] FINEST = " | FINEST  | ".toCharArray();
+
 	private static final char[] SEPARATOR = " | ".toCharArray();
-	
+
 	private static final char[] BREAK = System.getProperty("line.separator", "\r\n").toCharArray();
-	
+
 	private final StringBuilder line = new StringBuilder(512);
-	
+
 	public final String format(LogRecord record) {
 		line.setLength(0);
 		line.append(DATE_FORMAT.format(new Date(record.getMillis())));
 		Level l = record.getLevel();
 		if (l == Level.SEVERE) {
-			line.append(SEVERE);			
+			line.append(SEVERE);
 		} else if (l == Level.WARNING) {
-			line.append(WARNING);	
+			line.append(WARNING);
 		} else if (l == Level.INFO) {
 			line.append(INFO);
 		} else if (l == Level.CONFIG) {

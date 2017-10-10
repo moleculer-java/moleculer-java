@@ -10,7 +10,7 @@ import services.moleculer.services.Name;
  */
 @Name("Time-Sequence UID Generator")
 public final class TimeSequenceUIDGenerator extends UIDGenerator {
-	
+
 	// --- HOST/NODE PREFIX ---
 
 	private char[] prefix;

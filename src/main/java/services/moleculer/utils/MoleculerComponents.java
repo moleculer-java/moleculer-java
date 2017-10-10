@@ -4,7 +4,7 @@ import java.util.concurrent.ExecutorService;
 
 import services.moleculer.cachers.Cacher;
 import services.moleculer.config.ServiceBrokerConfig;
-import services.moleculer.context.ContextPool;
+import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.services.ServiceRegistry;
 import services.moleculer.strategies.InvocationStrategyFactory;
@@ -16,21 +16,21 @@ public class MoleculerComponents {
 	// --- INTERNAL COMPONENTS ---
 
 	private final ExecutorService executorService;
-	private final ContextPool contextPool;
+	private final ContextFactory contextFactory;
 	private final UIDGenerator uidGenerator;
 	private final InvocationStrategyFactory invocationStrategyFactory;
 	private final ServiceRegistry serviceRegistry;
 	private final Cacher cacher;
 	private final EventBus eventBus;
 	private final Transporter transporter;
-	
+
 	// --- CONSTRUCTOR ---
-	
+
 	public MoleculerComponents(ServiceBrokerConfig config) {
 
 		// Set components
 		executorService = config.getExecutorService();
-		contextPool = config.getContextPool();
+		contextFactory = config.getContextFactory();
 		uidGenerator = config.getUIDGenerator();
 		invocationStrategyFactory = config.getInvocationStrategyFactory();
 		serviceRegistry = config.getServiceRegistry();
@@ -38,15 +38,15 @@ public class MoleculerComponents {
 		eventBus = config.getEventBus();
 		transporter = config.getTransporter();
 	}
-	
+
 	// --- GET COMPONENTS ---
 
 	public final ExecutorService executorService() {
 		return executorService;
 	}
 
-	public final ContextPool contextPool() {
-		return contextPool;
+	public final ContextFactory contextFactory() {
+		return contextFactory;
 	}
 
 	public final UIDGenerator uidGenerator() {
@@ -72,5 +72,5 @@ public class MoleculerComponents {
 	public final Transporter transporter() {
 		return transporter;
 	}
-	
+
 }

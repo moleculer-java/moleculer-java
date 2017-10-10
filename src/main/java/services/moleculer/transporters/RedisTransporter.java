@@ -17,9 +17,11 @@ import com.lambdaworks.redis.pubsub.StatefulRedisPubSubConnection;
 import com.lambdaworks.redis.pubsub.api.async.RedisPubSubAsyncCommands;
 import com.lambdaworks.redis.resource.DefaultClientResources;
 
+import io.datatree.Tree;
 import rx.Observable;
 import services.moleculer.ServiceBroker;
 import services.moleculer.services.Name;
+import services.moleculer.services.ServiceRegistry;
 import services.moleculer.utils.RedisUtilities;
 import services.moleculer.utils.Serializer;
 
@@ -35,6 +37,8 @@ public final class RedisTransporter extends Transporter {
 
 	protected StatefulRedisPubSubConnection<byte[], byte[]> clientSub;
 	protected RedisPubSubAsyncCommands<byte[], byte[]> clientPub;
+
+	protected ServiceRegistry serviceRegistry;
 
 	// --- CONSTUCTORS ---
 
@@ -78,6 +82,9 @@ public final class RedisTransporter extends Transporter {
 
 		// Get the common executor
 		final ExecutorService executorService = broker.components().executorService();
+
+		// Get the service registry
+		this.serviceRegistry = broker.components().serviceRegistry();
 
 		// Init Redis client
 		if (clientSub == null) {
@@ -150,11 +157,18 @@ public final class RedisTransporter extends Transporter {
 					executorService.execute(() -> {
 						try {
 							Object data = Serializer.deserialize(message, format);
+							if (!(data instanceof Tree)) {
+								logger.warn("Invalid message received from Redis (\"" + data + "\")!");
+								return;
+							}
+							serviceRegistry.receive((Tree) data);
+
 							String nameOfChannel = new String(channel, StandardCharsets.UTF_8);
+
 							System.out.println("message: " + Thread.currentThread());
 							System.out.println(nameOfChannel + " -> " + data);
 						} catch (Exception cause) {
-							// TODO: invalid messaage format
+							logger.warn("Unable to parse Redis message!", cause);
 						}
 					});
 				}
@@ -208,15 +222,15 @@ public final class RedisTransporter extends Transporter {
 	// --- PUBLISH ---
 
 	@Override
-	public final void publish(String cmd, String nodeID, Object payload) {
+	public final void publish(String cmd, String nodeID, Tree message) {
 		if (clientPub != null) {
 
 			// Serialize data
 			byte[] channel = nameOfChannel(cmd, nodeID).getBytes(StandardCharsets.UTF_8);
-			byte[] outgoing = Serializer.serialize(payload, format);
+			byte[] bytes = Serializer.serialize(message, format);
 
 			// Send in JSON / MessagePack / etc. format
-			clientPub.publish(channel, outgoing);
+			clientPub.publish(channel, bytes);
 		}
 	}
 

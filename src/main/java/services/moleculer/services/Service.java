@@ -11,7 +11,7 @@ public abstract class Service implements MoleculerComponent {
 	// --- LOGGER ---
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
-	
+
 	// --- PROPERTIES ---
 
 	protected final String name;

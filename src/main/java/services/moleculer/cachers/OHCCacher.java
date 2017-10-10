@@ -1,12 +1,12 @@
 package services.moleculer.cachers;
 
 import java.util.Iterator;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 
 import org.caffinitas.ohc.OHCache;
 import org.caffinitas.ohc.OHCacheBuilder;
 
+import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.GlobMatcher;
 import services.moleculer.services.Name;
@@ -25,7 +25,7 @@ public class OHCCacher extends Cacher {
 	// --- PROPERTIES ---
 
 	private final String format;
-	
+
 	private final long capacity;
 	private final int segmentCount;
 	private final int hashTableSize;
@@ -85,13 +85,18 @@ public class OHCCacher extends Cacher {
 	// --- IMPLEMENTED CACHE METHODS ---
 
 	@Override
-	public CompletableFuture<Object> get(String key) {
-		byte[] bytes = cache.get(key);
-		if (bytes == null) {
-			return null;
+	public Promise get(String key) {
+		Promise promise = null;
+		try {
+			byte[] bytes = cache.get(key);
+			if (bytes == null) {
+				return null;
+			}
+			promise = new Promise(Serializer.deserialize(cache.get(key), format));
+		} catch (Throwable cause) {
+			logger.warn("Unable to get data from MemoryCacher!", cause);
 		}
-		Object value = Serializer.deserialize(cache.get(key), format);
-		return CompletableFuture.completedFuture(value);
+		return promise;
 	}
 
 	@Override

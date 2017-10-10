@@ -1,24 +1,43 @@
 package services.moleculer.services;
 
 import java.lang.reflect.Field;
+import java.rmi.RemoteException;
 import java.util.HashMap;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.datatree.Tree;
+import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.cachers.Cache;
+import services.moleculer.context.CallingOptions;
+import services.moleculer.context.Context;
+import services.moleculer.context.ContextFactory;
+import services.moleculer.transporters.Transporter;
 
 @Name("Default Service Registry")
 public final class DefaultServiceRegistry extends ServiceRegistry {
 
-	// --- INTERNAL COMPONENTS ---
+	// --- SERVICE MAP ---
 
 	private final HashMap<String, Service> serviceMap = new HashMap<>(256);
 
-	private ServiceBroker broker;
+	// --- COMPONENTS ---
 
-	// --- VARIABLES ---
+	private ServiceBroker broker;
+	private ExecutorService executorService;
+	private ContextFactory contextFactory;
+	private Transporter transporter;
+
+	// --- PROPERTIES ---
+
+	/**
+	 * Invoke local service via ExecutorService
+	 */
+	private final boolean asyncLocalInvocation;
 
 	/**
 	 * Reader lock
@@ -30,9 +49,22 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 	 */
 	private final Lock writerLock;
 
-	// --- CONSTRUCTOR ---
+	// --- PROMISES OF REMOTE ACTION INVOCATIONS ---
+
+	private final ConcurrentHashMap<String, Promise> pendingPromises = new ConcurrentHashMap<>();
+
+	// --- CONSTRUCTORS ---
 
 	public DefaultServiceRegistry() {
+		this(false);
+	}
+
+	public DefaultServiceRegistry(boolean asyncLocalInvocation) {
+
+		// Async or direct local invocation
+		this.asyncLocalInvocation = asyncLocalInvocation;
+
+		// Create locks
 		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
 		readerLock = lock.readLock();
 		writerLock = lock.writeLock();
@@ -42,7 +74,24 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 
 	@Override
 	public final void init(ServiceBroker broker) throws Exception {
+
+		// Parent service broker
 		this.broker = broker;
+		Objects.nonNull(broker);
+
+		// Async or direct local invocation
+		if (asyncLocalInvocation) {
+			executorService = broker.components().executorService();
+		} else {
+			executorService = null;
+		}
+
+		// Set context factory
+		contextFactory = broker.components().contextFactory();
+		Objects.nonNull(contextFactory);
+
+		// Set transporter (can be null)
+		transporter = broker.components().transporter();
 	}
 
 	// --- STOP SERVICE REGISTRY ---
@@ -60,8 +109,126 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 				}
 			}
 			serviceMap.clear();
+			pendingPromises.clear();
 		} finally {
 			writerLock.unlock();
+		}
+	}
+
+	// --- CALL LOCAL SERVICE ---
+
+	@Override
+	public Promise call(Action action, Tree params, CallingOptions opts) {
+
+		// Create new context
+		Context ctx = contextFactory.create(params, opts);
+
+		// A.) In-process (direct) action invocation
+		if (executorService == null) {
+			try {
+				return new Promise(action.handler(ctx));
+			} catch (Throwable cause) {
+				return new Promise(cause);
+			}
+		}
+
+		// B.) Invoke local action via thread pool
+		final Promise promise = new Promise();
+		executorService.execute(() -> {
+			try {
+				promise.resolve(action.handler(ctx));
+			} catch (Throwable cause) {
+				promise.reject(cause);
+			}
+		});
+		return promise;
+	}
+
+	// --- SEND REQUEST TO REMOTE SERVICE ---
+
+	@Override
+	public Promise send(String name, Tree params, CallingOptions opts) {
+		Context ctx = contextFactory.create(params, opts);
+		String id = ctx.id();
+		if (id == null) {
+
+			// Local service
+			ActionContainer actionContainer = getAction(null, name);
+			if (actionContainer == null) {
+				return new Promise(new IllegalArgumentException("Invalid action name (\"" + name + "\")!"));
+			}
+			return actionContainer.call(params, opts);
+		}
+
+		// TODO Create Tree by context
+		Tree message = new Tree();
+		message.put("id", id);
+		message.put("name", name);
+
+		String targetNodeID = null;
+		if (opts != null) {
+			targetNodeID = opts.nodeID();
+			message.put("nodeID", targetNodeID);
+		}
+
+		if (params != null) {
+			message.putObject("params", params);
+		}
+
+		Tree meta = ctx.meta();
+		if (meta != null) {
+			message.putObject("meta", meta);
+		}
+
+		// Store promise (context ID -> promise)
+		Promise promise = new Promise();
+		pendingPromises.put(id, promise);
+
+		// Send to transporter
+		transporter.publish(Transporter.PACKET_REQUEST, targetNodeID, message);
+
+		// Return promise
+		return promise;
+	}
+
+	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
+
+	@Override
+	public void receive(Tree message) {
+		String id = message.get("id", "");
+		if (id.isEmpty()) {
+			logger.warn("Missing \"id\" property!", message);
+			return;
+		}
+		Promise promise = pendingPromises.remove(id);
+		if (promise == null) {
+			logger.warn("Missing (maybe timeouted) message!", message);
+			return;
+		}
+
+		// TODO Convert Tree to Object or Exception
+		try {
+			String error = message.get("error", "");
+			if (!error.isEmpty()) {
+
+				// Error response
+				promise.reject(new RemoteException(error));
+				return;
+			}
+			Tree response = message.get("response");
+			Object value;
+			if (response.isStructure()) {
+
+				// Structure
+				value = response;
+			} else {
+
+				// Scalar value
+				value = response.asObject();
+			}
+			promise.resolve(value);
+		} catch (Throwable cause) {
+			promise.reject(cause);
 		}
 	}
 
@@ -89,30 +256,50 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 				}
 			}
 
-			// Get annotations of actions
-			Class<? extends Service> clazz = service.getClass();
-			Field[] fields = clazz.getFields();
-			for (Field field : fields) {
-				if (Action.class.isAssignableFrom(field.getType())) {
+			// Initialize actions in services
+			for (int i = 0; i < services.length; i++) {
+				String name = null;
+				try {
+					service = services[i];
 
-					// Name of the action (eg. "v2.service.add")
-					String name = service.name + '.' + field.getName();
+					// Get annotations of actions
+					Class<? extends Service> clazz = service.getClass();
+					Field[] fields = clazz.getFields();
+					for (Field field : fields) {
+						if (Action.class.isAssignableFrom(field.getType())) {
+							Tree parameters = new Tree();
 
-					// Process "Cache" annotation
-					Cache cache = field.getAnnotation(Cache.class);
-					boolean cached = false;
-					String[] keys = null;
-					if (cache != null) {
-						cached = true;
-						if (cached) {
-							keys = cache.value();
-							if (keys != null && keys.length == 0) {
-								keys = null;
+							// Name of the action (eg. "v2.service.add")
+							name = service.name + '.' + field.getName();
+							parameters.put("name", name);
+
+							// Process "Cache" annotation
+							Cache cache = field.getAnnotation(Cache.class);
+							boolean cached = false;
+							String[] keys = null;
+							if (cache != null) {
+								cached = true;
+								if (cached) {
+									keys = cache.value();
+									if (keys != null && keys.length == 0) {
+										keys = null;
+									}
+								}
 							}
+							parameters.put("cached", cached);
+							if (keys != null && keys.length > 0) {
+								parameters.put("cacheKeys", String.join(",", keys));
+							}
+
+							// TODO register actions
+							LocalActionContainer container = new LocalActionContainer(broker, parameters,
+									(Action) field.get(service));
 						}
 					}
-
-					// TODO register actions
+				} catch (Exception cause) {
+					blocker = cause;
+					logger.error("Unable to initialize action \"" + name + "\"!", cause);
+					break;
 				}
 			}
 
@@ -156,10 +343,10 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 	// --- ADD REMOTE ACTION ---
 
 	@Override
-	public final void addAction(String nodeID, String name, Tree parameters) throws Exception {
+	public final void addAction(Tree parameters) throws Exception {
 
 		// TODO register action
-
+		RemoteActionContainer container = new RemoteActionContainer(broker, parameters);
 	}
 
 	// --- GET SERVICE ---

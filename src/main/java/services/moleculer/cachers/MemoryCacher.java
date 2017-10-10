@@ -4,18 +4,18 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.datatree.Tree;
 import io.datatree.dom.DeepCloner;
+import services.moleculer.Promise;
 import services.moleculer.eventbus.GlobMatcher;
 import services.moleculer.services.Name;
 
 @Name("On-heap Memory Cacher")
 public class MemoryCacher extends Cacher {
-	
+
 	// --- PROPERTIES ---
 
 	private final int initialCapacityPerPartition;
@@ -73,20 +73,26 @@ public class MemoryCacher extends Cacher {
 	// --- CACHE METHODS ---
 
 	@Override
-	public CompletableFuture<Object> get(String key) {
-		int pos = partitionPosition(key, true);
-		String prefix = key.substring(0, pos);
-		MemoryPartition partition;
-		readerLock.lock();
+	public Promise get(String key) {
+		Promise promise = null;
 		try {
-			partition = partitions.get(prefix);
-		} finally {
-			readerLock.unlock();
+			int pos = partitionPosition(key, true);
+			String prefix = key.substring(0, pos);
+			MemoryPartition partition;
+			readerLock.lock();
+			try {
+				partition = partitions.get(prefix);
+			} finally {
+				readerLock.unlock();
+			}
+			if (partition == null) {
+				return null;
+			}
+			promise = new Promise(partition.get(key.substring(pos + 1)));
+		} catch (Throwable cause) {
+			logger.warn("Unable to get data from MemoryCacher!", cause);
 		}
-		if (partition == null) {
-			return null;
-		}
-		return partition.get(key.substring(pos + 1));
+		return promise;
 	}
 
 	@Override
@@ -213,7 +219,7 @@ public class MemoryCacher extends Cacher {
 
 		// --- CACHE METHODS ---
 
-		private final CompletableFuture<Object> get(String key) {
+		private final Object get(String key) throws Exception {
 			Object value;
 			readerLock.lock();
 			try {
@@ -224,14 +230,10 @@ public class MemoryCacher extends Cacher {
 			if (value == null) {
 				return null;
 			}
-			try {
-				if (value instanceof Tree) {
-					return CompletableFuture.completedFuture(((Tree) value).clone());
-				}
-				return CompletableFuture.completedFuture(DeepCloner.clone(value));				
-			} catch (Exception e) {
-				return null;
+			if (value instanceof Tree) {
+				return ((Tree) value).clone();
 			}
+			return DeepCloner.clone(value);
 		}
 
 		private final void set(String key, Object value) {

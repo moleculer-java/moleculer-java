@@ -90,7 +90,7 @@ public final class RedisUtilities {
 				}
 			};
 		}
-		builder.eventBus(eventBus);		
+		builder.eventBus(eventBus);
 		return builder.build();
 	}
 

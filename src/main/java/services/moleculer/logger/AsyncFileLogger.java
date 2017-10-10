@@ -147,10 +147,10 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 				boolean cleanup = !file.isFile();
 				if (cleanup) {
 					compressOrDeleteOldFiles();
-				}				
+				}
 			}
 			openedStream.write(bytes);
-			openedStream.flush();			
+			openedStream.flush();
 		} catch (Exception e) {
 			closeStream();
 			e.printStackTrace();
@@ -259,7 +259,7 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 			executor.shutdown();
 			executor = null;
 		}
-		
+
 		// Close stream
 		closeStream();
 	}

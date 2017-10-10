@@ -1,26 +1,92 @@
 package services.moleculer.context;
 
 import io.datatree.Tree;
+import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 
-public interface Context {
+public final class Context {
+
+	// --- PROPERTIES ---
+
+	private final long created = System.currentTimeMillis();
+	private final ServiceBroker broker;
+	private final String id;
+	private final Tree params;
+	private final Tree meta;
+
+	// --- CONSTRUCTOR ---
+
+	public Context(ServiceBroker broker, String id, Tree params, Tree meta) {
+		this.broker = broker;
+		this.id = id;
+		this.params = params;
+		this.meta = meta;
+	}
 
 	// --- VARIABLE GETTERS ---
 
-	public String id();
+	public final long created() {
+		return created;
+	}
 
-	public ServiceBroker broker();
+	public final String id() {
+		return id;
+	}
 
-	public Tree params();
+	public final Tree params() {
+		return params;
+	}
 
-	public Tree meta();
+	public final Tree meta() {
+		return meta;
+	}
 
-	// --- ACTION CALL ---
+	// --- INVOKE LOCAL OR REMOTE ACTION ---
 
-	public Object call(String actionName, Tree params, CallingOptions opts) throws Exception;
+	/**
+	 * Call an action (local or remote)
+	 * 
+	 * @param actionName
+	 * @param params
+	 * @param opts
+	 * 
+	 * @return
+	 */
+	public final Promise call(String actionName, Tree params, CallingOptions opts) throws Exception {
+		return broker.call(actionName, params, opts);
+	}
 
-	// --- SUBMIT EVENT ---
+	// --- EMIT EVENTS VIA EVENT BUS ---
 
-	public void emit(String eventName, Object payload);
+	/**
+	 * Emit an event (grouped & balanced global event)
+	 * 
+	 * @param name
+	 * @param payload
+	 * @param groups
+	 */
+	public final void emit(String name, Object payload, String... groups) {
+		broker.emit(name, payload);
+	}
+
+	/**
+	 * Emit an event for all local & remote services
+	 * 
+	 * @param name
+	 * @param payload
+	 */
+	public final void broadcast(String name, Object payload) {
+		broker.emit(name, payload);
+	}
+
+	/**
+	 * Emit an event for all local services
+	 * 
+	 * @param name
+	 * @param payload
+	 */
+	public final void broadcastLocal(String name, Object payload) {
+		broker.emit(name, payload);
+	}
 
 }

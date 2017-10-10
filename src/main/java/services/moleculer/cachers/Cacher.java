@@ -1,11 +1,10 @@
 package services.moleculer.cachers;
 
-import java.util.concurrent.CompletableFuture;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
+import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.services.Name;
 import services.moleculer.utils.MoleculerComponent;
@@ -116,7 +115,7 @@ public abstract class Cacher implements MoleculerComponent {
 	 * 
 	 * @param key
 	 */
-	public abstract CompletableFuture<Object> get(String key);
+	public abstract Promise get(String key);
 
 	/**
 	 * Sets a content by key into the cache.

@@ -15,35 +15,35 @@ public class RandomInvocationStrategyFactory implements InvocationStrategyFactor
 	private final byte mode;
 
 	// --- CONSTRUCTORS ---
-	
+
 	public RandomInvocationStrategyFactory() {
 		this(MODE_NANOSEC);
 	}
-	
+
 	public RandomInvocationStrategyFactory(byte mode) {
 		this.mode = mode;
 	}
 
 	// --- STATIC CONSTRUCTORS ---
-	
+
 	public static InvocationStrategyFactory newNanoSecBasedFactory() {
 		return new RandomInvocationStrategyFactory(MODE_NANOSEC);
 	}
-	
+
 	public static InvocationStrategyFactory newXORShiftBasedFactory() {
 		return new RandomInvocationStrategyFactory(MODE_XORSHIFT);
 	}
-	
+
 	public static InvocationStrategyFactory newRandomBasedFactory() {
 		return new RandomInvocationStrategyFactory(MODE_RANDOM);
 	}
-	
+
 	public static InvocationStrategyFactory newSecureRandomBasedFactory() {
 		return new RandomInvocationStrategyFactory(MODE_SECURERANDOM);
 	}
-	
+
 	// --- FACTORY METHOD ---
-	
+
 	@Override
 	public InvocationStrategy create() {
 		switch (mode) {
@@ -58,7 +58,6 @@ public class RandomInvocationStrategyFactory implements InvocationStrategyFactor
 		default:
 			throw new IllegalArgumentException("Invalid strategy mode (" + mode + ")!");
 		}
-
 	}
 
 }

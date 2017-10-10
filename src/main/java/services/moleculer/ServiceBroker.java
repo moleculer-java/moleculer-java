@@ -1,7 +1,5 @@
 package services.moleculer;
 
-import java.util.concurrent.CompletableFuture;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,7 +8,7 @@ import services.moleculer.cachers.Cacher;
 import services.moleculer.config.ServiceBrokerBuilder;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallingOptions;
-import services.moleculer.context.ContextPool;
+import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.services.ActionContainer;
 import services.moleculer.services.Service;
@@ -29,19 +27,19 @@ public final class ServiceBroker {
 	// --- LOGGER ---
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
-	
+
 	// --- UNIQUE NODE IDENTIFIER ---
 
 	private final String nodeID;
 
-	// --- INTERNAL COMPONENTS ---
+	// --- COMPONENTS ---
 
 	private final MoleculerComponents components;
 	private final ServiceRegistry serviceRegistry;
-	private final ContextPool contextPool;
+	private final ContextFactory contextFactory;
 	private final Transporter transporter;
 	private final EventBus eventBus;
-	
+
 	// --- STATIC CONSTRUCTOR ---
 
 	public static final ServiceBrokerBuilder builder() {
@@ -62,20 +60,20 @@ public final class ServiceBroker {
 
 		// Set nodeID
 		nodeID = config.getNodeID();
-		
+
 		// Set components
 		components = new MoleculerComponents(config);
 		config = null;
-		
-		// Set the pointers of frequently used components  
+
+		// Set the pointers of frequently used components
 		serviceRegistry = components.serviceRegistry();
-		contextPool = components.contextPool();
+		contextFactory = components.contextFactory();
 		transporter = components.transporter();
-		eventBus = components.eventBus();		
-		
+		eventBus = components.eventBus();
+
 		// Init base components
 		try {
-			
+
 			// Starting Moleculer Service Broker
 			logger.info("Starting Moleculer Service Broker (version " + VERSION + ")...");
 
@@ -108,9 +106,9 @@ public final class ServiceBroker {
 
 		// Starting thread-based components
 		logger.info("Starting node \"" + nodeID + "\"...");
-		
+
 		// Start internal components
-		start(contextPool);
+		start(contextFactory);
 		start(components.uidGenerator());
 		start(eventBus);
 		start(components.cacher());
@@ -147,7 +145,7 @@ public final class ServiceBroker {
 		stop(components.cacher());
 		stop(eventBus);
 		stop(components.uidGenerator());
-		stop(contextPool);
+		stop(contextFactory);
 
 		// Ok, broker stopped
 		logger.info("Node \"" + nodeID + "\" stopped.");
@@ -169,7 +167,6 @@ public final class ServiceBroker {
 	 * Switch the console to REPL mode
 	 */
 	public void repl() {
-
 	}
 
 	/**
@@ -221,6 +218,8 @@ public final class ServiceBroker {
 	public void use(Object... mws) {
 	}
 
+	// --- INVOKE LOCAL OR REMOTE ACTION ---
+
 	/**
 	 * Call an action (local or remote)
 	 * 
@@ -230,7 +229,7 @@ public final class ServiceBroker {
 	 * 
 	 * @return
 	 */
-	public CompletableFuture<Tree> call(String actionName, Tree params, CallingOptions opts) throws Exception {
+	public Promise call(String actionName, Tree params, CallingOptions opts) throws Exception {
 		return null;
 	}
 
@@ -244,10 +243,6 @@ public final class ServiceBroker {
 	 * @param groups
 	 */
 	public void emit(String name, Object payload, String... groups) {
-		eventBus.emit(name, payload);
-		if (transporter != null) {
-			transporter.publish(name, null, payload);
-		}
 	}
 
 	/**
@@ -257,7 +252,6 @@ public final class ServiceBroker {
 	 * @param payload
 	 */
 	public void broadcast(String name, Object payload) {
-		eventBus.emit(name, payload);
 	}
 
 	/**
@@ -267,7 +261,6 @@ public final class ServiceBroker {
 	 * @param payload
 	 */
 	public void broadcastLocal(String name, Object payload) {
-		eventBus.emit(name, payload);
 	}
 
 }

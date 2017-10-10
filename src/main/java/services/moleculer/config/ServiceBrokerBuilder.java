@@ -5,7 +5,7 @@ import java.util.concurrent.ExecutorService;
 import services.moleculer.ServiceBroker;
 import services.moleculer.breakers.CircuitBreaker;
 import services.moleculer.cachers.Cacher;
-import services.moleculer.context.ContextPool;
+import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.services.ServiceRegistry;
 import services.moleculer.strategies.InvocationStrategyFactory;
@@ -15,7 +15,8 @@ import services.moleculer.uids.UIDGenerator;
 /**
  * Builder-style ServiceBroker factory. Sample of usage:<br>
  * <br>
- * ServiceBroker broker = ServiceBrokerBuilder.newBuilder().cacher(cacher).build();
+ * ServiceBroker broker =
+ * ServiceBrokerBuilder.newBuilder().cacher(cacher).build();
  */
 public class ServiceBrokerBuilder {
 
@@ -41,32 +42,32 @@ public class ServiceBrokerBuilder {
 		config.setExecutorService(executorService);
 		return this;
 	}
-	
-	public final ServiceBrokerBuilder contextPool(ContextPool contextPool) {
-		config.setContextPool(contextPool);
-		return this;		
+
+	public final ServiceBrokerBuilder contextFactory(ContextFactory contextFactory) {
+		config.setContextFactory(contextFactory);
+		return this;
 	}
-	
+
 	public final ServiceBrokerBuilder serviceRegistry(ServiceRegistry serviceRegistry) {
 		config.setServiceRegistry(serviceRegistry);
-		return this;				
+		return this;
 	}
-	
+
 	public final ServiceBrokerBuilder eventBus(EventBus eventBus) {
 		config.setEventBus(eventBus);
-		return this;						
+		return this;
 	}
-	
+
 	public final ServiceBrokerBuilder uidGenerator(UIDGenerator uidGenerator) {
 		config.setUIDGenerator(uidGenerator);
-		return this;								
+		return this;
 	}
-	
+
 	public final ServiceBrokerBuilder invocationStrategyFactory(InvocationStrategyFactory invocationStrategyFactory) {
 		config.setInvocationStrategyFactory(invocationStrategyFactory);
-		return this;										
+		return this;
 	}
-	
+
 	public final ServiceBrokerBuilder namespace(String namespace) {
 		config.setNamespace(namespace);
 		return this;

@@ -10,9 +10,9 @@ import services.moleculer.services.Name;
  */
 @Name("Standard UUID Generator")
 public final class StandardUIDGenerator extends UIDGenerator {
-	
+
 	// --- GENERATE UID ---
-	
+
 	@Override
 	public final String nextUID() {
 		return UUID.randomUUID().toString();

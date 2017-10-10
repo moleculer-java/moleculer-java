@@ -81,7 +81,7 @@ public class Serializer {
 
 			// Non-JSON
 			return TreeReaderRegistry.getReader(format).parse(bytes);
-			
+
 		} catch (Exception ignored) {
 		}
 		return null;

@@ -10,10 +10,10 @@ import java.lang.annotation.Target;
 public @interface Cache {
 
 	/**
-	 * Cache keys (names of the key values in input JSON map, eg "userID")  
+	 * Cache keys (names of the key values in input JSON map, eg "userID")
 	 * 
 	 * @return cache keys
 	 */
 	String[] value() default {};
-	
+
 }

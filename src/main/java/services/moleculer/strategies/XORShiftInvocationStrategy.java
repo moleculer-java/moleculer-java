@@ -8,20 +8,20 @@ import services.moleculer.services.ActionContainer;
 public final class XORShiftInvocationStrategy extends ArrayBasedInvocationStrategy {
 
 	// --- NAME OF THE MOLECULER COMPONENT ---
-	
+
 	public String name() {
 		return "XORSHIFT Pseudorandom Invocation Strategy";
 	}
-	
+
 	// --- PROPERTIES ---
-	
+
 	private volatile long rnd = System.currentTimeMillis();
-	
+
 	// --- GET NEXT ACTION CONTAINER ---
-	
+
 	@Override
 	public final ActionContainer next() {
-		
+
 		// Generate pseudo random
 		long idx;
 		synchronized (this) {
@@ -32,7 +32,7 @@ public final class XORShiftInvocationStrategy extends ArrayBasedInvocationStrate
 			idx ^= (idx << 4);
 			rnd = idx;
 		}
-		
+
 		// Return ActionContainer
 		return actions[(int) Math.abs(idx % actions.length)];
 	}

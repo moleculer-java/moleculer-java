@@ -4,5 +4,5 @@ package services.moleculer.eventbus;
 public interface Listener {
 
 	void on(Object payload) throws Exception;
-	
+
 }

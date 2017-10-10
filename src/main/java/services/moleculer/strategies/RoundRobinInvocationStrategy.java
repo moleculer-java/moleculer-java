@@ -10,17 +10,17 @@ import services.moleculer.services.ActionContainer;
 public final class RoundRobinInvocationStrategy extends ArrayBasedInvocationStrategy {
 
 	// --- NAME OF THE MOLECULER COMPONENT ---
-	
+
 	public String name() {
 		return "Round-Robin Invocation Strategy";
 	}
-	
+
 	// --- PROPERTIES ---
-	
+
 	private final AtomicInteger counter = new AtomicInteger();
-	
+
 	// --- GET NEXT ACTION CONTAINER ---
-	
+
 	@Override
 	public final ActionContainer next() {
 		return actions[counter.incrementAndGet() % actions.length];
