@@ -6,11 +6,12 @@ import java.util.concurrent.Executors;
 import org.caffinitas.ohc.OHCache;
 import org.caffinitas.ohc.OHCacheBuilder;
 
+import io.datatree.Tree;
+import io.datatree.dom.TreeReaderRegistry;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.GlobMatcher;
 import services.moleculer.services.Name;
-import services.moleculer.utils.Serializer;
 
 /**
  * Off-heap cache implementation (it's similar to MemoryCacher, but stores
@@ -24,11 +25,11 @@ public class OHCCacher extends Cacher {
 
 	// --- PROPERTIES ---
 
-	private final String format;
-
 	private final long capacity;
 	private final int segmentCount;
 	private final int hashTableSize;
+
+	private String format;
 
 	// --- OFF-HEAP CACHE INSTANCE ---
 
@@ -55,6 +56,18 @@ public class OHCCacher extends Cacher {
 	 * @param broker
 	 */
 	public final void init(ServiceBroker broker) throws Exception {
+
+		// Autodetect the fastest serialization format
+		try {
+			TreeReaderRegistry.getReader("smile");
+			format = "smile";
+		} catch (Throwable notFound) {
+			format = null;
+		}
+		String formatName = format == null ? "JSON" : format.toUpperCase();
+		logger.info("Off-heap Memory Cacher will use " + formatName + " data serializer.");
+
+		// Create cache
 		OHCacheBuilder<String, byte[]> builder = OHCacheBuilder.newBuilder();
 		if (capacity > 0) {
 			builder.capacity(capacity);
@@ -92,7 +105,8 @@ public class OHCCacher extends Cacher {
 			if (bytes == null) {
 				return null;
 			}
-			promise = new Promise(Serializer.deserialize(cache.get(key), format));
+			Tree value = new Tree(bytes, format);
+			return Promise.resolve(value);
 		} catch (Throwable cause) {
 			logger.warn("Unable to get data from MemoryCacher!", cause);
 		}
@@ -100,11 +114,12 @@ public class OHCCacher extends Cacher {
 	}
 
 	@Override
-	public void set(String key, Object value) {
+	public void set(String key, Tree value) {
 		if (value == null) {
 			cache.remove(key);
 		} else {
-			cache.put(key, Serializer.serialize(value, format));
+			byte[] bytes = value.toBinary(format, true);
+			cache.put(key, bytes);
 		}
 	}
 

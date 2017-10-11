@@ -16,6 +16,7 @@ import com.lambdaworks.redis.event.EventBus;
 import com.lambdaworks.redis.event.connection.ConnectionActivatedEvent;
 import com.lambdaworks.redis.resource.DefaultClientResources;
 
+import io.datatree.Tree;
 import io.datatree.dom.TreeWriter;
 import io.datatree.dom.TreeWriterRegistry;
 import rx.Observable;
@@ -154,7 +155,6 @@ public class RedisCacher extends Cacher {
 
 	@Override
 	public Promise get(String key) {
-		final Promise promise = new Promise();
 		try {
 
 			// Create cache key
@@ -171,40 +171,30 @@ public class RedisCacher extends Cacher {
 			}
 
 			// Async invocation
-			response.whenComplete((bytes, error) -> {
-				executorService.execute(() -> {
-					Object value = null;
-					try {
-						if (error != null) {
-							logger.warn("Unable to read data from Redis!", error);
-						} else {
-							if (bytes != null) {
-								try {
-									value = Serializer.deserialize(bytes, null);
-								} catch (Throwable cause) {
-									logger.warn("Unable to deserialize Redis data!", cause);
-								}
+			return new Promise((r) -> {
+				response.whenComplete((bytes, error) -> {
+					executorService.execute(() -> {
+						try {
+							if (error != null) {
+								r.reject(error);
+								return;
 							}
+							Tree data = new Tree(bytes);
+							r.resolve(data);
+						} catch (Throwable cause) {
+							r.reject(cause);
 						}
-					} finally {
-
-						// Continue processing (without any error)
-						promise.resolve(value);
-					}
+					});
 				});
 			});
-			return promise;
 		} catch (Throwable cause) {
 			logger.warn("Unable to communicate with Redis!", cause);
-
-			// Continue processing (without any error)
-			promise.resolve(null);
 		}
 		return null;
 	}
 
 	@Override
-	public void set(String key, Object value) {
+	public void set(String key, Tree value) {
 		byte[] binaryKey = key.getBytes(StandardCharsets.UTF_8);
 		byte[] bytes = Serializer.serialize(value, null);
 

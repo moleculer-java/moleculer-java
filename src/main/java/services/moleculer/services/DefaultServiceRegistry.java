@@ -118,30 +118,41 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 	// --- CALL LOCAL SERVICE ---
 
 	@Override
-	public Promise call(Action action, Tree params, CallingOptions opts) {
+	public final Promise call(Action action, Tree params, CallingOptions opts) {
 
 		// Create new context
-		Context ctx = contextFactory.create(params, opts);
+		final Context ctx = contextFactory.create(params, opts);
 
 		// A.) In-process (direct) action invocation
 		if (executorService == null) {
 			try {
-				return new Promise(action.handler(ctx));
+				return action.handler(ctx);
 			} catch (Throwable cause) {
-				return new Promise(cause);
+				return Promise.reject(cause);
 			}
 		}
 
 		// B.) Invoke local action via thread pool
-		final Promise promise = new Promise();
-		executorService.execute(() -> {
-			try {
-				promise.resolve(action.handler(ctx));
-			} catch (Throwable cause) {
-				promise.reject(cause);
-			}
+		return new Promise((r) -> {
+			executorService.execute(() -> {
+				try {
+					Promise response = action.handler(ctx);
+					if (response == null) {
+						r.resolve(null);
+						return;
+					}
+					response.then((tree) -> {
+						r.resolve(tree);
+						return null;
+					}).Catch((error) -> {
+						r.reject(error);
+						return null;
+					});
+				} catch (Throwable cause) {
+					r.reject(cause);
+				}
+			});
 		});
-		return promise;
 	}
 
 	// --- SEND REQUEST TO REMOTE SERVICE ---
@@ -155,7 +166,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 			// Local service
 			ActionContainer actionContainer = getAction(null, name);
 			if (actionContainer == null) {
-				return new Promise(new IllegalArgumentException("Invalid action name (\"" + name + "\")!"));
+				return Promise.reject(new IllegalArgumentException("Invalid action name (\"" + name + "\")!"));
 			}
 			return actionContainer.call(params, opts);
 		}
@@ -181,14 +192,14 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 		}
 
 		// Store promise (context ID -> promise)
-		Promise promise = new Promise();
-		pendingPromises.put(id, promise);
+		return new Promise((r) -> {
+			
+			pendingPromises.put(id, r.resolve);
 
-		// Send to transporter
-		transporter.publish(Transporter.PACKET_REQUEST, targetNodeID, message);
+			// Send to transporter
+			transporter.publish(Transporter.PACKET_REQUEST, targetNodeID, message);
 
-		// Return promise
-		return promise;
+		});		
 	}
 
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
@@ -212,23 +223,13 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 			if (!error.isEmpty()) {
 
 				// Error response
-				promise.reject(new RemoteException(error));
+				promise.complete(new RemoteException(error));
 				return;
 			}
 			Tree response = message.get("response");
-			Object value;
-			if (response.isStructure()) {
-
-				// Structure
-				value = response;
-			} else {
-
-				// Scalar value
-				value = response.asObject();
-			}
-			promise.resolve(value);
+			promise.complete(response);
 		} catch (Throwable cause) {
-			promise.reject(cause);
+			promise.complete(cause);
 		}
 	}
 

@@ -8,7 +8,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.datatree.Tree;
-import io.datatree.dom.DeepCloner;
 import services.moleculer.Promise;
 import services.moleculer.eventbus.GlobMatcher;
 import services.moleculer.services.Name;
@@ -74,7 +73,6 @@ public class MemoryCacher extends Cacher {
 
 	@Override
 	public Promise get(String key) {
-		Promise promise = null;
 		try {
 			int pos = partitionPosition(key, true);
 			String prefix = key.substring(0, pos);
@@ -88,15 +86,19 @@ public class MemoryCacher extends Cacher {
 			if (partition == null) {
 				return null;
 			}
-			promise = new Promise(partition.get(key.substring(pos + 1)));
+			Tree value = partition.get(key.substring(pos + 1));
+			if (value == null) {
+				return null;
+			}
+			return Promise.resolve(value);
 		} catch (Throwable cause) {
 			logger.warn("Unable to get data from MemoryCacher!", cause);
 		}
-		return promise;
+		return null;
 	}
 
 	@Override
-	public void set(String key, Object value) {
+	public void set(String key, Tree value) {
 		int pos = partitionPosition(key, true);
 		String prefix = key.substring(0, pos);
 		MemoryPartition partition;
@@ -196,7 +198,7 @@ public class MemoryCacher extends Cacher {
 
 		// --- MEMORY CACHE PARTITION ---
 
-		private final LinkedHashMap<String, Object> cache;
+		private final LinkedHashMap<String, Tree> cache;
 
 		// --- CONSTUCTORS ---
 
@@ -204,11 +206,11 @@ public class MemoryCacher extends Cacher {
 			ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);
 			readerLock = lock.readLock();
 			writerLock = lock.writeLock();
-			cache = new LinkedHashMap<String, Object>(initialCapacityPerPartition, 1.0f, true) {
+			cache = new LinkedHashMap<String, Tree>(initialCapacityPerPartition, 1.0f, true) {
 
 				private static final long serialVersionUID = 5994447707758047152L;
 
-				protected final boolean removeEldestEntry(Map.Entry<String, Object> entry) {
+				protected final boolean removeEldestEntry(Map.Entry<String, Tree> entry) {
 					if (this.size() > maximumCapacityPerPartition) {
 						return true;
 					}
@@ -219,24 +221,18 @@ public class MemoryCacher extends Cacher {
 
 		// --- CACHE METHODS ---
 
-		private final Object get(String key) throws Exception {
-			Object value;
+		private final Tree get(String key) throws Exception {
+			Tree value;
 			readerLock.lock();
 			try {
 				value = cache.get(key);
 			} finally {
 				readerLock.unlock();
 			}
-			if (value == null) {
-				return null;
-			}
-			if (value instanceof Tree) {
-				return ((Tree) value).clone();
-			}
-			return DeepCloner.clone(value);
+			return value;
 		}
 
-		private final void set(String key, Object value) {
+		private final void set(String key, Tree value) {
 			writerLock.lock();
 			try {
 				if (value == null) {

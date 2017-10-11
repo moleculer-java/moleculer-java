@@ -123,7 +123,7 @@ public abstract class Cacher implements MoleculerComponent {
 	 * @param key
 	 * @param value
 	 */
-	public abstract void set(String key, Object value);
+	public abstract void set(String key, Tree value);
 
 	/**
 	 * Deletes a content from this cache.

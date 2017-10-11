@@ -1,5 +1,8 @@
 package services.moleculer;
 
+import java.util.concurrent.CompletableFuture;
+
+import io.datatree.Tree;
 import services.moleculer.cachers.Cache;
 import services.moleculer.cachers.MemoryCacher;
 import services.moleculer.eventbus.Listener;
@@ -19,8 +22,22 @@ public class Test {
 
 		Service svc = broker.createService(service);
 
-		broker.start();
-
+		// broker.start();
+		
+		Promise p = new Promise((r) -> {
+			
+			Tree t = new Tree();
+			t.put("a", 3);
+			r.resolve(t);
+			
+		});
+		p.then((t) -> {
+			
+			System.out.println(t);
+			return t;
+			
+		});
+						
 		// ---------
 
 		// Tree t = new Tree().put("a", 5).put("b", 3);
@@ -63,20 +80,62 @@ public class Test {
 		// --- ACTIONS ---
 
 		public Action list = (ctx) -> {
-			return processData(ctx.params().get("a", -1), ctx.params().get("b", -1));
+			return new Promise((r) -> {
+				
+				Tree t = new Tree();
+				t.put("a", 3);
+				r.resolve(t);
+				
+			});
 		};
 
+		public Action foo = (ctx) -> {
+			Promise p = Promise.resolve();
+			
+			p.then((t) -> {
+				return t;
+			});
+			
+			return p;
+		};
+		
 		@Cache({ "a", "b" })
 		public Action add = (ctx) -> {
-			return ctx.call("v2.test.list", ctx.params(), null);
-			// return 2;
-		};
+			return ctx.call("v2.test.list", ctx.params(), null).then((t) -> {
+				
+				t.putObject("list", t);			
+				return t;
+				
+			}).then((t) -> {
+				
+				// return ctx.call("posts.find", ctx.params(), null).then((posts) -> {
+				// return posts.size();
+				// });
+				return t; 
+				
+			}).then((t) -> {
+				
+				return t;
+				
+			}).then((t) -> {
+				
+				return t;
+				
+			}).then((t) -> {
+				
+				return t;
+				
+			}).Catch((error) -> {
 
+				return null;
+				
+			});
+		};
+		
 		// --- EVENT LISTENERS ---
 
 		// Context, Tree, or Object????
 		public Listener test = (input) -> {
-
 		};
 
 		// --- METHODS ---

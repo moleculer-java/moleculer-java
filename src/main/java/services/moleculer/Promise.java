@@ -1,89 +1,158 @@
 package services.moleculer;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
+import java.util.function.Function;
 
-/**
- * Fast, lightweight 'Promise' object. Convertable to CompletableFuture by using
- * the "toCompletableFuture" method.
- */
+import io.datatree.Tree;
+
 public class Promise {
 
-	protected final AtomicReference<ResolvedState> resolvedState = new AtomicReference<>();
-	protected final AtomicReference<RejectedState> rejectedState = new AtomicReference<>();
+	// --- INTERNAL COMPLETABLE FUTURE ---
 
-	protected static final class ResolvedState {
+	protected final CompletableFuture<Tree> future;
 
-		protected ResolvedState(Object value, Consumer<Object> consumer) {
-			this.value = value;
-			this.consumer = consumer;
+	// --- PARENT ---
+
+	protected Promise parent;
+
+	// --- STATIC CONSTRUCTORS ---
+
+	public static final Promise resolve() {
+		return new Promise((Tree) null, (Throwable) null);
+	}
+
+	public static final Promise resolve(Tree value) {
+		if (value == null) {
+			value = new Tree().setObject(null);
 		}
-
-		protected final Object value;
-		protected final Consumer<Object> consumer;
+		return new Promise(value, null);
 	}
 
-	protected static final class RejectedState {
-
-		protected RejectedState(Throwable error, Consumer<Throwable> consumer) {
-			this.error = error;
-			this.consumer = consumer;
-		}
-
-		protected final Throwable error;
-		protected final Consumer<Throwable> consumer;
+	public static final Promise reject(Throwable error) {
+		return new Promise(null, error);
 	}
 
-	public Promise() {
-	}
+	// --- PUBLIC CONSTRUCTOR ---
 
-	public Promise(Object value) {
-		resolvedState.set(new ResolvedState(value, null));
-	}
-
-	public Promise(Throwable error) {
-		rejectedState.set(new RejectedState(error, null));
-	}
-
-	public void resolve(Object value) {
-		final ResolvedState state = resolvedState.getAndSet(new ResolvedState(value, null));
-		if (state != null && state.consumer != null) {
-			state.consumer.accept(value);
+	public Promise(Initializer initializer) {
+		this((Tree) null, (Throwable) null);
+		if (initializer != null) {
+			initializer.init(this.resolver);
 		}
 	}
 
-	public void reject(Throwable error) {
-		final RejectedState state = rejectedState.getAndSet(new RejectedState(error, null));
-		if (state != null && state.consumer != null) {
-			state.consumer.accept(error);
+	@FunctionalInterface
+	public interface Initializer {
+
+		public void init(Resolver resolver);
+
+	}
+
+	protected final Resolver resolver = new Resolver();
+
+	public class Resolver {
+
+		public void resolve(Tree value) {
+			future.complete(value);
+		}
+
+		public void reject(Throwable error) {
+			future.completeExceptionally(error);
+		}
+
+	}
+
+	// --- PROTECTED CONSTRUCTORS ---
+
+	protected Promise(Tree value, Throwable error) {
+		if (error != null) {
+			future = new CompletableFuture<>();
+			future.completeExceptionally(error);
+		} else if (value == null) {
+			future = new CompletableFuture<>();
+		} else {
+			future = CompletableFuture.completedFuture(value);
 		}
 	}
 
-	public void then(Consumer<Object> consumer) {
-		final ResolvedState state = resolvedState.getAndSet(new ResolvedState(null, consumer));
-		if (state != null && state.value != null) {
-			consumer.accept(state.value);
-		}
+	protected Promise(CompletableFuture<Tree> future, Promise parent) {
+		this.future = future;
+		this.parent = parent;
 	}
 
-	public void thenCatch(Consumer<Throwable> consumer) {
-		final RejectedState state = rejectedState.getAndSet(new RejectedState(null, consumer));
-		if (state != null && state.error != null) {
-			consumer.accept(state.error);
-		}
-	}
+	// --- GET COMPLETABLE FUTURE ---
 
-	public CompletableFuture<Object> toCompletableFuture() {
-		CompletableFuture<Object> future = new CompletableFuture<>();
-		future.whenComplete((value, error) -> {
-			if (error == null) {
-				resolve(value);
-			} else {
-				reject(error);
-			}
-		});
+	public CompletableFuture<Tree> toFuture() {
 		return future;
 	}
 
+	// --- WATERFALL FUNCTION ---
+
+	public Promise then(Function<Tree, Tree> action) {
+		return new Promise(future.thenApply(action), this);
+	}
+	
+	// --- ERROR HANDLER METHODS ---
+
+	public Promise Catch(Function<Throwable, Tree> action) {
+		return new Promise(addCatch(action), null);
+	}
+
+	protected CompletableFuture<Tree> addCatch(Function<Throwable, Tree> action) {
+		CompletableFuture<Tree> f = future.exceptionally((error) -> {
+			return action.apply(error);
+		});
+		if (parent != null) {
+			parent.addCatch(action);
+		}
+		return f;
+	}
+
+	// --- ALL / RACE ---
+
+	public static Promise all(Promise... promises) {
+
+		@SuppressWarnings("unchecked")
+		CompletableFuture<Tree>[] futures = new CompletableFuture[promises.length];
+		for (int i = 0; i < promises.length; i++) {
+			futures[i] = promises[i].future;
+		}
+		CompletableFuture<Void> all = CompletableFuture.allOf(futures);
+		return new Promise((r) -> {
+			all.whenComplete((Void, error) -> {
+				if (error != null) {
+					r.reject(error);
+					return;
+				}
+				try {
+					Tree array = new Tree().putList("array");
+					for (int i = 0; i < futures.length; i++) {
+						array.addObject(futures[i].get());
+					}
+					r.resolve(array);
+				} catch (Throwable cause) {
+					r.reject(cause);
+				}
+			});
+		});
+	}
+
+	public static Promise race(Promise... promises) {
+
+		@SuppressWarnings("unchecked")
+		CompletableFuture<Tree>[] futures = new CompletableFuture[promises.length];
+		for (int i = 0; i < promises.length; i++) {
+			futures[i] = promises[i].future;
+		}
+		CompletableFuture<Object> any = CompletableFuture.anyOf(futures);
+		return new Promise((r) -> {
+			any.whenComplete((object, error) -> {
+				if (error != null) {
+					r.reject(error);
+					return;
+				}
+				r.resolve((Tree) object);
+			});
+		});
+	}
 }
