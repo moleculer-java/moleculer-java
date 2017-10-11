@@ -192,14 +192,14 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 		}
 
 		// Store promise (context ID -> promise)
-		return new Promise((r) -> {
-			
-			pendingPromises.put(id, r.resolve);
+		Promise p = new Promise();
+		pendingPromises.put(id, p);
 
-			// Send to transporter
-			transporter.publish(Transporter.PACKET_REQUEST, targetNodeID, message);
+		// Send to transporter
+		transporter.publish(Transporter.PACKET_REQUEST, targetNodeID, message);
 
-		});		
+		// Return promise
+		return p;
 	}
 
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
