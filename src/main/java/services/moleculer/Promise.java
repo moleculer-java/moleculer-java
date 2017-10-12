@@ -30,22 +30,22 @@ public class Promise {
 	 * @return new RESOLVED/COMPLETED Promise
 	 */
 	public static final Promise resolve() {
-		return new Promise(new Tree().setObject(null));
+		return resolve((String) null);
 	}
 
 	/**
-	 * Returns a Promise object that is resolved with the given value.
+	 * Returns a Promise object that is resolved with the given value. Allowed
+	 * Object types of the "value" parameter are: Tree, String, int, double,
+	 * byte, float, short, long, boolean, byte[], UUID, Date, InetAddress,
+	 * BigInteger, and BigDecimal.
 	 * 
 	 * @param value
 	 *            value of the new Promise
 	 * 
 	 * @return new RESOLVED/COMPLETED Promise
 	 */
-	public static final Promise resolve(Tree value) {
-		if (value == null) {
-			value = new Tree().setObject(null);
-		}
-		return new Promise(value);
+	public static final Promise resolve(Object value) {
+		return new Promise(toTree(value));
 	}
 
 	/**
@@ -98,8 +98,17 @@ public class Promise {
 			this.future = future;
 		}
 
-		public final void resolve(Tree value) {
-			future.complete(value);
+		/**
+		 * Resolve the value of the current Promise with the given value.
+		 * Allowed Object types of the "value" parameter are: Tree, String, int,
+		 * double, byte, float, short, long, boolean, byte[], UUID, Date,
+		 * InetAddress, BigInteger, and BigDecimal.
+		 * 
+		 * @param value
+		 *            value of the current Promise
+		 */
+		public final void resolve(Object value) {
+			future.complete(toTree(value));
 		}
 
 		public final void reject(Throwable error) {
@@ -113,12 +122,12 @@ public class Promise {
 	protected Promise(Tree value) {
 		future = CompletableFuture.completedFuture(value);
 	}
-	
+
 	protected Promise(Throwable error) {
 		future = new CompletableFuture<>();
 		future.completeExceptionally(error);
 	}
-	
+
 	protected Promise(CompletableFuture<Tree> future) {
 		this.future = future;
 	}
@@ -130,24 +139,48 @@ public class Promise {
 	 * chain multiple functions together - increasing readability and making
 	 * individual functions, within the chain, more reusable. Sample code:<br>
 	 * <br>
-	 * <b>Promise.resolve().then((value) -> {</b><br>
+	 * <b>return Promise.resolve().then(value -> {</b><br>
 	 * // ...do something...<br>
 	 * return value;<br>
-	 * <b>}).then((value) -> {</b><br>
+	 * <b>}).then(value -> {</b><br>
 	 * // ...do something...<br>
 	 * return value;<br>
-	 * <b>}).Catch((error) -> {</b><br>
+	 * <b>}).Catch(error -> {</b><br>
 	 * // ...error handling...<br>
 	 * return value;<br>
 	 * <b>});</b>
 	 * 
 	 * @param action
-	 *            next action in the invocation chain
+	 *            next action in the invocation chain (allowed return types:
+	 *            Promise, CompletableFuture, Tree, String, int, double, byte,
+	 *            float, short, long, boolean, byte[], UUID, Date, InetAddress,
+	 *            BigInteger, and BigDecimal)
 	 * 
 	 * @return output Promise
 	 */
-	public Promise then(Function<Tree, Tree> action) {
-		return new Promise(future.thenApply(action));
+	public Promise then(Function<Tree, Object> action) {
+		return new Promise(future.thenApply(action).thenCompose((object) -> {
+			if (object == null) {
+				return CompletableFuture.completedFuture(toTree(null));
+			}
+			if (object instanceof Promise) {
+				return ((Promise) object).future;
+			}
+			if (object instanceof CompletableFuture) {
+				return ((CompletableFuture<?>) object).thenApply(Promise::toTree);
+			}
+			return CompletableFuture.completedFuture(toTree(object));
+		}));
+	}
+
+	protected static final Tree toTree(Object object) {
+		if (object == null) {
+			return new Tree().setObject(null);
+		}
+		if (object instanceof Tree) {
+			return (Tree) object;
+		}
+		return new Tree().setObject(object);
 	}
 
 	// --- ERROR HANDLER METHODS ---
@@ -158,27 +191,25 @@ public class Promise {
 	 * @param action
 	 *            error handler of the previous "next" handlers
 	 * 
-	 * @return output Promise
+	 * @return output Promise (allowed return types: Promise, CompletableFuture,
+	 *         Tree, String, int, double, byte, float, short, long, boolean,
+	 *         byte[], UUID, Date, InetAddress, BigInteger, and BigDecimal)
 	 */
-	public Promise Catch(Function<Throwable, Tree> action) {
+	public Promise Catch(Function<Throwable, Object> action) {
 		return new Promise(future.exceptionally((error) -> {
-			Throwable cause = error.getCause();
-			while (cause != null && cause != error) {
-				error = cause;
-				cause = error.getCause();
-			}
-			return action.apply(error);
+			return toTree(action.apply(error));
 		}));
 	}
 
 	// --- COMPLETE UNRESOLVED / UNCOMPLETED PROMISE ---
 
 	/**
-	 * If not already completed, sets the value to the given value. Sample code:<br>
+	 * If not already completed, sets the value to the given value. Sample code:
+	 * <br>
 	 * <br>
 	 * Promise p = new Promise();<br>
 	 * // Listener:<br>
-	 * p.next((value) -> {<br>
+	 * p.next(value -> {<br>
 	 * System.out.println("Received: " + value);<br>
 	 * return value;<br>
 	 * });<br>
@@ -187,13 +218,15 @@ public class Promise {
 	 * p.complete(t);
 	 * 
 	 * @param value
-	 *            the result value
+	 *            the result value (allowed types: Tree, String, int, double,
+	 *            byte, float, short, long, boolean, byte[], UUID, Date,
+	 *            InetAddress, BigInteger, and BigDecimal)
 	 * 
 	 * @return {@code true} if this invocation caused this Promise to transition
 	 *         to a completed state, else {@code false}
 	 */
-	public boolean complete(Tree value) {
-		return future.complete(value);
+	public boolean complete(Object value) {
+		return future.complete(toTree(value));
 	}
 
 	/**
@@ -256,7 +289,7 @@ public class Promise {
 	 * 
 	 * @return internal CompletableFuture
 	 */
-	public CompletableFuture<Tree> toFuture() {
+	public CompletableFuture<Tree> toCompletableFuture() {
 		return future;
 	}
 

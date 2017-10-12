@@ -1,15 +1,11 @@
 package services.moleculer;
 
-import java.util.concurrent.CompletableFuture;
-
 import io.datatree.Tree;
 import services.moleculer.cachers.Cache;
-import services.moleculer.cachers.MemoryCacher;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.services.Action;
 import services.moleculer.services.Name;
 import services.moleculer.services.Service;
-import services.moleculer.transporters.RedisTransporter;
 
 public class Test {
 
@@ -24,31 +20,27 @@ public class Test {
 		
 		// --- WATERFALL ---
 		
-		Promise p = new Promise((r) -> {
+		Promise p = new Promise(r -> {
 			
-			Tree t = new Tree();
-			t.put("a", 1);
 			System.out.println("level1");
-			r.resolve(t);
+			r.resolve(1);
 			
 		});
-		p.then((t) -> {
+		p.then(t -> {
 			
-			System.out.println("level2:" + t);
+			System.out.println("level2:" + t.asInteger());
 			Tree f = new Tree();
 			f.put("b", "2");
 			return f;
 			
-		}).then((t) -> {
+		}).then(t -> {
 			
 			System.out.println("level3:" + t);
-			Tree f = new Tree();
-			f.put("c", "3");
-			return f;
+			return "3";
 			
-		}).then((t) -> {
+		}).then(t -> {
 			
-			System.out.println("level4:" + t);
+			System.out.println("level4:" + t.asString());
 			Tree f = new Tree();
 			f.put("d", "4");
 			if (f != null) {
@@ -56,7 +48,7 @@ public class Test {
 			}
 			return f;
 			
-		}).then((t) -> {
+		}).then(t -> {
 			
 			System.out.println("level5:" + t);
 			return t;
@@ -68,14 +60,32 @@ public class Test {
 			f.put("e", "5");
 			return f;
 			
-		}).then((t) -> {
+		}).then(t -> {
 			
 			System.out.println("level6:" + t);
+			return new Promise(r -> {
+				try {
+					Thread.sleep(1000);
+				} catch (Exception e) {
+				}
+				r.resolve(123);
+			});
+			
+		}).then(t -> {
+			
+			System.out.println("level7:" + t);
 			return t;
+			
+		}).Catch((error) -> {
+			
+			System.out.println("ERROR2: " + error);
+			return null;
 			
 		});
 				
 		// --- ALL  ---
+		
+		System.out.println("----------------------");
 		
 		Promise p1 = Promise.resolve(new Tree().put("a", 1));
 		Promise p2 = Promise.resolve(new Tree().put("b", 2));
@@ -90,7 +100,9 @@ public class Test {
 		});
 		
 		// --- RACE ---
-		
+
+		System.out.println("----------------------");
+
 		Promise race = Promise.race(p1, p2, p3);
 		race.then((tree) -> {
 			
@@ -141,7 +153,7 @@ public class Test {
 		// --- ACTIONS ---
 
 		public Action list = (ctx) -> {
-			return new Promise((r) -> {
+			return new Promise(r -> {
 				
 				Tree t = new Tree();
 				t.put("a", 3);
@@ -153,7 +165,7 @@ public class Test {
 		public Action foo = (ctx) -> {
 			Promise p = Promise.resolve();
 			
-			p.then((t) -> {
+			p.then(t -> {
 				return t;
 			});
 			
@@ -162,27 +174,27 @@ public class Test {
 		
 		@Cache({ "a", "b" })
 		public Action add = (ctx) -> {
-			return ctx.call("v2.test.list", ctx.params(), null).then((t) -> {
+			return ctx.call("v2.test.list", ctx.params(), null).then(t -> {
 				
 				t.putObject("list", t);			
 				return t;
 				
-			}).then((t) -> {
+			}).then(t -> {
 				
 				// return ctx.call("posts.find", ctx.params(), null).then((posts) -> {
 				// return posts.size();
 				// });
 				return t; 
 				
-			}).then((t) -> {
+			}).then(t -> {
 				
 				return t;
 				
-			}).then((t) -> {
+			}).then(t -> {
 				
 				return t;
 				
-			}).then((t) -> {
+			}).then(t -> {
 				
 				return t;
 				
