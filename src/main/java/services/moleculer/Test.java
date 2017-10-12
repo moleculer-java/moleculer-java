@@ -16,28 +16,89 @@ public class Test {
 	@SuppressWarnings("unused")
 	public static void main(String[] args) throws Exception {
 
-		ServiceBroker broker = new ServiceBroker("server-2", new RedisTransporter(), new MemoryCacher());
-
-		TestService service = new TestService();
-
-		Service svc = broker.createService(service);
+		// ServiceBroker broker = new ServiceBroker("server-2", new RedisTransporter(), new MemoryCacher());
+		// TestService service = new TestService();
+		// Service svc = broker.createService(service);
 
 		// broker.start();
+		
+		// --- WATERFALL ---
 		
 		Promise p = new Promise((r) -> {
 			
 			Tree t = new Tree();
-			t.put("a", 3);
+			t.put("a", 1);
+			System.out.println("level1");
 			r.resolve(t);
 			
 		});
 		p.then((t) -> {
 			
-			System.out.println(t);
+			System.out.println("level2:" + t);
+			Tree f = new Tree();
+			f.put("b", "2");
+			return f;
+			
+		}).then((t) -> {
+			
+			System.out.println("level3:" + t);
+			Tree f = new Tree();
+			f.put("c", "3");
+			return f;
+			
+		}).then((t) -> {
+			
+			System.out.println("level4:" + t);
+			Tree f = new Tree();
+			f.put("d", "4");
+			if (f != null) {
+				throw new NullPointerException("foo");
+			}
+			return f;
+			
+		}).then((t) -> {
+			
+			System.out.println("level5:" + t);
+			return t;
+			
+		}).Catch((error) -> {
+			
+			System.out.println("ERROR: " + error);
+			Tree f = new Tree();
+			f.put("e", "5");
+			return f;
+			
+		}).then((t) -> {
+			
+			System.out.println("level6:" + t);
 			return t;
 			
 		});
-						
+				
+		// --- ALL  ---
+		
+		Promise p1 = Promise.resolve(new Tree().put("a", 1));
+		Promise p2 = Promise.resolve(new Tree().put("b", 2));
+		Promise p3 = Promise.resolve(new Tree().put("c", 3));
+		
+		Promise all = Promise.all(p1, p2, p3);
+		all.then((tree) -> {
+			
+			System.out.println(tree);
+			return tree;
+			
+		});
+		
+		// --- RACE ---
+		
+		Promise race = Promise.race(p1, p2, p3);
+		race.then((tree) -> {
+			
+			System.out.println(tree);
+			return tree;
+			
+		});
+		
 		// ---------
 
 		// Tree t = new Tree().put("a", 5).put("b", 3);

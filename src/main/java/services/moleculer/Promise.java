@@ -22,13 +22,6 @@ public class Promise {
 	 */
 	protected final CompletableFuture<Tree> future;
 
-	// --- PARENT PROMISE ---
-
-	/**
-	 * Previous Promise in the invocation chain.
-	 */
-	protected Promise parent;
-
 	// --- STATIC CONSTRUCTORS ---
 
 	/**
@@ -37,7 +30,7 @@ public class Promise {
 	 * @return new RESOLVED/COMPLETED Promise
 	 */
 	public static final Promise resolve() {
-		return new Promise((Tree) null, (Throwable) null);
+		return new Promise(new Tree().setObject(null));
 	}
 
 	/**
@@ -52,7 +45,7 @@ public class Promise {
 		if (value == null) {
 			value = new Tree().setObject(null);
 		}
-		return new Promise(value, null);
+		return new Promise(value);
 	}
 
 	/**
@@ -61,10 +54,10 @@ public class Promise {
 	 * @param error
 	 *            error state of the new Promise
 	 * 
-	 * @return new REJECTED/COMPLETED Promise
+	 * @return new REJECTED/COMPLETED EXCEPTIONALLY Promise
 	 */
 	public static final Promise reject(Throwable error) {
-		return new Promise(null, error);
+		return new Promise(error);
 	}
 
 	// --- PUBLIC CONSTRUCTOR ---
@@ -73,7 +66,7 @@ public class Promise {
 	 * Creates an empty PENDING/UNCOMPLETED Promise.
 	 */
 	public Promise() {
-		this((Tree) null, (Throwable) null);
+		this(new CompletableFuture<>());
 	}
 
 	/**
@@ -86,7 +79,7 @@ public class Promise {
 	 * <b>});</b>
 	 */
 	public Promise(Initializer initializer) {
-		this((Tree) null, (Throwable) null);
+		this(new CompletableFuture<>());
 		initializer.init(new Resolver(future));
 	}
 
@@ -117,20 +110,17 @@ public class Promise {
 
 	// --- PROTECTED CONSTRUCTORS ---
 
-	protected Promise(Tree value, Throwable error) {
-		if (error != null) {
-			future = new CompletableFuture<>();
-			future.completeExceptionally(error);
-		} else if (value == null) {
-			future = new CompletableFuture<>();
-		} else {
-			future = CompletableFuture.completedFuture(value);
-		}
+	protected Promise(Tree value) {
+		future = CompletableFuture.completedFuture(value);
 	}
-
-	protected Promise(CompletableFuture<Tree> future, Promise parent) {
+	
+	protected Promise(Throwable error) {
+		future = new CompletableFuture<>();
+		future.completeExceptionally(error);
+	}
+	
+	protected Promise(CompletableFuture<Tree> future) {
 		this.future = future;
-		this.parent = parent;
 	}
 
 	// --- WATERFALL FUNCTION ---
@@ -157,7 +147,7 @@ public class Promise {
 	 * @return output Promise
 	 */
 	public Promise then(Function<Tree, Tree> action) {
-		return new Promise(future.thenApply(action), this);
+		return new Promise(future.thenApply(action));
 	}
 
 	// --- ERROR HANDLER METHODS ---
@@ -171,17 +161,14 @@ public class Promise {
 	 * @return output Promise
 	 */
 	public Promise Catch(Function<Throwable, Tree> action) {
-		return new Promise(catchAllPreviousThen(action), null);
-	}
-
-	protected CompletableFuture<Tree> catchAllPreviousThen(Function<Throwable, Tree> action) {
-		CompletableFuture<Tree> f = future.exceptionally((error) -> {
+		return new Promise(future.exceptionally((error) -> {
+			Throwable cause = error.getCause();
+			while (cause != null && cause != error) {
+				error = cause;
+				cause = error.getCause();
+			}
 			return action.apply(error);
-		});
-		if (parent != null) {
-			parent.catchAllPreviousThen(action);
-		}
-		return f;
+		}));
 	}
 
 	// --- COMPLETE UNRESOLVED / UNCOMPLETED PROMISE ---
