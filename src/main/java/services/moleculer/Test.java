@@ -1,5 +1,8 @@
 package services.moleculer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.datatree.Tree;
 import services.moleculer.cachers.Cache;
 import services.moleculer.eventbus.Listener;
@@ -8,7 +11,7 @@ import services.moleculer.services.Name;
 import services.moleculer.services.Service;
 
 public class Test {
-
+	
 	@SuppressWarnings("unused")
 	public static void main(String[] args) throws Exception {
 
@@ -18,97 +21,57 @@ public class Test {
 
 		// broker.start();
 		
-		// --- WATERFALL ---
-		
-		Promise p = new Promise(r -> {
-			
-			System.out.println("level1");
-			r.resolve(1);
-			
-		});
-		p.then(t -> {
-			
-			System.out.println("level2:" + t.asInteger());
-			Tree f = new Tree();
-			f.put("b", "2");
-			return f;
-			
-		}).then(t -> {
-			
-			System.out.println("level3:" + t);
-			return "3";
-			
-		}).then(t -> {
-			
-			System.out.println("level4:" + t.asString());
-			Tree f = new Tree();
-			f.put("d", "4");
-			if (f != null) {
-				throw new NullPointerException("foo");
-			}
-			return f;
-			
-		}).then(t -> {
-			
-			System.out.println("level5:" + t);
-			return t;
-			
-		}).Catch((error) -> {
-			
-			System.out.println("ERROR: " + error);
-			Tree f = new Tree();
-			f.put("e", "5");
-			return f;
-			
-		}).then(t -> {
-			
-			System.out.println("level6:" + t);
-			return new Promise(r -> {
-				try {
-					Thread.sleep(1000);
-				} catch (Exception e) {
-				}
-				r.resolve(123);
-			});
-			
-		}).then(t -> {
-			
-			System.out.println("level7:" + t);
-			return t;
-			
-		}).Catch((error) -> {
-			
-			System.out.println("ERROR2: " + error);
+		Promise.resolve(100)
+		.then(a -> {
+			System.out.println("#1. a=" + a);
+			return a.asInteger() * 2;
+		})
+		.then(b -> {
+			System.out.println("#2. b=" + b);
+			int c = b.asInteger() + 100;
+			return c;
+		})
+		.then(c -> {
+			System.out.println("#3. c=" + c);
+			return Promise.resolve()
+				.then((n) -> {
+					System.out.println("#3.1. c=" + c);
+					return 400;
+				})
+				.then(d -> {
+					System.out.println("#3.2. d=" + d);
+					return Promise.resolve(500);
+				})
+				.then(e -> {
+					System.out.println("#3.3. e=" + e);
+					return Promise.reject();
+				})
+				.Catch((err) -> {
+					System.out.println("#3.4. Catch error");
+					return 600;
+				})
+				.then(x -> {
+					System.out.println("#3.5. x=" + x);
+					return new Promise(r -> {
+						r.resolve(700);
+					});
+				});
+		})
+		.then(f -> {
+			System.out.println("#4. d=" + f + ", throw error");
+			throw new Error("Throw error!");
+		})
+		.then(g -> {
+			System.out.println("#5. g=" + g);
 			return null;
-			
-		});
-				
-		// --- ALL  ---
-		
-		System.out.println("----------------------");
-		
-		Promise p1 = Promise.resolve(new Tree().put("a", 1));
-		Promise p2 = Promise.resolve(new Tree().put("b", 2));
-		Promise p3 = Promise.resolve(new Tree().put("c", 3));
-		
-		Promise all = Promise.all(p1, p2, p3);
-		all.then((tree) -> {
-			
-			System.out.println(tree);
-			return tree;
-			
-		});
-		
-		// --- RACE ---
-
-		System.out.println("----------------------");
-
-		Promise race = Promise.race(p1, p2, p3);
-		race.then((tree) -> {
-			
-			System.out.println(tree);
-			return tree;
-			
+		})
+		.Catch(err -> {
+			System.out.println("Catched error:" + err.getMessage());
+			return 1000;
+		})
+		.then(h -> {
+			System.out.println("#6. h=" + h);
+			return null;
 		});
 		
 		// ---------
@@ -154,57 +117,58 @@ public class Test {
 
 		public Action list = (ctx) -> {
 			return new Promise(r -> {
-				
+
 				Tree t = new Tree();
 				t.put("a", 3);
 				r.resolve(t);
-				
+
 			});
 		};
 
 		public Action foo = (ctx) -> {
 			Promise p = Promise.resolve();
-			
+
 			p.then(t -> {
 				return t;
 			});
-			
+
 			return p;
 		};
-		
+
 		@Cache({ "a", "b" })
 		public Action add = (ctx) -> {
 			return ctx.call("v2.test.list", ctx.params(), null).then(t -> {
-				
-				t.putObject("list", t);			
+
+				t.putObject("list", t);
 				return t;
-				
+
 			}).then(t -> {
-				
-				// return ctx.call("posts.find", ctx.params(), null).then((posts) -> {
+
+				// return ctx.call("posts.find", ctx.params(),
+				// null).then((posts) -> {
 				// return posts.size();
 				// });
-				return t; 
-				
-			}).then(t -> {
-				
 				return t;
-				
+
 			}).then(t -> {
-				
+
 				return t;
-				
+
 			}).then(t -> {
-				
+
 				return t;
-				
+
+			}).then(t -> {
+
+				return t;
+
 			}).Catch((error) -> {
 
 				return null;
-				
+
 			});
 		};
-		
+
 		// --- EVENT LISTENERS ---
 
 		// Context, Tree, or Object????

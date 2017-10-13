@@ -60,6 +60,18 @@ public class Promise {
 		return new Promise(error);
 	}
 
+	/**
+	 * Returns a Promise object that is rejected with an empty Exception.
+	 * 
+	 * @param error
+	 *            error state of the new Promise
+	 * 
+	 * @return new REJECTED/COMPLETED EXCEPTIONALLY Promise
+	 */
+	public static final Promise reject() {
+		return new Promise(new Exception());
+	}
+
 	// --- PUBLIC CONSTRUCTOR ---
 
 	/**
