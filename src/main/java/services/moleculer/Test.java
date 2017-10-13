@@ -9,7 +9,6 @@ import services.moleculer.services.Service;
 
 public class Test {
 
-	@SuppressWarnings("unused")
 	public static void main(String[] args) throws Exception {
 
 		// ServiceBroker broker = new ServiceBroker("server-2", new
@@ -19,8 +18,8 @@ public class Test {
 
 		// broker.start();
 
-		Promise.resolve(100).then(a -> {
-			System.out.println("#1. a=" + a);
+		Promise.resolve("100").then(a -> {
+			System.out.println("#1. a=" + a.asInteger());
 			return a.asInteger() * 2;
 		}).then(b -> {
 			System.out.println("#2. b=" + b);
@@ -28,7 +27,7 @@ public class Test {
 			return c;
 		}).then(c -> {
 			System.out.println("#3. c=" + c);
-			return Promise.resolve().then((n) -> {
+			return Promise.resolve().then(() -> {
 				System.out.println("#3.1. c=" + c);
 				return 400;
 			}).then(d -> {
@@ -37,7 +36,7 @@ public class Test {
 			}).then(e -> {
 				System.out.println("#3.3. e=" + e);
 				return Promise.reject();
-			}).Catch((err) -> {
+			}).Catch(() -> {
 				System.out.println("#3.4. Catch error");
 				return 600;
 			}).then(x -> {
@@ -59,18 +58,24 @@ public class Test {
 			System.out.println("#6. h=" + h);
 			return null;
 		});
-
+		
 		System.out.println("---------------------------");
 		
-		new Promise(r -> {
+		Tree r = new Tree();
+		r.put("a", 1);
+		r.getMeta().put("b", 2);
+		
+		System.out.println("---------------------------");
+		
+		new Promise(r2 -> {
 			System.out.println("#1");
 			new Thread(() -> {
 				try {
 					Thread.sleep(1000);
 					System.out.println("#2");
-					r.resolve("a");
+					r2.resolve("a");
 				} catch (Exception error) {
-					r.reject(error);
+					r2.reject(error);
 				}
 			}).start();
 		}).then(a -> {

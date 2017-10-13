@@ -2,7 +2,7 @@ package services.moleculer.transporters;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 
 import com.lambdaworks.redis.RedisClient;
 import com.lambdaworks.redis.RedisURI;
@@ -81,7 +81,7 @@ public final class RedisTransporter extends Transporter {
 		super.init(broker);
 
 		// Get the common executor
-		final ExecutorService executorService = broker.components().executorService();
+		final Executor executor = broker.components().executor();
 
 		// Get the service registry
 		this.serviceRegistry = broker.components().serviceRegistry();
@@ -101,7 +101,7 @@ public final class RedisTransporter extends Transporter {
 					if (event instanceof ConnectionActivatedEvent) {
 						ConnectionActivatedEvent e = (ConnectionActivatedEvent) event;
 						logger.info("Redis server connected (" + e.remoteAddress() + ").");
-						executorService.execute(() -> {
+						executor.execute(() -> {
 							try {
 								self.connected();
 							} catch (Exception cause) {
@@ -154,7 +154,7 @@ public final class RedisTransporter extends Transporter {
 
 				@Override
 				public final void message(byte[] channel, byte[] message) {
-					executorService.execute(() -> {
+					executor.execute(() -> {
 						try {
 							Object data = Serializer.deserialize(message, format);
 							if (!(data instanceof Tree)) {

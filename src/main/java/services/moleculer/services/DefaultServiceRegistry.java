@@ -4,8 +4,9 @@ import java.lang.reflect.Field;
 import java.rmi.RemoteException;
 import java.util.HashMap;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -28,7 +29,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 	// --- COMPONENTS ---
 
 	private ServiceBroker broker;
-	private ExecutorService executorService;
+	private Executor executor;
 	private ContextFactory contextFactory;
 	private Transporter transporter;
 
@@ -81,9 +82,9 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Async or direct local invocation
 		if (asyncLocalInvocation) {
-			executorService = broker.components().executorService();
+			executor = broker.components().executor();
 		} else {
-			executorService = null;
+			executor = null;
 		}
 
 		// Set context factory
@@ -123,36 +124,23 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 		// Create new context
 		final Context ctx = contextFactory.create(params, opts);
 
-		// A.) In-process (direct) action invocation
-		if (executorService == null) {
-			try {
-				return action.handler(ctx);
-			} catch (Throwable cause) {
-				return Promise.reject(cause);
-			}
+		// A.) Invoke local action via thread pool
+		if (asyncLocalInvocation) {
+			return new Promise(CompletableFuture.supplyAsync(() -> {
+				try {
+					return action.handler(ctx);
+				} catch (Throwable error) {
+					return error;
+				}
+			}, executor));
 		}
 
-		// B.) Invoke local action via thread pool
-		return new Promise((r) -> {
-			executorService.execute(() -> {
-				try {
-					Promise response = action.handler(ctx);
-					if (response == null) {
-						r.resolve(null);
-						return;
-					}
-					response.then((tree) -> {
-						r.resolve(tree);
-						return null;
-					}).Catch((error) -> {
-						r.reject(error);
-						return null;
-					});
-				} catch (Throwable cause) {
-					r.reject(cause);
-				}
-			});
-		});
+		// B.) In-process (direct) action invocation
+		try {
+			return new Promise(action.handler(ctx));
+		} catch (Throwable error) {
+			return Promise.reject(error);
+		}
 	}
 
 	// --- SEND REQUEST TO REMOTE SERVICE ---

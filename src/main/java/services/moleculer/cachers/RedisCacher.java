@@ -2,7 +2,7 @@ package services.moleculer.cachers;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 
 import com.lambdaworks.redis.RedisClient;
 import com.lambdaworks.redis.RedisFuture;
@@ -50,7 +50,7 @@ public class RedisCacher extends Cacher {
 
 	// --- COMMON EXECUTOR ---
 
-	protected ExecutorService executorService;
+	protected Executor executor;
 
 	// --- CONSTUCTORS ---
 
@@ -99,7 +99,7 @@ public class RedisCacher extends Cacher {
 		super.init(broker);
 
 		// Get the common executor
-		executorService = broker.components().executorService();
+		executor = broker.components().executor();
 
 		// Init Redis client
 		if (client == null && clusteredClient == null) {
@@ -173,7 +173,7 @@ public class RedisCacher extends Cacher {
 			// Async invocation
 			return new Promise((r) -> {
 				response.whenComplete((bytes, error) -> {
-					executorService.execute(() -> {
+					executor.execute(() -> {
 						try {
 							if (error != null) {
 								r.reject(error);

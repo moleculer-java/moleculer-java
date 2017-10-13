@@ -1,6 +1,6 @@
 package services.moleculer.utils;
 
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 
 import services.moleculer.cachers.Cacher;
 import services.moleculer.config.ServiceBrokerConfig;
@@ -15,7 +15,7 @@ public class MoleculerComponents {
 
 	// --- INTERNAL COMPONENTS ---
 
-	private final ExecutorService executorService;
+	private final Executor executor;
 	private final ContextFactory contextFactory;
 	private final UIDGenerator uidGenerator;
 	private final InvocationStrategyFactory invocationStrategyFactory;
@@ -29,7 +29,7 @@ public class MoleculerComponents {
 	public MoleculerComponents(ServiceBrokerConfig config) {
 
 		// Set components
-		executorService = config.getExecutorService();
+		executor = config.getExecutor();
 		contextFactory = config.getContextFactory();
 		uidGenerator = config.getUIDGenerator();
 		invocationStrategyFactory = config.getInvocationStrategyFactory();
@@ -41,8 +41,8 @@ public class MoleculerComponents {
 
 	// --- GET COMPONENTS ---
 
-	public final ExecutorService executorService() {
-		return executorService;
+	public final Executor executor() {
+		return executor;
 	}
 
 	public final ContextFactory contextFactory() {

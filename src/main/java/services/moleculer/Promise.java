@@ -2,6 +2,7 @@ package services.moleculer;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import io.datatree.Tree;
 
@@ -30,14 +31,14 @@ public class Promise {
 	 * @return new RESOLVED/COMPLETED Promise
 	 */
 	public static final Promise resolve() {
-		return resolve((String) null);
+		return new Promise(CompletableFuture.completedFuture(null));
 	}
 
 	/**
 	 * Returns a Promise object that is resolved with the given value. Allowed
 	 * Object types of the "value" parameter are: Tree, String, int, double,
 	 * byte, float, short, long, boolean, byte[], UUID, Date, InetAddress,
-	 * BigInteger, and BigDecimal.
+	 * BigInteger, BigDecimal, and Java Collections with these types.
 	 * 
 	 * @param value
 	 *            value of the new Promise
@@ -45,7 +46,7 @@ public class Promise {
 	 * @return new RESOLVED/COMPLETED Promise
 	 */
 	public static final Promise resolve(Object value) {
-		return new Promise(toTree(value));
+		return new Promise(toCompletableFuture(value));
 	}
 
 	/**
@@ -57,7 +58,9 @@ public class Promise {
 	 * @return new REJECTED/COMPLETED EXCEPTIONALLY Promise
 	 */
 	public static final Promise reject(Throwable error) {
-		return new Promise(error);
+		CompletableFuture<Tree> future = new CompletableFuture<>();
+		future.completeExceptionally(error);
+		return new Promise(future);
 	}
 
 	/**
@@ -69,16 +72,16 @@ public class Promise {
 	 * @return new REJECTED/COMPLETED EXCEPTIONALLY Promise
 	 */
 	public static final Promise reject() {
-		return new Promise(new Exception());
+		return reject(new Exception());
 	}
 
 	// --- PUBLIC CONSTRUCTOR ---
 
 	/**
-	 * Creates an empty PENDING/UNCOMPLETED Promise.
+	 * Creates an empty PENDING/INCOMPLETED Promise.
 	 */
 	public Promise() {
-		this(new CompletableFuture<>());
+		future = new CompletableFuture<>();
 	}
 
 	/**
@@ -91,54 +94,23 @@ public class Promise {
 	 * <b>});</b>
 	 */
 	public Promise(Initializer initializer) {
-		this(new CompletableFuture<>());
+		future = new CompletableFuture<>();
 		initializer.init(new Resolver(future));
 	}
 
-	@FunctionalInterface
-	public interface Initializer {
-
-		void init(Resolver resolver);
-
+	/**
+	 * Creates a Promise.
+	 * 
+	 * @param value
+	 *            Promise, CompletableFuture, Tree, String, int, double, byte,
+	 *            float, short, long, boolean, byte[], UUID, Date, InetAddress,
+	 *            BigInteger, BigDecimal, and Java Collections with these types.
+	 */
+	public Promise(Object value) {
+		future = toCompletableFuture(value);
 	}
 
-	public static final class Resolver {
-
-		private final CompletableFuture<Tree> future;
-
-		private Resolver(CompletableFuture<Tree> future) {
-			this.future = future;
-		}
-
-		/**
-		 * Resolve the value of the current Promise with the given value.
-		 * Allowed Object types of the "value" parameter are: Tree, String, int,
-		 * double, byte, float, short, long, boolean, byte[], UUID, Date,
-		 * InetAddress, BigInteger, and BigDecimal.
-		 * 
-		 * @param value
-		 *            value of the current Promise
-		 */
-		public final void resolve(Object value) {
-			future.complete(toTree(value));
-		}
-
-		public final void reject(Throwable error) {
-			future.completeExceptionally(error);
-		}
-
-	}
-
-	// --- PROTECTED CONSTRUCTORS ---
-
-	protected Promise(Tree value) {
-		future = CompletableFuture.completedFuture(value);
-	}
-
-	protected Promise(Throwable error) {
-		future = new CompletableFuture<>();
-		future.completeExceptionally(error);
-	}
+	// --- PROTECTED CONSTRUCTOR ---
 
 	protected Promise(CompletableFuture<Tree> future) {
 		this.future = future;
@@ -151,69 +123,113 @@ public class Promise {
 	 * chain multiple functions together - increasing readability and making
 	 * individual functions, within the chain, more reusable. Sample code:<br>
 	 * <br>
-	 * <b>return Promise.resolve().then(value -> {</b><br>
-	 * // ...do something...<br>
+	 * return Promise.resolve().<b>then(value -> {</b><br>
+	 * <i>// ...do something...</i><br>
 	 * return value;<br>
 	 * <b>}).then(value -> {</b><br>
-	 * // ...do something...<br>
+	 * <i>// ...do something...</i><br>
 	 * return value;<br>
-	 * <b>}).Catch(error -> {</b><br>
-	 * // ...error handling...<br>
+	 * <b>})</b>.Catch(error -> {<br>
+	 * <i>// ...error handling...</i><br>
 	 * return value;<br>
-	 * <b>});</b>
+	 * });
 	 * 
 	 * @param action
 	 *            next action in the invocation chain (allowed return types:
 	 *            Promise, CompletableFuture, Tree, String, int, double, byte,
 	 *            float, short, long, boolean, byte[], UUID, Date, InetAddress,
-	 *            BigInteger, and BigDecimal)
+	 *            BigInteger, BigDecimal, and Java Collections with these types)
 	 * 
 	 * @return output Promise
 	 */
 	public Promise then(Function<Tree, Object> action) {
-		return new Promise(future.thenApply(action).thenCompose((object) -> {
-			if (object == null) {
-				return CompletableFuture.completedFuture(toTree(null));
-			}
-			if (object instanceof Promise) {
-				return ((Promise) object).future;
-			}
-			if (object instanceof CompletableFuture) {
-				return ((CompletableFuture<?>) object).thenApply(Promise::toTree);
-			}
-			return CompletableFuture.completedFuture(toTree(object));
-		}));
+		return new Promise(future.thenApply(action));
 	}
 
-	protected static final Tree toTree(Object object) {
-		if (object == null) {
-			return new Tree().setObject(null);
-		}
-		if (object instanceof Tree) {
-			return (Tree) object;
-		}
-		return new Tree().setObject(object);
+	/**
+	 * Promises can be used to unnest asynchronous functions and allows one to
+	 * chain multiple functions together - increasing readability and making
+	 * individual functions, within the chain, more reusable. Sample code:<br>
+	 * <br>
+	 * return Promise.resolve().<b>then(() -> {</b><br>
+	 * <i>// ...do something...</i><br>
+	 * return null;<br>
+	 * <b>}).then(() -> {</b><br>
+	 * <i>// ...do something...</i><br>
+	 * return value;<br>
+	 * <b>})</b>.Catch(error -> {<br>
+	 * <i>// ...error handling...</i><br>
+	 * return value;<br>
+	 * });
+	 * 
+	 * @param action
+	 *            next action in the invocation chain (allowed return types:
+	 *            Promise, CompletableFuture, Tree, String, int, double, byte,
+	 *            float, short, long, boolean, byte[], UUID, Date, InetAddress,
+	 *            BigInteger, BigDecimal, and Java Collections with these types)
+	 * 
+	 * @return output Promise
+	 */
+	public Promise then(Supplier<Object> action) {
+		return then(ignored -> action.get());
 	}
 
 	// --- ERROR HANDLER METHODS ---
 
 	/**
 	 * The Catch() method returns a Promise and deals with rejected cases only.
+	 * Sample:<br>
+	 * <br>
+	 * Promise.resolve().then(() -> {<br>
+	 * <i>// do something</i><br>
+	 * return 123;<br>
+	 * <b>}).Catch(error -> {</b><br>
+	 * <i>// catch error</i><br>
+	 * return 456;<br>
+	 * })
+	 * 
+	 * @param action
+	 *            error handler of the previous "next" handlers
+	 * 
+	 * @return output Promise (allowed return types: Tree, String, int, double,
+	 *         byte, float, short, long, boolean, byte[], UUID, Date,
+	 *         InetAddress, BigInteger, BigDecimal, and Java Collections with
+	 *         these types)
+	 */
+	public Promise Catch(Function<Throwable, Object> action) {
+		return new Promise(future.handle((data, error) -> {
+			if (error != null) {
+				return action.apply(error);
+			}
+			return data;
+		}));
+	}
+
+	/**
+	 * The Catch() method returns a Promise and deals with rejected cases only.
+	 * Sample:<br>
+	 * <br>
+	 * Promise.resolve().then(() -> {<br>
+	 * <i>// do something</i><br>
+	 * return 123;<br>
+	 * <b>}).Catch(() -> {</b><br>
+	 * <i>// catch unknown error</i><br>
+	 * return 456;<br>
+	 * })
 	 * 
 	 * @param action
 	 *            error handler of the previous "next" handlers
 	 * 
 	 * @return output Promise (allowed return types: Promise, CompletableFuture,
 	 *         Tree, String, int, double, byte, float, short, long, boolean,
-	 *         byte[], UUID, Date, InetAddress, BigInteger, and BigDecimal)
+	 *         byte[], UUID, Date, InetAddress, BigInteger, BigDecimal, and Java
+	 *         Collections with these types)
 	 */
-	public Promise Catch(Function<Throwable, Object> action) {
-		return new Promise(future.exceptionally((error) -> {
-			return toTree(action.apply(error));
-		}));
+	public Promise Catch(Supplier<Object> action) {
+		return Catch(ignored -> action.get());
 	}
 
-	// --- COMPLETE UNRESOLVED / UNCOMPLETED PROMISE ---
+	// --- COMPLETE UNRESOLVED / INCOMPLETED PROMISE ---
 
 	/**
 	 * If not already completed, sets the value to the given value. Sample code:
@@ -232,7 +248,8 @@ public class Promise {
 	 * @param value
 	 *            the result value (allowed types: Tree, String, int, double,
 	 *            byte, float, short, long, boolean, byte[], UUID, Date,
-	 *            InetAddress, BigInteger, and BigDecimal)
+	 *            InetAddress, BigInteger, BigDecimal, and Java Collections with
+	 *            these types)
 	 * 
 	 * @return {@code true} if this invocation caused this Promise to transition
 	 *         to a completed state, else {@code false}
@@ -319,7 +336,7 @@ public class Promise {
 	 * @return a new Promise that is completed when all of the given Promises
 	 *         complete
 	 */
-	public static Promise all(Promise... promises) {
+	public static final Promise all(Promise... promises) {
 
 		@SuppressWarnings("unchecked")
 		CompletableFuture<Tree>[] futures = new CompletableFuture[promises.length];
@@ -360,7 +377,7 @@ public class Promise {
 	 * @return a new Promise that is completed with the result or exception of
 	 *         any of the given Promises when one completes
 	 */
-	public static Promise race(Promise... promises) {
+	public static final Promise race(Promise... promises) {
 
 		@SuppressWarnings("unchecked")
 		CompletableFuture<Tree>[] futures = new CompletableFuture[promises.length];
@@ -381,6 +398,72 @@ public class Promise {
 				}
 			});
 		});
+	}
+
+	// --- CONVERTERS ---
+
+	protected static final CompletableFuture<Tree> toCompletableFuture(Object object) {
+		if (object != null) {
+			if (object instanceof Promise) {
+				return ((Promise) object).future;
+			}
+			if (object instanceof CompletableFuture) {
+				return ((CompletableFuture<?>) object).thenCompose(Promise::toCompletableFuture);
+			}
+			if (object instanceof Throwable) {
+				CompletableFuture<Tree> future = new CompletableFuture<>();
+				future.completeExceptionally((Throwable) object);
+				return future;
+			}
+		}
+		return CompletableFuture.completedFuture(toTree(object));
+	}
+
+	protected static final Tree toTree(Object object) {
+		if (object == null) {
+			return new Tree().setObject(null);
+		}
+		if (object instanceof Tree) {
+			return (Tree) object;
+		}
+		return new Tree().setObject(object);
+	}
+
+	// --- SUBCLASSES AND INTERFACES ---
+
+	@FunctionalInterface
+	public static interface Initializer {
+
+		void init(Resolver resolver);
+
+	}
+
+	public static final class Resolver {
+
+		private final CompletableFuture<Tree> future;
+
+		private Resolver(CompletableFuture<Tree> future) {
+			this.future = future;
+		}
+
+		/**
+		 * Resolve the value of the current Promise with the given value.
+		 * Allowed Object types of the "value" parameter are: Tree, String, int,
+		 * double, byte, float, short, long, boolean, byte[], UUID, Date,
+		 * InetAddress, BigInteger, BigDecimal, and Java Collections with these
+		 * types.
+		 * 
+		 * @param value
+		 *            value of the current Promise
+		 */
+		public final void resolve(Object value) {
+			future.complete(toTree(value));
+		}
+
+		public final void reject(Throwable error) {
+			future.completeExceptionally(error);
+		}
+
 	}
 
 }
