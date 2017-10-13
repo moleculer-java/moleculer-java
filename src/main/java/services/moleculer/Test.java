@@ -1,8 +1,5 @@
 package services.moleculer;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.datatree.Tree;
 import services.moleculer.cachers.Cache;
 import services.moleculer.eventbus.Listener;
@@ -11,69 +8,76 @@ import services.moleculer.services.Name;
 import services.moleculer.services.Service;
 
 public class Test {
-	
+
 	@SuppressWarnings("unused")
 	public static void main(String[] args) throws Exception {
 
-		// ServiceBroker broker = new ServiceBroker("server-2", new RedisTransporter(), new MemoryCacher());
+		// ServiceBroker broker = new ServiceBroker("server-2", new
+		// RedisTransporter(), new MemoryCacher());
 		// TestService service = new TestService();
 		// Service svc = broker.createService(service);
 
 		// broker.start();
-		
-		Promise.resolve(100)
-		.then(a -> {
+
+		Promise.resolve(100).then(a -> {
 			System.out.println("#1. a=" + a);
 			return a.asInteger() * 2;
-		})
-		.then(b -> {
+		}).then(b -> {
 			System.out.println("#2. b=" + b);
 			int c = b.asInteger() + 100;
 			return c;
-		})
-		.then(c -> {
+		}).then(c -> {
 			System.out.println("#3. c=" + c);
-			return Promise.resolve()
-				.then((n) -> {
-					System.out.println("#3.1. c=" + c);
-					return 400;
-				})
-				.then(d -> {
-					System.out.println("#3.2. d=" + d);
-					return Promise.resolve(500);
-				})
-				.then(e -> {
-					System.out.println("#3.3. e=" + e);
-					return Promise.reject();
-				})
-				.Catch((err) -> {
-					System.out.println("#3.4. Catch error");
-					return 600;
-				})
-				.then(x -> {
-					System.out.println("#3.5. x=" + x);
-					return new Promise(r -> {
-						r.resolve(700);
-					});
+			return Promise.resolve().then((n) -> {
+				System.out.println("#3.1. c=" + c);
+				return 400;
+			}).then(d -> {
+				System.out.println("#3.2. d=" + d);
+				return Promise.resolve(500);
+			}).then(e -> {
+				System.out.println("#3.3. e=" + e);
+				return Promise.reject();
+			}).Catch((err) -> {
+				System.out.println("#3.4. Catch error");
+				return 600;
+			}).then(x -> {
+				System.out.println("#3.5. x=" + x);
+				return new Promise(r -> {
+					r.resolve(700);
 				});
-		})
-		.then(f -> {
+			});
+		}).then(f -> {
 			System.out.println("#4. d=" + f + ", throw error");
 			throw new Error("Throw error!");
-		})
-		.then(g -> {
+		}).then(g -> {
 			System.out.println("#5. g=" + g);
 			return null;
-		})
-		.Catch(err -> {
+		}).Catch(err -> {
 			System.out.println("Catched error:" + err.getMessage());
 			return 1000;
-		})
-		.then(h -> {
+		}).then(h -> {
 			System.out.println("#6. h=" + h);
 			return null;
 		});
+
+		System.out.println("---------------------------");
 		
+		new Promise(r -> {
+			System.out.println("#1");
+			new Thread(() -> {
+				try {
+					Thread.sleep(1000);
+					System.out.println("#2");
+					r.resolve("a");
+				} catch (Exception error) {
+					r.reject(error);
+				}
+			}).start();
+		}).then(a -> {
+			System.out.println("#3 " + a.asString());
+			return null;
+		});
+
 		// ---------
 
 		// Tree t = new Tree().put("a", 5).put("b", 3);
