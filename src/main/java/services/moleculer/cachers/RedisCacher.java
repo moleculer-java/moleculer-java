@@ -14,6 +14,7 @@ import com.lambdaworks.redis.codec.ByteArrayCodec;
 import com.lambdaworks.redis.event.Event;
 import com.lambdaworks.redis.event.EventBus;
 import com.lambdaworks.redis.event.connection.ConnectionActivatedEvent;
+import com.lambdaworks.redis.event.connection.ConnectionDeactivatedEvent;
 import com.lambdaworks.redis.resource.DefaultClientResources;
 
 import io.datatree.Tree;
@@ -92,11 +93,12 @@ public class RedisCacher extends Cacher {
 	 * Initializes cacher instance.
 	 * 
 	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
 	 */
-	public final void init(ServiceBroker broker) throws Exception {
-
-		// Init superclass
-		super.init(broker);
+	@Override
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Get the common executor
 		executor = broker.components().executor();
@@ -110,12 +112,22 @@ public class RedisCacher extends Cacher {
 
 				@Override
 				public final void publish(Event event) {
+					
+					// Connected to Redis server
 					if (event instanceof ConnectionActivatedEvent) {
 						ConnectionActivatedEvent e = (ConnectionActivatedEvent) event;
-						logger.info("Redis cache connected successfully to " + e.remoteAddress() + '.');
+						logger.info("Redis cacher connected to " + e.remoteAddress() + ".");
+						return;
+					}
+					
+					// Disconnected from Redis server
+					if (event instanceof ConnectionDeactivatedEvent) {
+						ConnectionDeactivatedEvent e = (ConnectionDeactivatedEvent) event;
+						logger.info("Redis cacher disconnected from " + e.remoteAddress() + ".");
+						return;
 					}
 				}
-
+				
 				@Override
 				public final Observable<Event> get() {
 					return null;
@@ -140,7 +152,7 @@ public class RedisCacher extends Cacher {
 	// --- CLOSE CACHE INSTANCE ---
 
 	@Override
-	public void close() {
+	public void stop() {
 		if (client != null) {
 			client.close();
 			client = null;
@@ -171,24 +183,17 @@ public class RedisCacher extends Cacher {
 			}
 
 			// Async invocation
-			return new Promise((r) -> {
-				response.whenComplete((bytes, error) -> {
-					executor.execute(() -> {
-						try {
-							if (error != null) {
-								r.reject(error);
-								return;
-							}
-							Tree data = new Tree(bytes);
-							r.resolve(data);
-						} catch (Throwable cause) {
-							r.reject(cause);
-						}
-					});
-				});
-			});
+			return new Promise(response.thenApplyAsync((bytes) -> {
+				try {
+					return new Tree(bytes);
+				} catch (Throwable cause) {
+					logger.warn("Unable to parse data!", cause);
+				}
+				return null;
+			}, executor));
+			
 		} catch (Throwable cause) {
-			logger.warn("Unable to communicate with Redis!", cause);
+			logger.warn("Unable to get data from from Redis!", cause);
 		}
 		return null;
 	}

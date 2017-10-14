@@ -1,7 +1,6 @@
 package services.moleculer.cachers;
 
 import java.util.Iterator;
-import java.util.concurrent.Executors;
 
 import org.caffinitas.ohc.OHCache;
 import org.caffinitas.ohc.OHCacheBuilder;
@@ -58,12 +57,15 @@ public class OHCCacher extends Cacher {
 	public final void init(ServiceBroker broker) throws Exception {
 
 		// Autodetect the fastest serialization format
-		try {
-			TreeReaderRegistry.getReader("smile");
-			format = "smile";
-		} catch (Throwable notFound) {
-			format = null;
+		if (format == null) {
+			try {
+				TreeReaderRegistry.getReader("smile");
+				format = "smile";
+			} catch (Throwable notFound) {
+				format = "json";
+			}
 		}
+
 		String formatName = format == null ? "JSON" : format.toUpperCase();
 		logger.info("Off-heap Memory Cacher will use " + formatName + " data serializer.");
 
@@ -78,14 +80,14 @@ public class OHCCacher extends Cacher {
 		if (hashTableSize > 0) {
 			builder.hashTableSize(hashTableSize);
 		}
-		builder.executorService(Executors.newSingleThreadScheduledExecutor());
+		builder.executorService(broker.components().scheduler());
 		cache = builder.build();
 	}
 
 	// --- CLOSE CACHE INSTANCE ---
 
 	@Override
-	public void close() {
+	public void stop() {
 		if (cache != null) {
 			try {
 				cache.close();

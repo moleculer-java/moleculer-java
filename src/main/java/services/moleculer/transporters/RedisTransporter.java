@@ -73,12 +73,15 @@ public final class RedisTransporter extends Transporter {
 	 * Initializes transporter instance.
 	 * 
 	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
 	 */
 	@Override
-	public void init(ServiceBroker broker) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Init superclass
-		super.init(broker);
+		super.start(broker, config);
 
 		// Get the common executor
 		final Executor executor = broker.components().executor();
@@ -97,10 +100,10 @@ public final class RedisTransporter extends Transporter {
 				@Override
 				public final void publish(Event event) {
 
-					// Redis server connected
+					// Connected to Redis server
 					if (event instanceof ConnectionActivatedEvent) {
 						ConnectionActivatedEvent e = (ConnectionActivatedEvent) event;
-						logger.info("Redis server connected (" + e.remoteAddress() + ").");
+						logger.info("Redis transporter connected to " + e.remoteAddress() + ".");
 						executor.execute(() -> {
 							try {
 								self.connected();
@@ -111,10 +114,10 @@ public final class RedisTransporter extends Transporter {
 						return;
 					}
 
-					// Redis server disconnected
+					// Disconnected from Redis server
 					if (event instanceof ConnectionDeactivatedEvent) {
 						ConnectionDeactivatedEvent e = (ConnectionDeactivatedEvent) event;
-						logger.info("Redis server disconnected (" + e.remoteAddress() + ").");
+						logger.info("Redis transporter disconnected from " + e.remoteAddress() + ".");
 						try {
 							self.disconnected();
 						} catch (Exception cause) {
@@ -201,7 +204,7 @@ public final class RedisTransporter extends Transporter {
 	 * Closes transporter.
 	 */
 	@Override
-	public void close() {
+	public void stop() {
 		clientPub = null;
 		if (clientSub != null) {
 			clientSub.close();

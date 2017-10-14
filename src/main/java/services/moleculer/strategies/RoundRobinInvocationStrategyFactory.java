@@ -3,12 +3,12 @@ package services.moleculer.strategies;
 /**
  * Round-robin invocation strategy factory.
  */
-public class RoundRobinInvocationStrategyFactory implements InvocationStrategyFactory {
+public final class RoundRobinInvocationStrategyFactory implements InvocationStrategyFactory {
 
 	// --- FACTORY METHOD ---
 
 	@Override
-	public InvocationStrategy create() {
+	public final InvocationStrategy create() {
 		return new RoundRobinInvocationStrategy();
 	}
 

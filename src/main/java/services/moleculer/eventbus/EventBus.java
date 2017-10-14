@@ -3,9 +3,10 @@ package services.moleculer.eventbus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.config.MoleculerComponent;
 import services.moleculer.services.Name;
-import services.moleculer.utils.MoleculerComponent;
 
 @Name("Event Bus")
 public abstract class EventBus implements MoleculerComponent {
@@ -21,14 +22,22 @@ public abstract class EventBus implements MoleculerComponent {
 
 	// --- INIT EVENT BUS ---
 
+	/**
+	 * Initializes internal EventBus instance.
+	 * 
+	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
+	 */
 	@Override
-	public void init(ServiceBroker broker) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 	}
 
 	// --- STOP EVENT BUS ---
 
 	@Override
-	public void close() {
+	public void stop() {
 	}
 
 	// --- REGISTER LISTENER ----

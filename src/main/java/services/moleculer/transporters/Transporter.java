@@ -5,8 +5,8 @@ import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.config.MoleculerComponent;
 import services.moleculer.services.Name;
-import services.moleculer.utils.MoleculerComponent;
 
 @Name("Transporter")
 public abstract class Transporter implements MoleculerComponent {
@@ -49,9 +49,12 @@ public abstract class Transporter implements MoleculerComponent {
 	 * Initializes transporter instance.
 	 * 
 	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
 	 */
 	@Override
-	public void init(ServiceBroker broker) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 		this.broker = broker;
 		this.nodeID = broker.nodeID();
 	}
@@ -105,7 +108,7 @@ public abstract class Transporter implements MoleculerComponent {
 	 * Closes transporter.
 	 */
 	@Override
-	public void close() {
+	public void stop() {
 		// If isConnected() call `sendDisconnectPacket()`
 	}
 

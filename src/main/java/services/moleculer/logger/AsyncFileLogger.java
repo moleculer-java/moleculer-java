@@ -77,17 +77,17 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 			return;
 		}
 		synchronized (messages) {
-			messages.addFirst(record);
+			messages.addLast(record);
 			messages.notifyAll();
 		}
 	}
 
 	public final void run() {
+		LinkedList<LogRecord> records = new LinkedList<>();
 		try {
 
 			// String message = getFormatter().format(record);
 			Formatter formatter = getFormatter();
-			LinkedList<LogRecord> records = new LinkedList<>();
 			StringBuilder lines = new StringBuilder(512);
 			String packet;
 
@@ -96,7 +96,7 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 				// Get next records
 				synchronized (messages) {
 					while (messages.isEmpty()) {
-						messages.wait();
+						messages.wait(15000);
 					}
 					records.addAll(messages);
 					messages.clear();
@@ -125,11 +125,12 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 				}
 
 				// Waiting for other log records
-				Thread.sleep(200);
+				Thread.sleep(400);
 			}
 		} catch (InterruptedException interrupt) {
 			return;
 		} catch (Exception e) {
+			records.clear();
 			e.printStackTrace();
 		}
 	}

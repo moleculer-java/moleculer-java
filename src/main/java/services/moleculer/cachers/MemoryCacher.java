@@ -65,7 +65,7 @@ public class MemoryCacher extends Cacher {
 	// --- CLOSE CACHE INSTANCE ---
 
 	@Override
-	public void close() {
+	public void stop() {
 		partitions.clear();
 	}
 

@@ -11,12 +11,9 @@ public class Test {
 
 	public static void main(String[] args) throws Exception {
 
-		// ServiceBroker broker = new ServiceBroker("server-2", new
-		// RedisTransporter(), new MemoryCacher());
-		// TestService service = new TestService();
+		ServiceBroker broker = new ServiceBroker("config/moleculer.json");
 		// Service svc = broker.createService(service);
-
-		// broker.start();
+		broker.start();
 
 		Promise.resolve("100").then(a -> {
 			System.out.println("#1. a=" + a.asInteger());

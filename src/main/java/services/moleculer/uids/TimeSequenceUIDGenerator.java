@@ -2,6 +2,7 @@ package services.moleculer.uids;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.services.Name;
 
@@ -21,8 +22,16 @@ public final class TimeSequenceUIDGenerator extends UIDGenerator {
 
 	// --- START GENERATOR ---
 
+	/**
+	 * Initializes UID generator instance.
+	 * 
+	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
+	 */
 	@Override
-	public final void init(ServiceBroker broker) {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 		prefix = (broker.nodeID() + ':').toCharArray();
 	}
 

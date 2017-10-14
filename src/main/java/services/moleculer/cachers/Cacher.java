@@ -6,8 +6,8 @@ import org.slf4j.LoggerFactory;
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
+import services.moleculer.config.MoleculerComponent;
 import services.moleculer.services.Name;
-import services.moleculer.utils.MoleculerComponent;
 
 /**
  * Abstract class of all Cacher implementations.
@@ -30,9 +30,12 @@ public abstract class Cacher implements MoleculerComponent {
 	 * Initializes cacher instance.
 	 * 
 	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
 	 */
 	@Override
-	public void init(ServiceBroker broker) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 	}
 
 	// --- STOP CACHE INSTANCE ---
@@ -41,7 +44,7 @@ public abstract class Cacher implements MoleculerComponent {
 	 * Closes cacher.
 	 */
 	@Override
-	public void close() {
+	public void stop() {
 	}
 
 	// --- GENERATE CACHE KEY ---

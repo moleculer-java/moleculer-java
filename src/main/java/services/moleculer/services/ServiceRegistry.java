@@ -6,8 +6,8 @@ import org.slf4j.LoggerFactory;
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
+import services.moleculer.config.MoleculerComponent;
 import services.moleculer.context.CallingOptions;
-import services.moleculer.utils.MoleculerComponent;
 
 @Name("Service Registry")
 public abstract class ServiceRegistry implements MoleculerComponent {
@@ -18,14 +18,22 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 
 	// --- INIT SERVICE REGISTRY ---
 
+	/**
+	 * Initializes ServiceRegistry instance.
+	 * 
+	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
+	 */
 	@Override
-	public void init(ServiceBroker broker) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 	}
 
 	// --- STOP SERVICE REGISTRY ---
 
 	@Override
-	public void close() {
+	public void stop() {
 	}
 
 	// --- CALL LOCAL SERVICE ---

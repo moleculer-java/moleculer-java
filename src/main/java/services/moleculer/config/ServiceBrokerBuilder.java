@@ -1,9 +1,11 @@
 package services.moleculer.config;
 
+import java.util.Objects;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 
+import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.breakers.CircuitBreaker;
 import services.moleculer.cachers.Cacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.EventBus;
@@ -15,8 +17,7 @@ import services.moleculer.uids.UIDGenerator;
 /**
  * Builder-style ServiceBroker factory. Sample of usage:<br>
  * <br>
- * ServiceBroker broker =
- * ServiceBrokerBuilder.newBuilder().cacher(cacher).build();
+ * ServiceBroker broker = ServiceBroker.builder().cacher(cacher).build();
  */
 public class ServiceBrokerBuilder {
 
@@ -36,7 +37,12 @@ public class ServiceBrokerBuilder {
 		return new ServiceBroker(config);
 	}
 
-	// --- SETTER METHODS ---
+	// --- INTERNAL COMPONENTS AND PROPERTIES ---
+
+	public final ServiceBrokerBuilder scheduler(ScheduledExecutorService scheduler) {
+		config.setScheduler(scheduler);
+		return this;
+	}
 
 	public final ServiceBrokerBuilder executor(Executor executor) {
 		config.setExecutor(executor);
@@ -83,53 +89,21 @@ public class ServiceBrokerBuilder {
 		return this;
 	}
 
-	public final ServiceBrokerBuilder requestTimeout(long requestTimeout) {
-		config.setRequestTimeout(requestTimeout);
-		return this;
-	}
-
-	public final ServiceBrokerBuilder requestRetry(int requestRetry) {
-		config.setRequestRetry(requestRetry);
-		return this;
-	}
-
-	public final ServiceBrokerBuilder maxCallLevel(int maxCallLevel) {
-		config.setMaxCallLevel(maxCallLevel);
-		return this;
-	}
-
-	public final ServiceBrokerBuilder heartbeatInterval(int heartbeatInterval) {
-		config.setHeartbeatInterval(heartbeatInterval);
-		return this;
-	}
-
-	public final ServiceBrokerBuilder heartbeatTimeout(int heartbeatTimeout) {
-		config.setHeartbeatTimeout(heartbeatTimeout);
-		return this;
-	}
-
-	public final ServiceBrokerBuilder disableBalancer(boolean disableBalancer) {
-		config.setDisableBalancer(disableBalancer);
-		return this;
-	}
-
-	public final ServiceBrokerBuilder preferLocal(boolean preferLocal) {
-		config.setPreferLocal(preferLocal);
-		return this;
-	}
-
-	public final ServiceBrokerBuilder circuitBreaker(CircuitBreaker circuitBreaker) {
-		config.setCircuitBreaker(circuitBreaker);
-		return this;
-	}
-
 	public final ServiceBrokerBuilder cacher(Cacher cacher) {
 		config.setCacher(cacher);
 		return this;
 	}
 
-	public final ServiceBrokerBuilder serializer(String serializer) {
-		config.setSerializer(serializer);
+	// --- ADD CUSTOM COMPONENT ---
+	
+	public final ServiceBrokerBuilder addComponent(String id, MoleculerComponent component, Tree configuration) {
+		Objects.nonNull(component);
+		Objects.nonNull(id);
+		id = id.trim();
+		if (id.isEmpty()) {
+			throw new IllegalArgumentException("Empty id is not allowed!");
+		}
+		config.getComponents().put(id, new MoleculerComponentConfig(component, configuration));
 		return this;
 	}
 

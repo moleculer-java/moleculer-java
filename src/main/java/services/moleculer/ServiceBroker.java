@@ -5,18 +5,13 @@ import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
 import services.moleculer.cachers.Cacher;
+import services.moleculer.config.ComponentRegistry;
 import services.moleculer.config.ServiceBrokerBuilder;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallingOptions;
-import services.moleculer.context.ContextFactory;
-import services.moleculer.eventbus.EventBus;
 import services.moleculer.services.ActionContainer;
 import services.moleculer.services.Service;
-import services.moleculer.services.ServiceRegistry;
 import services.moleculer.transporters.Transporter;
-import services.moleculer.utils.CommonUtils;
-import services.moleculer.utils.MoleculerComponent;
-import services.moleculer.utils.MoleculerComponents;
 
 public final class ServiceBroker {
 
@@ -26,21 +21,21 @@ public final class ServiceBroker {
 
 	// --- LOGGER ---
 
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
+	protected final static Logger logger = LoggerFactory.getLogger(ServiceBroker.class);
 
 	// --- UNIQUE NODE IDENTIFIER ---
 
 	private final String nodeID;
+	
+	// --- OPTIONAL CONFIGURATION ---
+	
+	private final Tree config;
+	
+	// --- INERNAL AND USER-DEFINED COMPONENTS ---
 
-	// --- COMPONENTS ---
-
-	private final MoleculerComponents components;
-	private final ServiceRegistry serviceRegistry;
-	private final ContextFactory contextFactory;
-	private final Transporter transporter;
-	private final EventBus eventBus;
-
-	// --- STATIC CONSTRUCTOR ---
+	private final ComponentRegistry components;
+	
+	// --- STATIC SERVICE BROKER BUILDER ---
 
 	public static final ServiceBrokerBuilder builder() {
 		return new ServiceBrokerBuilder(new ServiceBrokerConfig());
@@ -52,37 +47,24 @@ public final class ServiceBroker {
 		this(new ServiceBrokerConfig());
 	}
 
+	public ServiceBroker(String configPath) throws Exception {
+		this(new ServiceBrokerConfig(configPath));
+	}
+	
 	public ServiceBroker(String nodeID, Transporter transporter, Cacher cacher) {
 		this(new ServiceBrokerConfig(nodeID, transporter, cacher));
 	}
 
-	public ServiceBroker(ServiceBrokerConfig config) {
+	public ServiceBroker(ServiceBrokerConfig configuration) {
 
 		// Set nodeID
-		nodeID = config.getNodeID();
+		nodeID = configuration.getNodeID();
 
-		// Set components
-		components = new MoleculerComponents(config);
-		config = null;
-
-		// Set the pointers of frequently used components
-		serviceRegistry = components.serviceRegistry();
-		contextFactory = components.contextFactory();
-		transporter = components.transporter();
-		eventBus = components.eventBus();
-
-		// Init base components
-		try {
-
-			// Starting Moleculer Service Broker
-			logger.info("Starting Moleculer Service Broker (version " + VERSION + ")...");
-
-			// Start service registry
-			start(components.serviceRegistry());
-
-		} catch (Exception cause) {
-			throw new RuntimeException("Unable to init logger!", cause);
-		}
+		// Optional configuration (loaded from file)
+		config = configuration.getConfig();
+		
+		// Create component registry
+		components = new ComponentRegistry(configuration);
 	}
 
 	// --- GET NODE ID ---
@@ -93,7 +75,7 @@ public final class ServiceBroker {
 
 	// --- GET COMPONENTS ---
 
-	public final MoleculerComponents components() {
+	public final ComponentRegistry components() {
 		return components;
 	}
 
@@ -104,64 +86,31 @@ public final class ServiceBroker {
 	 */
 	public final void start() throws Exception {
 
-		// Starting thread-based components
-		logger.info("Starting node \"" + nodeID + "\"...");
-
-		// Start internal components
-		start(contextFactory);
-		start(components.uidGenerator());
-		start(eventBus);
-		start(components.cacher());
-		start(transporter);
-
-		// Ok, all components started successfully
+		// Start internal and custom components
+		logger.info("Starting Moleculer Service Broker (version " + VERSION + ")...");
+		components.start(this, config);
 		logger.info("Node \"" + nodeID + "\" started successfully.");
+		
+		// Set the pointers of frequently used components
+		// serviceRegistry = components.serviceRegistry();
+		// eventBus = components.eventBus();
+		// ...
 	}
 
-	private final void start(MoleculerComponent component) throws Exception {
-		if (component != null) {
-			String name = CommonUtils.nameOf(component);
-			try {
-				component.init(this);
-				logger.info(name + " started.");
-			} catch (Exception cause) {
-				logger.error("Unable to start " + name + "!", cause);
-				throw cause;
-			}
-		}
-	}
+	// --- STOP BROKER INSTANCE ---
 
 	/**
 	 * Stop broker. If has transporter, transporter.disconnect will be called.
 	 */
 	public final void stop() {
 
-		// Starting Moleculer Service Broker
+		// Start internal and custom components
 		logger.info("Moleculer Service Broker stopping node \"" + nodeID + "\"...");
-
-		// Stop internal components
-		stop(serviceRegistry);
-		stop(transporter);
-		stop(components.cacher());
-		stop(eventBus);
-		stop(components.uidGenerator());
-		stop(contextFactory);
-
-		// Ok, broker stopped
+		components.stop();
 		logger.info("Node \"" + nodeID + "\" stopped.");
 	}
 
-	private final void stop(MoleculerComponent component) {
-		if (component != null) {
-			String name = CommonUtils.nameOf(component);
-			try {
-				component.init(this);
-				logger.info(name + " stopped.");
-			} catch (Throwable cause) {
-				logger.error("Unable to stop " + name + "!", cause);
-			}
-		}
-	}
+	// --- PUBLIC BROKER FUNCTIONS ---
 
 	/**
 	 * Switch the console to REPL mode
@@ -177,8 +126,7 @@ public final class ServiceBroker {
 	 * @throws Exception
 	 */
 	public <T extends Service> T createService(T service) throws Exception {
-		serviceRegistry.addService(service);
-		return service;
+		return null;
 	}
 
 	/**
@@ -187,7 +135,6 @@ public final class ServiceBroker {
 	 * @param service
 	 */
 	public void destroyService(Service... service) {
-		serviceRegistry.removeService(service);
 	}
 
 	/**
@@ -197,7 +144,7 @@ public final class ServiceBroker {
 	 * @return
 	 */
 	public Service getLocalService(String serviceName) {
-		return serviceRegistry.getService(serviceName);
+		return null;
 	}
 
 	/**

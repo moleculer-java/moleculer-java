@@ -73,8 +73,16 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 
 	// --- INIT SERVICE REGISTRY ---
 
+	/**
+	 * Initializes default ServiceRegistry instance.
+	 * 
+	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
+	 */
 	@Override
-	public final void init(ServiceBroker broker) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Parent service broker
 		this.broker = broker;
@@ -98,12 +106,12 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 	// --- STOP SERVICE REGISTRY ---
 
 	@Override
-	public final void close() {
+	public final void stop() {
 		writerLock.lock();
 		try {
 			for (Service service : serviceMap.values()) {
 				try {
-					service.close();
+					service.stop();
 					logger.info("Service \"" + service.name + "\" stopped.");
 				} catch (Throwable cause) {
 					logger.warn("Unable to stop \"" + service.name + "\" service!", cause);
@@ -235,7 +243,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 			for (int i = 0; i < services.length; i++) {
 				try {
 					service = services[i];
-					service.init(broker);
+					service.start(broker, null);
 					serviceMap.put(service.name, service);
 					initedServices[i] = service;
 				} catch (Exception cause) {
@@ -316,7 +324,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 					}
 					try {
 						serviceMap.remove(service.name);
-						service.close();
+						service.stop();
 						logger.info("Service \"" + service.name + "\" stopped.");
 					} catch (Exception cause) {
 						logger.warn("Service removed, but it threw an exception in the \"close\" method!", cause);
@@ -360,7 +368,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 				Service removed = serviceMap.remove(service.name);
 				if (removed != null) {
 					try {
-						removed.close();
+						removed.stop();
 						logger.info("Service \"" + removed.name + "\" stopped.");
 					} catch (Exception cause) {
 						logger.warn("Service removed, but it threw an exception in the \"close\" method!", cause);

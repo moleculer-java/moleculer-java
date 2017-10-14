@@ -3,8 +3,9 @@ package services.moleculer.services;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.utils.MoleculerComponent;
+import services.moleculer.config.MoleculerComponent;
 
 public abstract class Service implements MoleculerComponent {
 
@@ -51,9 +52,12 @@ public abstract class Service implements MoleculerComponent {
 	 * Initializes service instance.
 	 * 
 	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void init(ServiceBroker broker) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 		this.broker = broker;
 		created();
 	}
@@ -72,7 +76,7 @@ public abstract class Service implements MoleculerComponent {
 	 * Closes logger.
 	 */
 	@Override
-	public void close() {
+	public void stop() {
 	}
 
 }

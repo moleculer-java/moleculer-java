@@ -5,8 +5,8 @@ import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.config.MoleculerComponent;
 import services.moleculer.services.Name;
-import services.moleculer.utils.MoleculerComponent;
 
 @Name("Context Factory")
 public abstract class ContextFactory implements MoleculerComponent {
@@ -26,9 +26,12 @@ public abstract class ContextFactory implements MoleculerComponent {
 	 * Initializes Context Factory instance.
 	 * 
 	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
 	 */
 	@Override
-	public void init(ServiceBroker broker) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 	}
 
 	// --- STOP CONTEXT FACTORY ---
@@ -37,7 +40,7 @@ public abstract class ContextFactory implements MoleculerComponent {
 	 * Closes Context Factory.
 	 */
 	@Override
-	public void close() {
+	public void stop() {
 	}
 
 	// --- CREATE CONTEXT ---

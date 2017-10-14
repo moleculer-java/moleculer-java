@@ -5,9 +5,9 @@ import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.config.MoleculerComponent;
 import services.moleculer.services.Action;
 import services.moleculer.services.ActionContainer;
-import services.moleculer.utils.MoleculerComponent;
 
 public abstract class InvocationStrategy implements MoleculerComponent {
 
@@ -29,12 +29,15 @@ public abstract class InvocationStrategy implements MoleculerComponent {
 	// --- START INVOCATION STRATEGY ---
 
 	/**
-	 * Initializes instance.
+	 * Initializes strategy instance.
 	 * 
 	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
 	 */
 	@Override
-	public void init(ServiceBroker broker) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 	}
 
 	// --- STOP INVOCATION STRATEGY ---
@@ -43,7 +46,7 @@ public abstract class InvocationStrategy implements MoleculerComponent {
 	 * Closes instance.
 	 */
 	@Override
-	public void close() {
+	public void stop() {
 	}
 
 	// --- ADD ACCTION ---

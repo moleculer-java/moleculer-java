@@ -25,12 +25,15 @@ public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 	// --- START INVOCATION STRATEGY ---
 
 	/**
-	 * Initializes instance.
+	 * Initializes strategy instance.
 	 * 
 	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
 	 */
 	@Override
-	public void init(ServiceBroker broker) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 		this.broker = broker;
 	}
 
