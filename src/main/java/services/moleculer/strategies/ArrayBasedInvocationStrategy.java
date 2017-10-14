@@ -16,12 +16,22 @@ public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 
 	// --- POINTER TO A LOCAL ACTION INSTANCE ---
 
-	protected ActionContainer localAction;
+	private ActionContainer localAction;
 
 	// --- SERVICE BROKER ---
 
-	protected ServiceBroker broker;
+	private ServiceBroker broker;
 
+	// --- PROPERTIES ---
+	
+	protected boolean preferLocal;
+	
+	// --- CONSTRUCTOR ---
+	
+	public ArrayBasedInvocationStrategy(boolean preferLocal) {
+		this.preferLocal = preferLocal;
+	}
+	
 	// --- START INVOCATION STRATEGY ---
 
 	/**
@@ -33,12 +43,13 @@ public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
+	public final void start(ServiceBroker broker, Tree config) throws Exception {
 		this.broker = broker;
 	}
 
 	// --- ADD ACCTION ---
 
+	@Override
 	public final void add(Action action, Tree parameters) {
 		if (actions.length == 0) {
 			actions = new ActionContainer[1];
@@ -60,6 +71,7 @@ public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 
 	// --- REMOVE ACTION ---
 
+	@Override
 	public final void remove(Action action) {
 		for (int i = 0; i < actions.length; i++) {
 			if (actions[i].equals(action)) {
@@ -77,28 +89,27 @@ public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 
 	// --- HAS ACTIONS ---
 
+	@Override
 	public final boolean isEmpty() {
 		return actions.length == 0;
 	}
 
-	// --- GET ACTION AT NODE ---
+	// --- GET ACTION ---
 
+	@Override
 	public final ActionContainer get(String nodeID) {
-		for (ActionContainer action : actions) {
-			if (action.nodeID().equals(nodeID)) {
-				return action;
+		if (nodeID == null) {
+			for (ActionContainer action : actions) {
+				if (action.nodeID().equals(nodeID)) {
+					return action;
+				}
 			}
+			return null;
 		}
-		return null;
-	}
-
-	// --- CALL LOCAL OR REMOTE INSTANCE ---
-
-	public final ActionContainer get(boolean preferLocal) {
 		if (!preferLocal || localAction == null) {
 			return next();
 		}
-		return localAction;
+		return localAction;		
 	}
 
 	// --- GET NEXT REMOTE INSTANCE ---

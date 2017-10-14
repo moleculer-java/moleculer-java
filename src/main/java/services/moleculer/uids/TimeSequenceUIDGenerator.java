@@ -31,8 +31,9 @@ public final class TimeSequenceUIDGenerator extends UIDGenerator {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-		prefix = (broker.nodeID() + ':').toCharArray();
+	public final void start(ServiceBroker broker, Tree config) throws Exception {
+		String id = config.get("prefix", broker.nodeID());
+		prefix = (id + ':').toCharArray();
 	}
 
 	// --- GENERATE UID ---

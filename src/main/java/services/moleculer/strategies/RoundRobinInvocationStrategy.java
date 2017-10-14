@@ -3,22 +3,24 @@ package services.moleculer.strategies;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import services.moleculer.services.ActionContainer;
+import services.moleculer.services.Name;
 
 /**
  * Round-robin invocation strategy.
  */
+@Name("Round-Robin Invocation Strategy")
 public final class RoundRobinInvocationStrategy extends ArrayBasedInvocationStrategy {
-
-	// --- NAME OF THE MOLECULER COMPONENT ---
-
-	public String name() {
-		return "Round-Robin Invocation Strategy";
-	}
 
 	// --- PROPERTIES ---
 
 	private final AtomicInteger counter = new AtomicInteger();
 
+	// --- CONSTRUCTOR ---
+	
+	public RoundRobinInvocationStrategy(boolean preferLocal) {
+		super(preferLocal);
+	}
+	
 	// --- GET NEXT ACTION CONTAINER ---
 
 	@Override

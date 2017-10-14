@@ -15,12 +15,7 @@ public abstract class EventBus implements MoleculerComponent {
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
-	// --- CONSTUCTOR ---
-
-	public EventBus() {
-	}
-
-	// --- INIT EVENT BUS ---
+	// --- START EVENT BUS ---
 
 	/**
 	 * Initializes internal EventBus instance.
@@ -56,6 +51,6 @@ public abstract class EventBus implements MoleculerComponent {
 
 	// --- EMIT EVENT TO LISTENERS ---
 
-	public abstract void emit(String name, Object payload);
+	public abstract void emit(String name, Tree payload);
 
 }

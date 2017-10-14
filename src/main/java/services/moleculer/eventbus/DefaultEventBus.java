@@ -7,11 +7,12 @@ import java.util.Map.Entry;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import io.datatree.Tree;
 import io.datatree.dom.Cache;
 import services.moleculer.services.Name;
 
 @Name("Default Event Bus")
-public final class CachedArrayEventBus extends EventBus {
+public final class DefaultEventBus extends EventBus {
 
 	// --- EVENT BUS VARIABLES ---
 
@@ -37,7 +38,7 @@ public final class CachedArrayEventBus extends EventBus {
 
 	// --- CONSTRUCTOR ---
 
-	public CachedArrayEventBus() {
+	public DefaultEventBus() {
 		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
 		readerLock = lock.readLock();
 		writerLock = lock.writeLock();
@@ -120,7 +121,7 @@ public final class CachedArrayEventBus extends EventBus {
 	// --- EMIT EVENT TO LISTENERS ---
 
 	@Override
-	public final void emit(String name, Object payload) {
+	public final void emit(String name, Tree payload) {
 
 		// Get from cache
 		Listener[] cachedListeners = listenerCache.get(name);

@@ -103,6 +103,9 @@ public class ServiceBrokerBuilder {
 		if (id.isEmpty()) {
 			throw new IllegalArgumentException("Empty id is not allowed!");
 		}
+		if (configuration == null) {
+			configuration = new Tree();
+		}
 		config.getComponents().put(id, new MoleculerComponentContainer(component, configuration));
 		return this;
 	}

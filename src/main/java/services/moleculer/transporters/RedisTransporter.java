@@ -1,6 +1,7 @@
 package services.moleculer.transporters;
 
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Executor;
 
@@ -78,11 +79,36 @@ public final class RedisTransporter extends Transporter {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
+	public final void start(ServiceBroker broker, Tree config) throws Exception {
 
-		// Init superclass
+		// Process basic properties (eg. "prefix")
 		super.start(broker, config);
 
+		// Process config
+		Tree urlNode = config.get("urls");
+		if (urlNode == null) {
+			urlNode = config.get("url");
+		}
+		if (urlNode != null) {
+			List<String> urlList;
+			if (urlNode.isPrimitive()) {
+				urlList = new LinkedList<>();
+				String url = urlNode.asString().trim();
+				if (!url.isEmpty()) {
+					urlList.add(url);
+				}
+			} else {
+				urlList = urlNode.asList(String.class);
+			}
+			if (!urlList.isEmpty()) {
+				urls = new String[urlList.size()];
+				urlList.toArray(urls);
+			}
+		}
+		password = config.get("password", password);
+		useSSL = config.get("useSSL", useSSL);
+		startTLS = config.get("startTLS", startTLS);
+		
 		// Get the common executor
 		final Executor executor = broker.components().executor();
 
@@ -204,7 +230,7 @@ public final class RedisTransporter extends Transporter {
 	 * Closes transporter.
 	 */
 	@Override
-	public void stop() {
+	public final void stop() {
 		clientPub = null;
 		if (clientSub != null) {
 			clientSub.close();

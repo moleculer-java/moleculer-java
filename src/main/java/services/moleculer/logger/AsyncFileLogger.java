@@ -341,11 +341,6 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 			if (logDirectory.isDirectory()) {
 				logDirectory.mkdirs();
 			}
-			try {
-				System.out.println("Directory of log files: " + logDirectory.getCanonicalPath());
-			} catch (Exception cause) {
-				cause.printStackTrace();
-			}
 		}
 
 		if (prefix == null) {
@@ -393,6 +388,18 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 
 		// Set level
 		setLevel(Level.parse(getProperty(className + ".level", Level.INFO.toString())));
+
+		// Print log directory
+		if (logDirectory != null) {
+			try {
+				LogRecord record = new LogRecord(Level.INFO,
+						"Directory of log files: " + logDirectory.getCanonicalPath());
+				record.setSourceClassName(AsyncFileLogger.class.getName());
+				publish(record);
+			} catch (Exception cause) {
+				cause.printStackTrace();
+			}
+		}
 	}
 
 	private static final String getProperty(String name, String defaultValue) {

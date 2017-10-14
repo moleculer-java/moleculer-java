@@ -1,12 +1,14 @@
 package services.moleculer.cachers;
 
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Executor;
 
 import com.lambdaworks.redis.RedisClient;
 import com.lambdaworks.redis.RedisFuture;
 import com.lambdaworks.redis.RedisURI;
+import com.lambdaworks.redis.SetArgs;
 import com.lambdaworks.redis.api.async.RedisAsyncCommands;
 import com.lambdaworks.redis.cluster.RedisClusterClient;
 import com.lambdaworks.redis.cluster.api.async.RedisAdvancedClusterAsyncCommands;
@@ -35,10 +37,16 @@ public class RedisCacher extends Cacher {
 
 	// --- PROPERTIES ---
 
-	protected String[] urls = new String[] { "localhost" };
-	protected String password;
-	protected boolean useSSL;
-	protected boolean startTLS;
+	private String[] urls = new String[] { "localhost" };
+	private String password;
+	private boolean useSSL;
+	private boolean startTLS;
+	
+	/**
+	 * Expire time, in seconds (0 = never expires)
+	 */
+	private int ttl;
+
 
 	// --- REDIS CLIENTS ---
 
@@ -59,36 +67,41 @@ public class RedisCacher extends Cacher {
 	}
 
 	public RedisCacher(String... urls) {
-		this(false, false, null, urls);
+		this(false, false, null, 0, urls);
 	}
 
-	public RedisCacher(boolean useSSL, boolean startTLS, String password, String... urls) {
+	public RedisCacher(boolean useSSL, boolean startTLS, String password, int ttl, String... urls) {
 		this.useSSL = useSSL;
 		this.startTLS = startTLS;
 		this.password = password;
+		this.ttl = ttl;
 		this.urls = urls;
 	}
 
 	public RedisCacher(RedisAsyncCommands<byte[], byte[]> client, boolean useSSL, boolean startTLS, String password,
-			String... urls) {
+			int ttl, String... urls) {
 		this.client = client;
 		this.useSSL = useSSL;
 		this.startTLS = startTLS;
 		this.password = password;
+		this.ttl = ttl;
 		this.urls = urls;
 	}
 
 	public RedisCacher(RedisAdvancedClusterAsyncCommands<byte[], byte[]> clusteredClient, boolean useSSL,
-			boolean startTLS, String password, String... urls) {
+			boolean startTLS, String password, int ttl, String... urls) {
 		this.clusteredClient = clusteredClient;
 		this.useSSL = useSSL;
 		this.startTLS = startTLS;
 		this.password = password;
+		this.ttl = ttl;
 		this.urls = urls;
 	}
 
 	// --- INIT CACHE INSTANCE ---
 
+	private SetArgs expiration;
+	
 	/**
 	 * Initializes cacher instance.
 	 * 
@@ -100,6 +113,40 @@ public class RedisCacher extends Cacher {
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
+		// Process config
+		Tree urlNode = config.get("urls");
+		if (urlNode == null) {
+			urlNode = config.get("url");
+		}
+		if (urlNode != null) {
+			List<String> urlList;
+			if (urlNode.isPrimitive()) {
+				urlList = new LinkedList<>();
+				String url = urlNode.asString().trim();
+				if (!url.isEmpty()) {
+					urlList.add(url);
+				}
+			} else {
+				urlList = urlNode.asList(String.class);
+			}
+			if (!urlList.isEmpty()) {
+				urls = new String[urlList.size()];
+				urlList.toArray(urls);
+			}
+		}
+		password = config.get("password", password);
+		useSSL = config.get("useSSL", useSSL);
+		startTLS = config.get("startTLS", startTLS);
+		ttl = config.get("ttl", ttl);
+		
+		if (ttl > 0) {
+			
+			// Set the default expire time, in seconds.
+			expiration = SetArgs.Builder.ex(ttl);
+		} else {
+			expiration = null;
+		}
+		
 		// Get the common executor
 		executor = broker.components().executor();
 
@@ -112,14 +159,14 @@ public class RedisCacher extends Cacher {
 
 				@Override
 				public final void publish(Event event) {
-					
+
 					// Connected to Redis server
 					if (event instanceof ConnectionActivatedEvent) {
 						ConnectionActivatedEvent e = (ConnectionActivatedEvent) event;
 						logger.info("Redis cacher connected to " + e.remoteAddress() + ".");
 						return;
 					}
-					
+
 					// Disconnected from Redis server
 					if (event instanceof ConnectionDeactivatedEvent) {
 						ConnectionDeactivatedEvent e = (ConnectionDeactivatedEvent) event;
@@ -127,7 +174,7 @@ public class RedisCacher extends Cacher {
 						return;
 					}
 				}
-				
+
 				@Override
 				public final Observable<Event> get() {
 					return null;
@@ -191,7 +238,7 @@ public class RedisCacher extends Cacher {
 				}
 				return null;
 			}, executor));
-			
+
 		} catch (Throwable cause) {
 			logger.warn("Unable to get data from from Redis!", cause);
 		}
@@ -208,7 +255,11 @@ public class RedisCacher extends Cacher {
 			if (value == null) {
 				client.del(binaryKey);
 			} else {
-				client.set(binaryKey, bytes);
+				if (expiration == null) {
+					client.set(binaryKey, bytes);
+				} else {
+					client.set(binaryKey, bytes, expiration);
+				}
 			}
 			return;
 		}
@@ -216,7 +267,11 @@ public class RedisCacher extends Cacher {
 			if (value == null) {
 				clusteredClient.del(binaryKey);
 			} else {
-				clusteredClient.set(binaryKey, bytes);
+				if (expiration == null) {
+					clusteredClient.set(binaryKey, bytes);
+				} else {
+					clusteredClient.set(binaryKey, bytes, expiration);
+				}
 			}
 		}
 	}

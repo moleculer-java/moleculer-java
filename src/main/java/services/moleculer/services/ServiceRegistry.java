@@ -48,13 +48,13 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 
 	public abstract void receive(Tree message);
 
-	// --- ADD LOCAL SERVICE(S) ---
+	// --- ADD LOCAL SERVICE ---
 
-	public abstract void addService(Service... services) throws Exception;
+	public abstract void addService(Service service, Tree config) throws Exception;
 
-	// --- REMOVE LOCAL SERVICE(S) ---
+	// --- REMOVE LOCAL SERVICE ---
 
-	public abstract void removeService(Service... services);
+	public abstract void removeService(Service service);
 
 	// --- ADD REMOTE ACTION ---
 

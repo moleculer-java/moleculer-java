@@ -1,18 +1,20 @@
 package services.moleculer.strategies;
 
 import services.moleculer.services.ActionContainer;
+import services.moleculer.services.Name;
 
 /**
  * Nanosec-based pseudorandom invocation strategy.
  */
+@Name("Nanosecond-based Pseudorandom Invocation Strategy")
 public final class NanoSecInvocationStrategy extends ArrayBasedInvocationStrategy {
 
-	// --- NAME OF THE MOLECULER COMPONENT ---
-
-	public String name() {
-		return "Nanosecond-based Pseudorandom Invocation Strategy";
+	// --- CONSTRUCTOR ---
+	
+	public NanoSecInvocationStrategy(boolean preferLocal) {
+		super(preferLocal);
 	}
-
+	
 	// --- GET NEXT ACTION CONTAINER ---
 
 	@Override

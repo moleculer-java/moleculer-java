@@ -26,6 +26,7 @@ public final class ComponentRegistry implements MoleculerComponent {
 
 	public static final String CONTEXT_FACTORY_ID = "contextFactory";
 	public static final String UID_GENERATOR_ID = "uidGenerator";
+	public static final String INVOCATION_STRATEGY_FACTORY_ID = "invocationStrategyFactory";
 	public static final String EVENT_BUS_ID = "eventBus";
 	public static final String CACHER_ID = "cacher";
 	public static final String SERVICE_REGISTRY_ID = "serviceRegistry";
@@ -77,7 +78,10 @@ public final class ComponentRegistry implements MoleculerComponent {
 
 		// Create components
 		for (Tree componentConfig : config) {
-
+			if (!componentConfig.isMap()) {
+				continue;
+			}
+			
 			// Get id property
 			String id = componentConfig.get("id", "");
 			if (id.isEmpty()) {
@@ -93,46 +97,50 @@ public final class ComponentRegistry implements MoleculerComponent {
 			id = id.trim();
 
 			// Get class name
-			String clazz = componentConfig.get("class", "");
-			if (clazz.isEmpty()) {
+			String className = componentConfig.get("class", "");
+			if (className.isEmpty()) {
 
 				// Get class name as XML attribute
-				clazz = componentConfig.get("@class", "");
+				className = componentConfig.get("@class", "");
 			}
-			if (clazz.isEmpty()) {
+			if (className.isEmpty()) {
 				continue;
 			}
 
 			// Create instance
-			Class<?> realClazz = Class.forName(clazz);
-			if (!MoleculerComponent.class.isAssignableFrom(realClazz)) {
+			Class<?> implClass = Class.forName(className);
+			if (!MoleculerComponent.class.isAssignableFrom(implClass)) {
 				throw new IllegalArgumentException(
-						"Class \"" + clazz + "\" must implement the MoleculerComponent interface!");
+						"Class \"" + className + "\" must implement the MoleculerComponent interface!");
 			}
-			MoleculerComponent component = (MoleculerComponent) realClazz.newInstance();
+			MoleculerComponent component = (MoleculerComponent) implClass.newInstance();
 
 			// Maybe it's an internal compoment
-			if (CONTEXT_FACTORY_ID.equals(id) && checkType(ContextFactory.class, realClazz)) {
+			if (CONTEXT_FACTORY_ID.equals(id) && checkType(ContextFactory.class, implClass)) {
 				contextFactory = (ContextFactory) component;
 				continue;
 			}
-			if (UID_GENERATOR_ID.equals(id) && checkType(UIDGenerator.class, realClazz)) {
+			if (UID_GENERATOR_ID.equals(id) && checkType(UIDGenerator.class, implClass)) {
 				uidGenerator = (UIDGenerator) component;
 				continue;
 			}
-			if (EVENT_BUS_ID.equals(id) && checkType(EventBus.class, realClazz)) {
+			if (EVENT_BUS_ID.equals(id) && checkType(EventBus.class, implClass)) {
 				eventBus = (EventBus) component;
 				continue;
 			}
-			if (CACHER_ID.equals(id) && checkType(Cacher.class, realClazz)) {
+			if (CACHER_ID.equals(id) && checkType(Cacher.class, implClass)) {
 				cacher = (Cacher) component;
 				continue;
 			}
-			if (SERVICE_REGISTRY_ID.equals(id) && checkType(ServiceRegistry.class, realClazz)) {
+			if (INVOCATION_STRATEGY_FACTORY_ID.equals(id) && checkType(InvocationStrategyFactory.class, implClass)) {
+				invocationStrategyFactory = (InvocationStrategyFactory) component;
+				continue;
+			}
+			if (SERVICE_REGISTRY_ID.equals(id) && checkType(ServiceRegistry.class, implClass)) {
 				serviceRegistry = (ServiceRegistry) component;
 				continue;
 			}
-			if (TRANSPORTER_ID.equals(id) && checkType(Transporter.class, realClazz)) {
+			if (TRANSPORTER_ID.equals(id) && checkType(Transporter.class, implClass)) {
 				transporter = (Transporter) component;
 				continue;
 			}
@@ -146,6 +154,7 @@ public final class ComponentRegistry implements MoleculerComponent {
 		start(uidGenerator, configOf(UID_GENERATOR_ID, config));
 		start(eventBus, configOf(EVENT_BUS_ID, config));
 		start(cacher, configOf(CACHER_ID, config));
+		start(invocationStrategyFactory, configOf(INVOCATION_STRATEGY_FACTORY_ID, config));
 		start(serviceRegistry, configOf(SERVICE_REGISTRY_ID, config));
 		start(transporter, configOf(TRANSPORTER_ID, config));
 
@@ -174,7 +183,7 @@ public final class ComponentRegistry implements MoleculerComponent {
 				return child;
 			}
 		}
-		return null;
+		return new Tree();
 	}
 
 	private static final String idOf(Tree tree) {
@@ -215,6 +224,7 @@ public final class ComponentRegistry implements MoleculerComponent {
 		// Stop internal components
 		stop(transporter);
 		stop(serviceRegistry);
+		stop(invocationStrategyFactory);
 		stop(cacher);
 		stop(eventBus);
 		stop(uidGenerator);
@@ -287,6 +297,9 @@ public final class ComponentRegistry implements MoleculerComponent {
 		if (cacher != null) {
 			names.add(CACHER_ID);
 		}
+		if (invocationStrategyFactory != null) {
+			names.add(INVOCATION_STRATEGY_FACTORY_ID);
+		}
 		if (serviceRegistry != null) {
 			names.add(SERVICE_REGISTRY_ID);
 		}
@@ -307,6 +320,8 @@ public final class ComponentRegistry implements MoleculerComponent {
 			return eventBus;
 		case CACHER_ID:
 			return cacher;
+		case INVOCATION_STRATEGY_FACTORY_ID:
+			return invocationStrategyFactory;
 		case SERVICE_REGISTRY_ID:
 			return serviceRegistry;
 		case TRANSPORTER_ID:
@@ -330,6 +345,8 @@ public final class ComponentRegistry implements MoleculerComponent {
 			return eventBus != null;
 		case CACHER_ID:
 			return cacher != null;
+		case INVOCATION_STRATEGY_FACTORY_ID:
+			return invocationStrategyFactory != null;
 		case SERVICE_REGISTRY_ID:
 			return serviceRegistry != null;
 		case TRANSPORTER_ID:

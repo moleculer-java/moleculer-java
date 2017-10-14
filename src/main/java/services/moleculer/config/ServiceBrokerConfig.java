@@ -23,7 +23,7 @@ import services.moleculer.cachers.Cacher;
 import services.moleculer.cachers.MemoryCacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.context.DefaultContextFactory;
-import services.moleculer.eventbus.CachedArrayEventBus;
+import services.moleculer.eventbus.DefaultEventBus;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.services.DefaultServiceRegistry;
 import services.moleculer.services.ServiceRegistry;
@@ -59,7 +59,7 @@ public final class ServiceBrokerConfig {
 
 	private ContextFactory contextFactory = new DefaultContextFactory();
 	private ServiceRegistry serviceRegistry = new DefaultServiceRegistry();
-	private EventBus eventBus = new CachedArrayEventBus();
+	private EventBus eventBus = new DefaultEventBus();
 	private UIDGenerator uidGenerator = new TimeSequenceUIDGenerator();
 	private InvocationStrategyFactory invocationStrategyFactory = new RoundRobinInvocationStrategyFactory();
 	private Transporter transporter;

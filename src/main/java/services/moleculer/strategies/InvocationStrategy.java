@@ -8,23 +8,14 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.config.MoleculerComponent;
 import services.moleculer.services.Action;
 import services.moleculer.services.ActionContainer;
+import services.moleculer.services.Name;
 
+@Name("Invocation Strategy")
 public abstract class InvocationStrategy implements MoleculerComponent {
-
-	// --- NAME OF THE MOLECULER COMPONENT ---
-
-	public String name() {
-		return "Invocation Strategy";
-	}
 
 	// --- LOGGER ---
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
-
-	// --- CONSTUCTOR ---
-
-	public InvocationStrategy() {
-	}
 
 	// --- START INVOCATION STRATEGY ---
 
@@ -61,12 +52,8 @@ public abstract class InvocationStrategy implements MoleculerComponent {
 
 	public abstract boolean isEmpty();
 
-	// --- GET ACTION AT REMOTE NODE ---
+	// --- GET ACTION ---
 
 	public abstract ActionContainer get(String nodeID);
-
-	// --- CALL LOCAL OR REMOTE INSTANCE ---
-
-	public abstract ActionContainer get(boolean preferLocal);
 
 }

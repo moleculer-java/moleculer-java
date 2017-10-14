@@ -38,7 +38,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 	/**
 	 * Invoke local service via ExecutorService
 	 */
-	private final boolean asyncLocalInvocation;
+	private boolean asyncLocalInvocation;
 
 	/**
 	 * Reader lock
@@ -84,6 +84,9 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
+		// Process config
+		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
+		
 		// Parent service broker
 		this.broker = broker;
 		Objects.nonNull(broker);
@@ -229,109 +232,55 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 		}
 	}
 
-	// --- ADD LOCAL SERVICE(S) ---
+	// --- ADD LOCAL SERVICE ---
 
 	@Override
-	public final void addService(Service... services) throws Exception {
+	public final void addService(Service service, Tree config) throws Exception {
 		writerLock.lock();
 		try {
-			Service[] initedServices = new Service[services.length];
-			Service service = null;
-			Exception blocker = null;
 
-			// Initialize services
-			for (int i = 0; i < services.length; i++) {
-				try {
-					service = services[i];
-					service.start(broker, null);
-					serviceMap.put(service.name, service);
-					initedServices[i] = service;
-				} catch (Exception cause) {
-					blocker = cause;
-					logger.error("Unable to initialize service \"" + service.name + "\"!", cause);
-					break;
-				}
-			}
+			// Init service
+			service.start(broker, null);
+			serviceMap.put(service.name, service);
 
 			// Initialize actions in services
-			for (int i = 0; i < services.length; i++) {
-				String name = null;
-				try {
-					service = services[i];
+			Class<? extends Service> clazz = service.getClass();
+			Field[] fields = clazz.getFields();
+			for (Field field : fields) {
+				if (Action.class.isAssignableFrom(field.getType())) {
+					Tree parameters = new Tree();
 
-					// Get annotations of actions
-					Class<? extends Service> clazz = service.getClass();
-					Field[] fields = clazz.getFields();
-					for (Field field : fields) {
-						if (Action.class.isAssignableFrom(field.getType())) {
-							Tree parameters = new Tree();
+					// Name of the action (eg. "v2.service.add")
+					String name = service.name + '.' + field.getName();
+					parameters.put("name", name);
 
-							// Name of the action (eg. "v2.service.add")
-							name = service.name + '.' + field.getName();
-							parameters.put("name", name);
-
-							// Process "Cache" annotation
-							Cache cache = field.getAnnotation(Cache.class);
-							boolean cached = false;
-							String[] keys = null;
-							if (cache != null) {
-								cached = true;
-								if (cached) {
-									keys = cache.value();
-									if (keys != null && keys.length == 0) {
-										keys = null;
-									}
-								}
+					// Process "Cache" annotation
+					Cache cache = field.getAnnotation(Cache.class);
+					boolean cached = false;
+					String[] keys = null;
+					if (cache != null) {
+						cached = true;
+						if (cached) {
+							keys = cache.value();
+							if (keys != null && keys.length == 0) {
+								keys = null;
 							}
-							parameters.put("cached", cached);
-							if (keys != null && keys.length > 0) {
-								parameters.put("cacheKeys", String.join(",", keys));
-							}
-
-							// TODO register actions
-							LocalActionContainer container = new LocalActionContainer(broker, parameters,
-									(Action) field.get(service));
 						}
 					}
-				} catch (Exception cause) {
-					blocker = cause;
-					logger.error("Unable to initialize action \"" + name + "\"!", cause);
-					break;
+					parameters.put("cached", cached);
+					if (keys != null && keys.length > 0) {
+						parameters.put("cacheKeys", String.join(",", keys));
+					}
+
+					// TODO register actions
+					LocalActionContainer container = new LocalActionContainer(broker, parameters,
+							(Action) field.get(service));
 				}
 			}
 
 			// Start services
-			if (blocker == null) {
-				for (int i = 0; i < services.length; i++) {
-					try {
-						service = services[i];
-						service.started();
-						logger.info("Service \"" + service.name + "\" started.");
-					} catch (Exception cause) {
-						blocker = cause;
-						logger.error("Unable to start service \"" + service.name + "\"!", cause);
-						break;
-					}
-				}
-			}
-
-			// Stop initialized services on error
-			if (blocker != null) {
-				for (int i = 0; i < services.length; i++) {
-					service = initedServices[i];
-					if (service == null) {
-						break;
-					}
-					try {
-						serviceMap.remove(service.name);
-						service.stop();
-						logger.info("Service \"" + service.name + "\" stopped.");
-					} catch (Exception cause) {
-						logger.warn("Service removed, but it threw an exception in the \"close\" method!", cause);
-					}
-				}
-				throw blocker;
-			}
+			service.started();
+			logger.info("Service \"" + service.name + "\" started.");
 		} finally {
 			writerLock.unlock();
 		}
@@ -361,18 +310,16 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 	// --- REMOVE SERVICE ---
 
 	@Override
-	public final void removeService(Service... services) {
+	public final void removeService(Service service) {
 		writerLock.lock();
 		try {
-			for (Service service : services) {
-				Service removed = serviceMap.remove(service.name);
-				if (removed != null) {
-					try {
-						removed.stop();
-						logger.info("Service \"" + removed.name + "\" stopped.");
-					} catch (Exception cause) {
-						logger.warn("Service removed, but it threw an exception in the \"close\" method!", cause);
-					}
+			Service removed = serviceMap.remove(service.name);
+			if (removed != null) {
+				try {
+					removed.stop();
+					logger.info("Service \"" + removed.name + "\" stopped.");
+				} catch (Exception cause) {
+					logger.warn("Service removed, but it threw an exception in the \"close\" method!", cause);
 				}
 			}
 		} finally {

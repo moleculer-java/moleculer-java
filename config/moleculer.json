@@ -1,4 +1,16 @@
 {
 	"prefix": "",
-	"nodeID": "node-1"
+	"nodeID": "node-1",
+	
+	"cacher": {
+		"class": "services.moleculer.cachers.MemoryCacher",
+		"ttl": 0,
+		"cleanup": 15,
+		"initialCapacityPerPartition": 512,
+ 		"maximumCapacityPerPartition": 2048,
+ 		"overflowToDisk": false,
+ 		"diskTTL": 3600,
+ 		"directory": "",
+ 		"format": "json"
+	}
 }

@@ -27,8 +27,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- PROPERTIES ---
 
-	protected final String prefix;
-
+	protected String prefix;
 	protected ServiceBroker broker;
 	protected String nodeID;
 	protected String format;
@@ -55,6 +54,11 @@ public abstract class Transporter implements MoleculerComponent {
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
+		
+		// Process config
+		prefix = config.get("prefix", prefix);
+		
+		// Get properties from broker
 		this.broker = broker;
 		this.nodeID = broker.nodeID();
 	}

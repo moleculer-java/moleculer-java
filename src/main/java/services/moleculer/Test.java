@@ -11,74 +11,9 @@ public class Test {
 
 	public static void main(String[] args) throws Exception {
 
+		// "config/moleculer.json"
 		ServiceBroker broker = new ServiceBroker("config/moleculer.json");
-		// Service svc = broker.createService(service);
 		broker.start();
-
-		Promise.resolve("100").then(a -> {
-			System.out.println("#1. a=" + a.asInteger());
-			return a.asInteger() * 2;
-		}).then(b -> {
-			System.out.println("#2. b=" + b);
-			int c = b.asInteger() + 100;
-			return c;
-		}).then(c -> {
-			System.out.println("#3. c=" + c);
-			return Promise.resolve().then(() -> {
-				System.out.println("#3.1. c=" + c);
-				return 400;
-			}).then(d -> {
-				System.out.println("#3.2. d=" + d);
-				return Promise.resolve(500);
-			}).then(e -> {
-				System.out.println("#3.3. e=" + e);
-				return Promise.reject();
-			}).Catch(() -> {
-				System.out.println("#3.4. Catch error");
-				return 600;
-			}).then(x -> {
-				System.out.println("#3.5. x=" + x);
-				return new Promise(r -> {
-					r.resolve(700);
-				});
-			});
-		}).then(f -> {
-			System.out.println("#4. d=" + f + ", throw error");
-			throw new Error("Throw error!");
-		}).then(g -> {
-			System.out.println("#5. g=" + g);
-			return null;
-		}).Catch(err -> {
-			System.out.println("Catched error:" + err.getMessage());
-			return 1000;
-		}).then(h -> {
-			System.out.println("#6. h=" + h);
-			return null;
-		});
-		
-		System.out.println("---------------------------");
-		
-		Tree r = new Tree();
-		r.put("a", 1);
-		r.getMeta().put("b", 2);
-		
-		System.out.println("---------------------------");
-		
-		new Promise(r2 -> {
-			System.out.println("#1");
-			new Thread(() -> {
-				try {
-					Thread.sleep(1000);
-					System.out.println("#2");
-					r2.resolve("a");
-				} catch (Exception error) {
-					r2.reject(error);
-				}
-			}).start();
-		}).then(a -> {
-			System.out.println("#3 " + a.asString());
-			return null;
-		});
 
 		// ---------
 
@@ -143,42 +78,77 @@ public class Test {
 
 		@Cache({ "a", "b" })
 		public Action add = (ctx) -> {
-			return ctx.call("v2.test.list", ctx.params(), null).then(t -> {
-
-				t.putObject("list", t);
-				return t;
-
-			}).then(t -> {
-
-				// return ctx.call("posts.find", ctx.params(),
-				// null).then((posts) -> {
-				// return posts.size();
-				// });
-				return t;
-
-			}).then(t -> {
-
-				return t;
-
-			}).then(t -> {
-
-				return t;
-
-			}).then(t -> {
-
-				return t;
-
-			}).Catch((error) -> {
-
-				return null;
-
-			});
+			return ctx.call("v2.test.list", ctx.params(), null);
 		};
 
 		// --- EVENT LISTENERS ---
 
 		// Context, Tree, or Object????
 		public Listener test = (input) -> {
+			Promise.resolve("100").then(a -> {
+				System.out.println("#1. a=" + a.asInteger());
+				return a.asInteger() * 2;
+			}).then(b -> {
+				System.out.println("#2. b=" + b);
+				int c = b.asInteger() + 100;
+				return c;
+			}).then(c -> {
+				System.out.println("#3. c=" + c);
+				return Promise.resolve().then(() -> {
+					System.out.println("#3.1. c=" + c);
+					return 400;
+				}).then(d -> {
+					System.out.println("#3.2. d=" + d);
+					return Promise.resolve(500);
+				}).then(e -> {
+					System.out.println("#3.3. e=" + e);
+					return Promise.reject();
+				}).Catch(() -> {
+					System.out.println("#3.4. Catch error");
+					return 600;
+				}).then(x -> {
+					System.out.println("#3.5. x=" + x);
+					return new Promise(r -> {
+						r.resolve(700);
+					});
+				});
+			}).then(f -> {
+				System.out.println("#4. d=" + f + ", throw error");
+				throw new Error("Throw error!");
+			}).then(g -> {
+				System.out.println("#5. g=" + g);
+				return null;
+			}).Catch(err -> {
+				System.out.println("Catched error:" + err.getMessage());
+				return 1000;
+			}).then(h -> {
+				System.out.println("#6. h=" + h);
+				return null;
+			});
+
+			System.out.println("---------------------------");
+
+			Tree r = new Tree();
+			r.put("a", 1);
+			r.getMeta().put("b", 2);
+
+			System.out.println("---------------------------");
+
+			new Promise(r2 -> {
+				System.out.println("#1");
+				new Thread(() -> {
+					try {
+						Thread.sleep(1000);
+						System.out.println("#2");
+						r2.resolve("a");
+					} catch (Exception error) {
+						r2.reject(error);
+					}
+				}).start();
+			}).then(a -> {
+				System.out.println("#3 " + a.asString());
+				return null;
+			});
 		};
 
 		// --- METHODS ---
