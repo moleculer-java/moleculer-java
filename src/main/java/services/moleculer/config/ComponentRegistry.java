@@ -50,7 +50,7 @@ public final class ComponentRegistry implements MoleculerComponent {
 
 	// --- CUSTOM COMPONENTS ---
 
-	private Map<String, MoleculerComponentConfig> components;
+	private Map<String, MoleculerComponentContainer> components;
 
 	// --- CONSTRUCTOR ---
 
@@ -138,7 +138,7 @@ public final class ComponentRegistry implements MoleculerComponent {
 			}
 
 			// Store as custom component
-			components.put(id, new MoleculerComponentConfig(component, componentConfig));
+			components.put(id, new MoleculerComponentContainer(component, componentConfig));
 		}
 
 		// Start internal components
@@ -150,8 +150,8 @@ public final class ComponentRegistry implements MoleculerComponent {
 		start(transporter, configOf(TRANSPORTER_ID, config));
 
 		// Start custom components
-		for (MoleculerComponentConfig container : components.values()) {
-			container.component().start(broker, container.config());
+		for (MoleculerComponentContainer container : components.values()) {
+			container.component.start(broker, container.config);
 		}
 	}
 
@@ -207,8 +207,8 @@ public final class ComponentRegistry implements MoleculerComponent {
 	public final void stop() {
 
 		// Stop custom components
-		for (MoleculerComponentConfig container : components.values()) {
-			stop(container.component());
+		for (MoleculerComponentContainer container : components.values()) {
+			stop(container.component);
 		}
 		components.clear();
 
@@ -312,11 +312,11 @@ public final class ComponentRegistry implements MoleculerComponent {
 		case TRANSPORTER_ID:
 			return transporter;
 		default:
-			MoleculerComponentConfig container = components.get(id);
+			MoleculerComponentContainer container = components.get(id);
 			if (container == null) {
 				return null;
 			}
-			return container.component();
+			return container.component;
 		}
 	}
 

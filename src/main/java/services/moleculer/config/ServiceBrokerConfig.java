@@ -65,7 +65,7 @@ public final class ServiceBrokerConfig {
 	private Transporter transporter;
 	private Cacher cacher = new MemoryCacher();
 
-	private final LinkedHashMap<String, MoleculerComponentConfig> components = new LinkedHashMap<>();
+	private final LinkedHashMap<String, MoleculerComponentContainer> components = new LinkedHashMap<>();
 
 	// --- CONSTRUCTORS ---
 
@@ -134,11 +134,11 @@ public final class ServiceBrokerConfig {
 
 	// --- GETTERS AND SETTERS ---
 
-	public final Map<String, MoleculerComponentConfig> getComponents() {
+	public final Map<String, MoleculerComponentContainer> getComponents() {
 		return components;
 	}
 
-	public final void setComponents(Map<String, MoleculerComponentConfig> components) {
+	public final void setComponents(Map<String, MoleculerComponentContainer> components) {
 		Objects.nonNull(components);
 		components.clear();
 		components.putAll(components);
