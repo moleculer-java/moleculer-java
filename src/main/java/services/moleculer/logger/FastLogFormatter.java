@@ -88,6 +88,13 @@ public final class FastLogFormatter extends Formatter {
 	private final void dump(Throwable t) {
 		line.append(ERROR_LINE);
 		line.append(BREAK);
+		String msg = t.getMessage();
+		if (msg == null || msg.isEmpty()) {
+			msg = t.toString();
+		}
+		line.append(msg.trim());
+		line.append(BREAK);
+		line.append(BREAK);
 		StackTraceElement[] elements = t.getStackTrace();
 		for (StackTraceElement element: elements) {
 			line.append(ERROR_AT_LINE);

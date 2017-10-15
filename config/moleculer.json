@@ -5,12 +5,14 @@
 	"cacher": {
 		"class": "services.moleculer.cachers.MemoryCacher",
 		"ttl": 0,
-		"cleanup": 15,
-		"initialCapacityPerPartition": 512,
- 		"maximumCapacityPerPartition": 2048,
- 		"overflowToDisk": false,
- 		"diskTTL": 3600,
- 		"directory": "",
- 		"format": "json"
+ 		"capacity": 10000
+	},
+	
+	"transporter": {
+		"class": "services.moleculer.transporters.RedisTransporter",
+		"urls": ["localhost"],
+		"password": null,
+		"useSSL": false,
+		"startTLS": false			
 	}
 }

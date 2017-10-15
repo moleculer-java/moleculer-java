@@ -3,7 +3,6 @@ package services.moleculer.utils;
 import java.nio.charset.StandardCharsets;
 
 import io.datatree.Tree;
-import io.datatree.dom.TreeReaderRegistry;
 import io.datatree.dom.TreeWriterRegistry;
 import io.datatree.dom.builtin.JsonBuiltin;
 
@@ -15,7 +14,7 @@ public class Serializer {
 
 	// --- OBJECT TO BYTE ARRAY ---
 
-	public static final byte[] serialize(Object value, String format) {
+	public static final byte[] serialize(Tree value, String format) {
 		try {
 
 			// JSON? (or "msgpack", "bson", "ion", etc...)
@@ -33,13 +32,13 @@ public class Serializer {
 			}
 
 			// Hierarchial JSON structure
-			if (value instanceof Tree) {
+			if (value.isStructure()) {
 				return ((Tree) value).toBinary(format, true);
 			}
 
 			// Scalar value (String, Boolean, etc.)
 			if (json) {
-				return JsonBuiltin.serialize(value, null).getBytes(StandardCharsets.UTF_8);
+				return JsonBuiltin.serialize(value.asObject(), null).getBytes(StandardCharsets.UTF_8);
 			}
 			return TreeWriterRegistry.getWriter(format).toBinary(value, null, true);
 
@@ -50,12 +49,12 @@ public class Serializer {
 
 	// --- BYTE ARRAY TO OBJECT ---
 
-	public static final Object deserialize(byte[] bytes, String format) {
+	public static final Tree deserialize(byte[] bytes, String format) {
 		try {
 
 			// Null value
 			if (bytes == null || bytes.length == 0) {
-				return null;
+				return new Tree().setObject(null);
 			}
 
 			// JSON? (or "msgpack", "bson", "ion", etc...)
@@ -66,7 +65,7 @@ public class Serializer {
 			// JSON format
 			if (json) {
 				if (bytes.length > 3 && bytes[0] == 'n' && bytes[1] == 'u' && bytes[2] == 'l' && bytes[3] == 'l') {
-					return null;
+					return new Tree().setObject(null);
 				}
 
 				// Hierarchial JSON structure
@@ -76,15 +75,15 @@ public class Serializer {
 				}
 
 				// Scalar value (String, Boolean, etc.)
-				return new JsonBuiltin().parse(bytes);
+				return new Tree(bytes, "JsonBuiltin");
 			}
 
 			// Non-JSON
-			return TreeReaderRegistry.getReader(format).parse(bytes);
+			return new Tree(bytes, format);
 
 		} catch (Exception ignored) {
 		}
-		return null;
+		return new Tree().setObject(null);
 	}
 
 }

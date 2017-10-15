@@ -26,15 +26,15 @@ public final class ServiceBroker {
 	// --- UNIQUE NODE IDENTIFIER ---
 
 	private final String nodeID;
-	
+
 	// --- OPTIONAL CONFIGURATION ---
-	
+
 	private final Tree config;
-	
+
 	// --- INERNAL AND USER-DEFINED COMPONENTS ---
 
 	private final ComponentRegistry components;
-	
+
 	// --- STATIC SERVICE BROKER BUILDER ---
 
 	public static final ServiceBrokerBuilder builder() {
@@ -50,7 +50,7 @@ public final class ServiceBroker {
 	public ServiceBroker(String configPath) throws Exception {
 		this(new ServiceBrokerConfig(configPath));
 	}
-	
+
 	public ServiceBroker(String nodeID, Transporter transporter, Cacher cacher) {
 		this(new ServiceBrokerConfig(nodeID, transporter, cacher));
 	}
@@ -62,7 +62,7 @@ public final class ServiceBroker {
 
 		// Optional configuration (loaded from file)
 		config = configuration.getConfig();
-		
+
 		// Create component registry
 		components = new ComponentRegistry(configuration);
 	}
@@ -84,17 +84,25 @@ public final class ServiceBroker {
 	/**
 	 * Start broker. If has transporter, transporter.connect will be called.
 	 */
-	public final void start() throws Exception {
+	public final boolean start() {
+		try {
 
-		// Start internal and custom components
-		logger.info("Starting Moleculer Service Broker (version " + VERSION + ")...");
-		components.start(this, config);
-		logger.info("Node \"" + nodeID + "\" started successfully.");
-		
-		// Set the pointers of frequently used components
-		// serviceRegistry = components.serviceRegistry();
-		// eventBus = components.eventBus();
-		// ...
+			// Start internal and custom components
+			logger.info("Starting Moleculer Service Broker (version " + VERSION + ")...");
+			components.start(this, config);
+			logger.info("Node \"" + nodeID + "\" started successfully.");
+
+			// Set the pointers of frequently used components
+			// serviceRegistry = components.serviceRegistry();
+			// eventBus = components.eventBus();
+			// ...
+
+			return true;
+		} catch (Throwable cause) {
+			logger.error("Startup process aborted!", cause);
+			stop();
+		}
+		return false;
 	}
 
 	// --- STOP BROKER INSTANCE ---

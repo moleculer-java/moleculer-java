@@ -40,9 +40,9 @@ dependencies {
 
     // --- DATATREE ---
     	    
-	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-core
-	compile group: 'com.github.berkesa', name: 'datatree-core', version: '1.0.3'
-		
+	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-adapters
+	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.3'
+	
 	// --- REDIS CLIENT ---
 	
 	// https://mvnrepository.com/artifact/biz.paluch.redis/lettuce
