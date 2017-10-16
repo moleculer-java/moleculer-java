@@ -13,6 +13,7 @@ import org.caffinitas.ohc.OHCache;
 import org.caffinitas.ohc.OHCacheBuilder;
 
 import io.datatree.Tree;
+import io.datatree.dom.TreeWriterRegistry;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.GlobMatcher;
@@ -28,14 +29,14 @@ import services.moleculer.utils.Serializer;
  * https://github.com/snazy/ohc.<br>
  * Configuration properties:
  * <ul>
- * <li>ttl: Expire time of entries in memory, in seconds (default: 0 = never
+ * <li>ttl: expire time of entries in memory, in seconds (default: 0 = never
  * expires)
- * <li>capacity: Capacity for data over the whole cache in MEGABYTES
- * <li>segmentCount: Number of segments (must be a power of 2), defaults to
+ * <li>capacity: capacity for data over the whole cache in MEGABYTES
+ * <li>segmentCount: number of segments (must be a power of 2), defaults to
  * number-of-cores * 2
  * <li>hashTableSize: hash table size (must be a power of 2), defaults to 8192
  * <li>compressAbove: compress key and/or value above this size (BYTES)
- * <li>format: Serializator type (json, smile, etc.)
+ * <li>format: serializator type ("json", "smile", etc.)
  * </ul>
  * Performance:<br>
  * <br>
@@ -83,22 +84,62 @@ public final class OHCacher extends Cacher {
 	 */
 	private int compressAbove = 1024;
 
+	/**
+	 * Serialization format
+	 */
+	private String format;
+
 	// --- OFF-HEAP CACHE INSTANCE ---
 
 	private OHCache<byte[], byte[]> cache;
 
 	// --- CONSTRUCTORS ---
 
+	/**
+	 * Creates Off-heap Cacher with the default settings.
+	 */
 	public OHCacher() {
-		this(0, 0, 0, 0, 1024);
+		this(0, 0, 0, 0, 1024, null);
 	}
 
-	public OHCacher(long capacity, int segmentCount, int hashTableSize, int ttl, int compressAbove) {
+	/**
+	 * Creates Off-heap Cacher.
+	 * 
+	 * @param capacity
+	 *            capacity for data over the whole cache in MEGABYTES
+	 * @param ttl
+	 *            expire time of entries in memory, in seconds (default: 0 =
+	 *            never expires)
+	 */
+	public OHCacher(long capacity, int ttl) {
+		this(capacity, 0, 0, ttl, 1024, null);
+	}
+
+	/**
+	 * Creates Off-heap Cacher.
+	 * 
+	 * @param capacity
+	 *            capacity for data over the whole cache in MEGABYTES
+	 * @param segmentCount
+	 *            mumber of segments (must be a power of 2), defaults to
+	 *            number-of-cores * 2
+	 * @param hashTableSize
+	 *            hash table size (must be a power of 2), defaults to 8192
+	 * @param ttl
+	 *            expire time of entries in memory, in seconds (default: 0 =
+	 *            never expires)
+	 * @param compressAbove
+	 *            compress key and/or value above this size (in BYTES)
+	 * @param format
+	 *            serializator type ("json", "smile", etc.)
+	 */
+	public OHCacher(long capacity, int segmentCount, int hashTableSize, int ttl, int compressAbove, String format) {
 		this.capacity = capacity;
 		this.segmentCount = segmentCount;
 		this.hashTableSize = hashTableSize;
 		this.ttl = ttl;
 		this.compressAbove = compressAbove;
+		this.format = format;
 	}
 
 	// --- START CACHER ---
@@ -120,6 +161,26 @@ public final class OHCacher extends Cacher {
 		hashTableSize = config.get("hashTableSize", hashTableSize);
 		ttl = config.get("ttl", ttl);
 		compressAbove = config.get("compressAbove", compressAbove);
+		format = config.get("format", format);
+
+		if (format != null) {
+			try {
+				TreeWriterRegistry.getWriter(format);
+			} catch (Exception e) {
+				logger.warn("Unsupported format name (" + format + ")!");
+				format = null;
+			}
+		}
+		if (format == null) {
+			try {
+				TreeWriterRegistry.getWriter("smile");
+				format = "smile";
+			} catch (Exception e) {
+				format = null;
+			}
+		}
+		String formatName = format == null ? "JSON" : format.toUpperCase();
+		logger.info("Cacher will use " + formatName + " format to serialize entries.");
 
 		// Create cache
 		OHCacheBuilder<byte[], byte[]> builder = OHCacheBuilder.newBuilder();
@@ -264,7 +325,7 @@ public final class OHCacher extends Cacher {
 		return out.toByteArray();
 	}
 
-	private static final String bytesToKey(byte[] bytes) throws Exception {
+	private final String bytesToKey(byte[] bytes) throws Exception {
 
 		// Read key packet
 		ByteArrayInputStream in = new ByteArrayInputStream(bytes);
@@ -282,7 +343,7 @@ public final class OHCacher extends Cacher {
 	private final byte[] valueToBytes(Tree tree) throws Exception {
 
 		// Compress content
-		byte[] part1 = Serializer.serialize(tree, null);
+		byte[] part1 = Serializer.serialize(tree, format);
 		boolean compressed;
 		if (compressAbove > 0 && part1.length > compressAbove) {
 			part1 = CommonUtils.compress(part1);
@@ -303,7 +364,7 @@ public final class OHCacher extends Cacher {
 		return out.toByteArray();
 	}
 
-	private static final Tree bytesToValue(byte[] bytes) throws Exception {
+	private final Tree bytesToValue(byte[] bytes) throws Exception {
 
 		// Read value packet
 		ByteArrayInputStream in = new ByteArrayInputStream(bytes);
@@ -318,7 +379,7 @@ public final class OHCacher extends Cacher {
 		}
 
 		// Return value
-		return Serializer.deserialize(part1, null);
+		return Serializer.deserialize(part1, format);
 	}
 
 	private static final class ArraySerializer implements CacheSerializer<byte[]> {

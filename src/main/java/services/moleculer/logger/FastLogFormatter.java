@@ -27,23 +27,16 @@ public final class FastLogFormatter extends Formatter {
 	private static final char[] ERROR_AT_LINE = " at line ".toCharArray();
 	private static final char[] ERROR_IN = " in ".toCharArray();
 	private static final char[] ERROR_BRACKETS = "()".toCharArray();
-	private static final char[] ERROR_LINE = new char[120];
-	
-	static {
-		for (int i = 0; i < ERROR_LINE.length; i++) {
-			ERROR_LINE[i] = '-';
-		}
-		ERROR_LINE[24] = '+';
-		ERROR_LINE[34] = '+';
-		ERROR_LINE[87] = '+';
-	}
-	
+
 	private final StringBuilder line = new StringBuilder(512);
+
+	private volatile int position;
 
 	public final String format(LogRecord record) {
 		line.setLength(0);
 		line.append(DATE_FORMAT.format(new Date(record.getMillis())));
-		Level l = record.getLevel();
+		
+		final Level l = record.getLevel();
 		if (l == Level.SEVERE) {
 			line.append(SEVERE);
 		} else if (l == Level.WARNING) {
@@ -59,44 +52,64 @@ public final class FastLogFormatter extends Formatter {
 		} else {
 			line.append(FINEST);
 		}
+		
 		String className = record.getSourceClassName();
+		int n;
 		if (className == null) {
 			className = "unknown";
 		} else {
-			int i = className.lastIndexOf('$');
-			if (i > -1) {
-				className = className.substring(0, i);
+			n = className.lastIndexOf('$');
+			if (n > -1) {
+				className = className.substring(0, n);
 			}
 		}
 		line.append(className);
-		if (line.length() < 86) {
-			int spaces = 86 - line.length();
-			for (int i = 0; i < spaces; i++) {
+		n = line.length();
+		if (n > position) {
+			if (position == 0) {
+				position = n + 10;
+			} else {
+				position = n;
+			}
+		} else if (position - n > 20) {
+			position = n;
+		}
+		n = position - n;
+		if (n > 0) {
+			for (int i = 0; i < n; i++) {
 				line.append(' ');
 			}
 		}
 		line.append(TUBE);
 		line.append(formatMessage(record));
-		line.append(BREAK);
-		Throwable t = record.getThrown();
-		if (t != null) {
-			dump(t);
+		
+		final Throwable cause = record.getThrown();
+		if (cause != null) {
+			n = line.length();
+			line.append(BREAK);
+			dump(cause, 0, n);
+		} else {
+			line.append(BREAK);
 		}
 		return line.toString();
 	}
-	
-	private final void dump(Throwable t) {
-		line.append(ERROR_LINE);
-		line.append(BREAK);
-		String msg = t.getMessage();
+
+	private final void dump(Throwable cause, int level, int lineLength) {
+		if (level == 0) {
+			for (int i = 0; i < lineLength; i++) {
+				line.append('-');
+			}
+			line.append(BREAK);
+		}
+		String msg = cause.getMessage();
 		if (msg == null || msg.isEmpty()) {
-			msg = t.toString();
+			msg = cause.toString();
 		}
 		line.append(msg.trim());
 		line.append(BREAK);
 		line.append(BREAK);
-		StackTraceElement[] elements = t.getStackTrace();
-		for (StackTraceElement element: elements) {
+		StackTraceElement[] elements = cause.getStackTrace();
+		for (StackTraceElement element : elements) {
 			line.append(ERROR_AT_LINE);
 			int num = element.getLineNumber();
 			line.append(num);
@@ -117,8 +130,16 @@ public final class FastLogFormatter extends Formatter {
 			line.append(ERROR_BRACKETS);
 			line.append(BREAK);
 		}
-		line.append(ERROR_LINE);
-		line.append(BREAK);
+		cause = cause.getCause();
+		if (level < 5 && cause != null) {
+			line.append(BREAK);
+			dump(cause, ++level, lineLength);
+		} else {
+			for (int i = 0; i < lineLength; i++) {
+				line.append('-');
+			}
+			line.append(BREAK);
+		}
 	}
-	
+
 }

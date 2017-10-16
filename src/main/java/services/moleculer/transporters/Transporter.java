@@ -1,5 +1,7 @@
 package services.moleculer.transporters;
 
+import java.util.concurrent.Executor;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -7,6 +9,8 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.MoleculerComponent;
 import services.moleculer.services.Name;
+import services.moleculer.services.ServiceRegistry;
+import services.moleculer.utils.Serializer;
 
 @Name("Transporter")
 public abstract class Transporter implements MoleculerComponent {
@@ -20,7 +24,24 @@ public abstract class Transporter implements MoleculerComponent {
 	public static final String PACKET_INFO = "INFO";
 	public static final String PACKET_DISCONNECT = "DISCONNECT";
 	public static final String PACKET_HEARTBEAT = "HEARTBEAT";
-
+	public static final String PACKET_PING = "PING";
+	public static final String PACKET_PONG = "PONG";
+		
+	// --- CHANNELS ---
+	
+	public String eventChannel;
+	public String requestChannel;
+	public String responseChannel;
+	public String discoverBroadcastChannel;
+	public String discoverChannel;
+	public String infoBroadcastChannel;
+	public String infoChannel;
+	public String disconnectChannel;
+	public String heartbeatChannel;
+	public String pingBroadcastChannel;
+	public String pingChannel;
+	public String pongChannel;
+	
 	// --- LOGGER ---
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
@@ -31,6 +52,11 @@ public abstract class Transporter implements MoleculerComponent {
 	protected ServiceBroker broker;
 	protected String nodeID;
 	protected String format;
+
+	// --- COMPONENTS ---
+
+	protected Executor executor;
+	protected ServiceRegistry serviceRegistry;
 
 	// --- CONSTUCTORS ---
 
@@ -54,42 +80,65 @@ public abstract class Transporter implements MoleculerComponent {
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
-		
+
 		// Process config
 		prefix = config.get("prefix", prefix);
-		
+
+		// Get components
+		executor = broker.components().executor();
+		serviceRegistry = broker.components().serviceRegistry();
+
 		// Get properties from broker
 		this.broker = broker;
 		this.nodeID = broker.nodeID();
+		
+		// Set channel names
+		eventChannel = channel(PACKET_EVENT, nodeID);
+		requestChannel = channel(PACKET_REQUEST, nodeID);
+		responseChannel = channel(PACKET_RESPONSE, nodeID);
+		discoverBroadcastChannel = channel(PACKET_DISCOVER, null);
+		discoverChannel = channel(PACKET_DISCOVER, nodeID);
+		infoBroadcastChannel = channel(PACKET_INFO, null);
+		infoChannel = channel(PACKET_INFO, nodeID);
+		disconnectChannel = channel(PACKET_DISCONNECT, null);
+		heartbeatChannel = channel(PACKET_HEARTBEAT, null);
+		pingBroadcastChannel = channel(PACKET_PING, null);
+		pingChannel = channel(PACKET_PING, nodeID);
+		pongChannel = channel(PACKET_PONG, nodeID);
 	}
 
+	protected String channel(String cmd, String nodeID) {
+		StringBuilder name = new StringBuilder(64);
+		name.append(prefix);
+		name.append('.');
+		name.append(cmd);
+		if (nodeID != null && !nodeID.isEmpty()) {
+			name.append('.');
+			name.append(nodeID);
+		}
+		return name.toString();
+	}
+	
 	// --- SERVER CONNECTED ---
 
-	protected void connected() throws Exception {
+	protected void connected() {
+		executor.execute(() -> {
 
-		// Subscribe to broadcast events
-		subscribe(PACKET_EVENT, null);
+			// Subscribe channels
+			subscribe(eventChannel);
+			subscribe(requestChannel);
+			subscribe(responseChannel);
+			subscribe(discoverBroadcastChannel);
+			subscribe(discoverChannel);
+			subscribe(infoBroadcastChannel);
+			subscribe(infoChannel);
+			subscribe(disconnectChannel);
+			subscribe(heartbeatChannel);
+			subscribe(pingBroadcastChannel);
+			subscribe(pingChannel);
+			subscribe(pongChannel);
 
-		// Subscribe to requests
-		subscribe(PACKET_REQUEST, nodeID);
-
-		// Subscribe to node responses of requests
-		subscribe(PACKET_RESPONSE, nodeID);
-
-		// Discover handler
-		subscribe(PACKET_DISCOVER, null);
-
-		// Broadcasted INFO (if a new node connected)
-		subscribe(PACKET_INFO, null);
-
-		// Response INFO to DISCOVER packet
-		subscribe(PACKET_INFO, nodeID);
-
-		// Disconnect handler
-		subscribe(PACKET_DISCONNECT, null);
-
-		// Heart-beat handler
-		subscribe(PACKET_HEARTBEAT, null);
+		});
 
 		// TODO
 		// - Start heartbeat timer
@@ -98,7 +147,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- SERVER DISCONNECTED ---
 
-	protected void disconnected() throws Exception {
+	protected void disconnected() {
 
 		// TODO on disconnected (move to superclass):
 		// Stop heartbeat timer
@@ -118,28 +167,77 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- PUBLISH ---
 
-	public abstract void publish(String cmd, String nodeID, Tree message);
+	public void publish(String cmd, String nodeID, Tree message) {
+		publish(channel(cmd, nodeID), message);
+	}
+	
+	public abstract void publish(String channel, Tree message);
 
 	// --- SUBSCRIBE ---
 
-	public abstract void subscribe(String cmd, String nodeID);
+	public void subscribe(String cmd, String nodeID) {
+		subscribe(channel(cmd, nodeID));
+	}
+	
+	public abstract void subscribe(String channel);
 
-	// --- IS CONNECTED ---
+	// --- PROCESS INCOMING MESSAGE ---
 
-	public abstract boolean isConnected();
+	protected void received(String channel, byte[] message, Object connectionID) {
+		executor.execute(() -> {
+			
+			// Parse message
+			Tree data;
+			try {
+				data = Serializer.deserialize(message, format);
+			} catch (Exception cause) {
+				logger.warn("Unable to parse incoming message!", cause);
+				if (connectionID != null) {
+					failed(connectionID);
+				}
+				return;
+			}
+			
+			// Send message to proper component
+			try {
+				System.out.println(channel + " -> " + data);
+				
+				// Messages of ServiceRegistry
+				if (channel.equals(eventChannel) || channel.equals(requestChannel) || channel.equals(responseChannel)) {
+					serviceRegistry.receive(data);
+					return;
+				}
 
-	// --- CREATE TOPIC NAME ---
+			} catch (Exception cause) {
+				logger.warn("Unable to process incoming message!", cause);
+			}
+		});
+	}
 
-	protected final String nameOfChannel(String cmd, String nodeID) {
-		StringBuilder name = new StringBuilder(64);
-		name.append(prefix);
-		name.append('.');
-		name.append(cmd);
-		if (nodeID != null && !nodeID.isEmpty()) {
-			name.append('.');
-			name.append(nodeID);
-		}
-		return name.toString();
+	// --- SUBSCRIPTION FINISHED ---
+
+	protected void subscribed(String channel) {
+		executor.execute(() -> {
+			try {
+				logger.info(channel + " channel subscribed.");
+				
+				// Send INFO to all nodes
+				if (channel.equals(discoverBroadcastChannel)) {
+					Tree message = new Tree();
+					message.put("ver", "2");
+					message.put("sender", nodeID);
+					publish(discoverBroadcastChannel, message);
+				}
+				
+			} catch (Exception cause) {
+				logger.warn("Unable to process subscription!", cause);
+			}
+		});
+	}
+
+	// --- OPTIONAL DISCONNECTION ON ERROR ---
+
+	protected void failed(Object connectionID) {
 	}
 
 }
