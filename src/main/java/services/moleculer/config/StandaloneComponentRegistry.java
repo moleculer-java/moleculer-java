@@ -161,7 +161,7 @@ public class StandaloneComponentRegistry extends ComponentRegistry {
 		}
 	}
 	
-	protected void findServices(ServiceBroker broker) {
+	protected void findServices(ServiceBroker broker) throws Exception {
 		
 		// TODO Scan classpath (optionally)
 	}
@@ -179,7 +179,7 @@ public class StandaloneComponentRegistry extends ComponentRegistry {
 		}
 	}
 
-	private static final Tree configOf(String id, Tree config) {
+	protected static final Tree configOf(String id, Tree config) {
 		for (Tree child : config) {
 			if (id.equals(idOf(child))) {
 				return child;

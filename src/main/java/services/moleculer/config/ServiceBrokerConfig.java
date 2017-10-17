@@ -96,16 +96,19 @@ public final class ServiceBrokerConfig {
 				+ (format == null ? "JSON" : format.toUpperCase()) + " format...");
 		if (configPath.startsWith("http:") || configPath.startsWith("https:") || configPath.startsWith("file:")) {
 			loadConfig(new URL(configPath).openStream(), format);
+			applyConfiguration();
 			return;
 		}
 		URL url = getClass().getResource(configPath);
 		if (url != null) {
 			loadConfig(url.openStream(), format);
+			applyConfiguration();
 			return;
 		}
 		File file = new File(configPath);
 		if (file.isFile()) {
 			loadConfig(new FileInputStream(file), format);
+			applyConfiguration();
 			return;
 		}
 		throw new IllegalArgumentException("Resource \"" + configPath + "\" not found!");
@@ -270,7 +273,7 @@ public final class ServiceBrokerConfig {
 
 	// --- PRIVATE UTILITIES ---
 
-	private final void loadConfig(InputStream in, String format) throws Exception {
+	static final Tree loadConfig(InputStream in, String format) throws Exception {
 		try {
 			ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 			byte[] buffer = new byte[1024];
@@ -278,17 +281,15 @@ public final class ServiceBrokerConfig {
 			while ((length = in.read(buffer)) != -1) {
 				bytes.write(buffer, 0, length);
 			}
-			config = new Tree(bytes.toByteArray(), format);
+			return new Tree(bytes.toByteArray(), format);
 		} finally {
 			if (in != null) {
 				in.close();
 			}
 		}
-		applyConfiguration();
-		logger.info("Configuration loaded successfully.");
 	}
 
-	private static final String getFormat(String path) {
+	static final String getFormat(String path) {
 		path = path.toLowerCase();
 		int i = path.lastIndexOf('.');
 		if (i > 0) {
