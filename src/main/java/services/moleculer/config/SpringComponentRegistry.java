@@ -1,11 +1,8 @@
 package services.moleculer.config;
 
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.util.Map;
 
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.BeanInitializationException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.io.Resource;
@@ -20,21 +17,14 @@ public final class SpringComponentRegistry extends StandaloneComponentRegistry i
 	// --- PARAMETERS ---
 
 	/**
-	 * Optional directory of service confgiurations. Sample values:
+	 * Path of the optional service configuration file. Sample values:
 	 * <ul>
-	 * <li>"file:C:/directory"
-	 * <li>"classpath:"
-	 * <li>"classpath:/directory"
-	 * <li>"WEB-INF/directory"
+	 * <li>"file:C:/directory/config.json"
+	 * <li>"classpath:/directory/config.json"
+	 * <li>"WEB-INF/directory/config.json"
 	 * </ul>
 	 */
-	private String configDirectory;
-
-	/**
-	 * Format of service confgiuration (eg. "json", "yaml", "toml", "xml",
-	 * etc.). Default format is "json".
-	 */
-	private String configFormat = "json";
+	private String configuration;
 
 	// --- START REGISTRY AND COMPONENTS ---
 
@@ -45,74 +35,56 @@ public final class SpringComponentRegistry extends StandaloneComponentRegistry i
 		this.ctx = ctx;
 	}
 
-	protected final void findServices(ServiceBroker broker) {
-		
+	protected final void findServices(ServiceBroker broker) throws Exception {
+
+		// Load configuration
+		Tree config = new Tree();
+		if (configuration != null) {
+			Resource res = ctx.getResource(configuration);
+			if (res.isReadable()) {
+				String format = ServiceBrokerConfig.getFormat(configuration);
+				config = ServiceBrokerConfig.loadConfig(res.getInputStream(), format);
+				logger.info("Configuration file \"" + configuration + "\" loaded.");
+			}
+		}
+
+		// Find components
+		Map<String, MoleculerComponent> components = ctx.getBeansOfType(MoleculerComponent.class);
+		for (Map.Entry<String, MoleculerComponent> entry : components.entrySet()) {
+			MoleculerComponent component = entry.getValue();
+			if (component instanceof Service) {
+				continue;
+			}
+			String name = entry.getKey();
+			if (CONTEXT_FACTORY_ID.equals(name) || UID_GENERATOR_ID.equals(name) || EVENT_BUS_ID.equals(name)
+					|| CACHER_ID.equals(name) || INVOCATION_STRATEGY_FACTORY_ID.equals(name)
+					|| SERVICE_REGISTRY_ID.equals(name) || TRANSPORTER_ID.equals(name)) {
+				continue;
+			}
+			components.put(name, component);
+		}
+
 		// Find Moleculer Services in Spring Context then register them in the
 		// ServiceBroker
 		ServiceRegistry serviceRegistry = broker.components().serviceRegistry();
 		Map<String, Service> services = ctx.getBeansOfType(Service.class);
-		for (Map.Entry<String, Service> entries : services.entrySet()) {
-			String name = entries.getKey();
-			try {
-				Service service = entries.getValue();
-				name = service.name();
-				Tree config = null;
-				if (configDirectory != null) {
-					String format = configFormat == null ? "json" : configFormat.toLowerCase();
-					String configPath = configDirectory + '/' + name + '.' + format;
-					Resource res = ctx.getResource(configPath);
-					if (res.isReadable()) {
-						InputStream is = null;
-						try {
-							is = res.getInputStream();
-							ByteArrayOutputStream out = new ByteArrayOutputStream();
-							byte[] buffer = new byte[1024];
-							while (true) {
-								int r = is.read(buffer);
-								if (r == -1)
-									break;
-								out.write(buffer, 0, r);
-							}
-							byte[] bytes = out.toByteArray();
-							config = new Tree(bytes, format);
-							logger.debug(
-									"Configuration file \"" + configPath + "\" loaded for Service \"" + name + "\".");
-						} catch (Exception ioError) {
-							throw new BeanInitializationException(
-									"Unable to load configuration file from \"" + configPath + "\"!", ioError);
-						} finally {
-							if (is != null) {
-								is.close();
-							}
-						}
-					} else {
-						logger.debug("Configuration file \"" + configPath + "\" not found.");
-					}
-				}
-				serviceRegistry.addService(service, config == null ? new Tree() : config);
-			} catch (Exception cause) {
-				throw new BeanInitializationException("Unable to register \"" + name + "\" Moleculer Service!", cause);
-			}
+		for (Map.Entry<String, Service> entry : services.entrySet()) {
+			String name = entry.getKey();
+			Service service = entry.getValue();
+			name = service.name();
+			serviceRegistry.addService(service, configOf(name, config));
 			logger.debug("Spring Bean \"" + name + "\" registered as Moleculer Service.");
-		}		
+		}
 	}
-	
+
 	// --- GETTERS AND SETTERS ---
 
-	public final String getConfigDirectory() {
-		return configDirectory;
+	public final String getConfiguration() {
+		return configuration;
 	}
 
-	public final void setConfigDirectory(String configDirectory) {
-		this.configDirectory = configDirectory;
-	}
-
-	public final String getConfigFormat() {
-		return configFormat;
-	}
-
-	public final void setConfigFormat(String configFormat) {
-		this.configFormat = configFormat;
+	public final void setConfiguration(String configuration) {
+		this.configuration = configuration;
 	}
 
 }
