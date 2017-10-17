@@ -65,7 +65,7 @@ public class ServiceBrokerBuilder {
 	}
 
 	public final ServiceBrokerBuilder uidGenerator(UIDGenerator uidGenerator) {
-		config.setUIDGenerator(uidGenerator);
+		config.setUidGenerator(uidGenerator);
 		return this;
 	}
 

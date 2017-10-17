@@ -404,4 +404,54 @@ public final class OHCacher extends Cacher {
 
 	}
 
+	// --- GETTERS / SETTERS ---
+	
+	public final long getCapacity() {
+		return capacity;
+	}
+
+	public final void setCapacity(long capacity) {
+		this.capacity = capacity;
+	}
+
+	public final int getSegmentCount() {
+		return segmentCount;
+	}
+
+	public final void setSegmentCount(int segmentCount) {
+		this.segmentCount = segmentCount;
+	}
+
+	public final int getHashTableSize() {
+		return hashTableSize;
+	}
+
+	public final void setHashTableSize(int hashTableSize) {
+		this.hashTableSize = hashTableSize;
+	}
+
+	public final int getTtl() {
+		return ttl;
+	}
+
+	public final void setTtl(int ttl) {
+		this.ttl = ttl;
+	}
+
+	public final int getCompressAbove() {
+		return compressAbove;
+	}
+
+	public final void setCompressAbove(int compressAbove) {
+		this.compressAbove = compressAbove;
+	}
+
+	public final String getFormat() {
+		return format;
+	}
+
+	public final void setFormat(String format) {
+		this.format = format;
+	}
+	
 }

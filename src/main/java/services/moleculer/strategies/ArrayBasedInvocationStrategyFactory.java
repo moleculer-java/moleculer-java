@@ -36,4 +36,14 @@ public abstract class ArrayBasedInvocationStrategyFactory extends InvocationStra
 		preferLocal = config.get("preferLocal", preferLocal);
 	}
 
+	// --- GETTERS / SETTERS ---
+	
+	public final boolean isPreferLocal() {
+		return preferLocal;
+	}
+
+	public final void setPreferLocal(boolean preferLocal) {
+		this.preferLocal = preferLocal;
+	}
+	
 }

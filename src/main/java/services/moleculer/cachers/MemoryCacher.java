@@ -388,4 +388,22 @@ public final class MemoryCacher extends Cacher implements Runnable {
 
 	}
 
+	// --- GETTERS / SETTERS ---
+	
+	public final int getCapacity() {
+		return capacity;
+	}
+
+	public final void setCapacity(int capacity) {
+		this.capacity = capacity;
+	}
+
+	public final int getTtl() {
+		return ttl;
+	}
+
+	public final void setTtl(int ttl) {
+		this.ttl = ttl;
+	}
+	
 }

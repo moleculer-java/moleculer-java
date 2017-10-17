@@ -65,13 +65,7 @@ public final class FastLogFormatter extends Formatter {
 		}
 		line.append(className);
 		n = line.length();
-		if (n > position) {
-			if (position == 0) {
-				position = n + 10;
-			} else {
-				position = n;
-			}
-		} else if (position - n > 20) {
+		if (n > position || position - n > 30) {
 			position = n;
 		}
 		n = position - n;

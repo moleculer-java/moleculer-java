@@ -203,11 +203,11 @@ public final class ServiceBrokerConfig {
 		this.eventBus = eventBus;
 	}
 
-	public final UIDGenerator getUIDGenerator() {
+	public final UIDGenerator getUidGenerator() {
 		return uidGenerator;
 	}
 
-	public final void setUIDGenerator(UIDGenerator uidGenerator) {
+	public final void setUidGenerator(UIDGenerator uidGenerator) {
 		Objects.nonNull(uidGenerator);
 		this.uidGenerator = uidGenerator;
 	}

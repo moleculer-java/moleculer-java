@@ -10,13 +10,10 @@ public class TestComponent implements MoleculerComponent {
 
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
-		System.out.println("start " + this);
 	}
 
 	@Override
 	public void stop() {
-		// TODO Auto-generated method stub
-		
 	}
 
 }

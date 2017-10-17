@@ -292,4 +292,62 @@ public class RedisCacher extends Cacher {
 	public void clean(String match) {
 	}
 
+	// --- GETTERS / SETTERS ---
+	
+	public final String[] getUrls() {
+		return urls;
+	}
+
+	public final void setUrls(String[] urls) {
+		this.urls = urls;
+	}
+
+	public final String getPassword() {
+		return password;
+	}
+
+	public final void setPassword(String password) {
+		this.password = password;
+	}
+
+	public final boolean isUseSSL() {
+		return useSSL;
+	}
+
+	public final void setUseSSL(boolean useSSL) {
+		this.useSSL = useSSL;
+	}
+
+	public final boolean isStartTLS() {
+		return startTLS;
+	}
+
+	public final void setStartTLS(boolean startTLS) {
+		this.startTLS = startTLS;
+	}
+
+	public final int getTtl() {
+		return ttl;
+	}
+
+	public final void setTtl(int ttl) {
+		this.ttl = ttl;
+	}
+
+	public final RedisAsyncCommands<byte[], byte[]> getClient() {
+		return client;
+	}
+
+	public final void setClient(RedisAsyncCommands<byte[], byte[]> client) {
+		this.client = client;
+	}
+
+	public final RedisAdvancedClusterAsyncCommands<byte[], byte[]> getClusteredClient() {
+		return clusteredClient;
+	}
+
+	public final void setClusteredClient(RedisAdvancedClusterAsyncCommands<byte[], byte[]> clusteredClient) {
+		this.clusteredClient = clusteredClient;
+	}
+	
 }

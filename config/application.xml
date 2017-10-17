@@ -7,25 +7,59 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
-	<!-- SEARCH MOLECULER SERVICES IN PACKAGE -->
+	<!-- SEARCH MOLECULER SERVICES IN PACKAGE (REQUIRED) -->
 
 	<context:component-scan base-package="services.moleculer" />
 
-	<!-- CREATE SERVICE REGISTRY -->
+	<!-- CREATE SERVICE REGISTRY (REQUIRED) -->
 
 	<bean id="componentRegistry" class="services.moleculer.config.SpringComponentRegistry" />
+
+	<!-- DEFINE CACHER (OPTIONAL) -->
 	
-	<!-- CREATE BROKER CONFIGURATION -->
+	<bean id="cacher" class="services.moleculer.cachers.MemoryCacher">
+		<property name="capacity" value="2048"/>
+		<property name="ttl"      value="0"/>
+	</bean>
+
+	<!-- DEFINE TRANSPORTER (OPTIONAL) -->
+	
+	<bean id="transporter" class="services.moleculer.transporters.RedisTransporter">
+		<property name="urls"     value="localhost"/>
+		<property name="password" value=""/>
+		<property name="useSSL"   value="false"/>
+		<property name="startTLS" value="false"/>
+	</bean>
+
+	<!-- DEFINE INVOCATION STRATEGY (OPTIONAL) -->
+	
+	<bean id="strategyFactory" class="services.moleculer.strategies.NanoSecInvocationStrategyFactory">
+		<property name="preferLocal" value="true"/>
+	</bean>
+
+	<!-- DEFINE UID GENERATOR (OPTIONAL) -->
+	
+	<bean id="uidGenerator" class="services.moleculer.uids.TimeSequenceUIDGenerator">
+		<property name="prefix" value="srv1"/>
+	</bean>
+				
+	<!-- CREATE BROKER CONFIGURATION (REQUIRED) -->
 
 	<bean id="brokerConfig" class="services.moleculer.config.ServiceBrokerConfig">
-		<property name="nodeID" value="server-2" />
+		<property name="namespace"                 value="" />
+		<property name="nodeID"                    value="server-2" />
+		<property name="componentRegistry"         ref="componentRegistry"/>
+		
+		<property name="cacher"                    ref="cacher"/>
+		<property name="transporter"               ref="transporter"/>
+		<property name="invocationStrategyFactory" ref="strategyFactory"/>
+		<property name="uidGenerator"              ref="uidGenerator"/>
 		
 		<!-- ... other configurations goes here ... -->
 		
-		<property name="componentRegistry" ref="componentRegistry"/>
 	</bean>
 
-	<!-- CREATE SERVICE BROKER -->
+	<!-- CREATE SERVICE BROKER (REQUIRED) -->
 
 	<bean id="serviceBroker" class="services.moleculer.ServiceBroker" init-method="start" destroy-method="stop">
 		<constructor-arg ref="brokerConfig"/>

@@ -228,4 +228,54 @@ public final class RedisTransporter extends Transporter {
 		}
 	}
 
+	// --- GETTERS / SETTERS ---
+	
+	public final String[] getUrls() {
+		return urls;
+	}
+
+	public final void setUrls(String[] urls) {
+		this.urls = urls;
+	}
+
+	public final String getPassword() {
+		return password;
+	}
+
+	public final void setPassword(String password) {
+		this.password = password;
+	}
+
+	public final boolean isUseSSL() {
+		return useSSL;
+	}
+
+	public final void setUseSSL(boolean useSSL) {
+		this.useSSL = useSSL;
+	}
+
+	public final boolean isStartTLS() {
+		return startTLS;
+	}
+
+	public final void setStartTLS(boolean startTLS) {
+		this.startTLS = startTLS;
+	}
+
+	public final StatefulRedisPubSubConnection<byte[], byte[]> getClientSub() {
+		return clientSub;
+	}
+
+	public final void setClientSub(StatefulRedisPubSubConnection<byte[], byte[]> clientSub) {
+		this.clientSub = clientSub;
+	}
+
+	public final RedisPubSubAsyncCommands<byte[], byte[]> getClientPub() {
+		return clientPub;
+	}
+
+	public final void setClientPub(RedisPubSubAsyncCommands<byte[], byte[]> clientPub) {
+		this.clientPub = clientPub;
+	}
+	
 }

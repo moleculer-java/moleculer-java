@@ -37,7 +37,7 @@ public class StandaloneComponentRegistry extends ComponentRegistry {
 
 	// --- CUSTOM COMPONENTS ---
 
-	private Map<String, MoleculerComponentContainer> components;
+	protected Map<String, MoleculerComponentContainer> components;
 
 	// --- START REGISTRY AND COMPONENTS ---
 
@@ -62,7 +62,7 @@ public class StandaloneComponentRegistry extends ComponentRegistry {
 
 		// Set internal components
 		contextFactory = brokerConfig.getContextFactory();
-		uidGenerator = brokerConfig.getUIDGenerator();
+		uidGenerator = brokerConfig.getUidGenerator();
 		invocationStrategyFactory = brokerConfig.getInvocationStrategyFactory();
 		serviceRegistry = brokerConfig.getServiceRegistry();
 		cacher = brokerConfig.getCacher();
@@ -171,7 +171,11 @@ public class StandaloneComponentRegistry extends ComponentRegistry {
 			String name = CommonUtils.nameOf(component);
 			try {
 				component.start(broker, config);
-				logger.info(name + " started.");
+				if (name.indexOf(' ') == -1) {
+					logger.info("Component \"" + name + "\" started.");					
+				} else {
+					logger.info(name + " started.");
+				}
 			} catch (Exception cause) {
 				logger.error("Unable to start " + name + "!", cause);
 				throw cause;
@@ -238,7 +242,11 @@ public class StandaloneComponentRegistry extends ComponentRegistry {
 			String name = CommonUtils.nameOf(component);
 			try {
 				component.stop();
-				logger.info(name + " stopped.");
+				if (name.indexOf(' ') == -1) {
+					logger.info("Component \"" + name + "\" stopped.");					
+				} else {
+					logger.info(name + " stopped.");
+				}
 			} catch (Throwable cause) {
 				logger.error("Unable to stop " + name + "!", cause);
 			}

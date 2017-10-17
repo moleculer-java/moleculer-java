@@ -9,8 +9,15 @@ import org.springframework.core.io.Resource;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.cachers.Cacher;
+import services.moleculer.context.ContextFactory;
+import services.moleculer.eventbus.EventBus;
 import services.moleculer.services.Service;
 import services.moleculer.services.ServiceRegistry;
+import services.moleculer.strategies.InvocationStrategy;
+import services.moleculer.strategies.InvocationStrategyFactory;
+import services.moleculer.transporters.Transporter;
+import services.moleculer.uids.UIDGenerator;
 
 public final class SpringComponentRegistry extends StandaloneComponentRegistry implements ApplicationContextAware {
 
@@ -49,31 +56,29 @@ public final class SpringComponentRegistry extends StandaloneComponentRegistry i
 		}
 
 		// Find components
-		Map<String, MoleculerComponent> components = ctx.getBeansOfType(MoleculerComponent.class);
-		for (Map.Entry<String, MoleculerComponent> entry : components.entrySet()) {
+		Map<String, MoleculerComponent> componentMap = ctx.getBeansOfType(MoleculerComponent.class);
+		for (Map.Entry<String, MoleculerComponent> entry : componentMap.entrySet()) {
 			MoleculerComponent component = entry.getValue();
-			if (component instanceof Service) {
+			if (component instanceof Service || component instanceof ContextFactory || component instanceof UIDGenerator
+					|| component instanceof EventBus || component instanceof Cacher
+					|| component instanceof InvocationStrategyFactory || component instanceof InvocationStrategy
+					|| component instanceof ServiceRegistry || component instanceof Transporter) {
 				continue;
 			}
 			String name = entry.getKey();
-			if (CONTEXT_FACTORY_ID.equals(name) || UID_GENERATOR_ID.equals(name) || EVENT_BUS_ID.equals(name)
-					|| CACHER_ID.equals(name) || INVOCATION_STRATEGY_FACTORY_ID.equals(name)
-					|| SERVICE_REGISTRY_ID.equals(name) || TRANSPORTER_ID.equals(name)) {
-				continue;
-			}
-			components.put(name, component);
-			logger.debug("Spring Bean \"" + name + "\" registered as Moleculer Component.");
+			components.put(name, new MoleculerComponentContainer(component, configOf(name, config)));
+			logger.info("Spring Bean \"" + name + "\" registered as Moleculer Component.");
 		}
 
 		// Find Moleculer Services in Spring Context then register them in the
 		// ServiceBroker
 		ServiceRegistry serviceRegistry = broker.components().serviceRegistry();
-		Map<String, Service> services = ctx.getBeansOfType(Service.class);
-		for (Map.Entry<String, Service> entry : services.entrySet()) {
+		Map<String, Service> serviceMap = ctx.getBeansOfType(Service.class);
+		for (Map.Entry<String, Service> entry : serviceMap.entrySet()) {
 			Service service = entry.getValue();
 			String name = service.name();
 			serviceRegistry.addService(service, configOf(name, config));
-			logger.debug("Spring Bean \"" + name + "\" registered as Moleculer Service.");
+			logger.info("Spring Bean \"" + name + "\" registered as Moleculer Service.");
 		}
 	}
 

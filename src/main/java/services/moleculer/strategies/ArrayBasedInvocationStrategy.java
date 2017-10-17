@@ -24,7 +24,7 @@ public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 
 	// --- PROPERTIES ---
 	
-	protected boolean preferLocal;
+	private boolean preferLocal;
 	
 	// --- CONSTRUCTOR ---
 	

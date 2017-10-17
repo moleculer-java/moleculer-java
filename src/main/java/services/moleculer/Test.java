@@ -1,8 +1,7 @@
 package services.moleculer;
 
-import java.util.Arrays;
-
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 import io.datatree.Tree;
@@ -18,7 +17,13 @@ public class Test {
 
 		ApplicationContext context = new ClassPathXmlApplicationContext("application.xml");
 		
-		System.out.println(Arrays.asList(context.getBeanDefinitionNames()));
+		new Thread(() -> {
+			try {
+				Thread.sleep(6000);
+				((ConfigurableApplicationContext)context).close();			
+			} catch (Exception e) {
+			}
+		}).start();
 		
 		// "config/moleculer.json"
 		// ServiceBroker broker = new ServiceBroker("config/moleculer.json");

@@ -47,4 +47,15 @@ public final class TimeSequenceUIDGenerator extends UIDGenerator {
 		tmp.append(counter.incrementAndGet());
 		return tmp.toString();
 	}
+
+	// --- GETTERS / SETTERS ---
+	
+	public final String getPrefix() {
+		return new String(prefix);
+	}
+
+	public final void setPrefix(String prefix) {
+		this.prefix = prefix.toCharArray();
+	}	
+	
 }
