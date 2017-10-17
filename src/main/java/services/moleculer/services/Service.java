@@ -17,8 +17,6 @@ public abstract class Service implements MoleculerComponent {
 
 	protected final String name;
 
-	protected ServiceBroker broker;
-
 	// --- CONSTRUCTORS ---
 
 	public Service() {
@@ -46,6 +44,12 @@ public abstract class Service implements MoleculerComponent {
 		this.name = name;
 	}
 
+	// --- GET NAME OF SERVICE ---
+	
+	public final String name() {
+		return name;
+	}
+	
 	// --- START SERVICE ---
 
 	/**
@@ -58,23 +62,20 @@ public abstract class Service implements MoleculerComponent {
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
-		this.broker = broker;
-		created();
 	}
+
+	// --- SERVICE CREATED ---
 
 	public void created() throws Exception {
 	}
 
-	// --- SERVICE INITED ---
+	// --- SERVICE STARTED ---
 
 	public void started() throws Exception {
 	}
 
 	// --- STOP SERVICE ---
 
-	/**
-	 * Closes logger.
-	 */
 	@Override
 	public void stop() {
 	}

@@ -1,5 +1,10 @@
 package services.moleculer;
 
+import java.util.Arrays;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
 import io.datatree.Tree;
 import services.moleculer.cachers.Cache;
 import services.moleculer.eventbus.Listener;
@@ -11,9 +16,13 @@ public class Test {
 
 	public static void main(String[] args) throws Exception {
 
+		ApplicationContext context = new ClassPathXmlApplicationContext("application.xml");
+		
+		System.out.println(Arrays.asList(context.getBeanDefinitionNames()));
+		
 		// "config/moleculer.json"
-		ServiceBroker broker = new ServiceBroker("config/moleculer.json");
-		broker.start();
+		// ServiceBroker broker = new ServiceBroker("config/moleculer.json");
+		// broker.start();
 			
 		// ---------
 

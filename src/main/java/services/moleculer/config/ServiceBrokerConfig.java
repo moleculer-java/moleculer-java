@@ -55,6 +55,7 @@ public final class ServiceBrokerConfig {
 	private Executor executor = ForkJoinPool.commonPool();
 	private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
+	private ComponentRegistry componentRegistry = new StandaloneComponentRegistry();
 	private Tree config = new Tree();
 
 	private ContextFactory contextFactory = new DefaultContextFactory();
@@ -256,6 +257,15 @@ public final class ServiceBrokerConfig {
 		} catch (Exception cause) {
 			throw new IllegalArgumentException("Invalid configuration!", cause);
 		}
+	}
+
+	public final ComponentRegistry getComponentRegistry() {
+		return componentRegistry;
+	}
+
+	public final void setComponentRegistry(ComponentRegistry componentRegistry) {
+		Objects.nonNull(scheduler);
+		this.componentRegistry = componentRegistry;
 	}
 
 	// --- PRIVATE UTILITIES ---

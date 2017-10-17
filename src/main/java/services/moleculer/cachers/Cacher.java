@@ -19,11 +19,6 @@ public abstract class Cacher implements MoleculerComponent {
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
-	// --- CONSTUCTOR ---
-
-	public Cacher() {
-	}
-
 	// --- START CACHE INSTANCE ---
 
 	/**

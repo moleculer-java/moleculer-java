@@ -94,6 +94,11 @@ public class ServiceBrokerBuilder {
 		return this;
 	}
 
+	public final ServiceBrokerBuilder componentRegistry(ComponentRegistry componentRegistry) {
+		config.setComponentRegistry(componentRegistry);
+		return this;		
+	}
+	
 	// --- ADD CUSTOM COMPONENT ---
 	
 	public final ServiceBrokerBuilder addComponent(String id, MoleculerComponent component, Tree configuration) {

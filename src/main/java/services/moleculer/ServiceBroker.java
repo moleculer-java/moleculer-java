@@ -27,9 +27,10 @@ public final class ServiceBroker {
 
 	private final String nodeID;
 
-	// --- OPTIONAL CONFIGURATION ---
+	// --- CONFIGURATIONS ---
 
-	private final Tree config;
+	private final ServiceBrokerConfig brokerConfig;
+	private final Tree customConfig;
 
 	// --- INERNAL AND USER-DEFINED COMPONENTS ---
 
@@ -60,11 +61,14 @@ public final class ServiceBroker {
 		// Set nodeID
 		nodeID = configuration.getNodeID();
 
+		// Configuration
+		brokerConfig = configuration;
+
 		// Optional configuration (loaded from file)
-		config = configuration.getConfig();
+		customConfig = configuration.getConfig();
 
 		// Create component registry
-		components = new ComponentRegistry(configuration);
+		components = configuration.getComponentRegistry();
 	}
 
 	// --- GET NODE ID ---
@@ -89,7 +93,7 @@ public final class ServiceBroker {
 
 			// Start internal and custom components
 			logger.info("Starting Moleculer Service Broker (version " + VERSION + ")...");
-			components.start(this, config);
+			components.start(this, brokerConfig, customConfig);
 			logger.info("Node \"" + nodeID + "\" started successfully.");
 
 			// Set the pointers of frequently used components
