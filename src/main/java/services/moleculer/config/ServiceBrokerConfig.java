@@ -95,19 +95,19 @@ public final class ServiceBrokerConfig {
 		logger.info("Loading configuration from \"" + configPath + "\" in "
 				+ (format == null ? "JSON" : format.toUpperCase()) + " format...");
 		if (configPath.startsWith("http:") || configPath.startsWith("https:") || configPath.startsWith("file:")) {
-			loadConfig(new URL(configPath).openStream(), format);
+			config = loadConfig(new URL(configPath).openStream(), format);
 			applyConfiguration();
 			return;
 		}
 		URL url = getClass().getResource(configPath);
 		if (url != null) {
-			loadConfig(url.openStream(), format);
+			config = loadConfig(url.openStream(), format);
 			applyConfiguration();
 			return;
 		}
 		File file = new File(configPath);
 		if (file.isFile()) {
-			loadConfig(new FileInputStream(file), format);
+			config = loadConfig(new FileInputStream(file), format);
 			applyConfiguration();
 			return;
 		}
@@ -118,22 +118,32 @@ public final class ServiceBrokerConfig {
 
 	private final void applyConfiguration() throws Exception {
 
+		// Debug
+		if (logger.isDebugEnabled()) {
+			logger.debug("Apply configuration:\r\n" + config);
+		}
+		
 		// Set base proeprties
 		setNamespace(config.get("namespace", namespace));
 		setNodeID(config.get("nodeID", nodeID));
 
 		// Create executor
-		String clazz = config.get("executor", "");
+		String clazz = config.get("executor.class", "");
 		if (!clazz.isEmpty()) {
-			executor = (Executor) Class.forName(clazz).newInstance();
+			setExecutor((Executor) Class.forName(clazz).newInstance());
 		}
 
 		// Create scheduler
-		clazz = config.get("scheduler", "");
+		clazz = config.get("scheduler.class", "");
 		if (!clazz.isEmpty()) {
-			scheduler = (ScheduledExecutorService) Class.forName(clazz).newInstance();
+			setScheduler((ScheduledExecutorService) Class.forName(clazz).newInstance());
 		}
-
+		
+		// Create component registry
+		clazz = config.get("componentRegistry.class", "");
+		if (!clazz.isEmpty()) {
+			setComponentRegistry((ComponentRegistry) Class.forName(clazz).newInstance());
+		}		
 	}
 
 	// --- GETTERS AND SETTERS ---

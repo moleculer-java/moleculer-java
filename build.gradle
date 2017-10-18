@@ -25,12 +25,7 @@ dependencies {
        
 	// http://mvnrepository.com/artifact/org.slf4j/slf4j-jdk14
 	compile group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.7.21'
-
-    // --- SPRING FRAMEWORK ---
-
-	// https://mvnrepository.com/artifact/org.springframework/spring-core
-	compile group: 'org.springframework', name: 'spring-context', version: '5.0.0.RELEASE'
-
+	
     // --- DATATREE ---
     	    
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-adapters
@@ -45,5 +40,15 @@ dependencies {
 	
 	// https://mvnrepository.com/artifact/org.caffinitas.ohc/ohc-core-j8
 	compile group: 'org.caffinitas.ohc', name: 'ohc-core-j8', version: '0.6.1'
-	
+
+    // --- SPRING DEPENDENCY INJECTION FRAMEWORK ---
+
+	// https://mvnrepository.com/artifact/org.springframework/spring-core
+	compile group: 'org.springframework', name: 'spring-context', version: '5.0.0.RELEASE'
+
+    // --- GOOGLE GUICE DEPENDENCY INJECTION FRAMEWORK ---
+    
+	// https://mvnrepository.com/artifact/com.google.inject/guice
+	compile group: 'com.google.inject', name: 'guice', version: '4.1.0'
+		
 }

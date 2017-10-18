@@ -23,10 +23,8 @@ public final class FastLogFormatter extends Formatter {
 
 	private static final char[] TUBE = " | ".toCharArray();
 	private static final char[] BREAK = System.getProperty("line.separator", "\r\n").toCharArray();
-
-	private static final char[] ERROR_AT_LINE = " at line ".toCharArray();
-	private static final char[] ERROR_IN = " in ".toCharArray();
-	private static final char[] ERROR_BRACKETS = "()".toCharArray();
+	private static final char[] AT = " at ".toCharArray();
+	private static final char[] JAVA = ".java:".toCharArray();
 
 	private final StringBuilder line = new StringBuilder(512);
 
@@ -103,25 +101,24 @@ public final class FastLogFormatter extends Formatter {
 		line.append(BREAK);
 		line.append(BREAK);
 		StackTraceElement[] elements = cause.getStackTrace();
+		String className;
+		int n;
 		for (StackTraceElement element : elements) {
-			line.append(ERROR_AT_LINE);
-			int num = element.getLineNumber();
-			line.append(num);
-			line.append('.');
-			if (num < 10) {
-				line.append(' ');
-			}
-			if (num < 100) {
-				line.append(' ');
-			}
-			if (num < 1000) {
-				line.append(' ');
-			}
-			line.append(ERROR_IN);
-			line.append(element.getClassName());
+			line.append(AT);
+			className = element.getClassName();
+			line.append(className);
 			line.append('.');
 			line.append(element.getMethodName());
-			line.append(ERROR_BRACKETS);
+			line.append('(');
+			n = className.lastIndexOf('.');
+			if (n > -1) {
+				line.append(className.substring(n + 1));
+			} else {
+				line.append(className);
+			}
+			line.append(JAVA);
+			line.append(element.getLineNumber());
+			line.append(')');
 			line.append(BREAK);
 		}
 		cause = cause.getCause();

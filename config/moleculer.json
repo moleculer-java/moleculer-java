@@ -2,6 +2,13 @@
 	"prefix": "",
 	"nodeID": "node-1",
 	
+	"componentRegistry": {
+		"class": "services.moleculer.config.GuiceComponentRegistry",
+		"packagesToScan": [
+			"services.moleculer"
+		]
+	},
+	
 	"cacher": {
 		"class": "services.moleculer.cachers.MemoryCacher",
 		"ttl": 0,
@@ -10,9 +17,12 @@
 	
 	"transporter": {
 		"class": "services.moleculer.transporters.RedisTransporter",
-		"urls": ["localhost"],
+		"urls": [
+			"localhost"
+		],
 		"password": null,
 		"useSSL": false,
 		"startTLS": false			
 	}
+	
 }

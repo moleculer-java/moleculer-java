@@ -15,19 +15,17 @@ public class Test {
 
 	public static void main(String[] args) throws Exception {
 
-		ApplicationContext context = new ClassPathXmlApplicationContext("application.xml");
+		// ApplicationContext context = new ClassPathXmlApplicationContext("application.xml");	
+		// new Thread(() -> {
+		// try {
+		// Thread.sleep(6000);
+		// ((ConfigurableApplicationContext)context).close();			
+		// } catch (Exception e) {
+		// }
+		// }).start();
 		
-		new Thread(() -> {
-			try {
-				Thread.sleep(6000);
-				((ConfigurableApplicationContext)context).close();			
-			} catch (Exception e) {
-			}
-		}).start();
-		
-		// "config/moleculer.json"
-		// ServiceBroker broker = new ServiceBroker("config/moleculer.json");
-		// broker.start();
+		ServiceBroker broker = new ServiceBroker("config/moleculer.json");
+		broker.start();
 			
 		// ---------
 

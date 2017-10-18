@@ -9,17 +9,40 @@ import org.springframework.core.io.Resource;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.cachers.Cacher;
-import services.moleculer.context.ContextFactory;
-import services.moleculer.eventbus.EventBus;
+import services.moleculer.services.Name;
 import services.moleculer.services.Service;
 import services.moleculer.services.ServiceRegistry;
-import services.moleculer.strategies.InvocationStrategy;
-import services.moleculer.strategies.InvocationStrategyFactory;
-import services.moleculer.transporters.Transporter;
-import services.moleculer.uids.UIDGenerator;
 
-public final class SpringComponentRegistry extends StandaloneComponentRegistry implements ApplicationContextAware {
+/**
+ * Spring-based Component Registry. The Spring Framework provides a
+ * comprehensive programming and configuration model for modern Java-based
+ * enterprise applications - on any kind of deployment platform
+ * (https://projects.spring.io/spring-framework/). Minimalistic Spring config:
+ * <br>
+ * <br>
+ * &lt;beans ...&gt;
+ * <ul>
+ * &lt;context:component-scan base-package="your.service.package" /&gt;<br>
+ * &lt;bean id="componentRegistry"
+ * class="services.moleculer.config.SpringComponentRegistry" /&gt;<br>
+ * &lt;bean id="brokerConfig"
+ * class="services.moleculer.config.ServiceBrokerConfig"&gt;
+ * <ul>
+ * &lt;property name="nodeID" value="server-2" /&gt;<br>
+ * &lt;property name="componentRegistry" ref="componentRegistry"/&gt;
+ * </ul>
+ * &lt;/bean&gt;<br>
+ * &lt;bean id="serviceBroker" class="services.moleculer.ServiceBroker"
+ * init-method="start" destroy-method="stop"&gt;
+ * <ul>
+ * &lt;constructor-arg ref="brokerConfig"/&gt;
+ * </ul>
+ * &lt;/bean&gt;<br>
+ * </ul>
+ * &lt;/beans&gt;
+ */
+@Name("Spring Component Registry")
+public final class SpringComponentRegistry extends BaseComponentRegistry implements ApplicationContextAware {
 
 	// --- PARAMETERS ---
 
@@ -27,14 +50,17 @@ public final class SpringComponentRegistry extends StandaloneComponentRegistry i
 	 * Path of the optional service configuration file. Sample values:
 	 * <ul>
 	 * <li>"file:C:/directory/config.json"
-	 * <li>"classpath:/directory/config.json"
-	 * <li>"WEB-INF/directory/config.json"
+	 * <li>"classpath:/directory/config.xml"
+	 * <li>"WEB-INF/directory/config.yaml"
 	 * </ul>
 	 */
 	private String configuration;
 
-	// --- START REGISTRY AND COMPONENTS ---
+	// --- FIND COMPONENTS AND SERVICES ---
 
+	/**
+	 * Pointer to Spring Application Context
+	 */
 	private ApplicationContext ctx;
 
 	@Override
@@ -42,10 +68,10 @@ public final class SpringComponentRegistry extends StandaloneComponentRegistry i
 		this.ctx = ctx;
 	}
 
-	protected final void findServices(ServiceBroker broker) throws Exception {
+	@Override
+	protected final void findServices(ServiceBroker broker, Tree config) throws Exception {
 
-		// Load configuration
-		Tree config = new Tree();
+		// Load configuration (OPTIONAL service configuration)
 		if (configuration != null) {
 			Resource res = ctx.getResource(configuration);
 			if (res.isReadable()) {
@@ -55,14 +81,11 @@ public final class SpringComponentRegistry extends StandaloneComponentRegistry i
 			}
 		}
 
-		// Find components
+		// Find Moleculer Services in Spring Application Context
 		Map<String, MoleculerComponent> componentMap = ctx.getBeansOfType(MoleculerComponent.class);
 		for (Map.Entry<String, MoleculerComponent> entry : componentMap.entrySet()) {
 			MoleculerComponent component = entry.getValue();
-			if (component instanceof Service || component instanceof ContextFactory || component instanceof UIDGenerator
-					|| component instanceof EventBus || component instanceof Cacher
-					|| component instanceof InvocationStrategyFactory || component instanceof InvocationStrategy
-					|| component instanceof ServiceRegistry || component instanceof Transporter) {
+			if (isInternalComponent(component) || component instanceof Service) {
 				continue;
 			}
 			String name = entry.getKey();
@@ -70,8 +93,7 @@ public final class SpringComponentRegistry extends StandaloneComponentRegistry i
 			logger.info("Spring Bean \"" + name + "\" registered as Moleculer Component.");
 		}
 
-		// Find Moleculer Services in Spring Context then register them in the
-		// ServiceBroker
+		// Find Moleculer Components (eg. DAO classes) in Spring Application Context
 		ServiceRegistry serviceRegistry = broker.components().serviceRegistry();
 		Map<String, Service> serviceMap = ctx.getBeansOfType(Service.class);
 		for (Map.Entry<String, Service> entry : serviceMap.entrySet()) {
