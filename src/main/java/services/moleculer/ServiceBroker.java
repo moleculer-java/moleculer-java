@@ -12,6 +12,7 @@ import services.moleculer.context.CallingOptions;
 import services.moleculer.services.ActionContainer;
 import services.moleculer.services.Service;
 import services.moleculer.transporters.Transporter;
+import services.moleculer.utils.CommonUtils;
 
 public final class ServiceBroker {
 
@@ -93,6 +94,11 @@ public final class ServiceBroker {
 
 			// Start internal and custom components
 			logger.info("Starting Moleculer Service Broker (version " + VERSION + ")...");
+			String name = CommonUtils.nameOf(components);
+			if (name.indexOf(' ') == -1) {
+				name = "\"" + name + "\"";
+			}
+			logger.info("Using " + name + " to load service classes.");
 			components.start(this, brokerConfig, customConfig);
 			logger.info("Node \"" + nodeID + "\" started successfully.");
 

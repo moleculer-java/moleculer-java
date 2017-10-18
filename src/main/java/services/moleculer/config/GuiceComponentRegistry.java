@@ -1,6 +1,7 @@
 package services.moleculer.config;
 
 import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
@@ -8,6 +9,7 @@ import java.util.Properties;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.Module;
 import com.google.inject.Stage;
 import com.google.inject.name.Names;
 
@@ -25,7 +27,20 @@ import services.moleculer.utils.CommonUtils;
  * {@code @Inject} in your code to access classes. This feature same as Spring's
  * {@code @Autowired} feature. Guice has no configuration file (like the
  * "application.xml" in Spring), {@code GuiceComponentRegistry} and
- * {@code StandaloneComponentRegistry} require similar configuration file.
+ * {@code StandaloneComponentRegistry} require similar configuration file.<br>
+ * <br>
+ * ServiceBroker broker = new ServiceBroker("config/moleculer.json");<br>
+ * broker.start();<br>
+ * <br>
+ * ...and in the "moleculer.json":<br>
+ * <br>
+ * {<br>
+ * "nodeID": "node-1",<br>
+ * "componentRegistry": {<br>
+ * "class": "services.moleculer.config.GuiceComponentRegistry",<br>
+ * "packagesToScan": "your.service.package"<br>
+ * }<br>
+ * }
  */
 @Name("Guice Component Registry")
 public final class GuiceComponentRegistry extends BaseComponentRegistry {
@@ -45,6 +60,13 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 	 */
 	private Stage stage = Stage.PRODUCTION;
 
+	// --- OPTIONAL CONFIGURATOR MODULE ---
+
+	/**
+	 * Optional Guice configurator
+	 */
+	private Module module;
+
 	// --- CONSTRUCTORS ---
 
 	/**
@@ -57,13 +79,27 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 	/**
 	 * Creates a new CDI-based Component Registry.
 	 * 
+	 * @param packagesToScan
+	 *            package(s) where your Moleculer Services and Components are
+	 *            located
+	 */
+	public GuiceComponentRegistry(String... packagesToScan) {
+
+	}
+
+	/**
+	 * Creates a new CDI-based Component Registry.
+	 * 
+	 * @param module
+	 *            Optional Guice configurator
 	 * @param stage
 	 *            DEVELOPMENT, PRODUCTION or TOOL stage
 	 * @param packagesToScan
 	 *            package(s) where your Moleculer Services and Components are
 	 *            located
 	 */
-	public GuiceComponentRegistry(Stage stage, String... packagesToScan) {
+	public GuiceComponentRegistry(Module module, Stage stage, String... packagesToScan) {
+		this.module = module;
 		this.stage = stage;
 		this.packagesToScan = packagesToScan;
 	}
@@ -95,6 +131,10 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 		if (!s.isEmpty()) {
 			stage = Stage.valueOf(s);
 		}
+		String m = config.get("module", "");
+		if (!m.isEmpty()) {
+			module = (Module) Class.forName(m).newInstance();
+		}
 
 		// Check required "packagesToScan" parameter
 		if (packagesToScan == null || packagesToScan.length == 0) {
@@ -104,10 +144,11 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 		}
 
 		// Create Guice Dependency Injector
-		MoleculerModule module = new MoleculerModule(config);
-		Injector injector = Guice.createInjector(stage, module);
+		Module mainModule = module == null ? new MoleculerModule(config) : module;
+		Injector injector = Guice.createInjector(stage, mainModule);
 
-		// Load Moleculer Services and Components (eg. DAO classes) with Guice CDI framework
+		// Load Moleculer Services and Components (eg. DAO classes) with Guice
+		// CDI framework
 		ServiceRegistry serviceRegistry = broker.components().serviceRegistry();
 		for (String packageName : packagesToScan) {
 			if (!packageName.isEmpty()) {
@@ -120,20 +161,20 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 							continue;
 						}
 						if (Service.class.isAssignableFrom(type)) {
-							Service service = injector.getInstance(type);
+							Service service = (Service) injector.getInstance(type);
 							String name = service.name();
 							serviceRegistry.addService(service, configOf(name, config));
-							logger.info("Class \"" + name + "\" registered as Moleculer Service.");
+							logger.info("Object \"" + name + "\" registered as Moleculer Service.");
 							continue;
 						}
 						if (MoleculerComponent.class.isAssignableFrom(type)) {
-							MoleculerComponent c = injector.getInstance(type);
+							MoleculerComponent c = (MoleculerComponent) injector.getInstance(type);
 							String name = CommonUtils.nameOf(c);
 							components.put(name, new MoleculerComponentContainer(c, configOf(name, config)));
-							logger.info("Class \"" + name + "\" registered as Moleculer Component.");
+							logger.info("Object \"" + name + "\" registered as Moleculer Component.");
 						}
 					} catch (Throwable cause) {
-						logger.warn("Unable to load class \"" + className + "\"!", cause);
+						logger.debug("Unable to load class \"" + className + "\"!", cause);
 					}
 				}
 			}
@@ -145,12 +186,12 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 	 * makes constant binding to {@code @Named(key)} for each property from
 	 * Moleculer configuration file.
 	 */
-	public static final class MoleculerModule extends AbstractModule {
+	public final class MoleculerModule extends AbstractModule {
 
 		private final Tree config;
 
 		private MoleculerModule(Tree config) {
-			this.config = config;
+			this.config = config.getRoot();
 		}
 
 		@Override
@@ -160,6 +201,9 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 
 				// Convert config to Java Properties format
 				byte[] bytes = config.toBinary("properties", true);
+				if (logger.isDebugEnabled()) {
+					logger.debug("Named parameters:\r\n" + new String(bytes, StandardCharsets.UTF_8));
+				}
 				ByteArrayInputStream in = new ByteArrayInputStream(bytes);
 				properties.load(in);
 			} catch (Exception unsupportedFormat) {

@@ -76,7 +76,7 @@ public final class StandaloneComponentRegistry extends BaseComponentRegistry {
 							Service service = (Service) component;
 							String name = service.name();
 							serviceRegistry.addService(service, configOf(name, config));
-							logger.info("Class \"" + name + "\" registered as Moleculer Service.");
+							logger.info("Object \"" + name + "\" registered as Moleculer Service.");
 							continue;
 						}
 
@@ -85,10 +85,10 @@ public final class StandaloneComponentRegistry extends BaseComponentRegistry {
 							MoleculerComponent c = (MoleculerComponent) component;
 							String name = CommonUtils.nameOf(c);
 							components.put(name, new MoleculerComponentContainer(c, configOf(name, config)));
-							logger.info("Class \"" + name + "\" registered as Moleculer Component.");
+							logger.info("Object \"" + name + "\" registered as Moleculer Component.");
 						}
 					} catch (Throwable cause) {
-						logger.warn("Unable to load class \"" + className + "\"!", cause);
+						logger.debug("Unable to load class \"" + className + "\"!", cause);
 					}
 				}
 			}

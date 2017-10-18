@@ -1,9 +1,5 @@
 package services.moleculer;
 
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.context.support.ClassPathXmlApplicationContext;
-
 import io.datatree.Tree;
 import services.moleculer.cachers.Cache;
 import services.moleculer.eventbus.Listener;
