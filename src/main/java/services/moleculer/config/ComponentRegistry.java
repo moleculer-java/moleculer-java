@@ -1,6 +1,6 @@
 package services.moleculer.config;
 
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.slf4j.Logger;
@@ -68,7 +68,7 @@ public abstract class ComponentRegistry {
 
 	// --- GET THREAD POOLS ---
 
-	public abstract Executor executor();
+	public abstract ExecutorService executor();
 
 	public abstract ScheduledExecutorService scheduler();
 
@@ -87,7 +87,7 @@ public abstract class ComponentRegistry {
 	public abstract EventBus eventBus();
 
 	public abstract Transporter transporter();
-
+	
 	// --- GET IDS OF ALL COMPONENTS ---
 
 	public abstract String[] getComponentNames();

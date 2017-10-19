@@ -7,6 +7,10 @@ import services.moleculer.services.Name;
 
 /**
  * Round-robin invocation strategy.
+ * 
+ * @see NanoSecInvocationStrategy
+ * @see SecureRandomInvocationStrategy
+ * @see XORShiftInvocationStrategy
  */
 @Name("Round-Robin Invocation Strategy")
 public final class RoundRobinInvocationStrategy extends ArrayBasedInvocationStrategy {

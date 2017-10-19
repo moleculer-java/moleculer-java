@@ -28,7 +28,7 @@ public final class DefaultContextFactory extends ContextFactory {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
+	public final void start(ServiceBroker broker, Tree config) throws Exception {
 		this.nodeID = broker.nodeID();
 		this.broker = broker;
 		this.uidGenerator = broker.components().uidGenerator();

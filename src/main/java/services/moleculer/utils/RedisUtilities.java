@@ -2,6 +2,7 @@ package services.moleculer.utils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import com.lambdaworks.redis.RedisClient;
 import com.lambdaworks.redis.RedisURI;
@@ -10,7 +11,12 @@ import com.lambdaworks.redis.cluster.RedisClusterClient;
 import com.lambdaworks.redis.event.Event;
 import com.lambdaworks.redis.event.EventBus;
 import com.lambdaworks.redis.resource.DefaultClientResources;
+import com.lambdaworks.redis.resource.EventLoopGroupProvider;
 
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.util.concurrent.EventExecutorGroup;
+import io.netty.util.concurrent.Future;
 import rx.Observable;
 
 public final class RedisUtilities {
@@ -18,11 +24,11 @@ public final class RedisUtilities {
 	// --- GET/SET CONNECTIONS ---
 
 	public static final RedisStringAsyncCommands<String, String> getAsyncCommands(String[] urls, String password,
-			boolean useSSL, boolean startTLS) {
+			boolean useSSL, boolean startTLS, NioEventLoopGroup group) {
 
 		// Open new connection
 		List<RedisURI> redisURIs = parseURLs(urls, password, useSSL, startTLS);
-		DefaultClientResources clientResources = createClientResources(null);
+		DefaultClientResources clientResources = createClientResources(null, group);
 		RedisStringAsyncCommands<String, String> commands;
 		if (urls.length > 1) {
 
@@ -70,8 +76,32 @@ public final class RedisUtilities {
 		return list;
 	}
 
-	public static final DefaultClientResources createClientResources(EventBus eventBus) {
+	public static final DefaultClientResources createClientResources(EventBus eventBus, NioEventLoopGroup group) {
 		DefaultClientResources.Builder builder = DefaultClientResources.builder();
+		builder.eventLoopGroupProvider(new EventLoopGroupProvider() {
+			
+			@Override
+			public final int threadPoolSize() {
+				return 1;
+			}
+			
+			@Override
+			public final Future<Boolean> shutdown(long quietPeriod, long timeout, TimeUnit timeUnit) {
+				return null;
+			}
+			
+			@Override
+			public final Future<Boolean> release(EventExecutorGroup eventLoopGroup, long quietPeriod, long timeout, TimeUnit unit) {
+				return null;
+			}
+			
+			@SuppressWarnings("unchecked")
+			@Override
+			public final <T extends EventLoopGroup> T allocate(Class<T> type) {
+				return (T) group;
+			}
+			
+		});
 		builder.ioThreadPoolSize(1);
 		if (eventBus == null) {
 			eventBus = new EventBus() {

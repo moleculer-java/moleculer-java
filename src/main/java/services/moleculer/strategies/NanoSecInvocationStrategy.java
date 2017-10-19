@@ -5,6 +5,10 @@ import services.moleculer.services.Name;
 
 /**
  * Nanosec-based pseudorandom invocation strategy.
+ * 
+ * @see RoundRobinInvocationStrategy
+ * @see SecureRandomInvocationStrategy
+ * @see XORShiftInvocationStrategy
  */
 @Name("Nanosecond-based Pseudorandom Invocation Strategy")
 public final class NanoSecInvocationStrategy extends ArrayBasedInvocationStrategy {

@@ -46,7 +46,7 @@ public abstract class Cacher implements MoleculerComponent {
 
 	/**
 	 * Creates a cacher-specific key by name and params. Concatenates the name
-	 * and the hashed params.
+	 * and params.
 	 * 
 	 * @param name
 	 * @param params

@@ -7,6 +7,10 @@ import services.moleculer.services.Name;
 
 /**
  * Java Random/SecureRandom-based invocation strategy.
+ * 
+ * @see RoundRobinInvocationStrategy
+ * @see NanoSecInvocationStrategy
+ * @see XORShiftInvocationStrategy
  */
 @Name("Secure Random Invocation Strategy")
 public final class SecureRandomInvocationStrategy extends ArrayBasedInvocationStrategy {

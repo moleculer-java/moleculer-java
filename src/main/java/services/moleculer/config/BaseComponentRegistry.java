@@ -9,7 +9,7 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.jar.JarEntry;
@@ -27,12 +27,21 @@ import services.moleculer.transporters.Transporter;
 import services.moleculer.uids.UIDGenerator;
 import services.moleculer.utils.CommonUtils;
 
+/**
+ * Abstract class for Standalone, Spring, and Guice Component Registries.
+ *
+ * @see StandaloneComponentRegistry
+ * @see SpringComponentRegistry
+ * @see GuiceComponentRegistry
+ */
 public abstract class BaseComponentRegistry extends ComponentRegistry {
 
 	// --- THREAD POOLS ---
 
-	private Executor executor;
+	private ExecutorService executor;
 	private ScheduledExecutorService scheduler;
+
+	private boolean shutdownThreadPools;
 
 	// --- BASE COMPONENTS ---
 
@@ -69,6 +78,9 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		executor = brokerConfig.getExecutor();
 		scheduler = brokerConfig.getScheduler();
 
+		// Should terminate thread pools on stop()?
+		shutdownThreadPools = brokerConfig.getShutDownThreadPools();
+
 		// Set internal components
 		contextFactory = brokerConfig.getContextFactory();
 		uidGenerator = brokerConfig.getUidGenerator();
@@ -79,7 +91,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		transporter = brokerConfig.getTransporter();
 		components = brokerConfig.getComponents();
 
-		// Create components
+		// Create components by config file
 		for (Tree componentConfig : customConfig) {
 			if (!componentConfig.isMap()) {
 				continue;
@@ -178,9 +190,9 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	protected abstract void findServices(ServiceBroker broker, Tree customConfig) throws Exception;
 
 	// --- CHECK OBJECT TYPE ---
-	
+
 	private static final HashSet<Class<? extends MoleculerComponent>> internalTypes = new HashSet<>();
-	
+
 	static {
 		internalTypes.add(ContextFactory.class);
 		internalTypes.add(UIDGenerator.class);
@@ -191,13 +203,13 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		internalTypes.add(ServiceRegistry.class);
 		internalTypes.add(Transporter.class);
 	}
-	
+
 	protected static final boolean isInternalComponent(Object component) {
 		return isInternalComponent(component.getClass());
 	}
-	
+
 	protected static final boolean isInternalComponent(Class<?> component) {
-		for (Class<? extends MoleculerComponent> type: internalTypes) {
+		for (Class<? extends MoleculerComponent> type : internalTypes) {
 			if (type.isAssignableFrom(component)) {
 				return true;
 			}
@@ -206,7 +218,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	}
 
 	// --- PACKAGE SCANNER ---
-	
+
 	protected static final LinkedList<String> scan(String packageName) throws Exception {
 		ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 		LinkedList<String> names = new LinkedList<>();
@@ -239,7 +251,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 
 		} else {
 
-			URI uri = new URI(packageURL.toString()); 
+			URI uri = new URI(packageURL.toString());
 			File folder = new File(uri.getPath());
 			File[] files = folder.listFiles();
 			String entryName;
@@ -256,7 +268,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	}
 
 	// --- START MOLECULER COMPONENT ---
-	
+
 	private final void start(ServiceBroker broker, MoleculerComponent component, Tree config) throws Exception {
 		if (component != null) {
 			String name = CommonUtils.nameOf(component);
@@ -275,7 +287,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	}
 
 	// --- FIND CONFIG OF A MOLECULER COMPONENT ---
-	
+
 	protected static final Tree configOf(String id, Tree config) {
 		for (Tree child : config) {
 			if (id.equals(idOf(child))) {
@@ -284,7 +296,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		}
 		return new Tree();
 	}
-	
+
 	// --- GET ID OF A MOLECULER COMPONENT IN CONFIG ---
 
 	private static final String idOf(Tree tree) {
@@ -305,7 +317,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	}
 
 	// --- CHECK TYPE OF CLASS ---
-	
+
 	private static final boolean checkType(Class<?> required, Class<?> type) {
 		if (!required.isAssignableFrom(type)) {
 			throw new IllegalArgumentException("Class \"" + type + "\" must be and instance of \"" + required + "\"!");
@@ -332,6 +344,22 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		stop(eventBus);
 		stop(uidGenerator);
 		stop(contextFactory);
+
+		// Stop thread pools
+		if (shutdownThreadPools) {
+			try {
+				executor.shutdownNow();
+			} catch (Throwable cause) {
+				logger.error("Unable to stop executor!", cause);
+			}
+			if (executor != scheduler) {
+				try {
+					scheduler.shutdownNow();
+				} catch (Throwable cause) {
+					logger.error("Unable to stop scheduler!", cause);
+				}
+			}
+		}
 	}
 
 	private final void stop(MoleculerComponent component) {
@@ -353,7 +381,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	// --- GET THREAD POOLS ---
 
 	@Override
-	public final Executor executor() {
+	public final ExecutorService executor() {
 		return executor;
 	}
 

@@ -403,7 +403,7 @@ public final class OHCacher extends Cacher {
 		}
 
 	}
-
+	
 	// --- GETTERS / SETTERS ---
 	
 	public final long getCapacity() {

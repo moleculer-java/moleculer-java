@@ -377,6 +377,8 @@ public final class MemoryCacher extends Cacher implements Runnable {
 
 	}
 
+	// --- PARTITION ENTRY ---
+	
 	private static final class PartitionEntry {
 
 		private final Tree value;

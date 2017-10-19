@@ -8,6 +8,9 @@ import services.moleculer.services.Name;
 
 /**
  * Fast UIDGenerator, based on nodeID, timestamp and an atomic sequence number.
+ * It's faster than the StandardUIDGenerator.
+ * 
+ * @see StandardUIDGenerator
  */
 @Name("Time-Sequence UID Generator")
 public final class TimeSequenceUIDGenerator extends UIDGenerator {
@@ -49,13 +52,13 @@ public final class TimeSequenceUIDGenerator extends UIDGenerator {
 	}
 
 	// --- GETTERS / SETTERS ---
-	
+
 	public final String getPrefix() {
 		return new String(prefix);
 	}
 
 	public final void setPrefix(String prefix) {
 		this.prefix = prefix.toCharArray();
-	}	
-	
+	}
+
 }

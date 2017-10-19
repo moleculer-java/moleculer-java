@@ -4,6 +4,10 @@ import services.moleculer.services.Name;
 
 /**
  * Factory of Java SecureRandom-based invocation strategy.
+ * 
+ * @see RoundRobinInvocationStrategyFactory
+ * @see NanoSecInvocationStrategyFactory
+ * @see XORShiftInvocationStrategyFactory
  */
 @Name("Secure Random Invocation Strategy Factory")
 public final class SecureRandomInvocationStrategyFactory extends ArrayBasedInvocationStrategyFactory {

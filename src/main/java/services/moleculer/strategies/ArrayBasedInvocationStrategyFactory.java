@@ -3,10 +3,21 @@ package services.moleculer.strategies;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 
+/**
+ * Abstract class for Round-Robin and Random invocation strategy factories.
+ * 
+ * @see RoundRobinInvocationStrategyFactory
+ * @see NanoSecInvocationStrategyFactory
+ * @see SecureRandomInvocationStrategyFactory
+ * @see XORShiftInvocationStrategyFactory
+ */
 public abstract class ArrayBasedInvocationStrategyFactory extends InvocationStrategyFactory {
 
 	// --- PROPERTIES ---
 	
+	/**
+	 * Invoke local actions if possible
+	 */
 	protected boolean preferLocal;
 	
 	// --- CONSTRUCTORS ---

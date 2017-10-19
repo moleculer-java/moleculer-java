@@ -15,9 +15,15 @@ import com.google.inject.name.Names;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.cachers.Cacher;
+import services.moleculer.context.ContextFactory;
+import services.moleculer.eventbus.EventBus;
 import services.moleculer.services.Name;
 import services.moleculer.services.Service;
 import services.moleculer.services.ServiceRegistry;
+import services.moleculer.strategies.InvocationStrategyFactory;
+import services.moleculer.transporters.Transporter;
+import services.moleculer.uids.UIDGenerator;
 import services.moleculer.utils.CommonUtils;
 
 /**
@@ -40,7 +46,16 @@ import services.moleculer.utils.CommonUtils;
  * "class": "services.moleculer.config.GuiceComponentRegistry",<br>
  * "packagesToScan": "your.service.package"<br>
  * }<br>
- * }
+ * }<br>
+ * <br>
+ * You access any Service or MoleculerComponent instance from yout code by using
+ * the "Inject" annotation, for example:<br>
+ * <br>
+ * {@code @Inject}<br>
+ * public UserDAO userDAO;
+ * 
+ * @see StandaloneComponentRegistry
+ * @see SpringComponentRegistry
  */
 @Name("Guice Component Registry")
 public final class GuiceComponentRegistry extends BaseComponentRegistry {
@@ -144,7 +159,7 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 		}
 
 		// Create Guice Dependency Injector
-		Module mainModule = module == null ? new MoleculerModule(config) : module;
+		Module mainModule = module == null ? new MoleculerModule(this, config) : module;
 		Injector injector = Guice.createInjector(stage, mainModule);
 
 		// Load Moleculer Services and Components (eg. DAO classes) with Guice
@@ -174,7 +189,7 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 							logger.info("Object \"" + name + "\" registered as Moleculer Component.");
 						}
 					} catch (Throwable cause) {
-						logger.debug("Unable to load class \"" + className + "\"!", cause);
+						logger.warn("Unable to load class \"" + className + "\"!", cause);
 					}
 				}
 			}
@@ -188,14 +203,24 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 	 */
 	public final class MoleculerModule extends AbstractModule {
 
+		private final GuiceComponentRegistry registry;
 		private final Tree config;
 
-		private MoleculerModule(Tree config) {
+		private MoleculerModule(GuiceComponentRegistry registry, Tree config) {
+			this.registry = registry;
 			this.config = config.getRoot();
 		}
 
 		@Override
 		protected void configure() {
+
+			// You can access any value from the configuration file by using the
+			// "Named" annotation, for example:
+			//
+			// @Inject
+			// @Named("nodeID")
+			// public String nodeID;
+			//
 			Properties properties = new Properties();
 			try {
 
@@ -216,6 +241,42 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 				}
 			}
 			Names.bindProperties(binder(), properties);
+
+			// You can access any internal component by using the "Inject"
+			// annotation, for example:
+			//
+			// @Inject
+			// public Transporter transporter;
+			//
+			bind(ComponentRegistry.class).toInstance(registry);
+			ContextFactory contextFactory = contextFactory();
+			if (contextFactory != null) {
+				bind(ContextFactory.class).toInstance(contextFactory);
+			}
+			UIDGenerator uidGenerator = uidGenerator();
+			if (uidGenerator != null) {
+				bind(UIDGenerator.class).toInstance(uidGenerator);
+			}
+			InvocationStrategyFactory invocationStrategyFactory = invocationStrategyFactory();
+			if (invocationStrategyFactory != null) {
+				bind(InvocationStrategyFactory.class).toInstance(invocationStrategyFactory);
+			}
+			EventBus eventBus = eventBus();
+			if (eventBus != null) {
+				bind(EventBus.class).toInstance(eventBus);
+			}
+			Cacher cacher = cacher();
+			if (cacher != null) {
+				bind(Cacher.class).toInstance(cacher);
+			}
+			ServiceRegistry serviceRegistry = serviceRegistry();
+			if (serviceRegistry != null) {
+				bind(ServiceRegistry.class).toInstance(serviceRegistry);
+			}
+			Transporter transporter = transporter();
+			if (transporter != null) {
+				bind(Transporter.class).toInstance(transporter);
+			}
 		}
 
 	}

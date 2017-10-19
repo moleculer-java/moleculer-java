@@ -4,6 +4,10 @@ import services.moleculer.services.Name;
 
 /**
  * Factory of XORSHIFT-based pseudorandom invocation strategy.
+ * 
+ * @see RoundRobinInvocationStrategyFactory
+ * @see NanoSecInvocationStrategyFactory
+ * @see SecureRandomInvocationStrategyFactory
  */
 @Name("XORSHIFT Pseudorandom Invocation Strategy Factory")
 public final class XORShiftInvocationStrategyFactory extends ArrayBasedInvocationStrategyFactory {

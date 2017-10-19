@@ -1,6 +1,7 @@
 package services.moleculer.config;
 
 import java.util.LinkedList;
+import java.util.List;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
@@ -19,6 +20,9 @@ import services.moleculer.utils.CommonUtils;
  * StandaloneComponentRegistry("my.service.package"))<br>
  * &nbsp;&nbsp;&nbsp;.build();<br>
  * broker.start();
+ * 
+ * @see SpringComponentRegistry
+ * @see GuiceComponentRegistry
  */
 @Name("Standalone Component Registry")
 public final class StandaloneComponentRegistry extends BaseComponentRegistry {
@@ -56,6 +60,27 @@ public final class StandaloneComponentRegistry extends BaseComponentRegistry {
 
 	@Override
 	protected final void findServices(ServiceBroker broker, Tree config) throws Exception {
+		
+		// Process config
+		Tree packagesNode = config.get("packagesToScan");
+		if (packagesNode != null) {
+			if (packagesNode.isPrimitive()) {
+
+				// List of packages
+				String value = packagesNode.asString().trim();
+				packagesToScan = value.split(",");
+			} else {
+
+				// Array structure of packages
+				List<String> packageList = packagesNode.asList(String.class);
+				if (!packageList.isEmpty()) {
+					packagesToScan = new String[packageList.size()];
+					packageList.toArray(packagesToScan);
+				}
+			}
+		}
+		
+		// Scan classpath
 		if (packagesToScan == null || packagesToScan.length == 0) {
 			return;
 		}

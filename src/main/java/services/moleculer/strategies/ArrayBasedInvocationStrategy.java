@@ -8,6 +8,14 @@ import services.moleculer.services.Action;
 import services.moleculer.services.ActionContainer;
 import services.moleculer.services.LocalActionContainer;
 
+/**
+ * Abstract class for Round-Robin and Random invocation strategies.
+ * 
+ * @see RoundRobinInvocationStrategy
+ * @see NanoSecInvocationStrategy
+ * @see SecureRandomInvocationStrategy
+ * @see XORShiftInvocationStrategy
+ */
 public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 
 	// --- ARRAY OF THE ALL ACTION INSTANCES ---

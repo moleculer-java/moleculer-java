@@ -7,4 +7,5 @@ import services.moleculer.services.Service;
 @Component
 public class TestService extends Service {
 	
+	
 }

@@ -4,6 +4,10 @@ import services.moleculer.services.Name;
 
 /**
  * Factory of nanosec-based pseudorandom invocation strategy.
+ * 
+ * @see RoundRobinInvocationStrategyFactory
+ * @see SecureRandomInvocationStrategyFactory
+ * @see XORShiftInvocationStrategyFactory
  */
 @Name("Nanosecond-based Pseudorandom Invocation Strategy Factory")
 public final class NanoSecInvocationStrategyFactory extends ArrayBasedInvocationStrategyFactory {

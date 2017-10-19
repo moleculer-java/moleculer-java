@@ -9,9 +9,8 @@ import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.slf4j.Logger;
@@ -47,13 +46,17 @@ public final class ServiceBrokerConfig {
 
 	private static final Logger logger = LoggerFactory.getLogger(ServiceBrokerConfig.class);
 
+	// --- THREAD POOLS ---
+		
+	private ExecutorService executor;
+	private ScheduledExecutorService scheduler;
+	
+	private boolean shutDownThreadPools = true;
+
 	// --- PROPERTIES AND COMPONENTS ---
 
 	private String namespace = "";
 	private String nodeID;
-
-	private Executor executor = ForkJoinPool.commonPool();
-	private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
 	private ComponentRegistry componentRegistry = new StandaloneComponentRegistry();
 	private Tree config = new Tree();
@@ -70,13 +73,25 @@ public final class ServiceBrokerConfig {
 
 	// --- CONSTRUCTORS ---
 
-	public ServiceBrokerConfig() {
+	public ServiceBrokerConfig() {		
 		try {
 			nodeID = InetAddress.getLocalHost().getHostName();
 		} catch (Exception ignored) {
 		}
 		if (nodeID == null || nodeID.isEmpty()) {
 			nodeID = "default";
+		}
+		Object nettyExecutor = null;
+		try {
+			nettyExecutor = Class.forName("io.netty.channel.nio.NioEventLoopGroup").newInstance();
+		} catch (Throwable ignored) {
+		}
+		if (nettyExecutor == null) {
+			executor = Executors.newWorkStealingPool();
+			scheduler = Executors.newSingleThreadScheduledExecutor();
+		} else {
+			executor = (ExecutorService) nettyExecutor;
+			scheduler = (ScheduledExecutorService) nettyExecutor;
 		}
 	}
 
@@ -100,6 +115,9 @@ public final class ServiceBrokerConfig {
 			return;
 		}
 		URL url = getClass().getResource(configPath);
+		if (url == null) {
+			url = getClass().getResource('/' + configPath);
+		}
 		if (url != null) {
 			config = loadConfig(url.openStream(), format);
 			applyConfiguration();
@@ -128,21 +146,27 @@ public final class ServiceBrokerConfig {
 		setNodeID(config.get("nodeID", nodeID));
 
 		// Create executor
-		String clazz = config.get("executor.class", "");
-		if (!clazz.isEmpty()) {
-			setExecutor((Executor) Class.forName(clazz).newInstance());
+		String value = config.get("executor.class", "");
+		if (!value.isEmpty()) {
+			setExecutor((ExecutorService) Class.forName(value).newInstance());
 		}
 
 		// Create scheduler
-		clazz = config.get("scheduler.class", "");
-		if (!clazz.isEmpty()) {
-			setScheduler((ScheduledExecutorService) Class.forName(clazz).newInstance());
+		value = config.get("scheduler.class", "");
+		if (!value.isEmpty()) {
+			setScheduler((ScheduledExecutorService) Class.forName(value).newInstance());
+		}
+		
+		// Should terminate thread pools on stop()?
+		value = config.get("shutDownThreadPools", "");
+		if (!value.isEmpty()) {
+			shutDownThreadPools = "true".equals(value);
 		}
 		
 		// Create component registry
-		clazz = config.get("componentRegistry.class", "");
-		if (!clazz.isEmpty()) {
-			setComponentRegistry((ComponentRegistry) Class.forName(clazz).newInstance());
+		value = config.get("componentRegistry.class", "");
+		if (!value.isEmpty()) {
+			setComponentRegistry((ComponentRegistry) Class.forName(value).newInstance());
 		}		
 	}
 
@@ -240,11 +264,11 @@ public final class ServiceBrokerConfig {
 		this.invocationStrategyFactory = invocationStrategyFactory;
 	}
 
-	public final Executor getExecutor() {
+	public final ExecutorService getExecutor() {
 		return executor;
 	}
 
-	public final void setExecutor(Executor executor) {
+	public final void setExecutor(ExecutorService executor) {
 		Objects.nonNull(executor);
 		this.executor = executor;
 	}
@@ -281,6 +305,14 @@ public final class ServiceBrokerConfig {
 		this.componentRegistry = componentRegistry;
 	}
 
+	public final boolean getShutDownThreadPools() {
+		return shutDownThreadPools;
+	}
+
+	public final void setShutDownThreadPools(boolean shutDownThreadPools) {
+		this.shutDownThreadPools = shutDownThreadPools;
+	}
+	
 	// --- PRIVATE UTILITIES ---
 
 	static final Tree loadConfig(InputStream in, String format) throws Exception {

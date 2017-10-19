@@ -4,6 +4,10 @@ import services.moleculer.services.Name;
 
 /**
  * Factory of round-robin invocation strategy.
+ * 
+ * @see NanoSecInvocationStrategyFactory
+ * @see SecureRandomInvocationStrategyFactory
+ * @see XORShiftInvocationStrategyFactory
  */
 @Name("Round-Robin Invocation Strategy Factory")
 public final class RoundRobinInvocationStrategyFactory extends ArrayBasedInvocationStrategyFactory {

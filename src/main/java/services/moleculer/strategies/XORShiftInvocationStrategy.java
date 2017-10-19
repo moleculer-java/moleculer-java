@@ -7,6 +7,10 @@ import services.moleculer.services.Name;
 
 /**
  * XORSHIFT-based pseudorandom invocation strategy.
+ * 
+ * @see RoundRobinInvocationStrategy
+ * @see NanoSecInvocationStrategy
+ * @see SecureRandomInvocationStrategy
  */
 @Name("XORSHIFT Pseudorandom Invocation Strategy")
 public final class XORShiftInvocationStrategy extends ArrayBasedInvocationStrategy {

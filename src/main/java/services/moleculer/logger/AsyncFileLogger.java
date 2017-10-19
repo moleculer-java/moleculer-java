@@ -60,7 +60,9 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 
 			@Override
 			public Thread newThread(Runnable runnable) {
-				return new Thread(runnable, "Asynchronous Log Writer");
+				Thread thread = new Thread(runnable, "Asynchronous Log Writer");
+				thread.setDaemon(true);
+				return thread;
 			}
 		};
 
@@ -89,7 +91,6 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 			// String message = getFormatter().format(record);
 			Formatter formatter = getFormatter();
 			StringBuilder lines = new StringBuilder(512);
-			String packet;
 
 			while (true) {
 
@@ -102,27 +103,8 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 					messages.clear();
 				}
 
-				// Append records
-				if (records.isEmpty()) {
-					continue;
-				}
-				lines.setLength(0);
-				for (LogRecord record : records) {
-					lines.append(formatter.format(record));
-				}
-				records.clear();
-				packet = lines.toString();
-
-				// Write records to log file
-				if (logDirectory != null) {
-					String date = FILE_FORMAT.format(new Date());
-					appendToFile(prefix + date + ".log", packet.getBytes(fileEncoding));
-				}
-
-				// Write records to console
-				if (logToConsole) {
-					System.out.println(packet.trim());
-				}
+				// Write records to console and/or file
+				writeLines(records, lines, formatter);
 
 				// Waiting for other log records
 				Thread.sleep(400);
@@ -132,6 +114,27 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 		} catch (Exception e) {
 			records.clear();
 			e.printStackTrace();
+		}
+	}
+
+	private final void writeLines(LinkedList<LogRecord> records, StringBuilder lines, Formatter formatter)
+			throws Exception {
+		lines.setLength(0);
+		for (LogRecord record : records) {
+			lines.append(formatter.format(record));
+		}
+		records.clear();
+		String packet = lines.toString();
+
+		// Write records to log file
+		if (logDirectory != null) {
+			String date = FILE_FORMAT.format(new Date());
+			appendToFile(prefix + date + ".log", packet.getBytes(fileEncoding));
+		}
+
+		// Write records to console
+		if (logToConsole) {
+			System.out.println(packet.trim());
 		}
 	}
 
@@ -259,6 +262,21 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 		if (executor != null) {
 			executor.shutdown();
 			executor = null;
+		}
+
+		// Write rest of the log
+		LinkedList<LogRecord> records = new LinkedList<>();
+		synchronized (messages) {
+			if (!messages.isEmpty()) {
+				records.addAll(messages);
+				messages.clear();
+			}
+		}
+		if (!records.isEmpty()) {
+			try {
+				writeLines(records, new StringBuilder(512), getFormatter());
+			} catch (Exception ignored) {
+			}
 		}
 
 		// Close stream

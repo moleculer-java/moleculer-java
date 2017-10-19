@@ -4,6 +4,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import com.lambdaworks.redis.RedisClient;
 import com.lambdaworks.redis.RedisFuture;
@@ -22,6 +24,7 @@ import com.lambdaworks.redis.resource.DefaultClientResources;
 import io.datatree.Tree;
 import io.datatree.dom.TreeWriter;
 import io.datatree.dom.TreeWriterRegistry;
+import io.netty.channel.nio.NioEventLoopGroup;
 import rx.Observable;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
@@ -33,7 +36,7 @@ import services.moleculer.utils.Serializer;
  * Redis-based cache implementation. Supports SSL and password authentication.
  */
 @Name("Redis Cacher")
-public class RedisCacher extends Cacher {
+public final class RedisCacher extends Cacher {
 
 	// --- PROPERTIES ---
 
@@ -47,6 +50,7 @@ public class RedisCacher extends Cacher {
 	 */
 	private int ttl;
 
+	private NioEventLoopGroup closeableGroup;
 
 	// --- REDIS CLIENTS ---
 
@@ -111,7 +115,7 @@ public class RedisCacher extends Cacher {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
+	public final void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
 		Tree urlNode = config.get("urls");
@@ -153,6 +157,16 @@ public class RedisCacher extends Cacher {
 		// Init Redis client
 		if (client == null && clusteredClient == null) {
 
+			// Get or create NioEventLoopGroup
+			NioEventLoopGroup redisGroup;
+			ExecutorService executor = broker.components().executor();
+			if (executor instanceof NioEventLoopGroup) {
+				redisGroup = (NioEventLoopGroup) executor;
+			} else {
+				redisGroup = new NioEventLoopGroup(1);
+				closeableGroup = redisGroup;
+			}
+			
 			// Create Redis connection
 			List<RedisURI> redisURIs = RedisUtilities.parseURLs(urls, password, useSSL, startTLS);
 			DefaultClientResources clientResources = RedisUtilities.createClientResources(new EventBus() {
@@ -180,7 +194,7 @@ public class RedisCacher extends Cacher {
 					return null;
 				}
 
-			});
+			}, redisGroup);
 			ByteArrayCodec codec = new ByteArrayCodec();
 			if (urls.length > 1) {
 
@@ -199,7 +213,7 @@ public class RedisCacher extends Cacher {
 	// --- CLOSE CACHE INSTANCE ---
 
 	@Override
-	public void stop() {
+	public final void stop() {
 		if (client != null) {
 			client.close();
 			client = null;
@@ -208,12 +222,15 @@ public class RedisCacher extends Cacher {
 			clusteredClient.close();
 			clusteredClient = null;
 		}
+		if (closeableGroup != null) {
+			closeableGroup.shutdownGracefully(1, 3, TimeUnit.SECONDS);
+		}
 	}
 
 	// --- CACHE METHODS ---
 
 	@Override
-	public Promise get(String key) {
+	public final Promise get(String key) {
 		try {
 
 			// Create cache key
@@ -246,7 +263,7 @@ public class RedisCacher extends Cacher {
 	}
 
 	@Override
-	public void set(String key, Tree value) {
+	public final void set(String key, Tree value) {
 		byte[] binaryKey = key.getBytes(StandardCharsets.UTF_8);
 		byte[] bytes = Serializer.serialize(value, null);
 
@@ -277,7 +294,7 @@ public class RedisCacher extends Cacher {
 	}
 
 	@Override
-	public void del(String key) {
+	public final void del(String key) {
 		byte[] binaryKey = key.getBytes(StandardCharsets.UTF_8);
 		if (client != null) {
 			client.del(binaryKey);
@@ -289,7 +306,7 @@ public class RedisCacher extends Cacher {
 	}
 
 	@Override
-	public void clean(String match) {
+	public final void clean(String match) {
 	}
 
 	// --- GETTERS / SETTERS ---

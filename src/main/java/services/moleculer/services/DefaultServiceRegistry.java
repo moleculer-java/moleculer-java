@@ -278,9 +278,8 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 				}
 			}
 
-			// Start services
-			service.started();
-			logger.info("Service \"" + service.name + "\" started.");
+			// TODO Start service if registry started
+			
 		} finally {
 			writerLock.unlock();
 		}

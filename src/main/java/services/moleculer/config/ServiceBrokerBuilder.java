@@ -1,7 +1,7 @@
 package services.moleculer.config;
 
 import java.util.Objects;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 import io.datatree.Tree;
@@ -44,7 +44,7 @@ public class ServiceBrokerBuilder {
 		return this;
 	}
 
-	public final ServiceBrokerBuilder executor(Executor executor) {
+	public final ServiceBrokerBuilder executor(ExecutorService executor) {
 		config.setExecutor(executor);
 		return this;
 	}

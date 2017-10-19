@@ -40,7 +40,10 @@ import services.moleculer.services.ServiceRegistry;
  * &lt;/bean&gt;<br>
  * </ul>
  * &lt;/beans&gt;
- */
+ * 
+ * @see StandaloneComponentRegistry
+ * @see GuiceComponentRegistry
+*/
 @Name("Spring Component Registry")
 public final class SpringComponentRegistry extends BaseComponentRegistry implements ApplicationContextAware {
 

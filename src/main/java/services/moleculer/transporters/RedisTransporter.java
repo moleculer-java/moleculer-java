@@ -3,6 +3,7 @@ package services.moleculer.transporters;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 import com.lambdaworks.redis.RedisClient;
 import com.lambdaworks.redis.RedisURI;
@@ -18,28 +19,28 @@ import com.lambdaworks.redis.pubsub.api.async.RedisPubSubAsyncCommands;
 import com.lambdaworks.redis.resource.DefaultClientResources;
 
 import io.datatree.Tree;
+import io.netty.channel.nio.NioEventLoopGroup;
 import rx.Observable;
 import services.moleculer.ServiceBroker;
 import services.moleculer.services.Name;
-import services.moleculer.services.ServiceRegistry;
 import services.moleculer.utils.RedisUtilities;
 import services.moleculer.utils.Serializer;
 
 @Name("Redis Transporter")
 public final class RedisTransporter extends Transporter {
 
-	// --- VARIABLES ---
+	// --- PROPERTIES ---
 
-	protected String[] urls = new String[] { "localhost" };
-	protected String password;
-	protected boolean useSSL;
-	protected boolean startTLS;
+	private String[] urls = new String[] { "localhost" };
+	private String password;
+	private boolean useSSL;
+	private boolean startTLS;
 
-	protected StatefulRedisPubSubConnection<byte[], byte[]> clientSub;
-	protected RedisPubSubAsyncCommands<byte[], byte[]> clientPub;
-
-	protected ServiceRegistry serviceRegistry;
-
+	private StatefulRedisPubSubConnection<byte[], byte[]> clientSub;
+	private RedisPubSubAsyncCommands<byte[], byte[]> clientPub;
+	
+	private NioEventLoopGroup closeableGroup;
+	
 	// --- CONSTUCTORS ---
 
 	public RedisTransporter() {
@@ -111,6 +112,16 @@ public final class RedisTransporter extends Transporter {
 		// Init Redis client
 		if (clientSub == null) {
 
+			// Get or create NioEventLoopGroup
+			NioEventLoopGroup redisGroup;
+			ExecutorService executor = broker.components().executor();
+			if (executor instanceof NioEventLoopGroup) {
+				redisGroup = (NioEventLoopGroup) executor;
+			} else {
+				redisGroup = new NioEventLoopGroup(1);
+				closeableGroup = redisGroup;
+			}
+			
 			// Create Redis connection
 			final List<RedisURI> redisURIs = RedisUtilities.parseURLs(urls, password, useSSL, startTLS);
 			final RedisTransporter self = this;
@@ -122,7 +133,7 @@ public final class RedisTransporter extends Transporter {
 					// Connected to Redis server
 					if (event instanceof ConnectionActivatedEvent) {
 						ConnectionActivatedEvent e = (ConnectionActivatedEvent) event;
-						logger.info("Redis transporter connected to " + e.remoteAddress() + ".");
+						logger.info("Redis Transporter connected to " + e.remoteAddress() + ".");
 						self.connected();
 						return;
 					}
@@ -130,7 +141,7 @@ public final class RedisTransporter extends Transporter {
 					// Disconnected from Redis server
 					if (event instanceof ConnectionDeactivatedEvent) {
 						ConnectionDeactivatedEvent e = (ConnectionDeactivatedEvent) event;
-						logger.info("Redis transporter disconnected from " + e.remoteAddress() + ".");
+						logger.info("Redis Transporter disconnected from " + e.remoteAddress() + ".");
 						self.disconnected();
 						return;
 					}
@@ -141,7 +152,7 @@ public final class RedisTransporter extends Transporter {
 					return null;
 				}
 
-			});
+			}, redisGroup);
 			if (urls.length > 1) {
 
 				// Clustered client
@@ -196,10 +207,16 @@ public final class RedisTransporter extends Transporter {
 	 */
 	@Override
 	public final void stop() {
-		clientPub = null;
+		if (clientPub != null) {
+			clientPub.close();
+			clientPub = null;
+		}
 		if (clientSub != null) {
 			clientSub.close();
 			clientSub = null;
+		}
+		if (closeableGroup != null) {
+			closeableGroup.shutdownGracefully();
 		}
 	}
 
@@ -207,7 +224,6 @@ public final class RedisTransporter extends Transporter {
 
 	@Override
 	public final void subscribe(String channel) {
-		System.out.println("subscribe: " + channel);
 		if (clientPub != null) {
 			clientPub.subscribe(channel.getBytes(StandardCharsets.UTF_8));
 		}
@@ -217,7 +233,6 @@ public final class RedisTransporter extends Transporter {
 
 	@Override
 	public final void publish(String channel, Tree message) {
-		System.out.println("publish: " + channel + "\r\n" + message);
 		if (clientPub != null) {
 			try {
 				clientPub.publish(channel.getBytes(StandardCharsets.UTF_8),
