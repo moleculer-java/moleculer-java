@@ -238,11 +238,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 	public final void addService(Service service, Tree config) throws Exception {
 		writerLock.lock();
 		try {
-
-			// Init service
-			service.start(broker, null);
-			serviceMap.put(service.name, service);
-
+		
 			// Initialize actions in services
 			Class<? extends Service> clazz = service.getClass();
 			Field[] fields = clazz.getFields();
@@ -278,7 +274,9 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 				}
 			}
 
-			// TODO Start service if registry started
+			// Start service
+			service.start(broker, config);
+			serviceMap.put(service.name, service);
 			
 		} finally {
 			writerLock.unlock();

@@ -164,11 +164,13 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 
 		// Load Moleculer Services and Components (eg. DAO classes) with Guice
 		// CDI framework
-		ServiceRegistry serviceRegistry = broker.components().serviceRegistry();
 		for (String packageName : packagesToScan) {
 			if (!packageName.isEmpty()) {
 				LinkedList<String> classNames = scan(packageName);
 				for (String className : classNames) {
+					if (className.indexOf('$') > -1) {
+						continue;
+					}
 					className = packageName + '.' + className;
 					try {
 						Class<?> type = Class.forName(className);
@@ -178,7 +180,7 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 						if (Service.class.isAssignableFrom(type)) {
 							Service service = (Service) injector.getInstance(type);
 							String name = service.name();
-							serviceRegistry.addService(service, configOf(name, config));
+							broker.createService(service, configOf(name, config));
 							logger.info("Object \"" + name + "\" registered as Moleculer Service.");
 							continue;
 						}

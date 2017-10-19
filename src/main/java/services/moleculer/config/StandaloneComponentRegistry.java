@@ -7,7 +7,6 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.services.Name;
 import services.moleculer.services.Service;
-import services.moleculer.services.ServiceRegistry;
 import services.moleculer.utils.CommonUtils;
 
 /**
@@ -84,11 +83,13 @@ public final class StandaloneComponentRegistry extends BaseComponentRegistry {
 		if (packagesToScan == null || packagesToScan.length == 0) {
 			return;
 		}
-		ServiceRegistry serviceRegistry = broker.components().serviceRegistry();
 		for (String packageName : packagesToScan) {
 			if (!packageName.isEmpty()) {
 				LinkedList<String> classNames = scan(packageName);
 				for (String className : classNames) {
+					if (className.indexOf('$') > -1) {
+						continue;
+					}
 					className = packageName + '.' + className;
 					try {
 						Object component = Class.forName(className).newInstance();
@@ -100,7 +101,7 @@ public final class StandaloneComponentRegistry extends BaseComponentRegistry {
 						if (component instanceof Service) {
 							Service service = (Service) component;
 							String name = service.name();
-							serviceRegistry.addService(service, configOf(name, config));
+							broker.createService(service, configOf(name, config));
 							logger.info("Object \"" + name + "\" registered as Moleculer Service.");
 							continue;
 						}
@@ -113,7 +114,7 @@ public final class StandaloneComponentRegistry extends BaseComponentRegistry {
 							logger.info("Object \"" + name + "\" registered as Moleculer Component.");
 						}
 					} catch (Throwable cause) {
-						logger.debug("Unable to load class \"" + className + "\"!", cause);
+						logger.warn("Unable to load class \"" + className + "\"!", cause);
 					}
 				}
 			}

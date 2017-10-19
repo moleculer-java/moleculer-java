@@ -1,11 +1,14 @@
 package services.moleculer;
 
-import org.springframework.stereotype.Component;
-
+import services.moleculer.services.Action;
+import services.moleculer.services.Name;
 import services.moleculer.services.Service;
 
-@Component
+@Name("math")
 public class TestService extends Service {
-	
-	
+
+	public Action add = (ctx) -> {
+		return ctx.params().get("a").asInteger() + ctx.params().get("b").asInteger();
+	};
+
 }

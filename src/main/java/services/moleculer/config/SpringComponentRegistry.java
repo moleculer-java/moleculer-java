@@ -11,7 +11,6 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.services.Name;
 import services.moleculer.services.Service;
-import services.moleculer.services.ServiceRegistry;
 
 /**
  * Spring-based Component Registry. The Spring Framework provides a
@@ -97,12 +96,11 @@ public final class SpringComponentRegistry extends BaseComponentRegistry impleme
 		}
 
 		// Find Moleculer Components (eg. DAO classes) in Spring Application Context
-		ServiceRegistry serviceRegistry = broker.components().serviceRegistry();
 		Map<String, Service> serviceMap = ctx.getBeansOfType(Service.class);
 		for (Map.Entry<String, Service> entry : serviceMap.entrySet()) {
 			Service service = entry.getValue();
 			String name = service.name();
-			serviceRegistry.addService(service, configOf(name, config));
+			broker.createService(service, configOf(name, config));
 			logger.info("Spring Bean \"" + name + "\" registered as Moleculer Service.");
 		}
 	}

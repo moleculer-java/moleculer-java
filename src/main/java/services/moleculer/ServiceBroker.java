@@ -1,5 +1,8 @@
 package services.moleculer;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,6 +14,7 @@ import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.services.ActionContainer;
 import services.moleculer.services.Service;
+import services.moleculer.services.ServiceRegistry;
 import services.moleculer.transporters.Transporter;
 import services.moleculer.utils.CommonUtils;
 
@@ -37,6 +41,12 @@ public final class ServiceBroker {
 
 	private final ComponentRegistry components;
 
+	// --- OTHER INTERNAL PROPERTIES AND VARIABLES ---
+
+	private ServiceRegistry serviceRegistry;
+	
+	private final LinkedHashMap<Service, Tree> services = new LinkedHashMap<>();
+
 	// --- STATIC SERVICE BROKER BUILDER ---
 
 	public static final ServiceBrokerBuilder builder() {
@@ -62,7 +72,7 @@ public final class ServiceBroker {
 		// Set nodeID
 		nodeID = configuration.getNodeID();
 
-		// Configuration
+		// Configuration (created by builder)
 		brokerConfig = configuration;
 
 		// Optional configuration (loaded from file)
@@ -90,6 +100,11 @@ public final class ServiceBroker {
 	 * Start broker. If has transporter, transporter.connect will be called.
 	 */
 	public final boolean start() {
+		
+		// Check state
+		if (serviceRegistry != null) {
+			throw new IllegalStateException("Moleculer Service Broker has already been started!");
+		}
 		try {
 
 			// Start internal and custom components
@@ -103,13 +118,33 @@ public final class ServiceBroker {
 			logger.info("Node \"" + nodeID + "\" started successfully.");
 
 			// Set the pointers of frequently used components
-			// serviceRegistry = components.serviceRegistry();
-			// eventBus = components.eventBus();
+			serviceRegistry = components.serviceRegistry();
 			// ...
 
+			// Start pending services
+			Tree config;
+			Service service;
+			for (Map.Entry<Service, Tree> entry: services.entrySet()) {
+				service = entry.getKey();
+				config = entry.getValue();
+				
+				// TODO modify nameOf
+				name = CommonUtils.nameOf(service);
+				if (name.indexOf(' ') == -1) {
+					name = "\"" + name + "\"";
+				}
+				
+				if (config == null) {
+					config = new Tree();
+				}
+				serviceRegistry.addService(service, config);
+			}
+			
+			// All components and services started successfully
+			services.clear();
 			return true;
 		} catch (Throwable cause) {
-			logger.error("Startup process aborted!", cause);
+			logger.error("Moleculer Service Broker could not be started!", cause);
 			stop();
 		}
 		return false;
@@ -121,11 +156,17 @@ public final class ServiceBroker {
 	 * Stop broker. If has transporter, transporter.disconnect will be called.
 	 */
 	public final void stop() {
-
-		// Start internal and custom components
-		logger.info("Moleculer Service Broker stopping node \"" + nodeID + "\"...");
-		components.stop();
-		logger.info("Node \"" + nodeID + "\" stopped.");
+		if (serviceRegistry != null) {
+			
+			// Stop internal and custom components
+			logger.info("Moleculer Service Broker stopping node \"" + nodeID + "\"...");
+			components.stop();
+			logger.info("Node \"" + nodeID + "\" stopped.");
+			
+			// Clear variables
+			services.clear();
+			serviceRegistry = null;
+		}		
 	}
 
 	// --- PUBLIC BROKER FUNCTIONS ---
@@ -137,36 +178,49 @@ public final class ServiceBroker {
 	}
 
 	/**
-	 * Create a new service by schema
+	 * Registers a new local service.
 	 * 
 	 * @param service
-	 * @return
+	 *            Service instance
+	 * @return optional service configuration
+	 * 
 	 * @throws Exception
+	 *             any exception
 	 */
-	public <T extends Service> T createService(T service) throws Exception {
-		return null;
+	public <T extends Service> T createService(T service, Tree config) throws Exception {
+		if (serviceRegistry == null) {
+			
+			// Start service later
+			services.put(service, config);
+		} else {
+			
+			// Start service now
+			serviceRegistry.addService(service, config);
+		}
+		return service;
 	}
 
 	/**
-	 * Destroy a local service
+	 * Destroys a local service
 	 * 
 	 * @param service
 	 */
-	public void destroyService(Service... service) {
+	public void destroyService(Service service) {
+		serviceRegistry.removeService(service);
 	}
 
 	/**
-	 * Get a local service by name
+	 * Returns a local service by name
 	 * 
 	 * @param serviceName
 	 * @return
 	 */
 	public Service getLocalService(String serviceName) {
-		return null;
+		return serviceRegistry.getService(serviceName);
 	}
 
 	/**
-	 * Get an action by name
+	 * Returns an action by name
 	 * 
 	 * @param actionName
 	 * @return
@@ -176,7 +230,7 @@ public final class ServiceBroker {
 	}
 
 	/**
-	 * Add a middleware to the broker
+	 * Adds a middleware to the broker
 	 * 
 	 * @param mws
 	 */
@@ -186,7 +240,7 @@ public final class ServiceBroker {
 	// --- INVOKE LOCAL OR REMOTE ACTION ---
 
 	/**
-	 * Call an action (local or remote)
+	 * Calls an action (local or remote)
 	 * 
 	 * @param actionName
 	 * @param params
@@ -201,7 +255,7 @@ public final class ServiceBroker {
 	// --- EMIT EVENTS VIA EVENT BUS ---
 
 	/**
-	 * Emit an event (grouped & balanced global event)
+	 * Emits an event (grouped & balanced global event)
 	 * 
 	 * @param name
 	 * @param payload
@@ -211,7 +265,7 @@ public final class ServiceBroker {
 	}
 
 	/**
-	 * Emit an event for all local & remote services
+	 * Emits an event for all local & remote services
 	 * 
 	 * @param name
 	 * @param payload
@@ -220,7 +274,7 @@ public final class ServiceBroker {
 	}
 
 	/**
-	 * Emit an event for all local services
+	 * Emits an event for all local services
 	 * 
 	 * @param name
 	 * @param payload
