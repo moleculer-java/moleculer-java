@@ -16,7 +16,8 @@ import services.moleculer.services.ActionContainer;
 import services.moleculer.services.Service;
 import services.moleculer.services.ServiceRegistry;
 import services.moleculer.transporters.Transporter;
-import services.moleculer.utils.CommonUtils;
+
+import static services.moleculer.utils.CommonUtils.nameOf;
 
 public final class ServiceBroker {
 
@@ -109,10 +110,7 @@ public final class ServiceBroker {
 
 			// Start internal and custom components
 			logger.info("Starting Moleculer Service Broker (version " + VERSION + ")...");
-			String name = CommonUtils.nameOf(components);
-			if (name.indexOf(' ') == -1) {
-				name = "\"" + name + "\"";
-			}
+			String name = nameOf(components, true);
 			logger.info("Using " + name + " to load service classes.");
 			components.start(this, brokerConfig, customConfig);
 			logger.info("Node \"" + nodeID + "\" started successfully.");
@@ -127,13 +125,6 @@ public final class ServiceBroker {
 			for (Map.Entry<Service, Tree> entry: services.entrySet()) {
 				service = entry.getKey();
 				config = entry.getValue();
-				
-				// TODO modify nameOf
-				name = CommonUtils.nameOf(service);
-				if (name.indexOf(' ') == -1) {
-					name = "\"" + name + "\"";
-				}
-				
 				if (config == null) {
 					config = new Tree();
 				}

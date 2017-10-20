@@ -8,12 +8,12 @@ import services.moleculer.services.Name;
 /**
  * Round-robin invocation strategy.
  * 
- * @see NanoSecInvocationStrategy
- * @see SecureRandomInvocationStrategy
- * @see XORShiftInvocationStrategy
+ * @see NanoSecRandomStrategy
+ * @see SecureRandomStrategy
+ * @see XORShiftRandomStrategy
  */
-@Name("Round-Robin Invocation Strategy")
-public final class RoundRobinInvocationStrategy extends ArrayBasedInvocationStrategy {
+@Name("Round-Robin Strategy")
+public final class RoundRobinStrategy extends ArrayBasedStrategy {
 
 	// --- PROPERTIES ---
 
@@ -21,7 +21,7 @@ public final class RoundRobinInvocationStrategy extends ArrayBasedInvocationStra
 
 	// --- CONSTRUCTOR ---
 	
-	public RoundRobinInvocationStrategy(boolean preferLocal) {
+	public RoundRobinStrategy(boolean preferLocal) {
 		super(preferLocal);
 	}
 	

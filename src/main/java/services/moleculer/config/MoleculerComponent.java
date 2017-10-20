@@ -12,5 +12,5 @@ public interface MoleculerComponent {
 	// --- STOP COMPONENT ---
 
 	public void stop();
-
+	
 }

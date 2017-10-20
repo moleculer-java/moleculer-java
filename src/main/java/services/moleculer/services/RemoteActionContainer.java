@@ -22,23 +22,20 @@ public final class RemoteActionContainer implements ActionContainer {
 
 	// --- CONSTRUCTOR ---
 
-	public RemoteActionContainer(ServiceBroker broker, Tree parameters) {
+	public RemoteActionContainer(ServiceBroker broker, Tree config) {
 
 		// Set nodeID
-		nodeID = parameters.get("nodeID", (String) null);
-		Objects.nonNull(nodeID);
+		nodeID = Objects.requireNonNull(config.get("nodeID", (String) null));
 
 		// Set name
-		name = parameters.get("name", (String) null);
-		Objects.nonNull(name);
+		name = Objects.requireNonNull(config.get("name", (String) null));
 
 		// Set service registry
-		serviceRegistry = broker.components().serviceRegistry();
-		Objects.nonNull(serviceRegistry);
+		serviceRegistry = Objects.requireNonNull(broker.components().serviceRegistry());
 
 		// Set cache parameters
-		cached = parameters.get("cached", false);
-		cacheKeys = parameters.get("cacheKeys", "").split(",");
+		cached = config.get("cached", false);
+		cacheKeys = config.get("cacheKeys", "").split(",");
 	}
 
 	// --- INVOKE REMOTE SERVICE ---

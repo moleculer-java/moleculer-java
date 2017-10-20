@@ -18,8 +18,11 @@ import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.GlobMatcher;
 import services.moleculer.services.Name;
-import services.moleculer.utils.CommonUtils;
 import services.moleculer.utils.Serializer;
+
+import static services.moleculer.utils.CommonUtils.getProperty;
+import static services.moleculer.utils.CommonUtils.compress;
+import static services.moleculer.utils.CommonUtils.decompress;
 
 /**
  * Off-heap cache implementation (it's similar to MemoryCacher, but stores
@@ -156,12 +159,12 @@ public final class OHCacher extends Cacher {
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		capacity = config.get("capacity", capacity);
-		segmentCount = config.get("segmentCount", segmentCount);
-		hashTableSize = config.get("hashTableSize", hashTableSize);
-		ttl = config.get("ttl", ttl);
-		compressAbove = config.get("compressAbove", compressAbove);
-		format = config.get("format", format);
+		capacity = getProperty(config, "capacity", capacity).asInteger();
+		segmentCount = getProperty(config, "segmentCount", segmentCount).asInteger();
+		hashTableSize = getProperty(config, "hashTableSize", hashTableSize).asInteger();
+		ttl = getProperty(config, "ttl", ttl).asInteger();
+		compressAbove = getProperty(config, "compressAbove", compressAbove).asInteger();
+		format = getProperty(config, "format", format).asString();
 
 		if (format != null) {
 			try {
@@ -304,7 +307,7 @@ public final class OHCacher extends Cacher {
 			part1 = key.substring(0, i).getBytes(StandardCharsets.UTF_8);
 			part2 = key.substring(i + 1).getBytes(StandardCharsets.UTF_8);
 			if (compressAbove > 0 && part2.length > compressAbove) {
-				part2 = CommonUtils.compress(part2);
+				part2 = compress(part2);
 				compressed = true;
 			} else {
 				compressed = false;
@@ -346,7 +349,7 @@ public final class OHCacher extends Cacher {
 		byte[] part1 = Serializer.serialize(tree, format);
 		boolean compressed;
 		if (compressAbove > 0 && part1.length > compressAbove) {
-			part1 = CommonUtils.compress(part1);
+			part1 = compress(part1);
 			compressed = true;
 		} else {
 			compressed = false;
@@ -374,7 +377,7 @@ public final class OHCacher extends Cacher {
 		if (len > 0) {
 			dis.readFully(part1);
 			if (dis.readBoolean()) {
-				part1 = CommonUtils.decompress(part1);
+				part1 = decompress(part1);
 			}
 		}
 

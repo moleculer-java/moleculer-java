@@ -1,5 +1,8 @@
 package services.moleculer.config;
 
+import static services.moleculer.utils.CommonUtils.getProperty;
+import static services.moleculer.utils.CommonUtils.nameOf;
+
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
@@ -21,10 +24,9 @@ import services.moleculer.eventbus.EventBus;
 import services.moleculer.services.Name;
 import services.moleculer.services.Service;
 import services.moleculer.services.ServiceRegistry;
-import services.moleculer.strategies.InvocationStrategyFactory;
+import services.moleculer.strategies.StrategyFactory;
 import services.moleculer.transporters.Transporter;
 import services.moleculer.uids.UIDGenerator;
-import services.moleculer.utils.CommonUtils;
 
 /**
  * Guice-based Component Registry. Guice is a lightweight dependency injection
@@ -125,8 +127,8 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 	protected final void findServices(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		Tree packagesNode = config.get("packagesToScan");
-		if (packagesNode != null) {
+		Tree packagesNode = getProperty(config, "packagesToScan", null);
+		if (!packagesNode.isNull()) {
 			if (packagesNode.isPrimitive()) {
 
 				// List of packages
@@ -142,11 +144,11 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 				}
 			}
 		}
-		String s = config.get("stage", "").toUpperCase();
+		String s = getProperty(config, "stage", "").asString().toUpperCase();
 		if (!s.isEmpty()) {
 			stage = Stage.valueOf(s);
 		}
-		String m = config.get("module", "");
+		String m = getProperty(config, "module", "").asString();
 		if (!m.isEmpty()) {
 			module = (Module) Class.forName(m).newInstance();
 		}
@@ -186,9 +188,9 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 						}
 						if (MoleculerComponent.class.isAssignableFrom(type)) {
 							MoleculerComponent c = (MoleculerComponent) injector.getInstance(type);
-							String name = CommonUtils.nameOf(c);
+							String name = nameOf(c, true);
 							components.put(name, new MoleculerComponentContainer(c, configOf(name, config)));
-							logger.info("Object \"" + name + "\" registered as Moleculer Component.");
+							logger.info("Object " + name + " registered as Moleculer Component.");
 						}
 					} catch (Throwable cause) {
 						logger.warn("Unable to load class \"" + className + "\"!", cause);
@@ -259,9 +261,9 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 			if (uidGenerator != null) {
 				bind(UIDGenerator.class).toInstance(uidGenerator);
 			}
-			InvocationStrategyFactory invocationStrategyFactory = invocationStrategyFactory();
-			if (invocationStrategyFactory != null) {
-				bind(InvocationStrategyFactory.class).toInstance(invocationStrategyFactory);
+			StrategyFactory strategyFactory = strategyFactory();
+			if (strategyFactory != null) {
+				bind(StrategyFactory.class).toInstance(strategyFactory);
 			}
 			EventBus eventBus = eventBus();
 			if (eventBus != null) {

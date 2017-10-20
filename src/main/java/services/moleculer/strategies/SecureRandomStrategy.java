@@ -8,12 +8,12 @@ import services.moleculer.services.Name;
 /**
  * Java Random/SecureRandom-based invocation strategy.
  * 
- * @see RoundRobinInvocationStrategy
- * @see NanoSecInvocationStrategy
- * @see XORShiftInvocationStrategy
+ * @see RoundRobinStrategy
+ * @see NanoSecRandomStrategy
+ * @see XORShiftRandomStrategy
  */
-@Name("Secure Random Invocation Strategy")
-public final class SecureRandomInvocationStrategy extends ArrayBasedInvocationStrategy {
+@Name("Secure Random Strategy")
+public final class SecureRandomStrategy extends ArrayBasedStrategy {
 
 	// --- PROPERTIES ---
 
@@ -21,7 +21,7 @@ public final class SecureRandomInvocationStrategy extends ArrayBasedInvocationSt
 
 	// --- CONSTRUCTOR ---
 	
-	public SecureRandomInvocationStrategy(boolean preferLocal) {
+	public SecureRandomStrategy(boolean preferLocal) {
 		super(preferLocal);
 	}
 	

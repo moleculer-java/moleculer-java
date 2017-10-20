@@ -10,7 +10,7 @@ import services.moleculer.cachers.Cacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.services.ServiceRegistry;
-import services.moleculer.strategies.InvocationStrategyFactory;
+import services.moleculer.strategies.StrategyFactory;
 import services.moleculer.transporters.Transporter;
 import services.moleculer.uids.UIDGenerator;
 
@@ -69,8 +69,8 @@ public class ServiceBrokerBuilder {
 		return this;
 	}
 
-	public final ServiceBrokerBuilder invocationStrategyFactory(InvocationStrategyFactory invocationStrategyFactory) {
-		config.setInvocationStrategyFactory(invocationStrategyFactory);
+	public final ServiceBrokerBuilder strategyFactory(StrategyFactory strategyFactory) {
+		config.setStrategyFactory(strategyFactory);
 		return this;
 	}
 
@@ -102,9 +102,8 @@ public class ServiceBrokerBuilder {
 	// --- ADD CUSTOM COMPONENT ---
 	
 	public final ServiceBrokerBuilder addComponent(String id, MoleculerComponent component, Tree configuration) {
-		Objects.nonNull(component);
-		Objects.nonNull(id);
-		id = id.trim();
+		Objects.requireNonNull(component);
+		id = Objects.requireNonNull(id).trim();
 		if (id.isEmpty()) {
 			throw new IllegalArgumentException("Empty id is not allowed!");
 		}

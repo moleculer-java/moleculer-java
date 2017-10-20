@@ -19,6 +19,8 @@ import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.transporters.Transporter;
 
+import static services.moleculer.utils.CommonUtils.getProperty;
+
 @Name("Default Service Registry")
 public final class DefaultServiceRegistry extends ServiceRegistry {
 
@@ -85,11 +87,10 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
+		asyncLocalInvocation = getProperty(config, "asyncLocalInvocation", asyncLocalInvocation).asBoolean();
 		
 		// Parent service broker
-		this.broker = broker;
-		Objects.nonNull(broker);
+		this.broker = Objects.requireNonNull(broker);
 
 		// Async or direct local invocation
 		if (asyncLocalInvocation) {
@@ -99,8 +100,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 		}
 
 		// Set context factory
-		contextFactory = broker.components().contextFactory();
-		Objects.nonNull(contextFactory);
+		contextFactory = Objects.requireNonNull(broker.components().contextFactory());
 
 		// Set transporter (can be null)
 		transporter = broker.components().transporter();

@@ -1,0 +1,29 @@
+{
+
+	"prefix": "dev",
+	"nodeID": null,
+	
+	"componentRegistry": {
+		"type": "services.moleculer.config.StandaloneComponentRegistry",
+		"packagesToScan": "services.moleculer"
+	},
+	
+	"cacher": {
+		"type": "memory",
+		"opts": {
+			"ttl": 0,
+ 			"capacity": 10000
+ 		}
+	},
+	
+	"transporter": {
+		"type": "Redis",
+		"opts": {
+			"url": "localhost",
+			"password": null,
+			"useSSL": false,
+			"startTLS": false
+		}			
+	}
+	
+}

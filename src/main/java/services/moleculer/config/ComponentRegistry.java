@@ -12,7 +12,7 @@ import services.moleculer.cachers.Cacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.services.ServiceRegistry;
-import services.moleculer.strategies.InvocationStrategyFactory;
+import services.moleculer.strategies.StrategyFactory;
 import services.moleculer.transporters.Transporter;
 import services.moleculer.uids.UIDGenerator;
 
@@ -32,7 +32,7 @@ public abstract class ComponentRegistry {
 	public static final String COMPONENT_REGISTRY_ID = "componentRegistry";
 	public static final String CONTEXT_FACTORY_ID = "contextFactory";
 	public static final String UID_GENERATOR_ID = "uidGenerator";
-	public static final String INVOCATION_STRATEGY_FACTORY_ID = "invocationStrategyFactory";
+	public static final String STRATEGY_FACTORY_ID = "strategyFactory";
 	public static final String EVENT_BUS_ID = "eventBus";
 	public static final String CACHER_ID = "cacher";
 	public static final String SERVICE_REGISTRY_ID = "serviceRegistry";
@@ -78,7 +78,7 @@ public abstract class ComponentRegistry {
 
 	public abstract UIDGenerator uidGenerator();
 
-	public abstract InvocationStrategyFactory invocationStrategyFactory();
+	public abstract StrategyFactory strategyFactory();
 
 	public abstract ServiceRegistry serviceRegistry();
 
@@ -90,11 +90,11 @@ public abstract class ComponentRegistry {
 	
 	// --- GET IDS OF ALL COMPONENTS ---
 
-	public abstract String[] getComponentNames();
+	public abstract String[] componentNames();
 
 	// --- GET COMPONENT BY ID ---
 
-	public abstract MoleculerComponent getComponent(String id);
+	public abstract MoleculerComponent getByID(String id);
 
 	// --- CHECK COMPONENT ID ---
 

@@ -11,12 +11,12 @@ import services.moleculer.services.LocalActionContainer;
 /**
  * Abstract class for Round-Robin and Random invocation strategies.
  * 
- * @see RoundRobinInvocationStrategy
- * @see NanoSecInvocationStrategy
- * @see SecureRandomInvocationStrategy
- * @see XORShiftInvocationStrategy
+ * @see RoundRobinStrategy
+ * @see NanoSecRandomStrategy
+ * @see SecureRandomStrategy
+ * @see XORShiftRandomStrategy
  */
-public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
+public abstract class ArrayBasedStrategy extends Strategy {
 
 	// --- ARRAY OF THE ALL ACTION INSTANCES ---
 
@@ -36,7 +36,7 @@ public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 	
 	// --- CONSTRUCTOR ---
 	
-	public ArrayBasedInvocationStrategy(boolean preferLocal) {
+	public ArrayBasedStrategy(boolean preferLocal) {
 		this.preferLocal = preferLocal;
 	}
 	
@@ -107,17 +107,17 @@ public abstract class ArrayBasedInvocationStrategy extends InvocationStrategy {
 	@Override
 	public final ActionContainer get(String nodeID) {
 		if (nodeID == null) {
-			for (ActionContainer action : actions) {
-				if (action.nodeID().equals(nodeID)) {
-					return action;
-				}
+			if (!preferLocal || localAction == null) {
+				return next();
 			}
-			return null;
+			return localAction;
 		}
-		if (!preferLocal || localAction == null) {
-			return next();
+		for (ActionContainer action : actions) {
+			if (action.nodeID().equals(nodeID)) {
+				return action;
+			}
 		}
-		return localAction;		
+		return null;
 	}
 
 	// --- GET NEXT REMOTE INSTANCE ---

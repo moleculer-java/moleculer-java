@@ -1,5 +1,10 @@
 package services.moleculer.config;
 
+import static services.moleculer.utils.CommonUtils.getProperty;
+import static services.moleculer.utils.CommonUtils.idOf;
+import static services.moleculer.utils.CommonUtils.nameOf;
+import static services.moleculer.utils.CommonUtils.typeOf;
+
 import java.io.File;
 import java.net.URI;
 import java.net.URL;
@@ -18,14 +23,19 @@ import java.util.jar.JarFile;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.cachers.Cacher;
+import services.moleculer.cachers.MemoryCacher;
+import services.moleculer.cachers.RedisCacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.services.ServiceRegistry;
-import services.moleculer.strategies.InvocationStrategy;
-import services.moleculer.strategies.InvocationStrategyFactory;
+import services.moleculer.strategies.Strategy;
+import services.moleculer.strategies.StrategyFactory;
+import services.moleculer.strategies.NanoSecRandomStrategyFactory;
+import services.moleculer.strategies.RoundRobinStrategyFactory;
+import services.moleculer.transporters.NatsTransporter;
+import services.moleculer.transporters.RedisTransporter;
 import services.moleculer.transporters.Transporter;
 import services.moleculer.uids.UIDGenerator;
-import services.moleculer.utils.CommonUtils;
 
 /**
  * Abstract class for Standalone, Spring, and Guice Component Registries.
@@ -47,7 +57,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 
 	private ContextFactory contextFactory;
 	private UIDGenerator uidGenerator;
-	private InvocationStrategyFactory invocationStrategyFactory;
+	private StrategyFactory strategyFactory;
 	private EventBus eventBus;
 	private Cacher cacher;
 	private ServiceRegistry serviceRegistry;
@@ -84,7 +94,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		// Set internal components
 		contextFactory = brokerConfig.getContextFactory();
 		uidGenerator = brokerConfig.getUidGenerator();
-		invocationStrategyFactory = brokerConfig.getInvocationStrategyFactory();
+		strategyFactory = brokerConfig.getStrategyFactory();
 		serviceRegistry = brokerConfig.getServiceRegistry();
 		cacher = brokerConfig.getCacher();
 		eventBus = brokerConfig.getEventBus();
@@ -93,43 +103,97 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 
 		// Create components by config file
 		for (Tree componentConfig : customConfig) {
+
+			// Default value
+			if (componentConfig.isNull()) {
+				continue;
+			}
+
+			// Get id / name property
+			String id = idOf(componentConfig);
+
+			// Rewrite JavaScript config to Java-style config
+			if (componentConfig.isPrimitive()) {
+				if (TRANSPORTER_ID.equals(id)) {
+					String value = componentConfig.asString();
+					if (value.toLowerCase().contains("redis")) {
+						Tree cfg = new Tree().put("class", RedisTransporter.class.getName());
+						if (value.contains("://")) {
+							cfg.put("url", value);
+						}
+						componentConfig = cfg;
+					} else if (value.toLowerCase().contains("nats")) {
+						Tree cfg = new Tree().put("class", NatsTransporter.class.getName());
+						if (value.contains("://")) {
+							cfg.put("url", value);
+						}
+						componentConfig = cfg;
+					}
+				} else if (CACHER_ID.equals(id)) {
+					String value = componentConfig.asString();
+					if (value.toLowerCase().contains("redis")) {
+						Tree cfg = new Tree().put("class", RedisCacher.class.getName());
+						if (value.contains("://")) {
+							cfg.put("url", value);
+						}
+						componentConfig = cfg;
+					} else if (value.toLowerCase().contains("memory")) {
+						componentConfig = new Tree().put("class", MemoryCacher.class.getName());
+					}
+				}
+			}
+
+			// Ignore
 			if (!componentConfig.isMap()) {
 				continue;
 			}
 
-			// Get id property
-			String id = componentConfig.get("id", "");
-			if (id.isEmpty()) {
+			// Get class name / type
+			String type = typeOf(componentConfig);
 
-				// Get as XML attribute
-				id = componentConfig.get("@id", "");
+			// Rewrite JavaScript config to Java-style config
+			if (TRANSPORTER_ID.equals(id)) {
+				String test = type.toLowerCase();
+				if (test.equals("nats") || test.contains("nats(")) {
+					type = NatsTransporter.class.getName();
+				} else if (test.equals("redis") || test.contains("redis(")) {
+					type = RedisTransporter.class.getName();
+				}
+			} else if (CACHER_ID.equals(id)) {
+				String test = type.toLowerCase();
+				if (test.equals("memory") || test.contains("memory(")) {
+					type = MemoryCacher.class.getName();
+				} else if (test.equals("redis") || test.contains("redis(")) {
+					type = RedisCacher.class.getName();
+				}
+			} else if ("registry".equals(id)) {
+				id = STRATEGY_FACTORY_ID;
+				String strategy = getProperty(componentConfig, "strategy", "").asString();
+				String test = strategy.toLowerCase();
+				if (test.contains("moleculer.strategies.")) {
+					if (test.contains("robin")) {
+						type = RoundRobinStrategyFactory.class.getName();
+					} else if (test.contains("random")) {
+						type = NanoSecRandomStrategyFactory.class.getName();
+					}
+				} else {
+					type = strategy;
+				}
 			}
-			if (id.isEmpty()) {
 
-				// Use node name as id
-				id = componentConfig.getName();
-			}
-			id = id.trim();
-
-			// Get class name
-			String className = componentConfig.get("class", "");
-			if (className.isEmpty()) {
-
-				// Get class name as XML attribute
-				className = componentConfig.get("@class", "");
-			}
-			if (className.isEmpty()) {
+			// Unknown entry
+			if (type == null || type.isEmpty()) {
 				continue;
 			}
 
 			// Create instance
-			Class<?> implClass = Class.forName(className);
+			Class<?> implClass = Class.forName(type);
 			if (!MoleculerComponent.class.isAssignableFrom(implClass)) {
 				if (ComponentRegistry.class.isAssignableFrom(implClass)) {
 					continue;
 				}
 				throw new IllegalArgumentException(
-						"Class \"" + className + "\" must implement the MoleculerComponent interface!");
+						"Class \"" + type + "\" must implement the MoleculerComponent interface!");
 			}
 			MoleculerComponent component = (MoleculerComponent) implClass.newInstance();
 
@@ -150,8 +214,8 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 				cacher = (Cacher) component;
 				continue;
 			}
-			if (INVOCATION_STRATEGY_FACTORY_ID.equals(id) && checkType(InvocationStrategyFactory.class, implClass)) {
-				invocationStrategyFactory = (InvocationStrategyFactory) component;
+			if (STRATEGY_FACTORY_ID.equals(id) && checkType(StrategyFactory.class, implClass)) {
+				strategyFactory = (StrategyFactory) component;
 				continue;
 			}
 			if (SERVICE_REGISTRY_ID.equals(id) && checkType(ServiceRegistry.class, implClass)) {
@@ -175,7 +239,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		start(broker, uidGenerator, configOf(UID_GENERATOR_ID, customConfig));
 		start(broker, eventBus, configOf(EVENT_BUS_ID, customConfig));
 		start(broker, cacher, configOf(CACHER_ID, customConfig));
-		start(broker, invocationStrategyFactory, configOf(INVOCATION_STRATEGY_FACTORY_ID, customConfig));
+		start(broker, strategyFactory, configOf(STRATEGY_FACTORY_ID, customConfig));
 		start(broker, serviceRegistry, configOf(SERVICE_REGISTRY_ID, customConfig));
 		start(broker, transporter, configOf(TRANSPORTER_ID, customConfig));
 
@@ -198,8 +262,8 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		internalTypes.add(UIDGenerator.class);
 		internalTypes.add(EventBus.class);
 		internalTypes.add(Cacher.class);
-		internalTypes.add(InvocationStrategyFactory.class);
-		internalTypes.add(InvocationStrategy.class);
+		internalTypes.add(StrategyFactory.class);
+		internalTypes.add(Strategy.class);
 		internalTypes.add(ServiceRegistry.class);
 		internalTypes.add(Transporter.class);
 	}
@@ -271,11 +335,11 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 
 	private final void start(ServiceBroker broker, MoleculerComponent component, Tree config) throws Exception {
 		if (component != null) {
-			String name = CommonUtils.nameOf(component);
+			String name = nameOf(component, true);
 			try {
 				component.start(broker, config);
 				if (name.indexOf(' ') == -1) {
-					logger.info("Component \"" + name + "\" started.");
+					logger.info("Component " + name + " started.");
 				} else {
 					logger.info(name + " started.");
 				}
@@ -295,25 +359,6 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			}
 		}
 		return new Tree();
-	}
-
-	// --- GET ID OF A MOLECULER COMPONENT IN CONFIG ---
-
-	private static final String idOf(Tree tree) {
-
-		// Get id property
-		String id = tree.get("id", "");
-		if (id.isEmpty()) {
-
-			// Get as XML attribute
-			id = tree.get("@id", "");
-		}
-		if (id.isEmpty()) {
-
-			// Use node name as id
-			id = tree.getName();
-		}
-		return id.trim();
 	}
 
 	// --- CHECK TYPE OF CLASS ---
@@ -339,7 +384,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		// Stop internal components
 		stop(transporter);
 		stop(serviceRegistry);
-		stop(invocationStrategyFactory);
+		stop(strategyFactory);
 		stop(cacher);
 		stop(eventBus);
 		stop(uidGenerator);
@@ -364,11 +409,11 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 
 	private final void stop(MoleculerComponent component) {
 		if (component != null) {
-			String name = CommonUtils.nameOf(component);
+			String name = nameOf(component, true);
 			try {
 				component.stop();
 				if (name.indexOf(' ') == -1) {
-					logger.info("Component \"" + name + "\" stopped.");
+					logger.info("Component " + name + " stopped.");
 				} else {
 					logger.info(name + " stopped.");
 				}
@@ -403,8 +448,8 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	}
 
 	@Override
-	public final InvocationStrategyFactory invocationStrategyFactory() {
-		return invocationStrategyFactory;
+	public final StrategyFactory strategyFactory() {
+		return strategyFactory;
 	}
 
 	@Override
@@ -432,7 +477,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	private final AtomicReference<String[]> cachedNames = new AtomicReference<>();
 
 	@Override
-	public final String[] getComponentNames() {
+	public final String[] componentNames() {
 		String[] array = cachedNames.get();
 		if (array == null) {
 			HashSet<String> set = new HashSet<>();
@@ -448,8 +493,8 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			if (cacher != null) {
 				set.add(CACHER_ID);
 			}
-			if (invocationStrategyFactory != null) {
-				set.add(INVOCATION_STRATEGY_FACTORY_ID);
+			if (strategyFactory != null) {
+				set.add(STRATEGY_FACTORY_ID);
 			}
 			if (serviceRegistry != null) {
 				set.add(SERVICE_REGISTRY_ID);
@@ -471,7 +516,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	// --- GET COMPONENT BY ID ---
 
 	@Override
-	public final MoleculerComponent getComponent(String id) {
+	public final MoleculerComponent getByID(String id) {
 		switch (id) {
 		case CONTEXT_FACTORY_ID:
 			return contextFactory;
@@ -481,8 +526,8 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			return eventBus;
 		case CACHER_ID:
 			return cacher;
-		case INVOCATION_STRATEGY_FACTORY_ID:
-			return invocationStrategyFactory;
+		case STRATEGY_FACTORY_ID:
+			return strategyFactory;
 		case SERVICE_REGISTRY_ID:
 			return serviceRegistry;
 		case TRANSPORTER_ID:
@@ -509,8 +554,8 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			return eventBus != null;
 		case CACHER_ID:
 			return cacher != null;
-		case INVOCATION_STRATEGY_FACTORY_ID:
-			return invocationStrategyFactory != null;
+		case STRATEGY_FACTORY_ID:
+			return strategyFactory != null;
 		case SERVICE_REGISTRY_ID:
 			return serviceRegistry != null;
 		case TRANSPORTER_ID:

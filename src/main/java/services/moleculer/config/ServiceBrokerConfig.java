@@ -1,9 +1,11 @@
 package services.moleculer.config;
 
-import java.io.ByteArrayOutputStream;
+import static services.moleculer.utils.CommonUtils.getFormat;
+import static services.moleculer.utils.CommonUtils.readTree;
+import static services.moleculer.utils.CommonUtils.getProperty;
+
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.URL;
 import java.util.LinkedHashMap;
@@ -26,8 +28,8 @@ import services.moleculer.eventbus.DefaultEventBus;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.services.DefaultServiceRegistry;
 import services.moleculer.services.ServiceRegistry;
-import services.moleculer.strategies.InvocationStrategyFactory;
-import services.moleculer.strategies.RoundRobinInvocationStrategyFactory;
+import services.moleculer.strategies.StrategyFactory;
+import services.moleculer.strategies.RoundRobinStrategyFactory;
 import services.moleculer.transporters.Transporter;
 import services.moleculer.uids.TimeSequenceUIDGenerator;
 import services.moleculer.uids.UIDGenerator;
@@ -65,12 +67,22 @@ public final class ServiceBrokerConfig {
 	private ServiceRegistry serviceRegistry = new DefaultServiceRegistry();
 	private EventBus eventBus = new DefaultEventBus();
 	private UIDGenerator uidGenerator = new TimeSequenceUIDGenerator();
-	private InvocationStrategyFactory invocationStrategyFactory = new RoundRobinInvocationStrategyFactory();
+	private StrategyFactory strategyFactory = new RoundRobinStrategyFactory();
 	private Transporter transporter;
 	private Cacher cacher = new MemoryCacher();
 
 	private final LinkedHashMap<String, MoleculerComponentContainer> components = new LinkedHashMap<>();
 
+	// --- INSTALL JS PARSER ---
+	
+	static {
+		try {
+			TreeReaderRegistry.getReader("js");
+		} catch (Exception ignored) {
+			TreeReaderRegistry.setReader("js", new JSReader());
+		}
+	}
+	
 	// --- CONSTRUCTORS ---
 
 	public ServiceBrokerConfig() {		
@@ -110,7 +122,7 @@ public final class ServiceBrokerConfig {
 		logger.info("Loading configuration from \"" + configPath + "\" in "
 				+ (format == null ? "JSON" : format.toUpperCase()) + " format...");
 		if (configPath.startsWith("http:") || configPath.startsWith("https:") || configPath.startsWith("file:")) {
-			config = loadConfig(new URL(configPath).openStream(), format);
+			config = readTree(new URL(configPath).openStream(), format);
 			applyConfiguration();
 			return;
 		}
@@ -119,13 +131,13 @@ public final class ServiceBrokerConfig {
 			url = getClass().getResource('/' + configPath);
 		}
 		if (url != null) {
-			config = loadConfig(url.openStream(), format);
+			config = readTree(url.openStream(), format);
 			applyConfiguration();
 			return;
 		}
 		File file = new File(configPath);
 		if (file.isFile()) {
-			config = loadConfig(new FileInputStream(file), format);
+			config = readTree(new FileInputStream(file), format);
 			applyConfiguration();
 			return;
 		}
@@ -142,8 +154,8 @@ public final class ServiceBrokerConfig {
 		}
 		
 		// Set base proeprties
-		setNamespace(config.get("namespace", namespace));
-		setNodeID(config.get("nodeID", nodeID));
+		setNamespace(getProperty(config, "namespace", namespace).asString());
+		setNodeID(getProperty(config, "nodeID", nodeID).asString());
 
 		// Create executor
 		String value = config.get("executor.class", "");
@@ -167,7 +179,7 @@ public final class ServiceBrokerConfig {
 		value = config.get("componentRegistry.class", "");
 		if (!value.isEmpty()) {
 			setComponentRegistry((ComponentRegistry) Class.forName(value).newInstance());
-		}		
+		}
 	}
 
 	// --- GETTERS AND SETTERS ---
@@ -177,7 +189,7 @@ public final class ServiceBrokerConfig {
 	}
 
 	public final void setComponents(Map<String, MoleculerComponentContainer> components) {
-		Objects.nonNull(components);
+		Objects.requireNonNull(components);
 		components.clear();
 		components.putAll(components);
 	}
@@ -187,8 +199,7 @@ public final class ServiceBrokerConfig {
 	}
 
 	public final void setNamespace(String namespace) {
-		Objects.nonNull(namespace);
-		this.namespace = namespace;
+		this.namespace = Objects.requireNonNull(namespace);
 	}
 
 	public final String getNodeID() {
@@ -196,8 +207,7 @@ public final class ServiceBrokerConfig {
 	}
 
 	public final void setNodeID(String nodeID) {
-		Objects.nonNull(nodeID);
-		nodeID = nodeID.trim();
+		nodeID = Objects.requireNonNull(nodeID).trim();
 		if (nodeID.isEmpty()) {
 			throw new IllegalArgumentException("Empty nodeID is not allowed!");
 		}
@@ -233,8 +243,7 @@ public final class ServiceBrokerConfig {
 	}
 
 	public final void setEventBus(EventBus eventBus) {
-		Objects.nonNull(eventBus);
-		this.eventBus = eventBus;
+		this.eventBus = Objects.requireNonNull(eventBus);
 	}
 
 	public final UIDGenerator getUidGenerator() {
@@ -242,8 +251,7 @@ public final class ServiceBrokerConfig {
 	}
 
 	public final void setUidGenerator(UIDGenerator uidGenerator) {
-		Objects.nonNull(uidGenerator);
-		this.uidGenerator = uidGenerator;
+		this.uidGenerator = Objects.requireNonNull(uidGenerator);
 	}
 
 	public final ContextFactory getContextFactory() {
@@ -251,17 +259,15 @@ public final class ServiceBrokerConfig {
 	}
 
 	public final void setContextFactory(ContextFactory contextFactory) {
-		Objects.nonNull(contextFactory);
-		this.contextFactory = contextFactory;
+		this.contextFactory = Objects.requireNonNull(contextFactory);
 	}
 
-	public final InvocationStrategyFactory getInvocationStrategyFactory() {
-		return invocationStrategyFactory;
+	public final StrategyFactory getStrategyFactory() {
+		return strategyFactory;
 	}
 
-	public final void setInvocationStrategyFactory(InvocationStrategyFactory invocationStrategyFactory) {
-		Objects.nonNull(invocationStrategyFactory);
-		this.invocationStrategyFactory = invocationStrategyFactory;
+	public final void setStrategyFactory(StrategyFactory strategyFactory) {
+		this.strategyFactory = Objects.requireNonNull(strategyFactory);
 	}
 
 	public final ExecutorService getExecutor() {
@@ -269,8 +275,7 @@ public final class ServiceBrokerConfig {
 	}
 
 	public final void setExecutor(ExecutorService executor) {
-		Objects.nonNull(executor);
-		this.executor = executor;
+		this.executor = Objects.requireNonNull(executor);
 	}
 
 	public final ScheduledExecutorService getScheduler() {
@@ -278,8 +283,7 @@ public final class ServiceBrokerConfig {
 	}
 
 	public final void setScheduler(ScheduledExecutorService scheduler) {
-		Objects.nonNull(scheduler);
-		this.scheduler = scheduler;
+		this.scheduler = Objects.requireNonNull(scheduler);
 	}
 
 	public final Tree getConfig() {
@@ -287,8 +291,7 @@ public final class ServiceBrokerConfig {
 	}
 
 	public final void setConfig(Tree config) {
-		Objects.nonNull(config);
-		this.config = config;
+		this.config = Objects.requireNonNull(config);
 		try {
 			applyConfiguration();
 		} catch (Exception cause) {
@@ -301,8 +304,7 @@ public final class ServiceBrokerConfig {
 	}
 
 	public final void setComponentRegistry(ComponentRegistry componentRegistry) {
-		Objects.nonNull(scheduler);
-		this.componentRegistry = componentRegistry;
+		this.componentRegistry = Objects.requireNonNull(componentRegistry);
 	}
 
 	public final boolean getShutDownThreadPools() {
@@ -313,42 +315,4 @@ public final class ServiceBrokerConfig {
 		this.shutDownThreadPools = shutDownThreadPools;
 	}
 	
-	// --- PRIVATE UTILITIES ---
-
-	static final Tree loadConfig(InputStream in, String format) throws Exception {
-		try {
-			ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-			byte[] buffer = new byte[1024];
-			int length;
-			while ((length = in.read(buffer)) != -1) {
-				bytes.write(buffer, 0, length);
-			}
-			return new Tree(bytes.toByteArray(), format);
-		} finally {
-			if (in != null) {
-				in.close();
-			}
-		}
-	}
-
-	static final String getFormat(String path) {
-		path = path.toLowerCase();
-		int i = path.lastIndexOf('.');
-		if (i > 0) {
-			String format = path.substring(i + 1);
-			try {
-
-				// Is format valid?
-				TreeReaderRegistry.getReader(format);
-			} catch (Exception notSupported) {
-
-				// JSON
-				return null;
-			}
-		}
-
-		// JSON
-		return null;
-	}
-
 }

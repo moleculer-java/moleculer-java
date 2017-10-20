@@ -33,7 +33,7 @@
 
 	<!-- DEFINE INVOCATION STRATEGY (OPTIONAL) -->
 	
-	<bean id="strategyFactory" class="services.moleculer.strategies.NanoSecInvocationStrategyFactory">
+	<bean id="strategyFactory" class="services.moleculer.strategies.NanoSecRandomStrategyFactory">
 		<property name="preferLocal" value="true"/>
 	</bean>
 
@@ -46,14 +46,14 @@
 	<!-- CREATE BROKER CONFIGURATION (REQUIRED) -->
 
 	<bean id="brokerConfig" class="services.moleculer.config.ServiceBrokerConfig">
-		<property name="namespace"                 value="" />
-		<property name="nodeID"                    value="server-2" />
-		<property name="componentRegistry"         ref="componentRegistry"/>
+		<property name="namespace"          value="" />
+		<property name="nodeID"             value="server-2" />
+		<property name="componentRegistry"  ref="componentRegistry"/>
 		
-		<property name="cacher"                    ref="cacher"/>
-		<property name="transporter"               ref="transporter"/>
-		<property name="invocationStrategyFactory" ref="strategyFactory"/>
-		<property name="uidGenerator"              ref="uidGenerator"/>
+		<property name="cacher"             ref="cacher"/>
+		<property name="transporter"        ref="transporter"/>
+		<property name="strategyFactory"    ref="strategyFactory"/>
+		<property name="uidGenerator"       ref="uidGenerator"/>
 		
 		<!-- ... other configurations goes here ... -->
 		

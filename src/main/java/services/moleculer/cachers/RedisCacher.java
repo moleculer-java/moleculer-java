@@ -32,6 +32,8 @@ import services.moleculer.services.Name;
 import services.moleculer.utils.RedisUtilities;
 import services.moleculer.utils.Serializer;
 
+import static services.moleculer.utils.CommonUtils.getProperty;
+
 /**
  * Redis-based cache implementation. Supports SSL and password authentication.
  */
@@ -118,11 +120,11 @@ public final class RedisCacher extends Cacher {
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		Tree urlNode = config.get("urls");
-		if (urlNode == null) {
-			urlNode = config.get("url");
+		Tree urlNode = getProperty(config, "urls", null);
+		if (urlNode.isNull()) {
+			urlNode = getProperty(config, "url", null);
 		}
-		if (urlNode != null) {
+		if (!urlNode.isNull()) {
 			List<String> urlList;
 			if (urlNode.isPrimitive()) {
 				urlList = new LinkedList<>();
@@ -138,10 +140,10 @@ public final class RedisCacher extends Cacher {
 				urlList.toArray(urls);
 			}
 		}
-		password = config.get("password", password);
-		useSSL = config.get("useSSL", useSSL);
-		startTLS = config.get("startTLS", startTLS);
-		ttl = config.get("ttl", ttl);
+		password = getProperty(config, "password", password).asString();
+		useSSL = getProperty(config, "useSSL", useSSL).asBoolean();
+		startTLS = getProperty(config, "startTLS", startTLS).asBoolean();
+		ttl = getProperty(config, "ttl", ttl).asInteger();
 		
 		if (ttl > 0) {
 			

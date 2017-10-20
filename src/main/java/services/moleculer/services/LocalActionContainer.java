@@ -1,12 +1,14 @@
 package services.moleculer.services;
 
+import static services.moleculer.utils.CommonUtils.idOf;
+import static services.moleculer.utils.CommonUtils.nameOf;
+
 import java.util.Objects;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallingOptions;
-import services.moleculer.utils.CommonUtils;
 
 public final class LocalActionContainer implements ActionContainer {
 
@@ -30,19 +32,17 @@ public final class LocalActionContainer implements ActionContainer {
 	public LocalActionContainer(ServiceBroker broker, Tree parameters, Action instance) {
 
 		// Set name
-		String n = parameters.get("name", "");
+		String n = idOf(parameters);
 		if (n.isEmpty()) {
-			n = CommonUtils.nameOf(instance);
+			n = nameOf(instance, false);
 		}
 		name = n;
 
 		// Set nodeID
-		nodeID = broker.nodeID();
-		Objects.nonNull(nodeID);
+		nodeID = Objects.requireNonNull(broker.nodeID());
 
 		// Set action
-		action = instance;
-		Objects.nonNull(action);
+		action = Objects.requireNonNull(instance);
 
 		// Set cache parameters
 		cached = parameters.get("cached", false);

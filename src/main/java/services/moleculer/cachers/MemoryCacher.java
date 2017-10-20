@@ -15,6 +15,8 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.GlobMatcher;
 import services.moleculer.services.Name;
 
+import static services.moleculer.utils.CommonUtils.getProperty;
+
 /**
  * On-heap memory cache. MemoryCacher is the fastest cache implementation in
  * Moleculer. This is a distributed cache, the content of the cache is
@@ -94,8 +96,8 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		capacity = config.get("capacity", capacity);
-		ttl = config.get("ttl", ttl);
+		capacity = getProperty(config, "capacity", capacity).asInteger();
+		ttl = getProperty(config, "ttl", ttl).asInteger();
 
 		// Start timer
 		if (ttl > 0) {

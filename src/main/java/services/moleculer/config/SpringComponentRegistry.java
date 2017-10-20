@@ -12,6 +12,8 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.services.Name;
 import services.moleculer.services.Service;
 
+import static services.moleculer.utils.CommonUtils.getFormat;
+import static services.moleculer.utils.CommonUtils.readTree;
 /**
  * Spring-based Component Registry. The Spring Framework provides a
  * comprehensive programming and configuration model for modern Java-based
@@ -77,8 +79,8 @@ public final class SpringComponentRegistry extends BaseComponentRegistry impleme
 		if (configuration != null) {
 			Resource res = ctx.getResource(configuration);
 			if (res.isReadable()) {
-				String format = ServiceBrokerConfig.getFormat(configuration);
-				config = ServiceBrokerConfig.loadConfig(res.getInputStream(), format);
+				String format = getFormat(configuration);
+				config = readTree(res.getInputStream(), format);
 				logger.info("Configuration file \"" + configuration + "\" loaded.");
 			}
 		}

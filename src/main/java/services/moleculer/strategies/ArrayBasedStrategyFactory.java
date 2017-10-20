@@ -3,15 +3,17 @@ package services.moleculer.strategies;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 
+import static services.moleculer.utils.CommonUtils.getProperty;
+
 /**
  * Abstract class for Round-Robin and Random invocation strategy factories.
  * 
- * @see RoundRobinInvocationStrategyFactory
- * @see NanoSecInvocationStrategyFactory
- * @see SecureRandomInvocationStrategyFactory
- * @see XORShiftInvocationStrategyFactory
+ * @see RoundRobinStrategyFactory
+ * @see NanoSecRandomStrategyFactory
+ * @see SecureRandomStrategyFactory
+ * @see XORShiftRandomStrategyFactory
  */
-public abstract class ArrayBasedInvocationStrategyFactory extends InvocationStrategyFactory {
+public abstract class ArrayBasedStrategyFactory extends StrategyFactory {
 
 	// --- PROPERTIES ---
 	
@@ -22,11 +24,11 @@ public abstract class ArrayBasedInvocationStrategyFactory extends InvocationStra
 	
 	// --- CONSTRUCTORS ---
 		
-	public ArrayBasedInvocationStrategyFactory() {
+	public ArrayBasedStrategyFactory() {
 		this(true);
 	}
 	
-	public ArrayBasedInvocationStrategyFactory(boolean preferLocal) {
+	public ArrayBasedStrategyFactory(boolean preferLocal) {
 		this.preferLocal = preferLocal;
 	}
 	
@@ -44,7 +46,7 @@ public abstract class ArrayBasedInvocationStrategyFactory extends InvocationStra
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 		
 		// Process config
-		preferLocal = config.get("preferLocal", preferLocal);
+		preferLocal = getProperty(config, "preferLocal", preferLocal).asBoolean();
 	}
 
 	// --- GETTERS / SETTERS ---

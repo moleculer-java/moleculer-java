@@ -6,6 +6,8 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.services.Name;
 
+import static services.moleculer.utils.CommonUtils.getProperty;
+
 /**
  * Fast UIDGenerator, based on nodeID, timestamp and an atomic sequence number.
  * It's faster than the StandardUIDGenerator.
@@ -35,7 +37,7 @@ public final class TimeSequenceUIDGenerator extends UIDGenerator {
 	 */
 	@Override
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
-		String id = config.get("prefix", broker.nodeID());
+		String id = getProperty(config, "prefix", broker.nodeID()).asString();
 		prefix = (id + ':').toCharArray();
 	}
 
