@@ -1,8 +1,32 @@
+/**
+ * This software is licensed under MIT license.<br>
+ * <br>
+ * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * <br>
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:<br>
+ * <br>
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.<br>
+ * <br>
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package services.moleculer;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import io.datatree.Tree;
 
@@ -18,7 +42,7 @@ public class Promise {
 	// --- INTERNAL COMPLETABLE FUTURE ---
 
 	/**
-	 * An internal CompletableFuture, which does the working logic of this
+	 * An internal CompletableFuture, what does the working logic of this
 	 * Promise.
 	 */
 	protected final CompletableFuture<Tree> future;
@@ -151,27 +175,17 @@ public class Promise {
 	 * chain multiple functions together - increasing readability and making
 	 * individual functions, within the chain, more reusable. Sample code:<br>
 	 * <br>
-	 * return Promise.resolve().<b>then(() -> {</b><br>
-	 * <i>// ...do something...</i><br>
-	 * return null;<br>
-	 * <b>}).then(() -> {</b><br>
-	 * <i>// ...do something...</i><br>
-	 * return value;<br>
-	 * <b>})</b>.Catch(error -> {<br>
-	 * <i>// ...error handling...</i><br>
-	 * return value;<br>
-	 * });
+	 * return Promise.resolve().<b>then((value) -> {</b><br>
+	 * <i>// ...do something without any return value...</i><br>
+	 * <b>});</b>
 	 * 
 	 * @param action
-	 *            next action in the invocation chain (allowed return types:
-	 *            Promise, CompletableFuture, Tree, String, int, double, byte,
-	 *            float, short, long, boolean, byte[], UUID, Date, InetAddress,
-	 *            BigInteger, BigDecimal, and Java Collections with these types)
+	 *            next action in the invocation chain
 	 * 
 	 * @return output Promise
 	 */
-	public Promise then(Supplier<Object> action) {
-		return then(ignored -> action.get());
+	public Promise then(Consumer<Tree> action) {
+		return new Promise(future.thenAccept(action));
 	}
 
 	// --- ERROR HANDLER METHODS ---
@@ -186,7 +200,7 @@ public class Promise {
 	 * <b>}).Catch(error -> {</b><br>
 	 * <i>// catch error</i><br>
 	 * return 456;<br>
-	 * })
+	 * });
 	 * 
 	 * @param action
 	 *            error handler of the previous "next" handlers
@@ -212,21 +226,22 @@ public class Promise {
 	 * Promise.resolve().then(() -> {<br>
 	 * <i>// do something</i><br>
 	 * return 123;<br>
-	 * <b>}).Catch(() -> {</b><br>
-	 * <i>// catch unknown error</i><br>
-	 * return 456;<br>
-	 * })
+	 * <b>}).Catch(error -> {</b><br>
+	 * <i>// ...do something without any return value...</i><br>
+	 * });
 	 * 
 	 * @param action
 	 *            error handler of the previous "next" handlers
 	 * 
-	 * @return output Promise (allowed return types: Promise, CompletableFuture,
-	 *         Tree, String, int, double, byte, float, short, long, boolean,
-	 *         byte[], UUID, Date, InetAddress, BigInteger, BigDecimal, and Java
-	 *         Collections with these types)
+	 * @return output Promise
 	 */
-	public Promise Catch(Supplier<Object> action) {
-		return Catch(ignored -> action.get());
+	public Promise Catch(Consumer<Throwable> action) {
+		return new Promise(future.handle((data, error) -> {
+			if (error != null) {
+				action.accept(error);
+			}
+			return data;
+		}));
 	}
 
 	// --- COMPLETE UNRESOLVED / INCOMPLETED PROMISE ---

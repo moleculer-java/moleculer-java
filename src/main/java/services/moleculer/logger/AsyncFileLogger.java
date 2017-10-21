@@ -1,3 +1,27 @@
+/**
+ * This software is licensed under MIT license.<br>
+ * <br>
+ * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * <br>
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:<br>
+ * <br>
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.<br>
+ * <br>
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package services.moleculer.logger;
 
 import java.io.File;
@@ -23,6 +47,23 @@ import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+/**
+ * To set up, add the following line to the JVM properties:<br> 
+ * <br>
+ * -Djava.util.logging.config.file=./config/logging.properties<br>
+ * <br>
+ * ...where the content of the "logging.properties" is...<br>
+ * <br>
+ * handlers = services.moleculer.logger.AsyncFileLogger<br>
+ * services.moleculer.logger.AsyncFileLogger.directory = logs<br>
+ * services.moleculer.logger.AsyncFileLogger.prefix = moleculer-<br>
+ * services.moleculer.logger.AsyncFileLogger.encoding = UTF8<br>
+ * services.moleculer.logger.AsyncFileLogger.compressAfter = 30 days<br>
+ * services.moleculer.logger.AsyncFileLogger.deleteAfter = 365 days<br>
+ * services.moleculer.logger.AsyncFileLogger.logToConsole = true<br>
+ * services.moleculer.logger.AsyncFileLogger.level = INFO<br>
+ * .level = INFO
+ */
 public final class AsyncFileLogger extends Handler implements Runnable {
 
 	// --- FILE NAME FORMATTER ---

@@ -13,7 +13,7 @@
 
 	<!-- CREATE SERVICE REGISTRY (REQUIRED) -->
 
-	<bean id="componentRegistry" class="services.moleculer.config.SpringComponentRegistry" />
+	<bean id="components" class="services.moleculer.config.SpringComponentRegistry" />
 
 	<!-- DEFINE CACHER (OPTIONAL) -->
 	
@@ -33,27 +33,27 @@
 
 	<!-- DEFINE INVOCATION STRATEGY (OPTIONAL) -->
 	
-	<bean id="strategyFactory" class="services.moleculer.strategies.NanoSecRandomStrategyFactory">
+	<bean id="strategy" class="services.moleculer.strategies.NanoSecRandomStrategyFactory">
 		<property name="preferLocal" value="true"/>
 	</bean>
 
 	<!-- DEFINE UID GENERATOR (OPTIONAL) -->
 	
-	<bean id="uidGenerator" class="services.moleculer.uids.TimeSequenceUIDGenerator">
+	<bean id="uid" class="services.moleculer.uids.TimeSequenceUIDGenerator">
 		<property name="prefix" value="srv1"/>
 	</bean>
 				
-	<!-- CREATE BROKER CONFIGURATION (REQUIRED) -->
+	<!-- CREATE BROKER SETTINGS (REQUIRED) -->
 
-	<bean id="brokerConfig" class="services.moleculer.config.ServiceBrokerConfig">
-		<property name="namespace"          value="" />
-		<property name="nodeID"             value="server-2" />
-		<property name="componentRegistry"  ref="componentRegistry"/>
+	<bean id="settings" class="services.moleculer.config.ServiceBrokerSettings">
+		<property name="namespace"   value="" />
+		<property name="nodeID"      value="server-2" />
+		<property name="components"  ref="components"/>
 		
-		<property name="cacher"             ref="cacher"/>
-		<property name="transporter"        ref="transporter"/>
-		<property name="strategyFactory"    ref="strategyFactory"/>
-		<property name="uidGenerator"       ref="uidGenerator"/>
+		<property name="cacher"      ref="cacher"/>
+		<property name="transporter" ref="transporter"/>
+		<property name="strategy"    ref="strategy"/>
+		<property name="uid"         ref="uid"/>
 		
 		<!-- ... other configurations goes here ... -->
 		
@@ -61,8 +61,8 @@
 
 	<!-- CREATE SERVICE BROKER (REQUIRED) -->
 
-	<bean id="serviceBroker" class="services.moleculer.ServiceBroker" init-method="start" destroy-method="stop">
-		<constructor-arg ref="brokerConfig"/>
+	<bean id="broker" class="services.moleculer.ServiceBroker" init-method="start" destroy-method="stop">
+		<constructor-arg ref="settings"/>
 	</bean>
 
 </beans>

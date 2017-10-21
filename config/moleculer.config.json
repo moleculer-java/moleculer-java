@@ -3,9 +3,11 @@
 	"prefix": "dev",
 	"nodeID": null,
 	
-	"componentRegistry": {
+	"registry": {
 		"type": "services.moleculer.config.StandaloneComponentRegistry",
-		"packagesToScan": "services.moleculer"
+		"opts": {
+			"packagesToScan": "services.moleculer"
+		}
 	},
 	
 	"cacher": {

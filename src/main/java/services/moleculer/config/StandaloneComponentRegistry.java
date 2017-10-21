@@ -1,23 +1,46 @@
+/**
+ * This software is licensed under MIT license.<br>
+ * <br>
+ * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * <br>
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:<br>
+ * <br>
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.<br>
+ * <br>
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package services.moleculer.config;
 
-import static services.moleculer.utils.CommonUtils.getProperty;
-import static services.moleculer.utils.CommonUtils.nameOf;
+import static services.moleculer.util.CommonUtils.nameOf;
 
 import java.util.LinkedList;
 import java.util.List;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.services.Name;
-import services.moleculer.services.Service;
+import services.moleculer.service.Name;
+import services.moleculer.service.Service;
 
 /**
  * Standalone Component Registry. It's the simplest way to start a Moleculer
- * Service Broker without any CDI framework (eg. Spring or Guice). Sample code,
- * to create a new Service Broker:<br>
+ * Service Broker without any CDI framework (eg. without Spring or Guice).
+ * Sample code, to create a new Service Broker:<br>
  * <br>
  * ServiceBroker broker = ServiceBroker.builder()<br>
- * &nbsp;&nbsp;&nbsp;.componentRegistry(new
+ * &nbsp;&nbsp;&nbsp;.components(new
  * StandaloneComponentRegistry("my.service.package"))<br>
  * &nbsp;&nbsp;&nbsp;.build();<br>
  * broker.start();
@@ -61,10 +84,10 @@ public final class StandaloneComponentRegistry extends BaseComponentRegistry {
 
 	@Override
 	protected final void findServices(ServiceBroker broker, Tree config) throws Exception {
-		
+
 		// Process config
-		Tree packagesNode = getProperty(config, "packagesToScan", null);
-		if (!packagesNode.isNull()) {
+		Tree packagesNode = config.get("packagesToScan");
+		if (packagesNode != null) {
 			if (packagesNode.isPrimitive()) {
 
 				// List of packages
@@ -80,7 +103,7 @@ public final class StandaloneComponentRegistry extends BaseComponentRegistry {
 				}
 			}
 		}
-		
+
 		// Scan classpath
 		if (packagesToScan == null || packagesToScan.length == 0) {
 			return;
@@ -112,7 +135,7 @@ public final class StandaloneComponentRegistry extends BaseComponentRegistry {
 						if (component instanceof MoleculerComponent) {
 							MoleculerComponent c = (MoleculerComponent) component;
 							String name = nameOf(c, true);
-							components.put(name, new MoleculerComponentContainer(c, configOf(name, config)));
+							componentMap.put(name, new MoleculerComponentContainer(c, configOf(name, config)));
 							logger.info("Object " + name + " registered as Moleculer Component.");
 						}
 					} catch (Throwable cause) {

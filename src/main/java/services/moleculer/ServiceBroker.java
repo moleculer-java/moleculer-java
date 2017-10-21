@@ -1,4 +1,30 @@
+/**
+ * This software is licensed under MIT license.<br>
+ * <br>
+ * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * <br>
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:<br>
+ * <br>
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.<br>
+ * <br>
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package services.moleculer;
+
+import static services.moleculer.util.CommonUtils.nameOf;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -7,18 +33,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
-import services.moleculer.cachers.Cacher;
+import services.moleculer.cacher.Cacher;
 import services.moleculer.config.ComponentRegistry;
 import services.moleculer.config.ServiceBrokerBuilder;
-import services.moleculer.config.ServiceBrokerConfig;
+import services.moleculer.config.ServiceBrokerSettings;
 import services.moleculer.context.CallingOptions;
-import services.moleculer.services.ActionContainer;
-import services.moleculer.services.Service;
-import services.moleculer.services.ServiceRegistry;
-import services.moleculer.transporters.Transporter;
+import services.moleculer.service.ActionContainer;
+import services.moleculer.service.Service;
+import services.moleculer.service.ServiceRegistry;
+import services.moleculer.transporter.Transporter;
 
-import static services.moleculer.utils.CommonUtils.nameOf;
-
+/**
+ * 
+ */
 public final class ServiceBroker {
 
 	// --- VERSION ---
@@ -35,8 +62,8 @@ public final class ServiceBroker {
 
 	// --- CONFIGURATIONS ---
 
-	private final ServiceBrokerConfig brokerConfig;
-	private final Tree customConfig;
+	private final ServiceBrokerSettings settings;
+	private final Tree config;
 
 	// --- INERNAL AND USER-DEFINED COMPONENTS ---
 
@@ -51,36 +78,36 @@ public final class ServiceBroker {
 	// --- STATIC SERVICE BROKER BUILDER ---
 
 	public static final ServiceBrokerBuilder builder() {
-		return new ServiceBrokerBuilder(new ServiceBrokerConfig());
+		return new ServiceBrokerBuilder(new ServiceBrokerSettings());
 	}
 
 	// --- CONSTRUCTORS ---
 
 	public ServiceBroker() {
-		this(new ServiceBrokerConfig());
+		this(new ServiceBrokerSettings());
 	}
 
 	public ServiceBroker(String configPath) throws Exception {
-		this(new ServiceBrokerConfig(configPath));
+		this(new ServiceBrokerSettings(configPath));
 	}
 
 	public ServiceBroker(String nodeID, Transporter transporter, Cacher cacher) {
-		this(new ServiceBrokerConfig(nodeID, transporter, cacher));
+		this(new ServiceBrokerSettings(nodeID, transporter, cacher));
 	}
 
-	public ServiceBroker(ServiceBrokerConfig configuration) {
-
-		// Set nodeID
-		nodeID = configuration.getNodeID();
+	public ServiceBroker(ServiceBrokerSettings settings) {
 
 		// Configuration (created by builder)
-		brokerConfig = configuration;
+		this.settings = settings;
 
 		// Optional configuration (loaded from file)
-		customConfig = configuration.getConfig();
+		config = settings.getConfig();
+
+		// Set nodeID
+		nodeID = settings.getNodeID();
 
 		// Create component registry
-		components = configuration.getComponentRegistry();
+		components = settings.getComponents();
 	}
 
 	// --- GET NODE ID ---
@@ -108,30 +135,28 @@ public final class ServiceBroker {
 		}
 		try {
 
-			// Start internal and custom components
+			// Start internal and custom componentMap
 			logger.info("Starting Moleculer Service Broker (version " + VERSION + ")...");
 			String name = nameOf(components, true);
 			logger.info("Using " + name + " to load service classes.");
-			components.start(this, brokerConfig, customConfig);
+			components.start(this, settings, config);
 			logger.info("Node \"" + nodeID + "\" started successfully.");
 
-			// Set the pointers of frequently used components
-			serviceRegistry = components.serviceRegistry();
+			// Set the pointers of frequently used componentMap
+			serviceRegistry = components.registry();
 			// ...
 
 			// Start pending services
-			Tree config;
-			Service service;
 			for (Map.Entry<Service, Tree> entry: services.entrySet()) {
-				service = entry.getKey();
-				config = entry.getValue();
-				if (config == null) {
-					config = new Tree();
+				Service service = entry.getKey();
+				Tree cfg = entry.getValue();
+				if (cfg == null) {
+					cfg = new Tree();
 				}
-				serviceRegistry.addService(service, config);
+				serviceRegistry.addService(service, cfg);
 			}
 			
-			// All components and services started successfully
+			// All componentMap and services started successfully
 			services.clear();
 			return true;
 		} catch (Throwable cause) {
@@ -149,7 +174,7 @@ public final class ServiceBroker {
 	public final void stop() {
 		if (serviceRegistry != null) {
 			
-			// Stop internal and custom components
+			// Stop internal and custom componentMap
 			logger.info("Moleculer Service Broker stopping node \"" + nodeID + "\"...");
 			components.stop();
 			logger.info("Node \"" + nodeID + "\" stopped.");
@@ -168,6 +193,20 @@ public final class ServiceBroker {
 	public void repl() {
 	}
 
+	/**
+	 * Registers a new local service.
+	 * 
+	 * @param service
+	 *            Service instance
+	 * @return optional service configuration
+	 * 
+	 * @throws Exception
+	 *             any exception
+	 */
+	public <T extends Service> T createService(T service) throws Exception {
+		return createService(service, new Tree());
+	}
+	
 	/**
 	 * Registers a new local service.
 	 * 
@@ -230,6 +269,41 @@ public final class ServiceBroker {
 
 	// --- INVOKE LOCAL OR REMOTE ACTION ---
 
+	/**
+	 * Calls an action (local or remote)
+	 * 
+	 * @return
+	 */
+	public Promise call(String actionName, Object... pairs) throws Exception {
+		Tree params = null;
+		CallingOptions callingOptions = null;
+		if (pairs.length == 1) {
+			if (pairs[0] instanceof Tree) {
+				params = (Tree) pairs[0];
+			} else {
+				params = new Tree().setObject(pairs[0]);
+			}
+		} else {
+			params = new Tree();
+			String prev = null;
+			for (Object o: pairs) {
+				if (prev == null) {					
+					if (!(o instanceof String)) {
+						if (o instanceof CallingOptions) {
+							callingOptions = (CallingOptions) o;
+							continue;
+						}
+						throw new IllegalArgumentException("Parameter \"" + o + "\" must be String!");
+					}
+					prev = (String) o;
+					continue;
+				}
+				params.putObject(prev, o);
+			}
+		}
+		return call(actionName, params, callingOptions);
+	}
+	
 	/**
 	 * Calls an action (local or remote)
 	 * 

@@ -1,9 +1,31 @@
+/**
+ * This software is licensed under MIT license.<br>
+ * <br>
+ * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * <br>
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:<br>
+ * <br>
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.<br>
+ * <br>
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package services.moleculer.config;
 
-import static services.moleculer.utils.CommonUtils.getProperty;
-import static services.moleculer.utils.CommonUtils.idOf;
-import static services.moleculer.utils.CommonUtils.nameOf;
-import static services.moleculer.utils.CommonUtils.typeOf;
+import static services.moleculer.util.CommonUtils.nameOf;
+import static services.moleculer.util.CommonUtils.typeOf;
 
 import java.io.File;
 import java.net.URI;
@@ -22,20 +44,25 @@ import java.util.jar.JarFile;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.cachers.Cacher;
-import services.moleculer.cachers.MemoryCacher;
-import services.moleculer.cachers.RedisCacher;
+import services.moleculer.cacher.Cacher;
+import services.moleculer.cacher.MemoryCacher;
+import services.moleculer.cacher.RedisCacher;
 import services.moleculer.context.ContextFactory;
+import services.moleculer.context.DefaultContextFactory;
+import services.moleculer.eventbus.DefaultEventBus;
 import services.moleculer.eventbus.EventBus;
-import services.moleculer.services.ServiceRegistry;
-import services.moleculer.strategies.Strategy;
-import services.moleculer.strategies.StrategyFactory;
-import services.moleculer.strategies.NanoSecRandomStrategyFactory;
-import services.moleculer.strategies.RoundRobinStrategyFactory;
-import services.moleculer.transporters.NatsTransporter;
-import services.moleculer.transporters.RedisTransporter;
-import services.moleculer.transporters.Transporter;
-import services.moleculer.uids.UIDGenerator;
+import services.moleculer.service.DefaultServiceRegistry;
+import services.moleculer.service.ServiceRegistry;
+import services.moleculer.strategy.RoundRobinStrategyFactory;
+import services.moleculer.strategy.Strategy;
+import services.moleculer.strategy.StrategyFactory;
+import services.moleculer.strategy.XORShiftRandomStrategyFactory;
+import services.moleculer.transporter.NatsTransporter;
+import services.moleculer.transporter.RedisTransporter;
+import services.moleculer.transporter.Transporter;
+import services.moleculer.uid.StandardUUIDGenerator;
+import services.moleculer.uid.TimeSequenceUIDGenerator;
+import services.moleculer.uid.UIDGenerator;
 
 /**
  * Abstract class for Standalone, Spring, and Guice Component Registries.
@@ -55,17 +82,17 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 
 	// --- BASE COMPONENTS ---
 
-	private ContextFactory contextFactory;
-	private UIDGenerator uidGenerator;
-	private StrategyFactory strategyFactory;
-	private EventBus eventBus;
+	private ContextFactory context;
+	private UIDGenerator uid;
+	private StrategyFactory strategy;
+	private EventBus eventbus;
 	private Cacher cacher;
-	private ServiceRegistry serviceRegistry;
+	private ServiceRegistry registry;
 	private Transporter transporter;
 
 	// --- CUSTOM COMPONENTS ---
 
-	protected Map<String, MoleculerComponentContainer> components;
+	protected Map<String, MoleculerComponentContainer> componentMap;
 
 	// --- START REGISTRY AND COMPONENTS ---
 
@@ -74,113 +101,65 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	 * 
 	 * @param broker
 	 *            parent ServiceBroker
-	 * @param brokerConfig
-	 *            configuration of the current component (created by the
-	 *            ServiceBrokerBuilder)
-	 * @param customConfig
+	 * @param settings
+	 *            settings of the broker (created by the ServiceBrokerBuilder)
+	 * @param config
 	 *            optional configuration (loaded from file)
 	 */
 	@Override
-	public final void start(ServiceBroker broker, ServiceBrokerConfig brokerConfig, Tree customConfig)
-			throws Exception {
+	public final void start(ServiceBroker broker, ServiceBrokerSettings settings, Tree config) throws Exception {
 
 		// Set thread pools
-		executor = brokerConfig.getExecutor();
-		scheduler = brokerConfig.getScheduler();
+		executor = settings.getExecutor();
+		scheduler = settings.getScheduler();
 
 		// Should terminate thread pools on stop()?
-		shutdownThreadPools = brokerConfig.getShutDownThreadPools();
+		shutdownThreadPools = settings.getShutDownThreadPools();
 
 		// Set internal components
-		contextFactory = brokerConfig.getContextFactory();
-		uidGenerator = brokerConfig.getUidGenerator();
-		strategyFactory = brokerConfig.getStrategyFactory();
-		serviceRegistry = brokerConfig.getServiceRegistry();
-		cacher = brokerConfig.getCacher();
-		eventBus = brokerConfig.getEventBus();
-		transporter = brokerConfig.getTransporter();
-		components = brokerConfig.getComponents();
+		context = settings.getContext();
+		uid = settings.getUid();
+		strategy = settings.getStrategy();
+		registry = settings.getRegistry();
+		cacher = settings.getCacher();
+		eventbus = settings.getEventbus();
+		transporter = settings.getTransporter();
+		componentMap = settings.getComponentMap();
 
 		// Create components by config file
-		for (Tree componentConfig : customConfig) {
+		for (Tree subConfig : config) {
 
 			// Default value
-			if (componentConfig.isNull()) {
+			if (subConfig.isNull()) {
 				continue;
 			}
 
-			// Get id / name property
-			String id = idOf(componentConfig);
+			// Get name property
+			String id = nameOf(subConfig);
 
-			// Rewrite JavaScript config to Java-style config
-			if (componentConfig.isPrimitive()) {
-				if (TRANSPORTER_ID.equals(id)) {
-					String value = componentConfig.asString();
-					if (value.toLowerCase().contains("redis")) {
-						Tree cfg = new Tree().put("class", RedisTransporter.class.getName());
-						if (value.contains("://")) {
-							cfg.put("url", value);
-						}
-						componentConfig = cfg;
-					} else if (value.toLowerCase().contains("nats")) {
-						Tree cfg = new Tree().put("class", NatsTransporter.class.getName());
-						if (value.contains("://")) {
-							cfg.put("url", value);
-						}
-						componentConfig = cfg;
-					}
-				} else if (CACHER_ID.equals(id)) {
-					String value = componentConfig.asString();
-					if (value.toLowerCase().contains("redis")) {
-						Tree cfg = new Tree().put("class", RedisCacher.class.getName());
-						if (value.contains("://")) {
-							cfg.put("url", value);
-						}
-						componentConfig = cfg;
-					} else if (value.toLowerCase().contains("memory")) {
-						componentConfig = new Tree().put("class", MemoryCacher.class.getName());
-					}
+			// Rewrite short config to standard config
+			if (subConfig.isPrimitive()) {
+				String value = subConfig.asString();
+				Tree replace = replaceType(id, value);
+				if (replace != null) {
+					subConfig = replace;
 				}
 			}
 
 			// Ignore
-			if (!componentConfig.isMap()) {
+			if (!subConfig.isMap()) {
 				continue;
 			}
-
+			
 			// Get class name / type
-			String type = typeOf(componentConfig);
+			String type = typeOf(subConfig);
 
-			// Rewrite JavaScript config to Java-style config
-			if (TRANSPORTER_ID.equals(id)) {
-				String test = type.toLowerCase();
-				if (test.equals("nats") || test.contains("nats(")) {
-					type = NatsTransporter.class.getName();
-				} else if (test.equals("redis") || test.contains("redis(")) {
-					type = RedisTransporter.class.getName();
-				}
-			} else if (CACHER_ID.equals(id)) {
-				String test = type.toLowerCase();
-				if (test.equals("memory") || test.contains("memory(")) {
-					type = MemoryCacher.class.getName();
-				} else if (test.equals("redis") || test.contains("redis(")) {
-					type = RedisCacher.class.getName();
-				}
-			} else if ("registry".equals(id)) {
-				id = STRATEGY_FACTORY_ID;
-				String strategy = getProperty(componentConfig, "strategy", "").asString();
-				String test = strategy.toLowerCase();
-				if (test.contains("moleculer.strategies.")) {
-					if (test.contains("robin")) {
-						type = RoundRobinStrategyFactory.class.getName();
-					} else if (test.contains("random")) {
-						type = NanoSecRandomStrategyFactory.class.getName();
-					}
-				} else {
-					type = strategy;
-				}
+			// Rewrite short type
+			Tree replace = replaceType(id, type);
+			if (replace != null) {
+				type = replace.get("type", type);
 			}
-
+			
 			// Unknown entry
 			if (type == null || type.isEmpty()) {
 				continue;
@@ -198,28 +177,28 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			MoleculerComponent component = (MoleculerComponent) implClass.newInstance();
 
 			// Maybe it's an internal compoment
-			if (CONTEXT_FACTORY_ID.equals(id) && checkType(ContextFactory.class, implClass)) {
-				contextFactory = (ContextFactory) component;
+			if (CONTEXT_ID.equals(id) && checkType(ContextFactory.class, implClass)) {
+				context = (ContextFactory) component;
 				continue;
 			}
-			if (UID_GENERATOR_ID.equals(id) && checkType(UIDGenerator.class, implClass)) {
-				uidGenerator = (UIDGenerator) component;
+			if (UID_ID.equals(id) && checkType(UIDGenerator.class, implClass)) {
+				uid = (UIDGenerator) component;
 				continue;
 			}
-			if (EVENT_BUS_ID.equals(id) && checkType(EventBus.class, implClass)) {
-				eventBus = (EventBus) component;
+			if (EVENTBUS_ID.equals(id) && checkType(EventBus.class, implClass)) {
+				eventbus = (EventBus) component;
 				continue;
 			}
 			if (CACHER_ID.equals(id) && checkType(Cacher.class, implClass)) {
 				cacher = (Cacher) component;
 				continue;
 			}
-			if (STRATEGY_FACTORY_ID.equals(id) && checkType(StrategyFactory.class, implClass)) {
-				strategyFactory = (StrategyFactory) component;
+			if (STRATEGY_ID.equals(id) && checkType(StrategyFactory.class, implClass)) {
+				strategy = (StrategyFactory) component;
 				continue;
 			}
-			if (SERVICE_REGISTRY_ID.equals(id) && checkType(ServiceRegistry.class, implClass)) {
-				serviceRegistry = (ServiceRegistry) component;
+			if (REGISTRY_ID.equals(id) && checkType(ServiceRegistry.class, implClass)) {
+				registry = (ServiceRegistry) component;
 				continue;
 			}
 			if (TRANSPORTER_ID.equals(id) && checkType(Transporter.class, implClass)) {
@@ -228,24 +207,24 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			}
 
 			// Store as custom component
-			components.put(id, new MoleculerComponentContainer(component, componentConfig));
+			componentMap.put(id, new MoleculerComponentContainer(component, subConfig));
 		}
 
 		// Find services in Spring Context / Classpath / etc.
-		findServices(broker, configOf(COMPONENT_REGISTRY_ID, customConfig));
+		findServices(broker, configOf(COMPONENTS_ID, config));
 
 		// Start internal components
-		start(broker, contextFactory, configOf(CONTEXT_FACTORY_ID, customConfig));
-		start(broker, uidGenerator, configOf(UID_GENERATOR_ID, customConfig));
-		start(broker, eventBus, configOf(EVENT_BUS_ID, customConfig));
-		start(broker, cacher, configOf(CACHER_ID, customConfig));
-		start(broker, strategyFactory, configOf(STRATEGY_FACTORY_ID, customConfig));
-		start(broker, serviceRegistry, configOf(SERVICE_REGISTRY_ID, customConfig));
-		start(broker, transporter, configOf(TRANSPORTER_ID, customConfig));
+		start(broker, context, configOf(CONTEXT_ID, config));
+		start(broker, uid, configOf(UID_ID, config));
+		start(broker, eventbus, configOf(EVENTBUS_ID, config));
+		start(broker, cacher, configOf(CACHER_ID, config));
+		start(broker, strategy, configOf(STRATEGY_ID, config));
+		start(broker, registry, configOf(REGISTRY_ID, config));
+		start(broker, transporter, configOf(TRANSPORTER_ID, config));
 
 		// Start custom components
-		for (MoleculerComponentContainer container : components.values()) {
-			container.component.start(broker, container.config);
+		for (MoleculerComponentContainer container : componentMap.values()) {
+			start(broker, container.component, container.config);
 		}
 	}
 
@@ -337,7 +316,15 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		if (component != null) {
 			String name = nameOf(component, true);
 			try {
-				component.start(broker, config);
+				Tree opts = config.get("opts");
+				if (opts == null) {
+					if (config.isMap()) {
+						opts = config.putMap("opts");
+					} else {
+						opts = new Tree();
+					}
+				}
+				component.start(broker, opts);
 				if (name.indexOf(' ') == -1) {
 					logger.info("Component " + name + " started.");
 				} else {
@@ -354,7 +341,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 
 	protected static final Tree configOf(String id, Tree config) {
 		for (Tree child : config) {
-			if (id.equals(idOf(child))) {
+			if (id.equals(nameOf(child))) {
 				return child;
 			}
 		}
@@ -370,25 +357,89 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		return true;
 	}
 
+	// --- CREATE COMPONENT CONFIG ---
+
+	private static final Tree replaceType(String id, String value) {
+		String test = value.toLowerCase();
+		if (TRANSPORTER_ID.equals(id)) {
+			if (test.startsWith("redis")) {
+				Tree cfg = newConfig(RedisTransporter.class);
+				if (test.contains("://")) {
+					cfg.put("url", value);
+				}
+				return cfg;
+			}
+			if (test.startsWith("nats")) {
+				Tree cfg = newConfig(NatsTransporter.class);
+				if (test.contains("://")) {
+					cfg.put("url", value);
+				}
+				return cfg;
+			}
+		} else if (CACHER_ID.equals(id)) {
+			if (test.startsWith("redis")) {
+				Tree cfg = newConfig(RedisCacher.class);
+				if (value.contains("://")) {
+					cfg.put("url", value);
+				}
+				return cfg;
+			}
+			if (test.equals("memory")) {
+				return newConfig(MemoryCacher.class);
+			}
+		} else if (CONTEXT_ID.equals(id)) {
+			if (test.equals("default")) {
+				return newConfig(DefaultContextFactory.class);
+			}
+		} else if (UID_ID.equals(id)) {
+			if (test.equals("sequence")) {
+				return newConfig(TimeSequenceUIDGenerator.class);
+			}
+			if (test.equals("uuid")) {
+				return newConfig(StandardUUIDGenerator.class);
+			}
+		} else if (STRATEGY_ID.equals(id)) {
+			if (test.startsWith("round")) {
+				return newConfig(RoundRobinStrategyFactory.class);
+			}
+			if (test.equals("random")) {
+				return newConfig(XORShiftRandomStrategyFactory.class);
+			}
+		} else if (REGISTRY_ID.equals(id)) {
+			if (test.equals("default")) {
+				return newConfig(DefaultServiceRegistry.class);
+			}
+		} else if (EVENTBUS_ID.equals(id)) {
+			if (test.equals("default")) {
+				return newConfig(DefaultEventBus.class);
+			}
+		}
+		return null;
+	}
+
+	private static final Tree newConfig(Class<? extends MoleculerComponent> type) {
+		return new Tree().put("type", type.getName());
+	}
+
 	// --- STOP REGISTRY AND COMPONENTS ---
 
 	@Override
 	public final void stop() {
 
 		// Stop custom components
-		for (MoleculerComponentContainer container : components.values()) {
+		for (MoleculerComponentContainer container : componentMap.values()) {
 			stop(container.component);
 		}
-		components.clear();
+		componentMap.clear();
 
 		// Stop internal components
 		stop(transporter);
-		stop(serviceRegistry);
-		stop(strategyFactory);
+		stop(registry);
+		stop(strategy);
 		stop(cacher);
-		stop(eventBus);
-		stop(uidGenerator);
-		stop(contextFactory);
+		stop(eventbus);
+		stop(uid);
+		stop(context);
 
 		// Stop thread pools
 		if (shutdownThreadPools) {
@@ -438,23 +489,23 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	// --- GET BASE COMPONENTS ---
 
 	@Override
-	public final ContextFactory contextFactory() {
-		return contextFactory;
+	public final ContextFactory context() {
+		return context;
 	}
 
 	@Override
-	public final UIDGenerator uidGenerator() {
-		return uidGenerator;
+	public final UIDGenerator uid() {
+		return uid;
 	}
 
 	@Override
-	public final StrategyFactory strategyFactory() {
-		return strategyFactory;
+	public final StrategyFactory strategy() {
+		return strategy;
 	}
 
 	@Override
-	public final ServiceRegistry serviceRegistry() {
-		return serviceRegistry;
+	public final ServiceRegistry registry() {
+		return registry;
 	}
 
 	@Override
@@ -463,8 +514,8 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	}
 
 	@Override
-	public final EventBus eventBus() {
-		return eventBus;
+	public final EventBus eventbus() {
+		return eventbus;
 	}
 
 	@Override
@@ -477,32 +528,32 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	private final AtomicReference<String[]> cachedNames = new AtomicReference<>();
 
 	@Override
-	public final String[] componentNames() {
+	public final String[] names() {
 		String[] array = cachedNames.get();
 		if (array == null) {
 			HashSet<String> set = new HashSet<>();
-			if (contextFactory != null) {
-				set.add(CONTEXT_FACTORY_ID);
+			if (context != null) {
+				set.add(CONTEXT_ID);
 			}
-			if (uidGenerator != null) {
-				set.add(UID_GENERATOR_ID);
+			if (uid != null) {
+				set.add(UID_ID);
 			}
-			if (eventBus != null) {
-				set.add(EVENT_BUS_ID);
+			if (eventbus != null) {
+				set.add(EVENTBUS_ID);
 			}
 			if (cacher != null) {
 				set.add(CACHER_ID);
 			}
-			if (strategyFactory != null) {
-				set.add(STRATEGY_FACTORY_ID);
+			if (strategy != null) {
+				set.add(STRATEGY_ID);
 			}
-			if (serviceRegistry != null) {
-				set.add(SERVICE_REGISTRY_ID);
+			if (registry != null) {
+				set.add(REGISTRY_ID);
 			}
 			if (transporter != null) {
 				set.add(TRANSPORTER_ID);
 			}
-			set.addAll(components.keySet());
+			set.addAll(componentMap.keySet());
 			array = new String[set.size()];
 			set.toArray(array);
 			Arrays.sort(array, String.CASE_INSENSITIVE_ORDER);
@@ -516,52 +567,28 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	// --- GET COMPONENT BY ID ---
 
 	@Override
-	public final MoleculerComponent getByID(String id) {
+	public final MoleculerComponent get(String id) {
 		switch (id) {
-		case CONTEXT_FACTORY_ID:
-			return contextFactory;
-		case UID_GENERATOR_ID:
-			return uidGenerator;
-		case EVENT_BUS_ID:
-			return eventBus;
+		case CONTEXT_ID:
+			return context;
+		case UID_ID:
+			return uid;
+		case EVENTBUS_ID:
+			return eventbus;
 		case CACHER_ID:
 			return cacher;
-		case STRATEGY_FACTORY_ID:
-			return strategyFactory;
-		case SERVICE_REGISTRY_ID:
-			return serviceRegistry;
+		case STRATEGY_ID:
+			return strategy;
+		case REGISTRY_ID:
+			return registry;
 		case TRANSPORTER_ID:
 			return transporter;
 		default:
-			MoleculerComponentContainer container = components.get(id);
+			MoleculerComponentContainer container = componentMap.get(id);
 			if (container == null) {
 				return null;
 			}
 			return container.component;
-		}
-	}
-
-	// --- CHECK COMPONENT ID ---
-
-	@Override
-	public final boolean hasComponent(String id) {
-		switch (id) {
-		case CONTEXT_FACTORY_ID:
-			return contextFactory != null;
-		case UID_GENERATOR_ID:
-			return uidGenerator != null;
-		case EVENT_BUS_ID:
-			return eventBus != null;
-		case CACHER_ID:
-			return cacher != null;
-		case STRATEGY_FACTORY_ID:
-			return strategyFactory != null;
-		case SERVICE_REGISTRY_ID:
-			return serviceRegistry != null;
-		case TRANSPORTER_ID:
-			return transporter != null;
-		default:
-			return components.containsKey(id);
 		}
 	}
 

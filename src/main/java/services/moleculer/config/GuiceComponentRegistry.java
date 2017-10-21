@@ -1,7 +1,30 @@
+/**
+ * This software is licensed under MIT license.<br>
+ * <br>
+ * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * <br>
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:<br>
+ * <br>
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.<br>
+ * <br>
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package services.moleculer.config;
 
-import static services.moleculer.utils.CommonUtils.getProperty;
-import static services.moleculer.utils.CommonUtils.nameOf;
+import static services.moleculer.util.CommonUtils.nameOf;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
@@ -18,15 +41,15 @@ import com.google.inject.name.Names;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.cachers.Cacher;
+import services.moleculer.cacher.Cacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.EventBus;
-import services.moleculer.services.Name;
-import services.moleculer.services.Service;
-import services.moleculer.services.ServiceRegistry;
-import services.moleculer.strategies.StrategyFactory;
-import services.moleculer.transporters.Transporter;
-import services.moleculer.uids.UIDGenerator;
+import services.moleculer.service.Name;
+import services.moleculer.service.Service;
+import services.moleculer.service.ServiceRegistry;
+import services.moleculer.strategy.StrategyFactory;
+import services.moleculer.transporter.Transporter;
+import services.moleculer.uid.UIDGenerator;
 
 /**
  * Guice-based Component Registry. Guice is a lightweight dependency injection
@@ -127,8 +150,8 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 	protected final void findServices(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		Tree packagesNode = getProperty(config, "packagesToScan", null);
-		if (!packagesNode.isNull()) {
+		Tree packagesNode = config.get("packagesToScan");
+		if (packagesNode != null) {
 			if (packagesNode.isPrimitive()) {
 
 				// List of packages
@@ -144,11 +167,11 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 				}
 			}
 		}
-		String s = getProperty(config, "stage", "").asString().toUpperCase();
+		String s = config.get("stage", "").toUpperCase();
 		if (!s.isEmpty()) {
 			stage = Stage.valueOf(s);
 		}
-		String m = getProperty(config, "module", "").asString();
+		String m = config.get("module", "");
 		if (!m.isEmpty()) {
 			module = (Module) Class.forName(m).newInstance();
 		}
@@ -189,7 +212,7 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 						if (MoleculerComponent.class.isAssignableFrom(type)) {
 							MoleculerComponent c = (MoleculerComponent) injector.getInstance(type);
 							String name = nameOf(c, true);
-							components.put(name, new MoleculerComponentContainer(c, configOf(name, config)));
+							componentMap.put(name, new MoleculerComponentContainer(c, configOf(name, config)));
 							logger.info("Object " + name + " registered as Moleculer Component.");
 						}
 					} catch (Throwable cause) {
@@ -253,19 +276,19 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 			// public Transporter transporter;
 			//
 			bind(ComponentRegistry.class).toInstance(registry);
-			ContextFactory contextFactory = contextFactory();
+			ContextFactory contextFactory = context();
 			if (contextFactory != null) {
 				bind(ContextFactory.class).toInstance(contextFactory);
 			}
-			UIDGenerator uidGenerator = uidGenerator();
+			UIDGenerator uidGenerator = uid();
 			if (uidGenerator != null) {
 				bind(UIDGenerator.class).toInstance(uidGenerator);
 			}
-			StrategyFactory strategyFactory = strategyFactory();
+			StrategyFactory strategyFactory = strategy();
 			if (strategyFactory != null) {
 				bind(StrategyFactory.class).toInstance(strategyFactory);
 			}
-			EventBus eventBus = eventBus();
+			EventBus eventBus = eventbus();
 			if (eventBus != null) {
 				bind(EventBus.class).toInstance(eventBus);
 			}
@@ -273,7 +296,7 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 			if (cacher != null) {
 				bind(Cacher.class).toInstance(cacher);
 			}
-			ServiceRegistry serviceRegistry = serviceRegistry();
+			ServiceRegistry serviceRegistry = registry();
 			if (serviceRegistry != null) {
 				bind(ServiceRegistry.class).toInstance(serviceRegistry);
 			}
