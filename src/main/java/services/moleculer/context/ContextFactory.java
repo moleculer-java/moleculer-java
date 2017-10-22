@@ -33,7 +33,7 @@ import services.moleculer.config.MoleculerComponent;
 import services.moleculer.service.Name;
 
 /**
- * 
+ * Base superclass of all Context Factory implementations.
  */
 @Name("Context Factory")
 public abstract class ContextFactory implements MoleculerComponent {
@@ -72,6 +72,6 @@ public abstract class ContextFactory implements MoleculerComponent {
 
 	// --- CREATE CONTEXT ---
 
-	public abstract Context create(Tree params, CallingOptions opts);
+	public abstract Context create(String name, Tree params, CallingOptions opts, Context parent);
 
 }

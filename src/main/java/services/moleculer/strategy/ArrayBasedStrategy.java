@@ -30,7 +30,6 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Action;
 import services.moleculer.service.ActionContainer;
-import services.moleculer.service.LocalActionContainer;
 
 /**
  * Abstract class for Round-Robin and Random invocation strategies.
@@ -82,10 +81,10 @@ public abstract class ArrayBasedStrategy extends Strategy {
 	// --- ADD ACCTION ---
 
 	@Override
-	public final void add(Action action, Tree parameters) {
+	public final void add(ActionContainer action, Tree config) {
 		if (actions.length == 0) {
 			actions = new ActionContainer[1];
-			actions[0] = new LocalActionContainer(broker, parameters, action);
+			actions[0] = action;
 		} else {
 			for (int i = 0; i < actions.length; i++) {
 				if (actions[i].equals(action)) {
@@ -97,7 +96,7 @@ public abstract class ArrayBasedStrategy extends Strategy {
 
 			// Add to array
 			actions = Arrays.copyOf(actions, actions.length + 1);
-			actions[actions.length - 1] = new LocalActionContainer(broker, parameters, action);
+			actions[actions.length - 1] = action;
 		}
 	}
 

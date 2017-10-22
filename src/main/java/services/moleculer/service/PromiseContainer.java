@@ -24,32 +24,49 @@
  */
 package services.moleculer.service;
 
-import io.datatree.Tree;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import services.moleculer.Promise;
-import services.moleculer.context.CallingOptions;
-import services.moleculer.context.Context;
 
 /**
- * Interface of Local or Remote actions.
+ * Promise container of a pending remote invocation.
  */
-public interface ActionContainer {
+final class PromiseContainer {
 
-	// --- INVOKE THIS ACTION ---
-
-	public Promise call(Object... params);
-
-	public Promise call(Tree params, CallingOptions opts, Context parent);
+	// --- COMPLETE FLAG ---
 	
-	// --- PROPERTY GETTERS ---
+	private final AtomicBoolean completed = new AtomicBoolean();
+	
+	// --- PROPERTIES ---
+	
+	final long created;
+	final Promise promise;
+	final long timeout;
+	
+	// --- CONSTRUCTOR ---
+	
+	PromiseContainer(Promise promise, long timeout) {
+		this.promise = promise;
+		this.timeout = timeout;
+		if (timeout > 0) {
+			created = System.currentTimeMillis();
+		} else {
+			created = 0;
+		}
+	}
 
-	public String name();
+	// --- THREAD-SAFE COMPLETE METHODS ---
+	
+	final void complete(Object value) {
+		if (completed.compareAndSet(false, true)) {
+			promise.complete(value);
+		}
+	}
 
-	public String nodeID();
-
-	public boolean local();
-
-	public boolean cached();
-
-	public String[] cacheKeys();
+	final void complete(Throwable error) {
+		if (completed.compareAndSet(false, true)) {
+			promise.complete(error);
+		}
+	}
 
 }

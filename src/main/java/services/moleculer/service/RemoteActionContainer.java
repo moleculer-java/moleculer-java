@@ -30,73 +30,85 @@ import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallingOptions;
+import services.moleculer.context.Context;
+import services.moleculer.context.ContextFactory;
 
 /**
- * 
+ * Container (action invoker) of remote actions.
  */
-public final class RemoteActionContainer implements ActionContainer {
+public final class RemoteActionContainer  extends AbstractContainer {
 
 	// --- PROPERTIES ---
-
-	private final String nodeID;
-	private final String name;
-	private final boolean cached;
-	private final String[] cacheKeys;
-
-	// --- SERIVCES ---
-
-	private final ServiceRegistry registry;
-
+	
+	private long defaultTimeout;
+	
+	// --- COMPONENTS ---
+	
+	private final DefaultServiceRegistry registry;
+	private ContextFactory context;
+	
 	// --- CONSTRUCTOR ---
-
-	public RemoteActionContainer(ServiceBroker broker, Tree config) {
-
-		// Set nodeID
-		nodeID = Objects.requireNonNull(config.get("nodeID", (String) null));
-
-		// Set name
-		name = Objects.requireNonNull(config.get("name", (String) null));
-
-		// Set service registry
-		registry = Objects.requireNonNull(broker.components().registry());
-
-		// Set cache parameters
-		cached = config.get("cached", false);
-		cacheKeys = config.get("cacheKeys", "").split(",");
+	
+	RemoteActionContainer(DefaultServiceRegistry registry) {
+		this.registry = registry;
 	}
 
-	// --- INVOKE REMOTE SERVICE ---
+	// --- INIT CONTAINER ---
+
+	/**
+	 * Initializes Container instance.
+	 * 
+	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
+	 */
+	@Override
+	public final void start(ServiceBroker broker, Tree config) throws Exception {
+		super.start(broker, config);
+		
+		// Set default timeout
+		defaultTimeout = config.get("timeout", 0L);
+		
+		// Check parameters
+		Objects.requireNonNull(name);
+		Objects.requireNonNull(nodeID);
+		
+		// Set components
+		context = broker.components().context();
+	}
+
+	// --- INVOKE REMOTE ACTION ---
 
 	@Override
-	public final Promise call(Tree params, CallingOptions opts) {
-		return registry.send(name, params, opts);
+	public final Promise call(Tree params, CallingOptions opts, Context parent) {
+		
+		// Create new context
+		Context ctx = context.create(name, params, opts, parent);
+		
+		// Create new promise
+		Promise promise = new Promise();
+		
+		// Set timeout (by config or from opts)
+		long timeout;
+		if (opts == null) {
+			timeout = defaultTimeout;
+		} else {
+			timeout = opts.timeout();
+		}
+		
+		// Register promise
+		registry.register(ctx.id(), promise, timeout);
+		
+		// Return promise
+		return promise;
 	}
-
+	
 	// --- PROPERTY GETTERS ---
-
-	@Override
-	public final String name() {
-		return name;
-	}
-
-	@Override
-	public final String nodeID() {
-		return nodeID;
-	}
 
 	@Override
 	public final boolean local() {
 		return false;
-	}
-
-	@Override
-	public final boolean cached() {
-		return cached;
-	}
-
-	@Override
-	public final String[] cacheKeys() {
-		return cacheKeys;
 	}
 
 }

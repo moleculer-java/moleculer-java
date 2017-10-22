@@ -38,6 +38,7 @@ import services.moleculer.config.ComponentRegistry;
 import services.moleculer.config.ServiceBrokerBuilder;
 import services.moleculer.config.ServiceBrokerSettings;
 import services.moleculer.context.CallingOptions;
+import services.moleculer.context.Context;
 import services.moleculer.service.ActionContainer;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
@@ -68,11 +69,11 @@ public final class ServiceBroker {
 	// --- INERNAL AND USER-DEFINED COMPONENTS ---
 
 	private final ComponentRegistry components;
-
-	// --- OTHER INTERNAL PROPERTIES AND VARIABLES ---
-
-	private ServiceRegistry serviceRegistry;
 	
+	private ServiceRegistry registry;
+
+	// --- SERVICES AND CONFIGURATIONS ---
+
 	private final LinkedHashMap<Service, Tree> services = new LinkedHashMap<>();
 
 	// --- STATIC SERVICE BROKER BUILDER ---
@@ -130,21 +131,20 @@ public final class ServiceBroker {
 	public final boolean start() {
 		
 		// Check state
-		if (serviceRegistry != null) {
+		if (registry != null) {
 			throw new IllegalStateException("Moleculer Service Broker has already been started!");
 		}
 		try {
 
-			// Start internal and custom componentMap
+			// Start internal and custom components
 			logger.info("Starting Moleculer Service Broker (version " + VERSION + ")...");
 			String name = nameOf(components, true);
 			logger.info("Using " + name + " to load service classes.");
 			components.start(this, settings, config);
 			logger.info("Node \"" + nodeID + "\" started successfully.");
 
-			// Set the pointers of frequently used componentMap
-			serviceRegistry = components.registry();
-			// ...
+			// Set the pointers of frequently used components
+			registry = components.registry();
 
 			// Start pending services
 			for (Map.Entry<Service, Tree> entry: services.entrySet()) {
@@ -153,10 +153,10 @@ public final class ServiceBroker {
 				if (cfg == null) {
 					cfg = new Tree();
 				}
-				serviceRegistry.addService(service, cfg);
+				registry.addService(service, cfg);
 			}
 			
-			// All componentMap and services started successfully
+			// All components and services started successfully
 			services.clear();
 			return true;
 		} catch (Throwable cause) {
@@ -172,16 +172,16 @@ public final class ServiceBroker {
 	 * Stop broker. If has transporter, transporter.disconnect will be called.
 	 */
 	public final void stop() {
-		if (serviceRegistry != null) {
+		if (registry != null) {
 			
-			// Stop internal and custom componentMap
+			// Stop internal and custom components
 			logger.info("Moleculer Service Broker stopping node \"" + nodeID + "\"...");
 			components.stop();
 			logger.info("Node \"" + nodeID + "\" stopped.");
 			
 			// Clear variables
 			services.clear();
-			serviceRegistry = null;
+			registry = null;
 		}		
 	}
 
@@ -218,14 +218,14 @@ public final class ServiceBroker {
 	 *             any exception
 	 */
 	public <T extends Service> T createService(T service, Tree config) throws Exception {
-		if (serviceRegistry == null) {
+		if (registry == null) {
 			
 			// Start service later
 			services.put(service, config);
 		} else {
 			
 			// Start service now
-			serviceRegistry.addService(service, config);
+			registry.addService(service, config);
 		}
 		return service;
 	}
@@ -236,7 +236,6 @@ public final class ServiceBroker {
 	 * @param service
 	 */
 	public void destroyService(Service service) {
-		serviceRegistry.removeService(service);
 	}
 
 	/**
@@ -246,7 +245,7 @@ public final class ServiceBroker {
 	 * @return
 	 */
 	public Service getLocalService(String serviceName) {
-		return serviceRegistry.getService(serviceName);
+		return registry.getService(serviceName);
 	}
 
 	/**
@@ -271,78 +270,35 @@ public final class ServiceBroker {
 
 	/**
 	 * Calls an action (local or remote)
-	 * 
-	 * @return
 	 */
-	public Promise call(String actionName, Object... pairs) throws Exception {
-		Tree params = null;
-		CallingOptions callingOptions = null;
-		if (pairs.length == 1) {
-			if (pairs[0] instanceof Tree) {
-				params = (Tree) pairs[0];
-			} else {
-				params = new Tree().setObject(pairs[0]);
-			}
-		} else {
-			params = new Tree();
-			String prev = null;
-			for (Object o: pairs) {
-				if (prev == null) {					
-					if (!(o instanceof String)) {
-						if (o instanceof CallingOptions) {
-							callingOptions = (CallingOptions) o;
-							continue;
-						}
-						throw new IllegalArgumentException("Parameter \"" + o + "\" must be String!");
-					}
-					prev = (String) o;
-					continue;
-				}
-				params.putObject(prev, o);
-			}
-		}
-		return call(actionName, params, callingOptions);
+	public Promise call(String name, Object... params) {
+		return registry.getAction(name, null).call(params);
+	}	
+
+	public Promise call(String name, Tree params) {
+		return registry.getAction(name, null).call(params, (CallingOptions) null, (Context) null);
 	}
 	
-	/**
-	 * Calls an action (local or remote)
-	 * 
-	 * @param actionName
-	 * @param params
-	 * @param opts
-	 * 
-	 * @return
-	 */
-	public Promise call(String actionName, Tree params, CallingOptions opts) throws Exception {
-		return null;
+	public Promise call(String name, Tree params, CallingOptions opts) {
+		return registry.getAction(name, null).call(params, opts, (Context) null);
 	}
 
 	// --- EMIT EVENTS VIA EVENT BUS ---
 
 	/**
 	 * Emits an event (grouped & balanced global event)
-	 * 
-	 * @param name
-	 * @param payload
-	 * @param groups
 	 */
 	public void emit(String name, Object payload, String... groups) {
 	}
 
 	/**
 	 * Emits an event for all local & remote services
-	 * 
-	 * @param name
-	 * @param payload
 	 */
 	public void broadcast(String name, Object payload) {
 	}
 
 	/**
 	 * Emits an event for all local services
-	 * 
-	 * @param name
-	 * @param payload
 	 */
 	public void broadcastLocal(String name, Object payload) {
 	}

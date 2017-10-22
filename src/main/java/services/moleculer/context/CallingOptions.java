@@ -29,7 +29,7 @@ import io.datatree.dom.Cache;
 /**
  * 
  */
-public class CallingOptions {
+public final class CallingOptions {
 
 	// --- CONSTANTS ---
 
@@ -41,15 +41,13 @@ public class CallingOptions {
 	private final String nodeID;
 	private final long timeout;
 	private final int retryCount;
-	private final Context parent;
 
 	// --- CONSTRUTORS ---
 
-	public CallingOptions(String nodeID, long timeout, int retryCount, Context parent) {
+	public CallingOptions(String nodeID, long timeout, int retryCount) {
 		this.nodeID = nodeID;
 		this.timeout = timeout;
 		this.retryCount = retryCount;
-		this.parent = parent;
 	}
 
 	// --- STATIC CONSTRUCTORS ---
@@ -76,14 +74,10 @@ public class CallingOptions {
 		String key = nodeID + '.' + timeout + '.' + retryCount;
 		CallingOptions opts = cache.get(key);
 		if (opts == null) {
-			opts = new CallingOptions(nodeID, timeout, retryCount, null);
+			opts = new CallingOptions(nodeID, timeout, retryCount);
 			cache.put(key, opts);
 		}
 		return opts;
-	}
-
-	public static final CallingOptions get(String nodeID, long timeout, int retryCount, Context parent) {
-		return new CallingOptions(nodeID, timeout, retryCount, parent);
 	}
 
 	// --- VARIABLE GETTERS ---
@@ -98,10 +92,6 @@ public class CallingOptions {
 
 	public final int retryCount() {
 		return retryCount;
-	}
-
-	public final Context parent() {
-		return parent;
 	}
 
 }

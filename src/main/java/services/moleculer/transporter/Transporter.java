@@ -37,7 +37,7 @@ import services.moleculer.service.ServiceRegistry;
 import services.moleculer.util.Serializer;
 
 /**
- * 
+ * Base superclass of all Transporter implementations.
  */
 @Name("Transporter")
 public abstract class Transporter implements MoleculerComponent {

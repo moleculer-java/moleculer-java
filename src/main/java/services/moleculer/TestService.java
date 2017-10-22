@@ -32,7 +32,7 @@ import services.moleculer.service.Service;
 public class TestService extends Service {
 
 	public Action add = (ctx) -> {
-		return ctx.get("a", 0) + ctx.get("b", 0);
+		return ctx.params().get("a", 0) + ctx.params().get("b", 0);
 	};
 
 }

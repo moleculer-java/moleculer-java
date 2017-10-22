@@ -34,7 +34,7 @@ import services.moleculer.config.MoleculerComponent;
 import services.moleculer.service.Name;
 
 /**
- * Abstract class of all Cacher implementations.
+ * Base superclass of all Cacher implementations.
  */
 @Name("Cacher")
 public abstract class Cacher implements MoleculerComponent {

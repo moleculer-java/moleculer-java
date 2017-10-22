@@ -56,19 +56,19 @@ public final class DefaultEventBus extends EventBus {
 	/**
 	 * Reader lock of the Event Bus
 	 */
-	private final Lock readerLock;
+	private final Lock readLock;
 
 	/**
 	 * Writer lock of the Event Bus
 	 */
-	private final Lock writerLock;
+	private final Lock writeLock;
 
 	// --- CONSTRUCTOR ---
 
 	public DefaultEventBus() {
 		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
-		readerLock = lock.readLock();
-		writerLock = lock.writeLock();
+		readLock = lock.readLock();
+		writeLock = lock.writeLock();
 		listeners = new HashMap<>(2048);
 		cache = new Cache<>(2048, true);
 	}
@@ -79,7 +79,7 @@ public final class DefaultEventBus extends EventBus {
 	public final void on(String name, Listener listener, boolean once) {
 
 		// Lock getter and setter threads
-		writerLock.lock();
+		writeLock.lock();
 		try {
 			HashMap<Listener, Boolean> handlers = listeners.get(name);
 			if (handlers == null) {
@@ -88,7 +88,7 @@ public final class DefaultEventBus extends EventBus {
 			}
 			handlers.put(listener, once);
 		} finally {
-			writerLock.unlock();
+			writeLock.unlock();
 		}
 
 		// Clear cache
@@ -110,21 +110,21 @@ public final class DefaultEventBus extends EventBus {
 		boolean found = false;
 
 		// Lock setter threads
-		readerLock.lock();
+		readLock.lock();
 		try {
 			HashMap<Listener, Boolean> handlers = listeners.get(name);
 			if (handlers != null) {
 				found = handlers.containsKey(listener);
 			}
 		} finally {
-			readerLock.unlock();
+			readLock.unlock();
 		}
 
 		// Remove listener
 		if (found) {
 
 			// Lock getter and setter threads
-			writerLock.lock();
+			writeLock.lock();
 			try {
 				HashMap<Listener, Boolean> handlers = listeners.get(name);
 				if (handlers != null) {
@@ -137,7 +137,7 @@ public final class DefaultEventBus extends EventBus {
 
 				}
 			} finally {
-				writerLock.unlock();
+				writeLock.unlock();
 			}
 
 			// Clear cache
@@ -167,7 +167,7 @@ public final class DefaultEventBus extends EventBus {
 			boolean foundOnce = false;
 
 			// Lock getter and setter threads
-			writerLock.lock();
+			writeLock.lock();
 			try {
 
 				// Iterator of all listener mappings
@@ -204,7 +204,7 @@ public final class DefaultEventBus extends EventBus {
 				}
 
 			} finally {
-				writerLock.unlock();
+				writeLock.unlock();
 			}
 
 			// Convert listener set to array

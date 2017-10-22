@@ -26,87 +26,99 @@ package services.moleculer.service;
 
 import static services.moleculer.util.CommonUtils.nameOf;
 
-import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallingOptions;
+import services.moleculer.context.Context;
+import services.moleculer.context.ContextFactory;
 
 /**
- * 
+ * Container (action invoker) of local actions.
  */
-public final class LocalActionContainer implements ActionContainer {
+public final class LocalActionContainer extends AbstractContainer {
 
 	// --- PROPERTIES ---
 
-	private final String name;
-	private final String nodeID;
-	private final boolean cached;
-	private final String[] cacheKeys;
-
-	// --- LOCAL ACTION ---
-
 	private final Action action;
+	private final boolean asyncLocalInvocation;
 
 	// --- COMPONENTS ---
-
-	private ServiceRegistry serviceRegistry;
-
+	
+	private ContextFactory context;
+	private ExecutorService executor;
+	
 	// --- CONSTRUCTOR ---
+	
+	LocalActionContainer(Action action, boolean asyncLocalInvocation) {
+		this.action = action;
+		this.asyncLocalInvocation = asyncLocalInvocation;
+	}
+	
+	// --- INIT CONTAINER ---
 
-	public LocalActionContainer(ServiceBroker broker, Tree parameters, Action instance) {
-
+	/**
+	 * Initializes Container instance.
+	 * 
+	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
+	 */
+	@Override
+	public final void start(ServiceBroker broker, Tree config) throws Exception {
+		super.start(broker, config);
+		
 		// Set name
-		String n = nameOf(parameters);
-		if (n.isEmpty()) {
-			n = nameOf(instance, false);
+		if (name == null || name.isEmpty()) {
+			name = nameOf(action, false);
 		}
-		name = n;
 
 		// Set nodeID
-		nodeID = Objects.requireNonNull(broker.nodeID());
-
-		// Set action
-		action = Objects.requireNonNull(instance);
-
-		// Set cache parameters
-		cached = parameters.get("cached", false);
-		cacheKeys = parameters.get("cacheKeys", "").split(",");
+		nodeID = broker.nodeID();
+		
+		// Set components
+		context = broker.components().context();
+		if (asyncLocalInvocation) {
+			executor = broker.components().executor();
+		}
 	}
 
-	// --- INVOKE LOCAL SERVICE ---
+	// --- INVOKE LOCAL ACTION ---
 
 	@Override
-	public final Promise call(Tree params, CallingOptions opts) {
-		return serviceRegistry.call(action, params, opts);
+	public final Promise call(Tree params, CallingOptions opts, Context parent) {
+		
+		// Create new context
+		Context ctx = context.create(name, params, opts, parent);
+		
+		// A.) Invoke local action via Thread pool
+		if (asyncLocalInvocation) {
+			return new Promise(CompletableFuture.supplyAsync(() -> {
+				try {
+					return action.handler(ctx);
+				} catch (Throwable error) {
+					return error;
+				}
+			}, executor));
+		}
+
+		// B.) In-process (direct) action invocation
+		try {
+			return new Promise(action.handler(ctx));
+		} catch (Throwable error) {
+			return Promise.reject(error);
+		}
 	}
 
 	// --- PROPERTY GETTERS ---
 
 	@Override
-	public final String name() {
-		return name;
-	}
-
-	@Override
-	public final String nodeID() {
-		return nodeID;
-	}
-
-	@Override
 	public final boolean local() {
 		return true;
-	}
-
-	@Override
-	public final boolean cached() {
-		return cached;
-	}
-
-	@Override
-	public final String[] cacheKeys() {
-		return cacheKeys;
 	}
 
 }

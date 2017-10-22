@@ -30,7 +30,7 @@ import services.moleculer.config.MoleculerComponent;
 import services.moleculer.service.Name;
 
 /**
- * 
+ * Base superclass of all UID Generator implementations.
  */
 @Name("UID Generator")
 public abstract class UIDGenerator implements MoleculerComponent {

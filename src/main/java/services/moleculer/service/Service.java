@@ -32,7 +32,7 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.config.MoleculerComponent;
 
 /**
- * 
+ * Abstract superclass of all Service implementations.
  */
 public abstract class Service implements MoleculerComponent {
 

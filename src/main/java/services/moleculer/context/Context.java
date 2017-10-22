@@ -26,53 +26,99 @@ package services.moleculer.context;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
-import services.moleculer.ServiceBroker;
+import services.moleculer.service.ServiceRegistry;
 
 /**
- * 
+ * Invocation context of Actions.
  */
-public final class Context extends Tree {
+public final class Context {
 
-	// --- SERIAL VERSION UID ---
-	
-	private static final long serialVersionUID = 3334045159434047463L;
-	
 	// --- PROPERTIES ---
 
-	private final long created = System.currentTimeMillis();
-	private final ServiceBroker broker;
+	private final ServiceRegistry registry;
 	private final String id;
+	private final String name;
+	private final Tree params;
+	private final CallingOptions opts;
 
 	// --- CONSTRUCTOR ---
 
-	public Context(ServiceBroker broker, String id) {
-		this.broker = broker;
+	public Context(ServiceRegistry registry, String id, String name, Tree params, CallingOptions opts) {
+		this.registry = registry;
 		this.id = id;
+		this.name = name;
+		this.params = params;
+		this.opts = opts;
 	}
 
 	// --- VARIABLE GETTERS ---
-
-	public final long created() {
-		return created;
-	}
 
 	public final String id() {
 		return id;
 	}
 
+	public final String name() {
+		return name;
+	}
+
+	public final Tree params() {
+		return params;
+	}
+
+	public final CallingOptions opts() {
+		return opts;
+	}
+
 	// --- INVOKE LOCAL OR REMOTE ACTION ---
 
 	/**
-	 * Call an action (local or remote)
-	 * 
-	 * @param actionName
-	 * @param params
-	 * @param opts
-	 * 
-	 * @return
+	 * Calls an action (local or remote)
 	 */
-	public final Promise call(String actionName, Tree params, CallingOptions opts) throws Exception {
-		return broker.call(actionName, params, opts);
+	public Promise call(String name, Object... params) {
+		Tree tree = null;
+		CallingOptions opts = null;
+		if (params != null) {
+			if (params.length == 1) {
+				if (params[0] instanceof Tree) {
+					tree = (Tree) params[0];
+				} else {
+					tree = new Tree().setObject(params[0]);
+				}
+			} else {
+				tree = new Tree();
+				String prev = null;
+				Object value;
+				for (int i = 0; i < params.length; i++) {
+					value = params[i];
+					if (prev == null) {
+						if (!(value instanceof String)) {
+							if (value instanceof CallingOptions) {
+								opts = (CallingOptions) value;
+								continue;
+							}
+							if (value instanceof Context) {
+								continue;
+							}
+							i++;
+							throw new IllegalArgumentException("Parameter #" + i + " (\"" + value
+									+ "\") must be String, Context, or CallingOptions!");
+						}
+						prev = (String) value;
+						continue;
+					}
+					tree.putObject(prev, value);
+				}
+			}
+		}
+		return registry.getAction(name, null).call(tree, opts, this);
+	}
+
+	public Promise call(String name, Tree params) {
+		return registry.getAction(name, null).call(params, (CallingOptions) null, this);
+	}
+
+	public Promise call(String name, Tree params, CallingOptions opts) {
+		return registry.getAction(name, null).call(params, opts, this);
 	}
 
 	// --- EMIT EVENTS VIA EVENT BUS ---
@@ -85,7 +131,6 @@ public final class Context extends Tree {
 	 * @param groups
 	 */
 	public final void emit(String name, Object payload, String... groups) {
-		broker.emit(name, payload);
 	}
 
 	/**
@@ -95,7 +140,6 @@ public final class Context extends Tree {
 	 * @param payload
 	 */
 	public final void broadcast(String name, Object payload) {
-		broker.emit(name, payload);
 	}
 
 	/**
@@ -105,7 +149,6 @@ public final class Context extends Tree {
 	 * @param payload
 	 */
 	public final void broadcastLocal(String name, Object payload) {
-		broker.emit(name, payload);
 	}
 
 }

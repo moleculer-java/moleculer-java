@@ -30,21 +30,15 @@ import services.moleculer.service.Service;
 public class Test {
 
 	public static void main(String[] args) throws Exception {
-		
-		ServiceBroker broker = new ServiceBroker("moleculer.config.json");
-		broker.start();
-				
-	}
-	
-	public void sample() throws Exception {
-		
+			
 		// Define a service
 		ServiceBroker broker = new ServiceBroker();
 		broker.createService(new Service("math") {
 			
+			@SuppressWarnings("unused")
 			public Action add = (ctx) -> {
-				int a = ctx.get("a", 0);
-				int b = ctx.get("b", 0);
+				int a = ctx.params().get("a", 0);
+				int b = ctx.params().get("b", 0);
 				return a + b;
 			};
 			

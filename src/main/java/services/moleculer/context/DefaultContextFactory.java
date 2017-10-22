@@ -27,21 +27,18 @@ package services.moleculer.context;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
+import services.moleculer.service.ServiceRegistry;
 import services.moleculer.uid.UIDGenerator;
 
 /**
- * 
+ * Default implementation of Context Factory.
  */
 @Name("Default Context Factory")
 public final class DefaultContextFactory extends ContextFactory {
 
-	// --- VARIABLES ---
-
-	private String nodeID;
-
 	// --- INTERNAL COMPONENTS ---
 
-	private ServiceBroker broker;
+	private ServiceRegistry registry;
 	private UIDGenerator uid;
 
 	// --- START CONTEXT FACTORY ---
@@ -56,31 +53,22 @@ public final class DefaultContextFactory extends ContextFactory {
 	 */
 	@Override
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
-		this.nodeID = broker.nodeID();
-		this.broker = broker;
-		this.uid = broker.components().uid();
+		registry = broker.components().registry();
+		uid = broker.components().uid();
 	}
 
 	// --- CREATE CONTEXT ---
 
-	public final Context create(Tree params, CallingOptions opts) {
+	@Override
+	public final Context create(String name, Tree params, CallingOptions opts, Context parent) {
 
-		// Target node
-		String targetID = opts == null ? null : opts.nodeID();
-
-		// Generate context ID (for remote services only)
-		String id;
-		if (targetID != null && !targetID.equals(nodeID)) {
-			id = uid.nextUID();
-		} else {
-			id = null;
-		}
-
-		// TODO Create or join meta
-		// ps: primitive values has no meta node!
-
+		// Generate ID
+		String id = uid.nextUID();
+		
+		// TODO Merge meta, set parent context ID
+		
 		// Create context
-		return new Context(broker, id);
+		return new Context(registry, id, name, params, opts);
 	}
 
 }

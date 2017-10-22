@@ -27,10 +27,11 @@ package services.moleculer.service;
 import java.lang.reflect.Field;
 import java.rmi.RemoteException;
 import java.util.HashMap;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -38,48 +39,59 @@ import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.cacher.Cache;
-import services.moleculer.context.CallingOptions;
-import services.moleculer.context.Context;
-import services.moleculer.context.ContextFactory;
-import services.moleculer.transporter.Transporter;
+import services.moleculer.strategy.Strategy;
+import services.moleculer.strategy.StrategyFactory;
 
 /**
- * 
+ * Default implementation of the Service Registry.
  */
 @Name("Default Service Registry")
-public final class DefaultServiceRegistry extends ServiceRegistry {
+public final class DefaultServiceRegistry extends ServiceRegistry implements Runnable {
 
-	// --- SERVICE MAP ---
+	// --- REGISTERED SERVICES ---
 
-	private final HashMap<String, Service> serviceMap = new HashMap<>(256);
+	private final HashMap<String, Service> services = new HashMap<>(256);
+
+	// --- REGISTERED ACTIONS ---
+
+	private final HashMap<String, Strategy> strategies = new HashMap<>(256);
+
+	// --- PENDING REMOTE INVOCATIONS ---
+
+	private final HashMap<String, PromiseContainer> promises = new HashMap<>(256);
 
 	// --- COMPONENTS ---
 
 	private ServiceBroker broker;
-	private Executor executor;
-	private ContextFactory context;
-	private Transporter transporter;
+	private StrategyFactory strategy;
+	private ExecutorService executor;
 
 	// --- PROPERTIES ---
 
 	/**
-	 * Invoke local service via ExecutorService
+	 * Invoke local service via Thread pool or directly
 	 */
 	private boolean asyncLocalInvocation;
 
 	/**
-	 * Reader lock
+	 * Reader lock of configuration
 	 */
-	private final Lock readerLock;
+	private final Lock configReadLock;
 
 	/**
-	 * Writer lock
+	 * Writer lock of configuration
 	 */
-	private final Lock writerLock;
+	private final Lock configWriteLock;
 
-	// --- PROMISES OF REMOTE ACTION INVOCATIONS ---
+	/**
+	 * Reader lock of configuration
+	 */
+	private final Lock promiseReadLock;
 
-	private final ConcurrentHashMap<String, Promise> pendingPromises = new ConcurrentHashMap<>();
+	/**
+	 * Writer lock of configuration
+	 */
+	private final Lock promiseWriteLock;
 
 	// --- CONSTRUCTORS ---
 
@@ -93,12 +105,21 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 		this.asyncLocalInvocation = asyncLocalInvocation;
 
 		// Create locks
-		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
-		readerLock = lock.readLock();
-		writerLock = lock.writeLock();
+		ReentrantReadWriteLock configLock = new ReentrantReadWriteLock(true);
+		configReadLock = configLock.readLock();
+		configWriteLock = configLock.writeLock();
+
+		ReentrantReadWriteLock promiseLock = new ReentrantReadWriteLock(true);
+		promiseReadLock = promiseLock.readLock();
+		promiseWriteLock = promiseLock.writeLock();
 	}
 
 	// --- INIT SERVICE REGISTRY ---
+
+	/**
+	 * Cancelable timer
+	 */
+	private volatile ScheduledFuture<?> timer;
 
 	/**
 	 * Initializes default ServiceRegistry instance.
@@ -113,7 +134,8 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Process config
 		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
-		
+		long cleanup = config.get("cleanup", 1L);
+
 		// Node-style Service Registry config?
 		Tree parent = config.getParent();
 		if (parent != null && (parent.get("strategy", (String) null) != null
@@ -121,30 +143,55 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 			logger.warn("Service Registry has no \"strategy\" or \"preferLocal\" properties.");
 		}
 
-		// Parent service broker
-		this.broker = Objects.requireNonNull(broker);
+		// Set components
+		this.broker = broker;
+		this.strategy = broker.components().strategy();
+		this.executor = broker.components().executor();
 
-		// Async or direct local invocation
-		if (asyncLocalInvocation) {
-			executor = broker.components().executor();
-		} else {
-			executor = null;
-		}
-
-		// Set context factory
-		context = Objects.requireNonNull(broker.components().context());
-
-		// Set transporter (can be null)
-		transporter = broker.components().transporter();
+		// Start timeout timer
+		timer = broker.components().scheduler().scheduleWithFixedDelay(this, cleanup, cleanup, TimeUnit.SECONDS);
 	}
 
 	// --- STOP SERVICE REGISTRY ---
 
 	@Override
 	public final void stop() {
-		writerLock.lock();
+
+		// Stop timer
+		if (timer != null) {
+			timer.cancel(false);
+			timer = null;
+		}
+
+		// Stop pending invocations
+		// TODO Use executor
+		InterruptedException error = new InterruptedException("Registry is shutting down.");
+		promiseWriteLock.lock();
 		try {
-			for (Service service : serviceMap.values()) {
+			for (PromiseContainer container : promises.values()) {
+				container.complete(error);
+			}
+			promises.clear();
+		} finally {
+			promiseWriteLock.unlock();
+		}
+
+		// Stop action containers and services
+		configWriteLock.lock();
+		try {
+
+			// Stop strategies (and registered actions)
+			for (Strategy containers : strategies.values()) {
+				try {
+					containers.stop();
+				} catch (Throwable cause) {
+					logger.warn("Unable to stop strategy!", cause);
+				}
+			}
+			strategies.clear();
+
+			// Stop registered services
+			for (Service service : services.values()) {
 				try {
 					service.stop();
 					logger.info("Service \"" + service.name + "\" stopped.");
@@ -152,108 +199,94 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 					logger.warn("Unable to stop \"" + service.name + "\" service!", cause);
 				}
 			}
-			serviceMap.clear();
-			pendingPromises.clear();
+			services.clear();
+
 		} finally {
-			writerLock.unlock();
+			configWriteLock.unlock();
 		}
 	}
 
-	// --- CALL LOCAL SERVICE ---
+	// --- REGISTER PROMISE ---
 
-	@Override
-	public final Promise call(Action action, Tree params, CallingOptions opts) {
-
-		// Create new context
-		final Context ctx = context.create(params, opts);
-
-		// A.) Invoke local action via thread pool
-		if (asyncLocalInvocation) {
-			return new Promise(CompletableFuture.supplyAsync(() -> {
-				try {
-					return action.handler(ctx);
-				} catch (Throwable error) {
-					return error;
-				}
-			}, executor));
-		}
-
-		// B.) In-process (direct) action invocation
+	final void register(String id, Promise promise, long timeout) {
+		final PromiseContainer container = new PromiseContainer(promise, timeout);
+		promiseWriteLock.lock();
 		try {
-			return new Promise(action.handler(ctx));
-		} catch (Throwable error) {
-			return Promise.reject(error);
+			promises.put(id, container);
+		} finally {
+			promiseWriteLock.unlock();
 		}
-	}
-
-	// --- SEND REQUEST TO REMOTE SERVICE ---
-
-	@Override
-	public Promise send(String name, Tree params, CallingOptions opts) {
-		Context ctx = context.create(params, opts);
-		String id = ctx.id();
-		if (id == null) {
-
-			// Local service
-			ActionContainer actionContainer = getAction(null, name);
-			if (actionContainer == null) {
-				return Promise.reject(new IllegalArgumentException("Invalid action name (\"" + name + "\")!"));
-			}
-			return actionContainer.call(params, opts);
-		}
-
-		// TODO Create Tree by context
-		Tree message = new Tree();
-		message.put("id", id);
-		message.put("name", name);
-
-		String targetNodeID = null;
-		if (opts != null) {
-			targetNodeID = opts.nodeID();
-			message.put("nodeID", targetNodeID);
-		}
-
-		// ...
-		
-		// Store promise (context ID -> promise)
-		Promise p = new Promise();
-		pendingPromises.put(id, p);
-
-		// Send to transporter
-		transporter.publish(Transporter.PACKET_REQUEST, targetNodeID, message);
-
-		// Return promise
-		return p;
 	}
 
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
 
 	@Override
-	public void receive(Tree message) {
+	public final void receive(Tree message) {
 		String id = message.get("id", "");
 		if (id.isEmpty()) {
 			logger.warn("Missing \"id\" property!", message);
 			return;
 		}
-		Promise promise = pendingPromises.remove(id);
-		if (promise == null) {
+		PromiseContainer container;
+		promiseWriteLock.lock();
+		try {
+			container = promises.remove(id);
+		} finally {
+			promiseWriteLock.unlock();
+		}
+		if (container == null) {
 			logger.warn("Missing (maybe timeouted) message!", message);
 			return;
 		}
-
-		// TODO Convert Tree to Object or Exception
 		try {
 			String error = message.get("error", "");
 			if (!error.isEmpty()) {
 
 				// Error response
-				promise.complete(new RemoteException(error));
+				container.complete(new RemoteException(error));
 				return;
 			}
 			Tree response = message.get("response");
-			promise.complete(response);
+			container.complete(response);
 		} catch (Throwable cause) {
-			promise.complete(cause);
+			container.complete(cause);
+		}
+	}
+
+	// --- TIMEOUT HANDLER ---
+
+	public final void run() {
+		
+		// TODO Simplify code (one lock object is enough)
+		HashMap<String, PromiseContainer> removables = new HashMap<>();
+		long now = System.currentTimeMillis();
+		promiseReadLock.lock();
+		try {
+			PromiseContainer container;
+			for (Map.Entry<String, PromiseContainer> entry : promises.entrySet()) {
+				container = entry.getValue();
+				if (container.timeout > 0 && now - container.created > container.timeout) {
+					removables.put(entry.getKey(), container);
+				}
+			}
+		} finally {
+			promiseReadLock.unlock();
+		}
+		if (!removables.isEmpty()) {
+			TimeoutException error = new TimeoutException("Invocation timeouted!");
+			for (PromiseContainer container : removables.values()) {
+				executor.execute(() -> {
+					container.complete(error);
+				});
+			}
+			promiseWriteLock.lock();
+			try {
+				for (String id : removables.keySet()) {
+					promises.remove(id);
+				}
+			} finally {
+				promiseWriteLock.unlock();
+			}
 		}
 	}
 
@@ -261,7 +294,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 
 	@Override
 	public final void addService(Service service, Tree config) throws Exception {
-		writerLock.lock();
+		configWriteLock.lock();
 		try {
 
 			// Initialize actions in services
@@ -269,99 +302,91 @@ public final class DefaultServiceRegistry extends ServiceRegistry {
 			Field[] fields = clazz.getFields();
 			for (Field field : fields) {
 				if (Action.class.isAssignableFrom(field.getType())) {
-					Tree parameters = new Tree();
-
-					// Name of the action (eg. "v2.service.add")
-					String name = service.name + '.' + field.getName();
-					parameters.put("name", name);
-
-					// Process "Cache" annotation
-					Cache cache = field.getAnnotation(Cache.class);
-					boolean cached = false;
-					String[] keys = null;
-					if (cache != null) {
-						cached = true;
-						if (cached) {
-							keys = cache.value();
-							if (keys != null && keys.length == 0) {
-								keys = null;
-							}
+					String name = field.getName();
+					Tree actionConfig = config.get(name);
+					if (actionConfig == null) {
+						if (config.isMap()) {
+							actionConfig = config.putMap(name);
+						} else {
+							actionConfig = new Tree();
 						}
 					}
-					parameters.put("cached", cached);
-					if (keys != null && keys.length > 0) {
-						parameters.put("cacheKeys", String.join(",", keys));
+
+					// Name of the action (eg. "v2.service.add")
+					name = service.name + '.' + name;
+					actionConfig.put("name", name);
+
+					// Process "Cache" annotation
+					if (actionConfig.get("cached") == null) {
+						Cache cache = field.getAnnotation(Cache.class);
+						boolean cached = false;
+						String[] keys = null;
+						if (cache != null) {
+							cached = true;
+							if (cached) {
+								keys = cache.value();
+								if (keys != null && keys.length == 0) {
+									keys = null;
+								}
+							}
+						}
+						actionConfig.put("cached", cached);
+						if (keys != null && keys.length > 0) {
+							actionConfig.put("cacheKeys", String.join(",", keys));
+						}
 					}
 
-					// TODO register actions
-					LocalActionContainer container = new LocalActionContainer(broker, parameters,
-							(Action) field.get(service));
+					// Register actions
+					field.setAccessible(true);
+					Action action = (Action) field.get(service);
+					LocalActionContainer container = new LocalActionContainer(action, asyncLocalInvocation);
+					Strategy actionStrategy = strategies.get(name);
+					if (actionStrategy == null) {
+						actionStrategy = strategy.create();
+						actionStrategy.start(broker, actionConfig);
+						strategies.put(name, actionStrategy);
+					}
+					actionStrategy.add(container, actionConfig);
+					container.start(broker, actionConfig);
 				}
 			}
 
 			// Start service
 			service.start(broker, config);
-			serviceMap.put(service.name, service);
+			services.put(service.name, service);
 
 		} finally {
-			writerLock.unlock();
+			configWriteLock.unlock();
 		}
-	}
-
-	// --- ADD REMOTE ACTION ---
-
-	@Override
-	public final void addAction(Tree parameters) throws Exception {
-
-		// TODO register action
-		RemoteActionContainer container = new RemoteActionContainer(broker, parameters);
 	}
 
 	// --- GET SERVICE ---
 
 	@Override
 	public final Service getService(String name) {
-		readerLock.lock();
+		configReadLock.lock();
 		try {
-			return serviceMap.get(name);
+			return services.get(name);
 		} finally {
-			readerLock.unlock();
-		}
-	}
-
-	// --- REMOVE SERVICE ---
-
-	@Override
-	public final void removeService(Service service) {
-		writerLock.lock();
-		try {
-			Service removed = serviceMap.remove(service.name);
-			if (removed != null) {
-				try {
-					removed.stop();
-					logger.info("Service \"" + removed.name + "\" stopped.");
-				} catch (Exception cause) {
-					logger.warn("Service removed, but it threw an exception in the \"close\" method!", cause);
-				}
-			}
-		} finally {
-			writerLock.unlock();
+			configReadLock.unlock();
 		}
 	}
 
 	// --- GET ACTION ---
 
 	@Override
-	public final ActionContainer getAction(String nodeID, String name) {
-		readerLock.lock();
+	public final ActionContainer getAction(String name, String nodeID) {
+		Strategy containers;
+		configReadLock.lock();
 		try {
-
-			// TODO find action
-			return null;
-
+			containers = strategies.get(name);
 		} finally {
-			readerLock.unlock();
+			configReadLock.unlock();
 		}
+		if (containers == null) {
+			return null;
+		}
+		return containers.get(nodeID);
 	}
 
 }

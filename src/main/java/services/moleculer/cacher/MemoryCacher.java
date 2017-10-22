@@ -69,8 +69,8 @@ public final class MemoryCacher extends Cacher implements Runnable {
 
 	// --- LOCKS ---
 
-	private final Lock readerLock;
-	private final Lock writerLock;
+	private final Lock readLock;
+	private final Lock writeLock;
 
 	// --- PARTITIONS / CACHE REGIONS ---
 
@@ -95,8 +95,8 @@ public final class MemoryCacher extends Cacher implements Runnable {
 
 		// Init locks
 		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);
-		readerLock = lock.readLock();
-		writerLock = lock.writeLock();
+		readLock = lock.readLock();
+		writeLock = lock.writeLock();
 	}
 
 	// --- START CACHER ---
@@ -135,13 +135,13 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	@Override
 	public final void run() {
 		long limit = System.currentTimeMillis() - (1000L * ttl);
-		readerLock.lock();
+		readLock.lock();
 		try {
 			for (MemoryPartition partition : partitions.values()) {
 				partition.removeOldEntries(limit);
 			}
 		} finally {
-			readerLock.unlock();
+			readLock.unlock();
 		}
 	}
 
@@ -157,11 +157,11 @@ public final class MemoryCacher extends Cacher implements Runnable {
 		}
 
 		// Clear partitions
-		writerLock.lock();
+		writeLock.lock();
 		try {
 			partitions.clear();
 		} finally {
-			writerLock.unlock();
+			writeLock.unlock();
 		}
 	}
 
@@ -173,11 +173,11 @@ public final class MemoryCacher extends Cacher implements Runnable {
 			int pos = partitionPosition(key, true);
 			String prefix = key.substring(0, pos);
 			MemoryPartition partition;
-			readerLock.lock();
+			readLock.lock();
 			try {
 				partition = partitions.get(prefix);
 			} finally {
-				readerLock.unlock();
+				readLock.unlock();
 			}
 			if (partition == null) {
 				return null;
@@ -198,7 +198,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 		int pos = partitionPosition(key, true);
 		String prefix = key.substring(0, pos);
 		MemoryPartition partition;
-		writerLock.lock();
+		writeLock.lock();
 		try {
 			partition = partitions.get(prefix);
 			if (partition == null) {
@@ -206,7 +206,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 				partitions.put(prefix, partition);
 			}
 		} finally {
-			writerLock.unlock();
+			writeLock.unlock();
 		}
 		partition.set(key.substring(pos + 1), value);
 	}
@@ -216,11 +216,11 @@ public final class MemoryCacher extends Cacher implements Runnable {
 		int pos = partitionPosition(key, true);
 		String prefix = key.substring(0, pos);
 		MemoryPartition partition;
-		readerLock.lock();
+		readLock.lock();
 		try {
 			partition = partitions.get(prefix);
 		} finally {
-			readerLock.unlock();
+			readLock.unlock();
 		}
 		if (partition != null) {
 			partition.del(key.substring(pos + 1));
@@ -235,11 +235,11 @@ public final class MemoryCacher extends Cacher implements Runnable {
 			// Remove items in partitions
 			String prefix = match.substring(0, pos);
 			MemoryPartition partition;
-			readerLock.lock();
+			readLock.lock();
 			try {
 				partition = partitions.get(prefix);
 			} finally {
-				readerLock.unlock();
+				readLock.unlock();
 			}
 			if (partition != null) {
 				partition.clean(match.substring(pos + 1));
@@ -248,7 +248,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 		} else {
 
 			// Remove entire partitions
-			writerLock.lock();
+			writeLock.lock();
 			try {
 				if (match.isEmpty() || match.startsWith("*")) {
 					partitions.clear();
@@ -265,7 +265,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 					}
 				}
 			} finally {
-				writerLock.unlock();
+				writeLock.unlock();
 			}
 		}
 	}

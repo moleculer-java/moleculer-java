@@ -35,7 +35,7 @@ import services.moleculer.service.ActionContainer;
 import services.moleculer.service.Name;
 
 /**
- * 
+ * Base superclass of all Strategy implementations.
  */
 @Name("Strategy")
 public abstract class Strategy implements MoleculerComponent {
@@ -69,7 +69,7 @@ public abstract class Strategy implements MoleculerComponent {
 
 	// --- ADD ACCTION ---
 
-	public abstract void add(Action action, Tree parameters);
+	public abstract void add(ActionContainer action, Tree config);
 
 	// --- REMOVE ACTION ---
 
