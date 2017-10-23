@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
+import services.moleculer.cacher.Cacher;
 import services.moleculer.config.MoleculerComponent;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
@@ -21,12 +22,14 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 	protected String nodeID;
 	protected String name;
 	protected boolean cached;
-	protected String[] cacheKeys;
+	protected String[] cacheKeys;	
+	protected int defaultTimeout;
 
 	// --- COMPONENTS ---
 
 	protected ServiceBroker broker;
-
+	private Cacher cacher;
+	
 	// --- CONSTRUCTOR ---
 	
 	AbstractContainer() {
@@ -55,8 +58,14 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 		cached = config.get("cached", false);
 		cacheKeys = config.get("cacheKeys", "").split(",");
 
+		// Set default invaocation timeout
+		defaultTimeout = config.get("defaultTimeout", 0);
+		
 		// Set components
 		this.broker = broker;
+		if (cached) {
+			cacher = broker.components().cacher();
+		}
 	}
 
 	// --- STOP CONTAINER ---
@@ -65,54 +74,42 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 	public void stop() {
 	}
 
-	// --- INVOKE LOCAL OR REMOTE ACTION ---
+	// --- INVOKE LOCAL OR REMOTE ACTION + CACHING ---
 
-	/**
-	 * Calls an action (local or remote)
-	 */
 	@Override
-	public final Promise call(Object... params) {
-		Tree tree = null;
-		Context parent = null;
-		CallingOptions opts = null;
-		if (params != null) {
-			if (params.length == 1) {
-				if (params[0] instanceof Tree) {
-					tree = (Tree) params[0];
-				} else {
-					tree = new Tree().setObject(params[0]);
-				}
-			} else {
-				tree = new Tree();
-				String prev = null;
-				Object value;
-				for (int i = 0; i < params.length; i++) {
-					value = params[i];
-					if (prev == null) {
-						if (!(value instanceof String)) {
-							if (value instanceof CallingOptions) {
-								opts = (CallingOptions) value;
-								continue;
-							}
-							if (value instanceof Context) {
-								parent = (Context) value;
-								continue;
-							}
-							i++;
-							throw new IllegalArgumentException("Parameter #" + i + " (\"" + value
-									+ "\") must be String, Context, or CallingOptions!");
-						}
-						prev = (String) value;
-						continue;
-					}
-					tree.putObject(prev, value);
-				}
+	public final Promise call(Tree params, CallingOptions opts, Context parent) {
+		
+		// Caching enabled
+		if (cached) {
+			String cacheKey = cacher.getCacheKey(name, params, cacheKeys);
+			Promise promise = cacher.get(cacheKey);
+			if (promise == null) {
+				return callActionAndStore(params, opts, parent, cacheKey);
 			}
+			return promise.then(rsp -> {
+				if (rsp == null) {
+					return callActionAndStore(params, opts, parent, cacheKey);
+				}
+				return rsp;
+			}).Catch(error -> {
+				logger.warn("Unexpected error received from cacher!", error);
+				return callActionNoStore(params, opts, parent);
+			});
 		}
-		return call(tree, opts, parent);
-	}
 
-	public abstract Promise call(Tree params, CallingOptions opts, Context parent);
+		// Caching disabled
+		return callActionNoStore(params, opts, parent);
+	}
+	
+	private final Promise callActionAndStore(Tree params, CallingOptions opts, Context parent, String cacheKey) {
+		return callActionNoStore(params, opts, parent).then(result -> {
+			if (result != null) {
+				cacher.set(cacheKey, result);
+			}
+		});
+	}
+	
+	protected abstract Promise callActionNoStore(Tree params, CallingOptions opts, Context parent);
 
 	// --- PROPERTY GETTERS ---
 
@@ -136,4 +133,9 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 		return cacheKeys;
 	}
 
+	@Override
+	public final int defaultTimeout() {
+		return defaultTimeout;
+	}
+	
 }

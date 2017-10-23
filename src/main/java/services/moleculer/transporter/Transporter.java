@@ -32,6 +32,8 @@ import org.slf4j.LoggerFactory;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.MoleculerComponent;
+import services.moleculer.context.CallingOptions;
+import services.moleculer.context.Context;
 import services.moleculer.service.Name;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.util.Serializer;
@@ -192,6 +194,12 @@ public abstract class Transporter implements MoleculerComponent {
 		// If isConnected() call `sendDisconnectPacket()`
 	}
 
+	// --- REQUEST PACKET ---
+	
+	public Tree createRequestPacket(Tree params, CallingOptions opts, Context ctx) {
+		return null;
+	}
+	
 	// --- PUBLISH ---
 
 	public void publish(String cmd, String nodeID, Tree message) {

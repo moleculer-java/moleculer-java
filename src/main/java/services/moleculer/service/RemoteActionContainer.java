@@ -32,20 +32,18 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
+import services.moleculer.transporter.Transporter;
 
 /**
  * Container (action invoker) of remote actions.
  */
 public final class RemoteActionContainer  extends AbstractContainer {
 
-	// --- PROPERTIES ---
-	
-	private long defaultTimeout;
-	
 	// --- COMPONENTS ---
 	
 	private final DefaultServiceRegistry registry;
 	private ContextFactory context;
+	private Transporter transporter;
 	
 	// --- CONSTRUCTOR ---
 	
@@ -67,38 +65,49 @@ public final class RemoteActionContainer  extends AbstractContainer {
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 		super.start(broker, config);
 		
-		// Set default timeout
-		defaultTimeout = config.get("timeout", 0L);
-		
 		// Check parameters
 		Objects.requireNonNull(name);
 		Objects.requireNonNull(nodeID);
 		
 		// Set components
 		context = broker.components().context();
+		transporter = broker.components().transporter();
 	}
 
 	// --- INVOKE REMOTE ACTION ---
 
 	@Override
-	public final Promise call(Tree params, CallingOptions opts, Context parent) {
+	protected final Promise callActionNoStore(Tree params, CallingOptions opts, Context parent) {
 		
-		// Create new context
-		Context ctx = context.create(name, params, opts, parent);
+		// Create new context (with ID)
+		Context ctx = context.create(name, params, opts, parent, true);
 		
 		// Create new promise
 		Promise promise = new Promise();
 		
-		// Set timeout (by config or from opts)
-		long timeout;
+		// Set timeout (limit timestamp in millis)
+		int timeout;
 		if (opts == null) {
 			timeout = defaultTimeout;
 		} else {
 			timeout = opts.timeout();
+			if (timeout < 1) {
+				timeout = defaultTimeout;	
+			}
+		}
+		long timeoutAt;
+		if (timeout > 0) {
+			timeoutAt = System.currentTimeMillis() + (timeout * 1000L);
+		} else {
+			timeoutAt = 0;
 		}
 		
-		// Register promise
-		registry.register(ctx.id(), promise, timeout);
+		// Register promise (timeout and response handling)
+		registry.register(ctx.id(), promise, timeoutAt);
+		
+		// Send request via transporter
+		Tree message = transporter.createRequestPacket(params, opts, ctx);
+		transporter.publish(Transporter.PACKET_REQUEST, nodeID, message);
 		
 		// Return promise
 		return promise;

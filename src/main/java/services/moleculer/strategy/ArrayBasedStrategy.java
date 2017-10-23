@@ -49,10 +49,6 @@ public abstract class ArrayBasedStrategy extends Strategy {
 
 	private ActionContainer localAction;
 
-	// --- SERVICE BROKER ---
-
-	private ServiceBroker broker;
-
 	// --- PROPERTIES ---
 	
 	private boolean preferLocal;
@@ -75,7 +71,6 @@ public abstract class ArrayBasedStrategy extends Strategy {
 	 */
 	@Override
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
-		this.broker = broker;
 	}
 
 	// --- ADD ACCTION ---
@@ -93,10 +88,15 @@ public abstract class ArrayBasedStrategy extends Strategy {
 					return;
 				}
 			}
-
+			
 			// Add to array
 			actions = Arrays.copyOf(actions, actions.length + 1);
 			actions[actions.length - 1] = action;
+		}
+		
+		// Store local action
+		if (action.local()) {
+			localAction = action;
 		}
 	}
 

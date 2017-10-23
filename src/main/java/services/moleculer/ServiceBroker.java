@@ -69,7 +69,7 @@ public final class ServiceBroker {
 	// --- INERNAL AND USER-DEFINED COMPONENTS ---
 
 	private final ComponentRegistry components;
-	
+
 	private ServiceRegistry registry;
 
 	// --- SERVICES AND CONFIGURATIONS ---
@@ -129,7 +129,7 @@ public final class ServiceBroker {
 	 * Start broker. If has transporter, transporter.connect will be called.
 	 */
 	public final boolean start() {
-		
+
 		// Check state
 		if (registry != null) {
 			throw new IllegalStateException("Moleculer Service Broker has already been started!");
@@ -147,7 +147,7 @@ public final class ServiceBroker {
 			registry = components.registry();
 
 			// Start pending services
-			for (Map.Entry<Service, Tree> entry: services.entrySet()) {
+			for (Map.Entry<Service, Tree> entry : services.entrySet()) {
 				Service service = entry.getKey();
 				Tree cfg = entry.getValue();
 				if (cfg == null) {
@@ -155,7 +155,7 @@ public final class ServiceBroker {
 				}
 				registry.addService(service, cfg);
 			}
-			
+
 			// All components and services started successfully
 			services.clear();
 			return true;
@@ -173,16 +173,16 @@ public final class ServiceBroker {
 	 */
 	public final void stop() {
 		if (registry != null) {
-			
+
 			// Stop internal and custom components
 			logger.info("Moleculer Service Broker stopping node \"" + nodeID + "\"...");
 			components.stop();
 			logger.info("Node \"" + nodeID + "\" stopped.");
-			
+
 			// Clear variables
 			services.clear();
 			registry = null;
-		}		
+		}
 	}
 
 	// --- PUBLIC BROKER FUNCTIONS ---
@@ -206,7 +206,7 @@ public final class ServiceBroker {
 	public <T extends Service> T createService(T service) throws Exception {
 		return createService(service, new Tree());
 	}
-	
+
 	/**
 	 * Registers a new local service.
 	 * 
@@ -219,11 +219,11 @@ public final class ServiceBroker {
 	 */
 	public <T extends Service> T createService(T service, Tree config) throws Exception {
 		if (registry == null) {
-			
+
 			// Start service later
 			services.put(service, config);
 		} else {
-			
+
 			// Start service now
 			registry.addService(service, config);
 		}
@@ -269,18 +269,65 @@ public final class ServiceBroker {
 	// --- INVOKE LOCAL OR REMOTE ACTION ---
 
 	/**
-	 * Calls an action (local or remote)
+	 * Calls an action (local or remote). Sample code:<br>
+	 * <br>
+	 * Promise promise = broker.call("math.add", "a", 1, "b", 2);<br>
+	 * <br>
+	 * ...or with CallingOptions:<br>
+	 * <br>
+	 * broker.call("math.add", "a", 1, "b", 2, new CallingOptions("node2"));
 	 */
 	public Promise call(String name, Object... params) {
-		return registry.getAction(name, null).call(params);
-	}	
+		Tree tree = null;
+		Context parent = null;
+		CallingOptions opts = null;
+		if (params != null) {
+			if (params.length == 1) {
+				if (params[0] instanceof Tree) {
+					tree = (Tree) params[0];
+				} else {
+					tree = new Tree().setObject(params[0]);
+				}
+			} else {
+				LinkedHashMap<String, Object> map = new LinkedHashMap<>();
+				String prev = null;
+				Object value;
+				for (int i = 0; i < params.length; i++) {
+					value = params[i];
+					if (prev == null) {
+						if (!(value instanceof String)) {
+							if (value instanceof CallingOptions) {
+								opts = (CallingOptions) value;
+								continue;
+							}
+							if (value instanceof Context) {
+								parent = (Context) value;
+								continue;
+							}
+							i++;
+							throw new IllegalArgumentException("Parameter #" + i + " (\"" + value
+									+ "\") must be String, Context, or CallingOptions!");
+						}
+						prev = (String) value;
+						continue;
+					}
+					map.put(prev, value);
+					prev = null;
+				}
+				tree = new Tree(map);
+			}
+		}
+		String targetID = opts == null ? null : opts.nodeID();
+		return registry.getAction(name, targetID).call(tree, opts, parent);
+	}
 
 	public Promise call(String name, Tree params) {
 		return registry.getAction(name, null).call(params, (CallingOptions) null, (Context) null);
 	}
-	
+
 	public Promise call(String name, Tree params, CallingOptions opts) {
-		return registry.getAction(name, null).call(params, opts, (Context) null);
+		String targetID = opts == null ? null : opts.nodeID();
+		return registry.getAction(name, targetID).call(params, opts, (Context) null);
 	}
 
 	// --- EMIT EVENTS VIA EVENT BUS ---

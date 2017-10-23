@@ -72,6 +72,6 @@ public abstract class ContextFactory implements MoleculerComponent {
 
 	// --- CREATE CONTEXT ---
 
-	public abstract Context create(String name, Tree params, CallingOptions opts, Context parent);
+	public abstract Context create(String name, Tree params, CallingOptions opts, Context parent, boolean generateID);
 
 }

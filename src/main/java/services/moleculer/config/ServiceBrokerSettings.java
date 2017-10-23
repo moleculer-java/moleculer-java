@@ -120,18 +120,8 @@ public final class ServiceBrokerSettings {
 		}
 		
 		// Create thread pools
-		Object nettyExecutor = null;
-		try {
-			nettyExecutor = Class.forName("io.netty.channel.nio.NioEventLoopGroup").newInstance();
-		} catch (Throwable ignored) {
-		}
-		if (nettyExecutor == null) {
-			executor = Executors.newWorkStealingPool();
-			scheduler = Executors.newSingleThreadScheduledExecutor();
-		} else {
-			executor = (ExecutorService) nettyExecutor;
-			scheduler = (ScheduledExecutorService) nettyExecutor;
-		}
+		executor = Executors.newWorkStealingPool();
+		scheduler = Executors.newSingleThreadScheduledExecutor();
 	}
 
 	public ServiceBrokerSettings(String nodeID, Transporter transporter, Cacher cacher) {

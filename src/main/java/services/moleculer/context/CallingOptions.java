@@ -24,60 +24,35 @@
  */
 package services.moleculer.context;
 
-import io.datatree.dom.Cache;
-
 /**
- * 
+ * Calling options (timeout, target nodeID, number of retries).
  */
 public final class CallingOptions {
 
-	// --- CONSTANTS ---
-
-	public static final int DEFAULT_TIMEOUT = 0;
-	public static final int DEFAULT_RETRY_COUNT = 0;
-
-	// --- VARIABLES ---
+	// --- PROPERTIES ---
 
 	private final String nodeID;
-	private final long timeout;
+	private final int timeout;
 	private final int retryCount;
 
 	// --- CONSTRUTORS ---
 
-	public CallingOptions(String nodeID, long timeout, int retryCount) {
+	public CallingOptions(String nodeID) {
+		this(nodeID, 0, 0);
+	}
+
+	public CallingOptions(int timeout, int retryCount) {
+		this(null, timeout, retryCount);
+	}
+
+	public CallingOptions(int timeout) {
+		this(null, timeout, 0);
+	}
+
+	public CallingOptions(String nodeID, int timeout, int retryCount) {
 		this.nodeID = nodeID;
 		this.timeout = timeout;
 		this.retryCount = retryCount;
-	}
-
-	// --- STATIC CONSTRUCTORS ---
-
-	private static final Cache<String, CallingOptions> cache = new Cache<>(1024, true);
-
-	public static final CallingOptions get(long timeout) {
-		return get(null, timeout, DEFAULT_RETRY_COUNT);
-	}
-
-	public static final CallingOptions get(long timeout, int retryCount) {
-		return get(null, timeout, retryCount);
-	}
-
-	public static final CallingOptions get(String nodeID) {
-		return get(nodeID, DEFAULT_TIMEOUT, DEFAULT_RETRY_COUNT);
-	}
-
-	public static final CallingOptions get(String nodeID, long timeout) {
-		return get(nodeID, timeout, DEFAULT_RETRY_COUNT);
-	}
-
-	public static final CallingOptions get(String nodeID, long timeout, int retryCount) {
-		String key = nodeID + '.' + timeout + '.' + retryCount;
-		CallingOptions opts = cache.get(key);
-		if (opts == null) {
-			opts = new CallingOptions(nodeID, timeout, retryCount);
-			cache.put(key, opts);
-		}
-		return opts;
 	}
 
 	// --- VARIABLE GETTERS ---
@@ -86,7 +61,7 @@ public final class CallingOptions {
 		return nodeID;
 	}
 
-	public final long timeout() {
+	public final int timeout() {
 		return timeout;
 	}
 

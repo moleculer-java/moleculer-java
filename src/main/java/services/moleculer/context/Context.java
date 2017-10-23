@@ -24,6 +24,8 @@
  */
 package services.moleculer.context;
 
+import java.util.LinkedHashMap;
+
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.service.ServiceRegistry;
@@ -85,7 +87,7 @@ public final class Context {
 					tree = new Tree().setObject(params[0]);
 				}
 			} else {
-				tree = new Tree();
+				LinkedHashMap<String, Object> map = new LinkedHashMap<>();
 				String prev = null;
 				Object value;
 				for (int i = 0; i < params.length; i++) {
@@ -106,11 +108,13 @@ public final class Context {
 						prev = (String) value;
 						continue;
 					}
-					tree.putObject(prev, value);
+					map.put(prev, value);
 				}
+				tree = new Tree(map);
 			}
 		}
-		return registry.getAction(name, null).call(tree, opts, this);
+		String targetID = opts == null ? null : opts.nodeID();
+		return registry.getAction(name, targetID).call(tree, opts, this);
 	}
 
 	public Promise call(String name, Tree params) {
@@ -118,7 +122,8 @@ public final class Context {
 	}
 
 	public Promise call(String name, Tree params, CallingOptions opts) {
-		return registry.getAction(name, null).call(params, opts, this);
+		String targetID = opts == null ? null : opts.nodeID();
+		return registry.getAction(name, targetID).call(params, opts, this);
 	}
 
 	// --- EMIT EVENTS VIA EVENT BUS ---

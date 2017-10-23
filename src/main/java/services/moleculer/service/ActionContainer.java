@@ -36,8 +36,6 @@ public interface ActionContainer {
 
 	// --- INVOKE THIS ACTION ---
 
-	public Promise call(Object... params);
-
 	public Promise call(Tree params, CallingOptions opts, Context parent);
 	
 	// --- PROPERTY GETTERS ---
@@ -52,4 +50,6 @@ public interface ActionContainer {
 
 	public String[] cacheKeys();
 
+	public int defaultTimeout();
+	
 }

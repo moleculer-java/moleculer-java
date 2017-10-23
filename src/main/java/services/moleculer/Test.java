@@ -25,6 +25,7 @@
 package services.moleculer;
 
 import services.moleculer.service.Action;
+import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Service;
 
 public class Test {
@@ -32,7 +33,7 @@ public class Test {
 	public static void main(String[] args) throws Exception {
 			
 		// Define a service
-		ServiceBroker broker = new ServiceBroker();
+		ServiceBroker broker = ServiceBroker.builder().registry(new DefaultServiceRegistry(false)).build();
 		broker.createService(new Service("math") {
 			
 			@SuppressWarnings("unused")

@@ -43,22 +43,31 @@ public final class LocalActionContainer extends AbstractContainer {
 
 	// --- PROPERTIES ---
 
+	/**
+	 * Action instance (it's a field / inner class in Service object)
+	 */
 	private final Action action;
+
+	/**
+	 * Invoke all local services via Thread pool (true) or directly (false)
+	 */
 	private final boolean asyncLocalInvocation;
 
 	// --- COMPONENTS ---
-	
+
+	private final DefaultServiceRegistry registry;
 	private ContextFactory context;
 	private ExecutorService executor;
-	
+
 	// --- CONSTRUCTOR ---
-	
-	LocalActionContainer(Action action, boolean asyncLocalInvocation) {
+
+	LocalActionContainer(DefaultServiceRegistry registry, Action action, boolean asyncLocalInvocation) {
+		this.registry = registry;
 		this.action = action;
 		this.asyncLocalInvocation = asyncLocalInvocation;
 	}
-	
-	// --- INIT CONTAINER ---
+
+	// --- START CONTAINER ---
 
 	/**
 	 * Initializes Container instance.
@@ -71,7 +80,7 @@ public final class LocalActionContainer extends AbstractContainer {
 	@Override
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 		super.start(broker, config);
-		
+
 		// Set name
 		if (name == null || name.isEmpty()) {
 			name = nameOf(action, false);
@@ -79,23 +88,61 @@ public final class LocalActionContainer extends AbstractContainer {
 
 		// Set nodeID
 		nodeID = broker.nodeID();
-		
+
 		// Set components
 		context = broker.components().context();
-		if (asyncLocalInvocation) {
-			executor = broker.components().executor();
-		}
+		executor = broker.components().executor();
 	}
 
 	// --- INVOKE LOCAL ACTION ---
 
 	@Override
-	public final Promise call(Tree params, CallingOptions opts, Context parent) {
+	protected final Promise callActionNoStore(Tree params, CallingOptions opts, Context parent) {
+				
+		// Set timeout (limit timestamp in millis)
+		int timeout;
+		if (opts == null) {
+			timeout = defaultTimeout;
+		} else {
+			timeout = opts.timeout();
+			if (timeout < 1) {
+				timeout = defaultTimeout;	
+			}
+		}
+		long timeoutAt;
+		if (timeout > 0) {
+			timeoutAt = System.currentTimeMillis() + (timeout * 1000L);
+		} else {
+			timeoutAt = 0;
+		}
 		
-		// Create new context
-		Context ctx = context.create(name, params, opts, parent);
+		// Create new context (without ID)
+		final Context ctx = context.create(name, params, opts, parent, timeoutAt > 0);
 		
-		// A.) Invoke local action via Thread pool
+		// A.) Async invocation without timeout
+		if (timeoutAt > 0) {
+			Promise promise = new Promise();
+			
+			// Register promise (timeout and response handling)
+			final String id = ctx.id();
+			registry.register(id, promise, timeoutAt);
+			
+			// Invoke promise
+			executor.execute(() -> {
+				try {
+					promise.complete(action.handler(ctx));
+				} catch (Throwable error) {
+					promise.complete(error);
+				} finally {
+					registry.deregister(id);
+				}
+			});
+			
+			// Return promise
+			return promise;
+		}
+		
+		// B.) Async invocation without timeout
 		if (asyncLocalInvocation) {
 			return new Promise(CompletableFuture.supplyAsync(() -> {
 				try {
@@ -106,12 +153,13 @@ public final class LocalActionContainer extends AbstractContainer {
 			}, executor));
 		}
 
-		// B.) In-process (direct) action invocation
+		// C.) Faster in-process (direct) action invocation
 		try {
 			return new Promise(action.handler(ctx));
 		} catch (Throwable error) {
 			return Promise.reject(error);
 		}
+
 	}
 
 	// --- PROPERTY GETTERS ---

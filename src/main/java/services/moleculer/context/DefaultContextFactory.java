@@ -36,11 +36,11 @@ import services.moleculer.uid.UIDGenerator;
 @Name("Default Context Factory")
 public final class DefaultContextFactory extends ContextFactory {
 
-	// --- INTERNAL COMPONENTS ---
+	// --- COMPONENTS ---
 
 	private ServiceRegistry registry;
 	private UIDGenerator uid;
-
+	
 	// --- START CONTEXT FACTORY ---
 
 	/**
@@ -60,10 +60,15 @@ public final class DefaultContextFactory extends ContextFactory {
 	// --- CREATE CONTEXT ---
 
 	@Override
-	public final Context create(String name, Tree params, CallingOptions opts, Context parent) {
+	public final Context create(String name, Tree params, CallingOptions opts, Context parent, boolean generateID) {
 
 		// Generate ID
-		String id = uid.nextUID();
+		String id;
+		if (generateID) {
+			id = uid.nextUID();
+		} else {
+			id = null;
+		}
 		
 		// TODO Merge meta, set parent context ID
 		

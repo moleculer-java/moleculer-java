@@ -24,49 +24,23 @@
  */
 package services.moleculer.service;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import services.moleculer.Promise;
 
 /**
- * Promise container of a pending remote invocation.
+ * Promise container of a pending invocation.
  */
 final class PromiseContainer {
 
-	// --- COMPLETE FLAG ---
-	
-	private final AtomicBoolean completed = new AtomicBoolean();
-	
 	// --- PROPERTIES ---
 	
-	final long created;
 	final Promise promise;
-	final long timeout;
+	final long timeoutAt;
 	
 	// --- CONSTRUCTOR ---
 	
-	PromiseContainer(Promise promise, long timeout) {
+	PromiseContainer(Promise promise, long timeoutAt) {
 		this.promise = promise;
-		this.timeout = timeout;
-		if (timeout > 0) {
-			created = System.currentTimeMillis();
-		} else {
-			created = 0;
-		}
-	}
-
-	// --- THREAD-SAFE COMPLETE METHODS ---
-	
-	final void complete(Object value) {
-		if (completed.compareAndSet(false, true)) {
-			promise.complete(value);
-		}
-	}
-
-	final void complete(Throwable error) {
-		if (completed.compareAndSet(false, true)) {
-			promise.complete(error);
-		}
+		this.timeoutAt = timeoutAt;
 	}
 
 }

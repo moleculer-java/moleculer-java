@@ -27,11 +27,13 @@ package services.moleculer.service;
 import java.lang.reflect.Field;
 import java.rmi.RemoteException;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -60,38 +62,38 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 	private final HashMap<String, PromiseContainer> promises = new HashMap<>(256);
 
+	// --- PROPERTIES ---
+
+	/**
+	 * Invoke all local services via Thread pool (true) or directly (false)
+	 */
+	private boolean asyncLocalInvocation;
+
+	/**
+	 * Default action invocation timeout (seconds)
+	 */
+	private int defaultTimeout;
+
+	/**
+	 * Timeout-checker's period delay (seconds)
+	 */
+	private int cleanupDelay = 1;
+
+	/**
+	 * Reader lock of configuration
+	 */
+	private final Lock readLock;
+
+	/**
+	 * Writer lock of configuration
+	 */
+	private final Lock writeLock;
+
 	// --- COMPONENTS ---
 
 	private ServiceBroker broker;
 	private StrategyFactory strategy;
 	private ExecutorService executor;
-
-	// --- PROPERTIES ---
-
-	/**
-	 * Invoke local service via Thread pool or directly
-	 */
-	private boolean asyncLocalInvocation;
-
-	/**
-	 * Reader lock of configuration
-	 */
-	private final Lock configReadLock;
-
-	/**
-	 * Writer lock of configuration
-	 */
-	private final Lock configWriteLock;
-
-	/**
-	 * Reader lock of configuration
-	 */
-	private final Lock promiseReadLock;
-
-	/**
-	 * Writer lock of configuration
-	 */
-	private final Lock promiseWriteLock;
 
 	// --- CONSTRUCTORS ---
 
@@ -106,15 +108,11 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 		// Create locks
 		ReentrantReadWriteLock configLock = new ReentrantReadWriteLock(true);
-		configReadLock = configLock.readLock();
-		configWriteLock = configLock.writeLock();
-
-		ReentrantReadWriteLock promiseLock = new ReentrantReadWriteLock(true);
-		promiseReadLock = promiseLock.readLock();
-		promiseWriteLock = promiseLock.writeLock();
+		readLock = configLock.readLock();
+		writeLock = configLock.writeLock();
 	}
 
-	// --- INIT SERVICE REGISTRY ---
+	// --- START SERVICE REGISTRY ---
 
 	/**
 	 * Cancelable timer
@@ -134,7 +132,8 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 		// Process config
 		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
-		long cleanup = config.get("cleanup", 1L);
+		cleanupDelay = config.get("cleanupDelay", cleanupDelay);
+		defaultTimeout = config.get("defaultTimeout", defaultTimeout);
 
 		// Node-style Service Registry config?
 		Tree parent = config.getParent();
@@ -149,7 +148,8 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		this.executor = broker.components().executor();
 
 		// Start timeout timer
-		timer = broker.components().scheduler().scheduleWithFixedDelay(this, cleanup, cleanup, TimeUnit.SECONDS);
+		timer = broker.components().scheduler().scheduleWithFixedDelay(this, cleanupDelay, cleanupDelay,
+				TimeUnit.SECONDS);
 	}
 
 	// --- STOP SERVICE REGISTRY ---
@@ -164,20 +164,18 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		}
 
 		// Stop pending invocations
-		// TODO Use executor
 		InterruptedException error = new InterruptedException("Registry is shutting down.");
-		promiseWriteLock.lock();
-		try {
+		synchronized (promises) {
 			for (PromiseContainer container : promises.values()) {
-				container.complete(error);
+				executor.execute(() -> {
+					container.promise.complete(error);
+				});
 			}
 			promises.clear();
-		} finally {
-			promiseWriteLock.unlock();
 		}
 
 		// Stop action containers and services
-		configWriteLock.lock();
+		writeLock.lock();
 		try {
 
 			// Stop strategies (and registered actions)
@@ -202,22 +200,65 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			services.clear();
 
 		} finally {
-			configWriteLock.unlock();
+			writeLock.unlock();
+		}
+	}
+
+	// --- TIMEOUT HANDLER ---
+
+	private final AtomicBoolean checkTimeout = new AtomicBoolean();
+
+	public final void run() {
+		long now = System.currentTimeMillis();
+		boolean hasTimeout = false;
+		PromiseContainer container;
+		synchronized (promises) {
+			if (!checkTimeout.get()) {
+				return;
+			}
+			Iterator<PromiseContainer> i = promises.values().iterator();
+			while (i.hasNext()) {
+				container = i.next();
+				if (container.timeoutAt > 0) {
+					if (now >= container.timeoutAt) {
+						final Promise promise = container.promise;
+						executor.execute(() -> {
+							promise.complete(new TimeoutException("Action invocation timeouted!"));
+						});
+						i.remove();
+					} else {
+						hasTimeout = true;
+					}
+				}
+			}
+
+			// Turn off timeout checking
+			if (!hasTimeout) {
+				checkTimeout.set(false);
+			}
 		}
 	}
 
 	// --- REGISTER PROMISE ---
 
-	final void register(String id, Promise promise, long timeout) {
-		final PromiseContainer container = new PromiseContainer(promise, timeout);
-		promiseWriteLock.lock();
-		try {
+	final void register(String id, Promise promise, long timeoutAt) {
+		PromiseContainer container = new PromiseContainer(promise, timeoutAt);
+		synchronized (promises) {
 			promises.put(id, container);
-		} finally {
-			promiseWriteLock.unlock();
+
+			// Turn on timeout checking
+			if (container.timeoutAt > 0) {
+				checkTimeout.set(true);
+			}
 		}
 	}
 
+	final void deregister(String id) {
+		synchronized (promises) {
+			promises.remove(id);
+		}
+	}
+	
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
 
 	@Override
@@ -228,14 +269,11 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			return;
 		}
 		PromiseContainer container;
-		promiseWriteLock.lock();
-		try {
+		synchronized (promises) {
 			container = promises.remove(id);
-		} finally {
-			promiseWriteLock.unlock();
 		}
 		if (container == null) {
-			logger.warn("Missing (maybe timeouted) message!", message);
+			logger.warn("Unknown (maybe timeouted) response received!", message);
 			return;
 		}
 		try {
@@ -243,50 +281,13 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			if (!error.isEmpty()) {
 
 				// Error response
-				container.complete(new RemoteException(error));
+				container.promise.complete(new RemoteException(error));
 				return;
 			}
 			Tree response = message.get("response");
-			container.complete(response);
-		} catch (Throwable cause) {
-			container.complete(cause);
-		}
-	}
-
-	// --- TIMEOUT HANDLER ---
-
-	public final void run() {
-		
-		// TODO Simplify code (one lock object is enough)
-		HashMap<String, PromiseContainer> removables = new HashMap<>();
-		long now = System.currentTimeMillis();
-		promiseReadLock.lock();
-		try {
-			PromiseContainer container;
-			for (Map.Entry<String, PromiseContainer> entry : promises.entrySet()) {
-				container = entry.getValue();
-				if (container.timeout > 0 && now - container.created > container.timeout) {
-					removables.put(entry.getKey(), container);
-				}
-			}
-		} finally {
-			promiseReadLock.unlock();
-		}
-		if (!removables.isEmpty()) {
-			TimeoutException error = new TimeoutException("Invocation timeouted!");
-			for (PromiseContainer container : removables.values()) {
-				executor.execute(() -> {
-					container.complete(error);
-				});
-			}
-			promiseWriteLock.lock();
-			try {
-				for (String id : removables.keySet()) {
-					promises.remove(id);
-				}
-			} finally {
-				promiseWriteLock.unlock();
-			}
+			container.promise.complete(response);
+		} catch (Throwable error) {
+			container.promise.complete(error);
 		}
 	}
 
@@ -294,7 +295,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 	@Override
 	public final void addService(Service service, Tree config) throws Exception {
-		configWriteLock.lock();
+		writeLock.lock();
 		try {
 
 			// Initialize actions in services
@@ -339,7 +340,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 					// Register actions
 					field.setAccessible(true);
 					Action action = (Action) field.get(service);
-					LocalActionContainer container = new LocalActionContainer(action, asyncLocalInvocation);
+					LocalActionContainer container = new LocalActionContainer(this, action, asyncLocalInvocation);
 					Strategy actionStrategy = strategies.get(name);
 					if (actionStrategy == null) {
 						actionStrategy = strategy.create();
@@ -356,7 +357,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			services.put(service.name, service);
 
 		} finally {
-			configWriteLock.unlock();
+			writeLock.unlock();
 		}
 	}
 
@@ -364,12 +365,17 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 	@Override
 	public final Service getService(String name) {
-		configReadLock.lock();
+		Service service;
+		readLock.lock();
 		try {
-			return services.get(name);
+			service = services.get(name);
 		} finally {
-			configReadLock.unlock();
+			readLock.unlock();
 		}
+		if (service == null) {
+			throw new NoSuchElementException("Invalid service name (" + name + ")!");
+		}
+		return service;
 	}
 
 	// --- GET ACTION ---
@@ -377,16 +383,46 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	@Override
 	public final ActionContainer getAction(String name, String nodeID) {
 		Strategy containers;
-		configReadLock.lock();
+		readLock.lock();
 		try {
 			containers = strategies.get(name);
 		} finally {
-			configReadLock.unlock();
+			readLock.unlock();
 		}
 		if (containers == null) {
-			return null;
+			throw new NoSuchElementException("Invalid action name (" + name + ")!");
 		}
-		return containers.get(nodeID);
+		ActionContainer container = containers.get(nodeID);
+		if (container == null) {
+			throw new NoSuchElementException("Invalid nodeID (" + nodeID + ")!");
+		}
+		return container;
+	}
+
+	// --- GETTERS / SETTERS ---
+
+	public final boolean isAsyncLocalInvocation() {
+		return asyncLocalInvocation;
+	}
+
+	public final void setAsyncLocalInvocation(boolean asyncLocalInvocation) {
+		this.asyncLocalInvocation = asyncLocalInvocation;
+	}
+
+	public final int getDefaultTimeout() {
+		return defaultTimeout;
+	}
+
+	public final void setDefaultTimeout(int defaultTimeout) {
+		this.defaultTimeout = defaultTimeout;
+	}
+
+	public final int getCleanupDelay() {
+		return cleanupDelay;
+	}
+
+	public final void setCleanupDelay(int cleanupDelay) {
+		this.cleanupDelay = cleanupDelay;
 	}
 
 }

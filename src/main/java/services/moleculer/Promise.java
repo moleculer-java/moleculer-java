@@ -185,7 +185,13 @@ public class Promise {
 	 * @return output Promise
 	 */
 	public Promise then(Consumer<Tree> action) {
-		return new Promise(future.thenAccept(action));
+		return new Promise(future.handle((data, error) -> {
+			if (error != null) {
+				return error;
+			}
+			action.accept(data);
+			return data;
+		}));
 	}
 
 	// --- ERROR HANDLER METHODS ---
