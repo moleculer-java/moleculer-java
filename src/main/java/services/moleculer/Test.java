@@ -57,6 +57,8 @@ public class Test {
 			error.printStackTrace();
 			
 		});
+		
+		System.out.println(broker.components().registry().generateDescriptor());
 	}
 
 }

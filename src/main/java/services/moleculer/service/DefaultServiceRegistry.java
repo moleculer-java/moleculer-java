@@ -25,9 +25,14 @@
 package services.moleculer.service;
 
 import java.lang.reflect.Field;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.rmi.RemoteException;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -258,7 +263,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			promises.remove(id);
 		}
 	}
-	
+
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
 
 	@Override
@@ -397,6 +402,111 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			throw new NoSuchElementException("Invalid nodeID (" + nodeID + ")!");
 		}
 		return container;
+	}
+
+	// --- GENERATE SERVICE DESCRIPTOR ---
+
+	@Override
+	public final Tree generateDescriptor() {
+		Tree root = new Tree();
+
+		// Protocol version
+		root.put("ver", "2");
+
+		// NodeID
+		String nodeID = broker.nodeID();
+		root.put("sender", nodeID);
+
+		// Services array
+		Tree services = root.putList("services");
+		Tree servicesMap = new Tree();
+		readLock.lock();
+		try {
+			for (Map.Entry<String, Strategy> entry : strategies.entrySet()) {
+
+				// Split into parts ("math.add" -> "math" and "add")
+				String name = entry.getKey();
+				int i = name.lastIndexOf('.');
+				String service = name.substring(0, i);
+
+				// Get container
+				LocalActionContainer container = (LocalActionContainer) entry.getValue().get(nodeID);
+				container.cached();
+
+				// Service block
+				Tree serviceMap = servicesMap.putMap(service, true);
+				serviceMap.put("name", service);
+
+				// Not used
+				serviceMap.putMap("settings");
+				serviceMap.putMap("metadata");
+				serviceMap.put("nodeID", nodeID);
+
+				// Action block
+				@SuppressWarnings("unchecked")
+				Map<String, Object> actions = (Map<String, Object>) serviceMap.putMap("actions", true).asObject();
+				LinkedHashMap<String, Object> map = new LinkedHashMap<>();
+				actions.put(name, map);
+				Tree actionMap = new Tree(map);
+				
+				actionMap.put("name", name);
+				boolean cached = container.cached();
+				actionMap.put("cache", cached);
+				if (cached) {
+					String[] keys = container.cacheKeys();
+					if (keys != null) {
+						Tree cacheKeys = actionMap.putList("cacheKeys");
+						for (String key : keys) {
+							cacheKeys.add(key);
+						}
+					}
+				}
+				
+				// Not used
+				actionMap.putMap("params");
+				
+			}
+		} finally {
+			readLock.unlock();
+		}
+		for (Tree service : servicesMap) {
+			services.addObject(service);
+		}
+
+		// IP array
+		Tree ipList = root.putList("ipList");
+		try {
+			Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
+			while (e.hasMoreElements()) {
+				NetworkInterface n = (NetworkInterface) e.nextElement();
+				Enumeration<InetAddress> ee = n.getInetAddresses();
+				while (ee.hasMoreElements()) {
+					InetAddress i = (InetAddress) ee.nextElement();
+					if (!i.isLoopbackAddress()) {
+						ipList.add(i.getHostAddress());
+					}
+				}
+			}
+		} catch (Exception ioError) {
+			try {
+				ipList.add(InetAddress.getLocalHost().getHostAddress());
+			} catch (Exception ignored) {
+			}
+		}
+
+		// Client descriptor
+		Tree client = root.putMap("client");
+		client.put("type", "java");
+		client.put("version", ServiceBroker.VERSION);
+		client.put("langVersion", System.getProperty("java.version", "1.8"));
+
+		// Port (reserved)
+		root.put("port", (String) null);
+
+		// Config (not used in this version)
+		root.putMap("config");
+
+		return root;
 	}
 
 	// --- GETTERS / SETTERS ---

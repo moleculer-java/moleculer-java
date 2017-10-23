@@ -77,4 +77,7 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 
 	public abstract ActionContainer getAction(String name, String nodeID);
 
+	// --- GENERATE SERVICE DESCRIPTOR ---
+
+	public abstract Tree generateDescriptor();
 }
