@@ -89,7 +89,7 @@ public abstract class ComponentRegistry {
 	 * ID of UIDGenerator definition in the configuration file. Sample
 	 * configuration <br>
 	 * "uid": {<br>
-	 * "type": "sequence",<br>
+	 * "type": "incremental",<br>
 	 * "opts": {}<br>
 	 * }<br>
 	 * <br>

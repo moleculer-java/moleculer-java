@@ -54,7 +54,7 @@ import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.RoundRobinStrategyFactory;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
-import services.moleculer.uid.TimeSequenceUIDGenerator;
+import services.moleculer.uid.IncrementalUIDGenerator;
 import services.moleculer.uid.UIDGenerator;
 
 /**
@@ -89,7 +89,7 @@ public final class ServiceBrokerSettings {
 	private ContextFactory context = new DefaultContextFactory();
 	private ServiceRegistry registry = new DefaultServiceRegistry();
 	private EventBus eventbus = new DefaultEventBus();
-	private UIDGenerator uid = new TimeSequenceUIDGenerator();
+	private UIDGenerator uid = new IncrementalUIDGenerator();
 	private StrategyFactory strategy = new RoundRobinStrategyFactory();
 	private Transporter transporter;
 	private Cacher cacher = new MemoryCacher();

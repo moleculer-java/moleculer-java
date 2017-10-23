@@ -31,13 +31,13 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * Fast UIDGenerator, based on nodeID, timestamp and an atomic sequence number.
+ * Fast UIDGenerator, based on nodeID and an atomic sequence number.
  * It's faster than the StandardUIDGenerator.
  * 
  * @see StandardUUIDGenerator
  */
-@Name("Time-Sequence UID Generator")
-public final class TimeSequenceUIDGenerator extends UIDGenerator {
+@Name("Incremental UID Generator")
+public final class IncrementalUIDGenerator extends UIDGenerator {
 
 	// --- HOST/NODE PREFIX ---
 
@@ -67,10 +67,8 @@ public final class TimeSequenceUIDGenerator extends UIDGenerator {
 
 	@Override
 	public final String nextUID() {
-		StringBuilder tmp = new StringBuilder(64);
+		StringBuilder tmp = new StringBuilder(32);
 		tmp.append(prefix);
-		tmp.append(System.currentTimeMillis());
-		tmp.append(':');
 		tmp.append(counter.incrementAndGet());
 		return tmp.toString();
 	}

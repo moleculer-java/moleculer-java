@@ -30,9 +30,9 @@ import services.moleculer.service.Name;
 
 /**
  * Slower UIDGenerator (but it produces standard UUID's). In production mode
- * preferably use the faster TimeSequenceUIDGenerator.
+ * preferably use the faster IncrementalUIDGenerator.
  * 
- * @see TimeSequenceUIDGenerator
+ * @see IncrementalUIDGenerator
  */
 @Name("Standard UUID Generator")
 public final class StandardUUIDGenerator extends UIDGenerator {

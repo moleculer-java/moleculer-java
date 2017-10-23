@@ -61,7 +61,7 @@ import services.moleculer.transporter.NatsTransporter;
 import services.moleculer.transporter.RedisTransporter;
 import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.StandardUUIDGenerator;
-import services.moleculer.uid.TimeSequenceUIDGenerator;
+import services.moleculer.uid.IncrementalUIDGenerator;
 import services.moleculer.uid.UIDGenerator;
 
 /**
@@ -392,8 +392,8 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 				return newConfig(DefaultContextFactory.class);
 			}
 		} else if (UID_ID.equals(id)) {
-			if (test.equals("sequence")) {
-				return newConfig(TimeSequenceUIDGenerator.class);
+			if (test.equals("incremental")) {
+				return newConfig(IncrementalUIDGenerator.class);
 			}
 			if (test.equals("uuid")) {
 				return newConfig(StandardUUIDGenerator.class);
