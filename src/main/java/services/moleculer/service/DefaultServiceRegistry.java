@@ -34,11 +34,13 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -57,7 +59,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 	// --- REGISTERED SERVICES ---
 
-	private final HashMap<String, Service> services = new HashMap<>(256);
+	private final HashMap<String, Service> services = new HashMap<>(64);
 
 	// --- REGISTERED ACTIONS ---
 
@@ -65,7 +67,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 	// --- PENDING REMOTE INVOCATIONS ---
 
-	private final HashMap<String, PromiseContainer> promises = new HashMap<>(256);
+	private final ConcurrentHashMap<String, PromiseContainer> promises = new ConcurrentHashMap<>(8192);
 
 	// --- PROPERTIES ---
 
@@ -98,7 +100,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 	private ServiceBroker broker;
 	private StrategyFactory strategy;
-	private ExecutorService executor;
+	private ScheduledExecutorService scheduler;
 
 	// --- CONSTRUCTORS ---
 
@@ -118,11 +120,6 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	}
 
 	// --- START SERVICE REGISTRY ---
-
-	/**
-	 * Cancelable timer
-	 */
-	private volatile ScheduledFuture<?> timer;
 
 	/**
 	 * Initializes default ServiceRegistry instance.
@@ -150,11 +147,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		// Set components
 		this.broker = broker;
 		this.strategy = broker.components().strategy();
-		this.executor = broker.components().executor();
-
-		// Start timeout timer
-		timer = broker.components().scheduler().scheduleWithFixedDelay(this, cleanupDelay, cleanupDelay,
-				TimeUnit.SECONDS);
+		this.scheduler = broker.components().scheduler();
 	}
 
 	// --- STOP SERVICE REGISTRY ---
@@ -163,22 +156,17 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	public final void stop() {
 
 		// Stop timer
-		if (timer != null) {
-			timer.cancel(false);
-			timer = null;
+		ScheduledFuture<?> task = timer.get();
+		if (task != null) {
+			task.cancel(false);
 		}
 
 		// Stop pending invocations
 		InterruptedException error = new InterruptedException("Registry is shutting down.");
-		synchronized (promises) {
-			for (PromiseContainer container : promises.values()) {
-				executor.execute(() -> {
-					container.promise.complete(error);
-				});
-			}
-			promises.clear();
+		for (PromiseContainer container : promises.values()) {
+			container.promise.complete(error);
 		}
-
+		
 		// Stop action containers and services
 		writeLock.lock();
 		try {
@@ -209,38 +197,85 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		}
 	}
 
-	// --- TIMEOUT HANDLER ---
-
-	private final AtomicBoolean checkTimeout = new AtomicBoolean();
+	// --- CALL TIMEOUT CHECKER TASK ---
 
 	public final void run() {
 		long now = System.currentTimeMillis();
-		boolean hasTimeout = false;
 		PromiseContainer container;
-		synchronized (promises) {
-			if (!checkTimeout.get()) {
-				return;
+		Iterator<PromiseContainer> i = promises.values().iterator();
+		boolean removed = false;
+		Exception error = new TimeoutException("Action invocation timeouted!");
+		while (i.hasNext()) {
+			container = i.next();
+			if (container.timeoutAt > 0 && now >= container.timeoutAt) {
+				container.promise.complete(error);
+				i.remove();
+				removed = true;
 			}
-			Iterator<PromiseContainer> i = promises.values().iterator();
-			while (i.hasNext()) {
-				container = i.next();
-				if (container.timeoutAt > 0) {
-					if (now >= container.timeoutAt) {
-						final Promise promise = container.promise;
-						executor.execute(() -> {
-							promise.complete(new TimeoutException("Action invocation timeouted!"));
-						});
-						i.remove();
-					} else {
-						hasTimeout = true;
-					}
+		}
+		if (removed) {
+			scheduler.execute(() -> {
+				reschedule(Long.MAX_VALUE);				
+			});
+		} else {
+			prevTimeoutAt.set(0);
+		}
+	}
+
+	// --- SCHEDULER ---
+
+	/**
+	 * Cancelable timer
+	 */
+	private final AtomicReference<ScheduledFuture<?>> timer = new AtomicReference<>();
+
+	/**
+	 * Next scheduled time to check timeouts
+	 */
+	private final AtomicLong prevTimeoutAt = new AtomicLong();
+
+	/**
+	 * Recalculates the next timeout checking time
+	 */
+	private final void reschedule(long minTimeoutAt) {
+		if (minTimeoutAt == Long.MAX_VALUE) {
+			for (PromiseContainer container : promises.values()) {
+				if (container.timeoutAt > 0 && container.timeoutAt < minTimeoutAt) {
+					minTimeoutAt = container.timeoutAt;
 				}
 			}
-
-			// Turn off timeout checking
-			if (!hasTimeout) {
-				checkTimeout.set(false);
+		}
+		long now = System.currentTimeMillis();
+		if (minTimeoutAt == Long.MAX_VALUE) {
+			ScheduledFuture<?> t = timer.get();
+			if (t != null) {
+				if (prevTimeoutAt.get() > now) {
+					t.cancel(false);
+					prevTimeoutAt.set(0);
+				} else {
+					timer.set(null);
+					prevTimeoutAt.set(0);
+				}
 			}
+		} else {
+			minTimeoutAt = (minTimeoutAt / 1000 * 1000) + 1000;
+
+			long prev = prevTimeoutAt.getAndSet(minTimeoutAt);
+			if (prev == minTimeoutAt) {
+
+				// Next timestamp not changed
+				return;
+			}
+
+			// Stop previous timer
+			ScheduledFuture<?> t = timer.get();
+			if (t != null) {
+				t.cancel(false);
+			}
+
+			// Schedule next timeout timer
+			long delay = Math.max(1000, minTimeoutAt - now);
+			timer.set(scheduler.schedule(this, delay, TimeUnit.MILLISECONDS));
 		}
 	}
 
@@ -248,20 +283,18 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 	final void register(String id, Promise promise, long timeoutAt) {
 		PromiseContainer container = new PromiseContainer(promise, timeoutAt);
-		synchronized (promises) {
-			promises.put(id, container);
+		promises.put(id, container);
 
-			// Turn on timeout checking
-			if (container.timeoutAt > 0) {
-				checkTimeout.set(true);
-			}
+		long nextTimeoutAt = prevTimeoutAt.get();
+		if (nextTimeoutAt == 0 || (timeoutAt / 1000 * 1000) + 1000 < nextTimeoutAt) {
+			scheduler.execute(() -> {
+				reschedule(timeoutAt);
+			});
 		}
 	}
 
 	final void deregister(String id) {
-		synchronized (promises) {
-			promises.remove(id);
-		}
+		promises.remove(id);
 	}
 
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
@@ -273,10 +306,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			logger.warn("Missing \"id\" property!", message);
 			return;
 		}
-		PromiseContainer container;
-		synchronized (promises) {
-			container = promises.remove(id);
-		}
+		PromiseContainer container = promises.remove(id);
 		if (container == null) {
 			logger.warn("Unknown (maybe timeouted) response received!", message);
 			return;
@@ -448,7 +478,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 				LinkedHashMap<String, Object> map = new LinkedHashMap<>();
 				actions.put(name, map);
 				Tree actionMap = new Tree(map);
-				
+
 				actionMap.put("name", name);
 				boolean cached = container.cached();
 				actionMap.put("cache", cached);
@@ -461,10 +491,10 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 						}
 					}
 				}
-				
+
 				// Not used
 				actionMap.putMap("params");
-				
+
 			}
 		} finally {
 			readLock.unlock();

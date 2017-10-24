@@ -28,6 +28,7 @@ import static services.moleculer.util.CommonUtils.nameOf;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
@@ -53,6 +54,11 @@ public final class LocalActionContainer extends AbstractContainer {
 	 */
 	private final boolean asyncLocalInvocation;
 
+	/**
+	 * Atomic counter for internal timout handling
+	 */
+	private final AtomicLong internalUID = new AtomicLong();
+	
 	// --- COMPONENTS ---
 
 	private final DefaultServiceRegistry registry;
@@ -98,7 +104,7 @@ public final class LocalActionContainer extends AbstractContainer {
 
 	@Override
 	protected final Promise callActionNoStore(Tree params, CallingOptions opts, Context parent) {
-				
+
 		// Set timeout (limit timestamp in millis)
 		int timeout;
 		if (opts == null) {
@@ -106,7 +112,7 @@ public final class LocalActionContainer extends AbstractContainer {
 		} else {
 			timeout = opts.timeout();
 			if (timeout < 1) {
-				timeout = defaultTimeout;	
+				timeout = defaultTimeout;
 			}
 		}
 		long timeoutAt;
@@ -115,45 +121,34 @@ public final class LocalActionContainer extends AbstractContainer {
 		} else {
 			timeoutAt = 0;
 		}
-		
+
 		// Create new context (without ID)
-		final Context ctx = context.create(name, params, opts, parent, timeoutAt > 0);
-		
-		// A.) Async invocation without timeout
-		if (timeoutAt > 0) {
-			Promise promise = new Promise();
+		final Context ctx = context.create(name, params, opts, parent, false);
+
+		// A.) Async invocation
+		if (asyncLocalInvocation || timeout > 0) {
 			
-			// Register promise (timeout and response handling)
-			final String id = ctx.id();
-			registry.register(id, promise, timeoutAt);
-			
-			// Invoke promise
-			executor.execute(() -> {
-				try {
-					promise.complete(action.handler(ctx));
-				} catch (Throwable error) {
-					promise.complete(error);
-				} finally {
-					registry.deregister(id);
-				}
-			});
-			
-			// Return promise
-			return promise;
-		}
-		
-		// B.) Async invocation without timeout
-		if (asyncLocalInvocation) {
-			return new Promise(CompletableFuture.supplyAsync(() -> {
+			// Execute in thread pool
+			Promise promise = new Promise(CompletableFuture.supplyAsync(() -> {
 				try {
 					return action.handler(ctx);
 				} catch (Throwable error) {
 					return error;
 				}
 			}, executor));
+			
+			// No timeout / done
+			if (timeoutAt < 0 || promise.isDone()) {
+				return promise;
+			}
+			
+			// Register promise (timeout handling)
+			final String id = Long.toString(internalUID.incrementAndGet());
+			registry.register(id, promise, timeoutAt);
+			return promise;
 		}
 
-		// C.) Faster in-process (direct) action invocation
+		// B.) Faster in-process (direct) action invocation
 		try {
 			return new Promise(action.handler(ctx));
 		} catch (Throwable error) {

@@ -24,6 +24,8 @@
  */
 package services.moleculer;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import services.moleculer.service.Action;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Service;
@@ -31,34 +33,39 @@ import services.moleculer.service.Service;
 public class Test {
 
 	public static void main(String[] args) throws Exception {
-			
+
 		// Define a service
 		ServiceBroker broker = ServiceBroker.builder().registry(new DefaultServiceRegistry(false)).build();
 		broker.createService(new Service("math") {
-			
+
 			@SuppressWarnings("unused")
 			public Action add = (ctx) -> {
 				int a = ctx.params().get("a", 0);
 				int b = ctx.params().get("b", 0);
 				return a + b;
 			};
-			
+
 		});
 		broker.start();
 
 		// Call service
-		Promise promise = broker.call("math.add", "a", 1, "b", 2);
-		promise.then((rsp) -> {
-			
-			System.out.println(rsp.asInteger());
-			
-		}).Catch((error) -> {
-			
-			error.printStackTrace();
-			
-		});
-		
-		System.out.println(broker.components().registry().generateDescriptor());
+		final AtomicLong l = new AtomicLong(); 
+		long start = System.currentTimeMillis();
+		for (int n = 0; n < 10; n++) {
+			Promise promise = broker.call("math.add", "a", 1, "b", 2);
+			promise.then((rsp) -> {
+
+				System.out.println(rsp.asInteger());
+
+			}).Catch((error) -> {
+
+				System.out.println("error " + l.incrementAndGet());
+
+			}).toCompletableFuture().get();
+		}
+		System.out.println("finished " + (System.currentTimeMillis() - start));
+
+		// System.out.println(broker.components().registry().generateDescriptor());
 	}
 
 }
