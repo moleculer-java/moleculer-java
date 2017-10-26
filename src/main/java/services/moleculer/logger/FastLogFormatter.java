@@ -35,7 +35,7 @@ import java.util.logging.LogRecord;
  */
 public final class FastLogFormatter extends Formatter {
 
-	private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss.SSS");
+	private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
 	private static final char[] SEVERE = " | SEVERE  | ".toCharArray();
 	private static final char[] WARNING = " | WARNING | ".toCharArray();
