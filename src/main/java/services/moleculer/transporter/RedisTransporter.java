@@ -48,7 +48,6 @@ import rx.Observable;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 import services.moleculer.util.RedisUtilities;
-import services.moleculer.util.Serializer;
 
 /**
  * 
@@ -65,9 +64,9 @@ public final class RedisTransporter extends Transporter {
 
 	private StatefulRedisPubSubConnection<byte[], byte[]> clientSub;
 	private RedisPubSubAsyncCommands<byte[], byte[]> clientPub;
-	
+
 	private NioEventLoopGroup closeableGroup;
-	
+
 	// --- CONSTUCTORS ---
 
 	public RedisTransporter() {
@@ -148,7 +147,7 @@ public final class RedisTransporter extends Transporter {
 				redisGroup = new NioEventLoopGroup(1);
 				closeableGroup = redisGroup;
 			}
-			
+
 			// Create Redis connection
 			final List<RedisURI> redisURIs = RedisUtilities.parseURLs(urls, password, useSSL, startTLS);
 			final RedisTransporter self = this;
@@ -262,8 +261,7 @@ public final class RedisTransporter extends Transporter {
 	public final void publish(String channel, Tree message) {
 		if (clientPub != null) {
 			try {
-				clientPub.publish(channel.getBytes(StandardCharsets.UTF_8),
-						Serializer.serialize(message, format));
+				clientPub.publish(channel.getBytes(StandardCharsets.UTF_8), serializer.write(message));
 			} catch (Exception cause) {
 				logger.warn("Unable to send message to Redis!", cause);
 			}
@@ -271,7 +269,7 @@ public final class RedisTransporter extends Transporter {
 	}
 
 	// --- GETTERS / SETTERS ---
-	
+
 	public final String[] getUrls() {
 		return urls;
 	}
@@ -319,5 +317,5 @@ public final class RedisTransporter extends Transporter {
 	public final void setClientPub(RedisPubSubAsyncCommands<byte[], byte[]> clientPub) {
 		this.clientPub = clientPub;
 	}
-	
+
 }

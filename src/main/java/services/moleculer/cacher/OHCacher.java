@@ -40,12 +40,11 @@ import org.caffinitas.ohc.OHCache;
 import org.caffinitas.ohc.OHCacheBuilder;
 
 import io.datatree.Tree;
-import io.datatree.dom.TreeWriterRegistry;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.GlobMatcher;
+import services.moleculer.serializer.Serializer;
 import services.moleculer.service.Name;
-import services.moleculer.util.Serializer;
 
 /**
  * Off-heap cache implementation (it's similar to MemoryCacher, but stores
@@ -110,11 +109,6 @@ public final class OHCacher extends Cacher {
 	 */
 	private int compressAbove = 1024;
 
-	/**
-	 * Serialization format
-	 */
-	private String format;
-
 	// --- OFF-HEAP CACHE INSTANCE ---
 
 	private OHCache<byte[], byte[]> cache;
@@ -125,7 +119,7 @@ public final class OHCacher extends Cacher {
 	 * Creates Off-heap Cacher with the default settings.
 	 */
 	public OHCacher() {
-		this(0, 0, 0, 0, 1024, null);
+		this(0, 0, 0, 0, 1024);
 	}
 
 	/**
@@ -138,7 +132,7 @@ public final class OHCacher extends Cacher {
 	 *            never expires)
 	 */
 	public OHCacher(long capacity, int ttl) {
-		this(capacity, 0, 0, ttl, 1024, null);
+		this(capacity, 0, 0, ttl, 1024);
 	}
 
 	/**
@@ -156,16 +150,13 @@ public final class OHCacher extends Cacher {
 	 *            never expires)
 	 * @param compressAbove
 	 *            compress key and/or value above this size (in BYTES)
-	 * @param format
-	 *            serializator type ("json", "smile", etc.)
 	 */
-	public OHCacher(long capacity, int segmentCount, int hashTableSize, int ttl, int compressAbove, String format) {
+	public OHCacher(long capacity, int segmentCount, int hashTableSize, int ttl, int compressAbove) {
 		this.capacity = capacity;
 		this.segmentCount = segmentCount;
 		this.hashTableSize = hashTableSize;
 		this.ttl = ttl;
 		this.compressAbove = compressAbove;
-		this.format = format;
 	}
 
 	// --- START CACHER ---
@@ -187,26 +178,8 @@ public final class OHCacher extends Cacher {
 		hashTableSize = config.get("hashTableSize", hashTableSize);
 		ttl = config.get("ttl", ttl);
 		compressAbove = config.get("compressAbove", compressAbove);
-		format = config.get("format", format);
 
-		if (format != null) {
-			try {
-				TreeWriterRegistry.getWriter(format);
-			} catch (Exception e) {
-				logger.warn("Unsupported format name (" + format + ")!");
-				format = null;
-			}
-		}
-		if (format == null) {
-			try {
-				TreeWriterRegistry.getWriter("smile");
-				format = "smile";
-			} catch (Exception e) {
-				format = null;
-			}
-		}
-		String formatName = format == null ? "JSON" : format.toUpperCase();
-		logger.info("Cacher will use " + formatName + " format to serialize entries.");
+		// logger.info("Cacher will use " + formatName + " format to serialize entries.");
 
 		// Create cache
 		OHCacheBuilder<byte[], byte[]> builder = OHCacheBuilder.newBuilder();
@@ -470,14 +443,6 @@ public final class OHCacher extends Cacher {
 
 	public final void setCompressAbove(int compressAbove) {
 		this.compressAbove = compressAbove;
-	}
-
-	public final String getFormat() {
-		return format;
-	}
-
-	public final void setFormat(String format) {
-		this.format = format;
 	}
 
 }
