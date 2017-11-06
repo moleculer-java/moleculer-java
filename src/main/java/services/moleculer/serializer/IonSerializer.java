@@ -36,12 +36,16 @@ import services.moleculer.service.Name;
  * long-term preservation of business data which can survive multiple
  * generations of software evolution. Ion was built to solve the rapid
  * development, decoupling, and efficiency challenges faced every day while
- * engineering large-scale, service-oriented architectures.<br>
+ * engineering large-scale, service-oriented architectures. This serializer is
+ * NOT compatible with the JavaScript/Node version of Moleculer.<br>
  * <br>
  * <b>Required dependency:</b><br>
  * <br>
  * https://mvnrepository.com/artifact/software.amazon.ion/ion-java<br>
  * compile group: 'software.amazon.ion', name: 'ion-java', version: '1.0.2'
+ * 
+ * @see JsonSerializer
+ * @see MsgPackSerializer
  */
 @Name("Amazon ION Serializer")
 public final class IonSerializer extends Serializer {

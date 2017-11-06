@@ -37,11 +37,35 @@ import io.datatree.dom.TreeReaderRegistry;
 import services.moleculer.service.Name;
 
 /**
- * 
+ * Common utilities.
  */
 public final class CommonUtils {
 
-	// --- CONFIG UTILITIES ---
+	public static final String serializerTypeToClass(String type) {
+		String test = type.toLowerCase();
+		if ("json".equals(test)) {
+			return "services.moleculer.serializer.JsonSerializer";
+		}
+		if ("msgpack".equals(test) || "messagepack".equals(test)) {
+			return "services.moleculer.serializer.MsgPackSerializer";
+		}
+		if ("bson".equals(test)) {
+			return "services.moleculer.serializer.BsonSerializer";
+		}
+		if ("cbor".equals(test)) {
+			return "services.moleculer.serializer.CborSerializer";
+		}
+		if ("smile".equals(test)) {
+			return "services.moleculer.serializer.SmileSerializer";
+		}
+		if ("ion".equals(test)) {
+			return "services.moleculer.serializer.IonSerializer";
+		}
+		if (test.indexOf('.') > -1) {
+			return type;
+		}
+		throw new IllegalArgumentException("Invalid serializer type (" + type + ")!");
+	}
 
 	public static final String nameOf(Object object, boolean addQuotes) {
 		Objects.requireNonNull(object);
@@ -65,7 +89,7 @@ public final class CommonUtils {
 		name = name.trim();
 		if (addQuotes && name.indexOf(' ') == -1) {
 			name = "\"" + name + "\"";
-		}		
+		}
 		return name;
 	}
 

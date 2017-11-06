@@ -29,13 +29,15 @@ import java.util.concurrent.atomic.AtomicLong;
 import services.moleculer.service.Action;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Service;
+import services.moleculer.transporter.RedisTransporter;
 
 public class Test {
 
 	public static void main(String[] args) throws Exception {
 
 		// Define a service
-		ServiceBroker broker = ServiceBroker.builder().registry(new DefaultServiceRegistry(false)).build();
+		ServiceBroker broker = ServiceBroker.builder().registry(new DefaultServiceRegistry(false))
+				.transporter(new RedisTransporter()).build();
 		broker.createService(new Service("math") {
 
 			@SuppressWarnings("unused")
@@ -49,7 +51,7 @@ public class Test {
 		broker.start();
 
 		// Call service
-		final AtomicLong l = new AtomicLong(); 
+		final AtomicLong l = new AtomicLong();
 		long start = System.currentTimeMillis();
 		for (int n = 0; n < 10; n++) {
 			Promise promise = broker.call("math.add", "a", 1, "b", 2);

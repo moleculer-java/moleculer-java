@@ -35,10 +35,13 @@ import services.moleculer.util.CheckedTree;
  * <b>GENERIC JSON SERIALIZER</b><br>
  * <br>
  * JSON (JavaScript Object Notation) is a lightweight data-interchange format.
- * It is easy for humans to read and write.<br>
+ * It is easy for humans to read and write. This serializer is fully COMPATIBLE
+ * with the JavaScript/Node version of Moleculer, use this if possible.<br>
  * <br>
  * <b>Required dependency:</b> none / optional (eg. if you add Jackson API to
  * the classpath, JsonSerializer will user Jackson parser)
+ * 
+ * @see MsgPackSerializer
  */
 @Name("JSON Serializer")
 public final class JsonSerializer extends Serializer {

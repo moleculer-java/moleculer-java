@@ -26,6 +26,8 @@ package services.moleculer.cacher;
 
 import static services.moleculer.util.CommonUtils.compress;
 import static services.moleculer.util.CommonUtils.decompress;
+import static services.moleculer.util.CommonUtils.nameOf;
+import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -34,16 +36,20 @@ import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
+import java.util.Objects;
 
 import org.caffinitas.ohc.CacheSerializer;
 import org.caffinitas.ohc.OHCache;
 import org.caffinitas.ohc.OHCacheBuilder;
 
 import io.datatree.Tree;
+import io.datatree.dom.TreeWriterRegistry;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.GlobMatcher;
+import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
+import services.moleculer.serializer.SmileSerializer;
 import services.moleculer.service.Name;
 
 /**
@@ -109,6 +115,10 @@ public final class OHCacher extends Cacher {
 	 */
 	private int compressAbove = 1024;
 
+	// --- SERIALIZER / DESERIALIZER ---
+
+	protected Serializer serializer;
+	
 	// --- OFF-HEAP CACHE INSTANCE ---
 
 	private OHCache<byte[], byte[]> cache;
@@ -179,8 +189,38 @@ public final class OHCacher extends Cacher {
 		ttl = config.get("ttl", ttl);
 		compressAbove = config.get("compressAbove", compressAbove);
 
-		// logger.info("Cacher will use " + formatName + " format to serialize entries.");
+		// Create serializer
+		Tree serializerNode = config.get("serializer");
+		if (serializerNode != null) {
+			String type;
+			if (serializerNode.isPrimitive()) {
+				type = serializerNode.asString();
+			} else {
+				type = serializerNode.get("type", "json");
+			}
 
+			@SuppressWarnings("unchecked")
+			Class<? extends Serializer> c = (Class<? extends Serializer>) Class.forName(serializerTypeToClass(type));
+			serializer = c.newInstance();
+		} else {
+			serializerNode = config.putMap("serializer");
+		}
+		if (serializer == null) {
+			try {
+				TreeWriterRegistry.getWriter("smile");
+				serializer = new SmileSerializer();				
+			} catch (Exception notSupported) {
+			} finally {
+				if (serializer == null) {
+					serializer = new JsonSerializer();					
+				}
+			}
+		}
+
+		// Start serializer
+		logger.info(nameOf(this, true) + " is using " + nameOf(serializer, true) + '.');
+		serializer.start(broker, serializerNode);
+		
 		// Create cache
 		OHCacheBuilder<byte[], byte[]> builder = OHCacheBuilder.newBuilder();
 		if (capacity > 0) {
@@ -342,43 +382,35 @@ public final class OHCacher extends Cacher {
 	private final byte[] valueToBytes(Tree tree) throws Exception {
 
 		// Compress content
-		byte[] part1 = Serializer.serialize(tree, format);
+		byte[] bytes = serializer.write(tree);
 		boolean compressed;
-		if (compressAbove > 0 && part1.length > compressAbove) {
-			part1 = compress(part1);
+		if (compressAbove > 0 && bytes.length > compressAbove) {
+			bytes = compress(bytes);
 			compressed = true;
 		} else {
 			compressed = false;
 		}
+		byte[] copy = new byte[bytes.length + 1];
+		System.arraycopy(bytes, 0, copy, 1, bytes.length);
+		if (compressed) {
 
-		// Write value packet
-		ByteArrayOutputStream out = new ByteArrayOutputStream(part1.length + 8);
-		DataOutputStream dos = new DataOutputStream(out);
-		dos.writeInt(part1.length);
-		dos.write(part1);
-		dos.writeBoolean(compressed);
-		dos.flush();
-
-		// Return value as compressed bytes
-		return out.toByteArray();
+			// Compressed -> first byte = 1
+			copy[0] = (byte) 1;
+		}
+		return copy;
 	}
 
 	private final Tree bytesToValue(byte[] bytes) throws Exception {
-
-		// Read value packet
-		ByteArrayInputStream in = new ByteArrayInputStream(bytes);
-		DataInputStream dis = new DataInputStream(in);
-		int len = dis.readInt();
-		byte[] part1 = new byte[len];
-		if (len > 0) {
-			dis.readFully(part1);
-			if (dis.readBoolean()) {
-				part1 = decompress(part1);
-			}
+		
+		// Decompress content
+		byte[] copy = new byte[bytes.length - 1];
+		System.arraycopy(bytes, 1, copy, 0, bytes.length - 1);
+		if (bytes[0] == 1) {
+			
+			// First byte == 1 -> compressed
+			copy = decompress(copy);
 		}
-
-		// Return value
-		return Serializer.deserialize(part1, format);
+		return serializer.read(copy);
 	}
 
 	private static final class ArraySerializer implements CacheSerializer<byte[]> {
@@ -445,4 +477,12 @@ public final class OHCacher extends Cacher {
 		this.compressAbove = compressAbove;
 	}
 
+	public final Serializer getSerializer() {
+		return serializer;
+	}
+
+	public final void setSerializer(Serializer serializer) {
+		this.serializer = Objects.requireNonNull(serializer);
+	}
+	
 }

@@ -33,7 +33,9 @@ import services.moleculer.service.Name;
  * considered as a binary serialization of generic JSON data model, which means
  * that tools that operate on JSON may be used with Smile as well, as long as
  * proper encoder/decoder exists for tool to use. Compared to JSON, Smile is
- * both more compact and more efficient to process (both to read and write).<br>
+ * both more compact and more efficient to process (both to read and write). It
+ * is the FASTEST serializer, but it is NOT compatible with the JavaScript/Node
+ * version of Moleculer.<br>
  * <br>
  * <b>Required dependency:</b><br>
  * <br>
@@ -41,6 +43,9 @@ import services.moleculer.service.Name;
  * jackson-dataformat-smile<br>
  * compile group: 'com.fasterxml.jackson.dataformat', name:
  * 'jackson-dataformat-smile', version: '2.9.0.pr3'
+ * 
+ * @see JsonSerializer
+ * @see MsgPackSerializer
  */
 @Name("SMILE Serializer")
 public final class SmileSerializer extends Serializer {

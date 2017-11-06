@@ -32,12 +32,15 @@ import services.moleculer.service.Name;
  * MessagePack is an efficient binary serialization format. It lets you exchange
  * data among multiple languages like JSON. But it's faster and smaller. Small
  * integers are encoded into a single byte, and typical short strings require
- * only one extra byte in addition to the strings themselves.<br>
+ * only one extra byte in addition to the strings themselves. This serializer is
+ * COMPATIBLE with the JavaScript/Node version of Moleculer.<br>
  * <br>
  * <b>Required dependency:</b><br>
  * <br>
  * https://mvnrepository.com/artifact/org.msgpack/msgpack<br>
  * compile group: 'org.msgpack', name: 'msgpack', version: '0.6.12'
+ * 
+ * @see JsonSerializer
  */
 @Name("MessagePack Serializer")
 public final class MsgPackSerializer extends Serializer {

@@ -24,9 +24,13 @@
  */
 package services.moleculer.cacher;
 
+import static services.moleculer.util.CommonUtils.nameOf;
+import static services.moleculer.util.CommonUtils.serializerTypeToClass;
+
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -52,9 +56,10 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import rx.Observable;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
+import services.moleculer.serializer.JsonSerializer;
+import services.moleculer.serializer.Serializer;
 import services.moleculer.service.Name;
 import services.moleculer.util.RedisUtilities;
-import services.moleculer.util.Serializer;
 
 /**
  * Redis-based cache implementation. Supports SSL, clustering and password
@@ -75,6 +80,9 @@ public final class RedisCacher extends Cacher {
 	 */
 	private int ttl;
 
+	/**
+	 * TCP acceptor group of the Redis client.
+	 */
 	private NioEventLoopGroup closeableGroup;
 
 	// --- REDIS CLIENTS ---
@@ -90,6 +98,10 @@ public final class RedisCacher extends Cacher {
 
 	protected Executor executor;
 
+	// --- SERIALIZER / DESERIALIZER ---
+
+	protected Serializer serializer;
+	
 	// --- CONSTUCTORS ---
 
 	public RedisCacher() {
@@ -167,7 +179,6 @@ public final class RedisCacher extends Cacher {
 		useSSL = config.get("useSSL", useSSL);
 		startTLS = config.get("startTLS", startTLS);
 		ttl = config.get("ttl", ttl);
-
 		if (ttl > 0) {
 
 			// Set the default expire time, in seconds.
@@ -176,6 +187,30 @@ public final class RedisCacher extends Cacher {
 			expiration = null;
 		}
 
+		// Create serializer
+		Tree serializerNode = config.get("serializer");
+		if (serializerNode != null) {
+			String type;
+			if (serializerNode.isPrimitive()) {
+				type = serializerNode.asString();
+			} else {
+				type = serializerNode.get("type", "json");
+			}
+
+			@SuppressWarnings("unchecked")
+			Class<? extends Serializer> c = (Class<? extends Serializer>) Class.forName(serializerTypeToClass(type));
+			serializer = c.newInstance();
+		} else {
+			serializerNode = config.putMap("serializer");
+		}
+		if (serializer == null) {
+			serializer = new JsonSerializer();
+		}
+		
+		// Start serializer
+		logger.info(nameOf(this, true) + " is using " + nameOf(serializer, true) + '.');
+		serializer.start(broker, serializerNode);
+		
 		// Get the common executor
 		executor = broker.components().executor();
 
@@ -274,9 +309,9 @@ public final class RedisCacher extends Cacher {
 			// Async invocation
 			return new Promise(response.thenApplyAsync((bytes) -> {
 				try {
-					return new Tree(bytes);
+					return serializer.read(bytes);
 				} catch (Throwable cause) {
-					logger.warn("Unable to parse data!", cause);
+					logger.warn("Unable to deserialize data!", cause);
 				}
 				return null;
 			}, executor));
@@ -290,7 +325,13 @@ public final class RedisCacher extends Cacher {
 	@Override
 	public final void set(String key, Tree value) {
 		byte[] binaryKey = key.getBytes(StandardCharsets.UTF_8);
-		byte[] bytes = Serializer.serialize(value, null);
+		byte[] bytes;
+		try {
+			bytes = serializer.write(value);			
+		} catch (Exception cause) {
+			logger.warn("Unable to serialize data!", cause);
+			return;
+		}
 
 		// Send to Redis
 		if (client != null) {
@@ -392,4 +433,12 @@ public final class RedisCacher extends Cacher {
 		this.clusteredClient = clusteredClient;
 	}
 
+	public final Serializer getSerializer() {
+		return serializer;
+	}
+
+	public final void setSerializer(Serializer serializer) {
+		this.serializer = Objects.requireNonNull(serializer);
+	}
+	
 }

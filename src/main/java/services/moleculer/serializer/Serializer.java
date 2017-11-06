@@ -27,7 +27,14 @@ package services.moleculer.serializer;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.MoleculerComponent;
+import services.moleculer.util.CheckedTree;
 
+/**
+ * Base superclass of all data serializer implementations.
+ *
+ * @see JsonSerializer
+ * @see MsgPackSerializer
+ */
 public abstract class Serializer implements MoleculerComponent {
 
 	// --- FORMAT NAME (MSGPACK, BSON, ETC) ---
@@ -65,7 +72,12 @@ public abstract class Serializer implements MoleculerComponent {
 
 	// --- SERIALIZE TREE TO BYTE ARRAY ---
 
+	protected static final Tree NULL_TREE = new CheckedTree(null);
+
 	public byte[] write(Tree value) throws Exception {
+		if (value == null) {
+			value = NULL_TREE;
+		}
 		return value.toBinary(format, true);
 	}
 

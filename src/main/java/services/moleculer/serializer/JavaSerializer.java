@@ -27,26 +27,21 @@ package services.moleculer.serializer;
 import services.moleculer.service.Name;
 
 /**
- * <b>BINARY BSON SERIALIZER</b><br>
+ * <b>BUILT-IN JAVA OBJECT SERIALIZATOR</b><br>
  * <br>
- * Binary BSON reader and writer. This serializer is NOT compatible with the
- * JavaScript/Node version of Moleculer.<br>
- * <br>
- * <b>Required dependency:</b><br>
- * <br>
- * https://mvnrepository.com/artifact/de.undercouch/bson4jackson<br>
- * compile group: 'de.undercouch', name: 'bson4jackson', version: '2.7.0'
+ * Built-in binary reader / writer. Based on Java Object Serialization. This
+ * serializer is NOT compatible with the JavaScript/Node version of Moleculer.
  * 
  * @see JsonSerializer
  * @see MsgPackSerializer
  */
-@Name("BSON Serializer")
-public final class BsonSerializer extends Serializer {
+@Name("Java Object Serializer")
+public final class JavaSerializer extends Serializer {
 
 	// --- CONSTRUCTOR ---
 
-	public BsonSerializer() {
-		super("bson");
+	public JavaSerializer() {
+		super("java");
 	}
 
 }

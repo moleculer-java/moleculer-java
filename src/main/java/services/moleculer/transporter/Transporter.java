@@ -24,6 +24,9 @@
  */
 package services.moleculer.transporter;
 
+import static services.moleculer.util.CommonUtils.serializerTypeToClass;
+import static services.moleculer.util.CommonUtils.nameOf;
+
 import java.util.Objects;
 import java.util.concurrent.Executor;
 
@@ -85,7 +88,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- SERIALIZER / DESERIALIZER ---
 
-	protected Serializer serializer = new JsonSerializer();
+	protected Serializer serializer;
 
 	// --- COMPONENTS ---
 
@@ -123,7 +126,7 @@ public abstract class Transporter implements MoleculerComponent {
 		// Process config
 		prefix = config.get("prefix", prefix);
 
-		// Set serializer
+		// Create serializer
 		Tree serializerNode = config.get("serializer");
 		if (serializerNode != null) {
 			String type;
@@ -134,13 +137,17 @@ public abstract class Transporter implements MoleculerComponent {
 			}
 
 			@SuppressWarnings("unchecked")
-			Class<? extends Serializer> c = (Class<? extends Serializer>) Class.forName(typeToClass(type));
+			Class<? extends Serializer> c = (Class<? extends Serializer>) Class.forName(serializerTypeToClass(type));
 			serializer = c.newInstance();
 		} else {
-			serializerNode = new Tree();
+			serializerNode = config.putMap("serializer");
 		}
-		
+		if (serializer == null) {
+			serializer = new JsonSerializer();
+		}
+
 		// Start serializer
+		logger.info(nameOf(this, true) + " is using " + nameOf(serializer, true) + '.');
 		serializer.start(broker, serializerNode);
 
 		// Get componentMap
@@ -176,32 +183,6 @@ public abstract class Transporter implements MoleculerComponent {
 			name.append(nodeID);
 		}
 		return name.toString();
-	}
-
-	protected String typeToClass(String type) {
-		String test = type.toLowerCase();
-		if ("json".equals(test)) {
-			return "services.moleculer.serializer.JsonSerializer";
-		}
-		if ("msgpack".equals(test) || "messagepack".equals(test)) {
-			return "services.moleculer.serializer.MsgPackSerializer";
-		}
-		if ("bson".equals(test)) {
-			return "services.moleculer.serializer.BsonSerializer";
-		}
-		if ("cbor".equals(test)) {
-			return "services.moleculer.serializer.CborSerializer";
-		}
-		if ("smile".equals(test)) {
-			return "services.moleculer.serializer.SmileSerializer";
-		}
-		if ("ion".equals(test)) {
-			return "services.moleculer.serializer.IonSerializer";
-		}
-		if (test.indexOf('.') > -1) {
-			return type;
-		}
-		throw new IllegalArgumentException("Invalid serializer type (" + type + ")!");
 	}
 
 	// --- SERVER CONNECTED ---

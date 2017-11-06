@@ -34,7 +34,8 @@ import services.moleculer.service.Name;
  * and null. One of the major practical wins of JSON is that successful data
  * interchange is possible without casting a schema in concrete. This works much
  * better in a world where both ends of a communication relationship may be
- * evolving at high speed.<br>
+ * evolving at high speed. This serializer is NOT compatible with the
+ * JavaScript/Node version of Moleculer.<br>
  * <br>
  * <b>Required dependency:</b><br>
  * <br>
@@ -42,6 +43,9 @@ import services.moleculer.service.Name;
  * jackson-dataformat-cbor<br>
  * compile group: 'com.fasterxml.jackson.dataformat', name:
  * 'jackson-dataformat-cbor', version: '2.9.0.pr3'
+ * 
+ * @see JsonSerializer
+ * @see MsgPackSerializer
  */
 @Name("CBOR Serializer")
 public final class CborSerializer extends Serializer {
