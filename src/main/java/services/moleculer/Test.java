@@ -24,8 +24,6 @@
  */
 package services.moleculer;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 import services.moleculer.service.Action;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Service;
@@ -49,25 +47,6 @@ public class Test {
 
 		});
 		broker.start();
-
-		// Call service
-		final AtomicLong l = new AtomicLong();
-		long start = System.currentTimeMillis();
-		for (int n = 0; n < 10; n++) {
-			Promise promise = broker.call("math.add", "a", 1, "b", 2);
-			promise.then((rsp) -> {
-
-				System.out.println(rsp.asInteger());
-
-			}).Catch((error) -> {
-
-				System.out.println("error " + l.incrementAndGet());
-
-			}).toCompletableFuture().get();
-		}
-		System.out.println("finished " + (System.currentTimeMillis() - start));
-
-		// System.out.println(broker.components().registry().generateDescriptor());
 	}
 
 }

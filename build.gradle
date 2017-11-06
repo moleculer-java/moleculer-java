@@ -34,7 +34,7 @@ dependencies {
 	// --- REDIS CLIENT ---
 	
 	// https://mvnrepository.com/artifact/biz.paluch.redis/lettuce
-	compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.4.0.Final'
+	compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.4.1.Final'
 
 	// --- OFF-HEAP CACHE ---
 	

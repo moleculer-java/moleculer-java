@@ -204,6 +204,8 @@ public abstract class Transporter implements MoleculerComponent {
 			subscribe(pingChannel);
 			subscribe(pongChannel);
 
+			subscribed(discoverBroadcastChannel);
+			subscribed(infoBroadcastChannel);
 		});
 
 		// TODO
@@ -258,6 +260,9 @@ public abstract class Transporter implements MoleculerComponent {
 	protected void received(String channel, byte[] message, Object connectionID) {
 		executor.execute(() -> {
 
+			// TODO
+			logger.info("FROM " + channel + ": " + new String(message));
+			
 			// Parse message
 			Tree data;
 			try {
@@ -270,7 +275,6 @@ public abstract class Transporter implements MoleculerComponent {
 
 			// Send message to proper component
 			try {
-				System.out.println(channel + " -> " + data);
 
 				// Messages of ServiceRegistry
 				if (channel.equals(eventChannel) || channel.equals(requestChannel) || channel.equals(responseChannel)) {
@@ -291,14 +295,22 @@ public abstract class Transporter implements MoleculerComponent {
 			try {
 				logger.info(channel + " channel subscribed.");
 
-				// Send INFO to all nodes
+				// Send version and sender to all nodes
 				if (channel.equals(discoverBroadcastChannel)) {
 					Tree message = new Tree();
 					message.put("ver", "2");
 					message.put("sender", nodeID);
 					publish(discoverBroadcastChannel, message);
+					return;
 				}
 
+				// Send service desriptor to all nodes
+				if (channel.equals(infoBroadcastChannel)) {
+					Tree descriptor = broker.components().registry().generateDescriptor();
+					publish(infoBroadcastChannel, descriptor);
+					return;
+				}
+				
 			} catch (Exception cause) {
 				logger.warn("Unable to process subscription!", cause);
 			}
