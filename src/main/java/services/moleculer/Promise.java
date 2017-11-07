@@ -24,6 +24,7 @@
  */
 package services.moleculer;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
@@ -347,6 +348,15 @@ public class Promise {
 
 	// --- PARALLEL ALL / ALLOF FUNCTION ---
 
+	public static final Promise all(Collection<Promise> promises) {
+		if (promises == null || promises.isEmpty()) {
+			return Promise.resolve();
+		}
+		Promise[] array = new Promise[promises.size()];
+		promises.toArray(array);
+		return all(promises);
+	}
+	
 	/**
 	 * Returns a new Promise that is completed when all of the given Promise
 	 * complete. If any of the given Promise complete exceptionally, then the
@@ -360,7 +370,10 @@ public class Promise {
 	 *         complete
 	 */
 	public static final Promise all(Promise... promises) {
-
+		if (promises == null || promises.length == 0) {
+			return Promise.resolve();
+		}
+		
 		@SuppressWarnings("unchecked")
 		CompletableFuture<Tree>[] futures = new CompletableFuture[promises.length];
 		for (int i = 0; i < promises.length; i++) {
@@ -388,6 +401,15 @@ public class Promise {
 
 	// --- PARALLEL RACE / ANYOF FUNCTION ---
 
+	public static final Promise race(Collection<Promise> promises) {
+		if (promises == null || promises.isEmpty()) {
+			return Promise.resolve();
+		}
+		Promise[] array = new Promise[promises.size()];
+		promises.toArray(array);
+		return race(promises);
+	}
+	
 	/**
 	 * Returns a new Promise that is completed when any of the given Promises
 	 * complete, with the same result. Otherwise, if it completed exceptionally,
@@ -401,7 +423,10 @@ public class Promise {
 	 *         any of the given Promises when one completes
 	 */
 	public static final Promise race(Promise... promises) {
-
+		if (promises == null || promises.length == 0) {
+			return Promise.resolve();
+		}
+		
 		@SuppressWarnings("unchecked")
 		CompletableFuture<Tree>[] futures = new CompletableFuture[promises.length];
 		for (int i = 0; i < promises.length; i++) {
@@ -481,6 +506,10 @@ public class Promise {
 			this.future = future;
 		}
 
+		public final void resolve() {
+			future.complete(new CheckedTree(null));
+		}
+		
 		/**
 		 * Resolve the value of the current Promise with the given value.
 		 * Allowed Object types of the "value" parameter are: Tree, String, int,

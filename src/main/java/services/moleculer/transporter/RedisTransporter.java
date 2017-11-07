@@ -1,45 +1,25 @@
-/**
- * This software is licensed under MIT license.<br>
- * <br>
- * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:<br>
- * <br>
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.<br>
- * <br>
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
- * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
- * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
- * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
 package services.moleculer.transporter;
 
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import com.lambdaworks.redis.event.Event;
+import com.lambdaworks.redis.event.EventBus;
+import com.lambdaworks.redis.event.connection.ConnectionActivatedEvent;
+import com.lambdaworks.redis.event.connection.ConnectionDeactivatedEvent;
+import com.lambdaworks.redis.pubsub.RedisPubSubListener;
+
 import io.datatree.Tree;
+import rx.Observable;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 import services.moleculer.util.redis.RedisPubSubClient;
 
-/**
- * 
- */
 @Name("Redis Transporter")
-public final class RedisTransporter extends Transporter {
+public class RedisTransporter extends Transporter implements EventBus, RedisPubSubListener<byte[], byte[]> {
 
 	// --- PROPERTIES ---
 
@@ -50,8 +30,8 @@ public final class RedisTransporter extends Transporter {
 
 	// --- REDIS CLIENTS ---
 
-	private RedisPubSubClient clientSub = new RedisPubSubClient();
-	private RedisPubSubClient clientPub = new RedisPubSubClient();
+	private RedisPubSubClient clientSub;
+	private RedisPubSubClient clientPub;
 
 	// --- CONSTUCTORS ---
 
@@ -123,19 +103,18 @@ public final class RedisTransporter extends Transporter {
 	// --- CONNECT ---
 
 	private final void connect() {
-		
-		// Create redis clients
-		clientSub = new RedisPubSubClient();
-		clientPub = new RedisPubSubClient();
 
-		// Init redis clients
-		ExecutorService executorService = broker.components().executor();
-		clientSub.connect(urls, password, useSSL, startTLS, executorService, this::received).then(subStarted -> {
+		// Create redis clients
+		clientSub = new RedisPubSubClient(urls, password, useSSL, startTLS, executor, this, this);
+		clientPub = new RedisPubSubClient(urls, password, useSSL, startTLS, executor, this, null);
+
+		// Connect
+		clientSub.connect().then(subConnected -> {
 
 			// Ok, sub connected
 			logger.info("Redis-sub client is connected.");
 
-			clientPub.connect(urls, password, useSSL, startTLS, executorService, null).then(pubStarted -> {
+			clientPub.connect().then(pubConnected -> {
 
 				// Ok, all connected
 				logger.info("Redis-pub client is connected.");
@@ -146,12 +125,11 @@ public final class RedisTransporter extends Transporter {
 				// Failed
 				logger.warn("Redis-pub error (" + error.getMessage() + ")!");
 				reconnect();
-			});
 
+			});
 		}).Catch(error -> {
 
 			// Failed
-			System.out.println(error.getClass());
 			logger.warn("Redis-sub error (" + error.getMessage() + ")!");
 			reconnect();
 
@@ -160,26 +138,25 @@ public final class RedisTransporter extends Transporter {
 
 	// --- DISCONNECT ---
 
-	private final void disconnect() {
+	private final Promise disconnect() {
+		List<Promise> promises = new LinkedList<>();
 		if (clientSub != null) {
-			if (clientSub.disconnect()) {
-				logger.info("Redis-sub client is disconnected.");			
-			}
-			clientSub = null;
+			promises.add(clientSub.disconnect());
 		}
 		if (clientPub != null) {
-			if (clientPub.disconnect()) {
-				logger.info("Redis-pub client is disconnected.");			
-			}
-			clientPub = null;
+			promises.add(clientPub.disconnect());
 		}
+		return Promise.all(promises);
 	}
 
 	// --- RECONNECT ---
 
 	protected final void reconnect() {
-		disconnect();
-		scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
+		disconnect().then(ok -> {
+			scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
+		}).Catch(error -> {
+			scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
+		});
 	}
 
 	// --- STOP TRANSPORTER ---
@@ -203,18 +180,60 @@ public final class RedisTransporter extends Transporter {
 
 	@Override
 	public final void publish(String channel, Tree message) {
-		if (clientPub != null) {
-			try {
-
-				// TODO
-				logger.info("TO " + channel + ": " + new String(serializer.write(message)));
-
-				clientPub.publish(channel, serializer.write(message));
-
-			} catch (Exception cause) {
-				logger.warn("Unable to send message to Redis!", cause);
-			}
+		try {
+			clientPub.publish(channel, serializer.write(message));
+		} catch (Exception cause) {
+			logger.warn("Unable to send message to Redis!", cause);
 		}
+	}
+
+	// --- REDIS EVENT LISTENER METHODS ---
+
+	@Override
+	public final void message(byte[] channel, byte[] message) {
+		received(new String(channel, StandardCharsets.UTF_8), message);
+	}
+
+	@Override
+	public final void message(byte[] pattern, byte[] channel, byte[] message) {
+		received(new String(channel, StandardCharsets.UTF_8), message);
+	}
+
+	@Override
+	public final void subscribed(byte[] channel, long count) {
+	}
+
+	@Override
+	public final void psubscribed(byte[] pattern, long count) {
+	}
+
+	@Override
+	public final void unsubscribed(byte[] channel, long count) {
+	}
+
+	@Override
+	public final void punsubscribed(byte[] pattern, long count) {
+	}
+
+	@Override
+	public final Observable<Event> get() {
+		return null;
+	}
+
+	@Override
+	public final void publish(Event event) {
+		
+		// Connected to Redis server
+		if (event instanceof ConnectionActivatedEvent) {
+			connected();
+			return;
+		}
+
+		// Disconnected from Redis server
+		if (event instanceof ConnectionDeactivatedEvent) {
+			disconnected();
+		}
+
 	}
 
 	// --- GETTERS / SETTERS ---

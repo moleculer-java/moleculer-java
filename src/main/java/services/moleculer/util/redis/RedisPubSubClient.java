@@ -27,70 +27,62 @@ package services.moleculer.util.redis;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.function.BiConsumer;
 
 import com.lambdaworks.redis.RedisClient;
 import com.lambdaworks.redis.RedisURI;
 import com.lambdaworks.redis.cluster.RedisClusterClient;
 import com.lambdaworks.redis.codec.ByteArrayCodec;
-import com.lambdaworks.redis.event.Event;
 import com.lambdaworks.redis.event.EventBus;
-import com.lambdaworks.redis.event.connection.ConnectionActivatedEvent;
 import com.lambdaworks.redis.pubsub.RedisPubSubListener;
 import com.lambdaworks.redis.pubsub.StatefulRedisPubSubConnection;
 import com.lambdaworks.redis.pubsub.api.async.RedisPubSubAsyncCommands;
 import com.lambdaworks.redis.resource.DefaultClientResources;
+import com.lambdaworks.redis.resource.DefaultEventLoopGroupProvider;
 
-import io.netty.channel.nio.NioEventLoopGroup;
-import rx.Observable;
+import io.netty.util.concurrent.DefaultEventExecutor;
 import services.moleculer.Promise;
 
 public final class RedisPubSubClient {
 
 	// --- VARIABLES ---
 
+	private final String[] urls;
+	private final String password;
+	private final boolean useSSL;
+	private final boolean startTLS;
+	private final ExecutorService executor;
+	private final EventBus eventBus;
+	
+	private final RedisPubSubListener<byte[], byte[]> listener;
+
 	private DefaultClientResources clientResources;
+	
 	private StatefulRedisPubSubConnection<byte[], byte[]> connection;
 	private RedisPubSubAsyncCommands<byte[], byte[]> commands;
 
-	private NioEventLoopGroup closeableGroup;
+	// --- CONSTRUCTOR ---
 
-	// --- CONNECT TO REDIS ---
+	public RedisPubSubClient(String[] urls, String password, boolean useSSL, boolean startTLS, ExecutorService executor,
+			EventBus eventBus, RedisPubSubListener<byte[], byte[]> listener) {
+		this.urls = urls;
+		this.password = password;
+		this.useSSL = useSSL;
+		this.startTLS = startTLS;
+		this.executor = executor;
+		this.eventBus = eventBus;
+		this.listener = listener;
+	}
 
-	public final Promise connect(String[] urls, String password, boolean useSSL, boolean startTLS,
-			ExecutorService executor, BiConsumer<String, byte[]> messageListener) {
-		Promise connected = new Promise();
+	// --- CONNECT ---
+
+	public final Promise connect() {
 		try {
-
-			// Get or create NioEventLoopGroup
-			NioEventLoopGroup redisGroup;
-			if (executor instanceof NioEventLoopGroup) {
-				redisGroup = (NioEventLoopGroup) executor;
-			} else {
-				redisGroup = new NioEventLoopGroup(1);
-				closeableGroup = redisGroup;
-			}
-
-			// Create Redis connection
-			final List<RedisURI> redisURIs = RedisUtilities.parseURLs(urls, password, useSSL, startTLS);
-			clientResources = RedisUtilities.createClientResources(new EventBus() {
-
-				@Override
-				public final void publish(Event event) {
-
-					// Connected to Redis server
-					if (event instanceof ConnectionActivatedEvent) {
-						connected.complete(String.valueOf(((ConnectionActivatedEvent) event).remoteAddress()));
-					}
-
-				}
-
-				@Override
-				public final Observable<Event> get() {
-					return null;
-				}
-
-			}, redisGroup);
+			DefaultClientResources.Builder builder = DefaultClientResources.builder();
+			builder.eventLoopGroupProvider(new DefaultEventLoopGroupProvider(1));
+			builder.eventExecutorGroup(new DefaultEventExecutor(executor));
+			builder.eventBus(eventBus);
+			clientResources = builder.build();
+			List<RedisURI> redisURIs = RedisUtilities.parseURLs(urls, password, useSSL, startTLS);
 			if (urls.length > 1) {
 
 				// Clustered client
@@ -104,40 +96,14 @@ public final class RedisPubSubClient {
 			}
 
 			// Add listener
-			connection.addListener(new RedisPubSubListener<byte[], byte[]>() {
-
-				@Override
-				public final void message(byte[] pattern, byte[] channel, byte[] message) {
-					messageListener.accept(new String(channel, StandardCharsets.UTF_8), message);
-				}
-
-				@Override
-				public final void message(byte[] channel, byte[] message) {
-					messageListener.accept(new String(channel, StandardCharsets.UTF_8), message);
-				}
-
-				@Override
-				public final void subscribed(byte[] channel, long count) {
-				}
-
-				@Override
-				public final void psubscribed(byte[] pattern, long count) {
-				}
-
-				@Override
-				public final void unsubscribed(byte[] channel, long count) {
-				}
-
-				@Override
-				public final void punsubscribed(byte[] pattern, long count) {
-				}
-
-			});
+			if (listener != null) {
+				connection.addListener(listener);
+			}
 			commands = connection.async();
-		} catch (Throwable cause) {
-			connected.complete(cause);
+			return Promise.resolve();
+		} catch (Throwable error) {
+			return Promise.reject(error);
 		}
-		return connected;
 	}
 
 	// --- SUBSCRIBE ---
@@ -154,28 +120,22 @@ public final class RedisPubSubClient {
 
 	// --- DISCONNECT ---
 
-	public final boolean disconnect() {
-		boolean closed = false;
-		if (clientResources != null) {
-			clientResources.shutdown();
-			clientResources = null;
-			closed = true;
-		}
+	public final Promise disconnect() {
 		if (commands != null) {
 			commands.close();
 			commands = null;
-			closed = true;
 		}
 		if (connection != null) {
 			connection.close();
 			connection = null;
-			closed = true;
 		}
-		if (closeableGroup != null) {
-			closeableGroup.shutdownGracefully();
-			closed = true;
+		if (clientResources != null) {
+			Promise promise = new Promise(clientResources.shutdown());
+			return promise.then(ok -> {
+				clientResources = null;				
+			});
 		}
-		return closed;
+		return Promise.resolve();
 	}
 
 }

@@ -28,7 +28,7 @@ import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 
 import java.util.Objects;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.slf4j.Logger;
@@ -94,7 +94,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- COMPONENTS ---
 
-	protected Executor executor;
+	protected ExecutorService executor;
 	protected ScheduledExecutorService scheduler;
 	protected ServiceRegistry serviceRegistry;
 

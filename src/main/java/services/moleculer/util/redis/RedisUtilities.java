@@ -28,10 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import com.lambdaworks.redis.RedisClient;
 import com.lambdaworks.redis.RedisURI;
-import com.lambdaworks.redis.api.async.RedisStringAsyncCommands;
-import com.lambdaworks.redis.cluster.RedisClusterClient;
 import com.lambdaworks.redis.event.Event;
 import com.lambdaworks.redis.event.EventBus;
 import com.lambdaworks.redis.resource.DefaultClientResources;
@@ -47,30 +44,6 @@ import rx.Observable;
  * 
  */
 public final class RedisUtilities {
-
-	// --- GET/SET CONNECTIONS ---
-
-	public static final RedisStringAsyncCommands<String, String> getAsyncCommands(String[] urls, String password,
-			boolean useSSL, boolean startTLS, NioEventLoopGroup group) {
-
-		// Open new connection
-		List<RedisURI> redisURIs = parseURLs(urls, password, useSSL, startTLS);
-		DefaultClientResources clientResources = createClientResources(null, group);
-		RedisStringAsyncCommands<String, String> commands;
-		if (urls.length > 1) {
-
-			// Clustered client
-			RedisClusterClient client = RedisClusterClient.create(clientResources, redisURIs);
-			commands = client.connect().async();
-
-		} else {
-
-			// Single connection
-			RedisClient client = RedisClient.create(clientResources, redisURIs.get(0));
-			commands = client.connect().async();
-		}
-		return commands;
-	}
 
 	// --- PRIVATE UTILITIES ---
 
