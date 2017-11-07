@@ -27,11 +27,13 @@ package services.moleculer.transporter;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
+import services.moleculer.util.redis.RedisPubSubClient;
 
 /**
  * 
@@ -48,8 +50,8 @@ public final class RedisTransporter extends Transporter {
 
 	// --- REDIS CLIENTS ---
 
-	private final RedisPubSubClient clientSub = new RedisPubSubClient();
-	private final RedisPubSubClient clientPub = new RedisPubSubClient();
+	private RedisPubSubClient clientSub = new RedisPubSubClient();
+	private RedisPubSubClient clientPub = new RedisPubSubClient();
 
 	// --- CONSTUCTORS ---
 
@@ -114,26 +116,70 @@ public final class RedisTransporter extends Transporter {
 		useSSL = config.get("useSSL", useSSL);
 		startTLS = config.get("startTLS", startTLS);
 
-		// Init Redis clients
+		// Connect to Redis server
+		connect();
+	}
+
+	// --- CONNECT ---
+
+	private final void connect() {
+		
+		// Create redis clients
+		clientSub = new RedisPubSubClient();
+		clientPub = new RedisPubSubClient();
+
+		// Init redis clients
 		ExecutorService executorService = broker.components().executor();
-		Promise subConnected = clientSub.connect(urls, password, useSSL, startTLS, executorService, (channel) -> {
-			
-			// Channel subscribed
-			subscribed(channel);
-			
-		}, (channel, message) -> {
-			
-			// Message received
-			received(channel, message, null);
-			
+		clientSub.connect(urls, password, useSSL, startTLS, executorService, this::received).then(subStarted -> {
+
+			// Ok, sub connected
+			logger.info("Redis-sub client is connected.");
+
+			clientPub.connect(urls, password, useSSL, startTLS, executorService, null).then(pubStarted -> {
+
+				// Ok, all connected
+				logger.info("Redis-pub client is connected.");
+				connected();
+
+			}).Catch(error -> {
+
+				// Failed
+				logger.warn("Redis-pub error (" + error.getMessage() + ")!");
+				reconnect();
+			});
+
+		}).Catch(error -> {
+
+			// Failed
+			System.out.println(error.getClass());
+			logger.warn("Redis-sub error (" + error.getMessage() + ")!");
+			reconnect();
+
 		});
-		Promise pubConnected = clientPub.connect(urls, password, useSSL, startTLS, executorService, null, null);
-		
-		// Wait for connections (block main thread)
-		Promise.all(subConnected, pubConnected).toCompletableFuture().get();
-		
-		// All clients connected
-		connected();
+	}
+
+	// --- DISCONNECT ---
+
+	private final void disconnect() {
+		if (clientSub != null) {
+			if (clientSub.disconnect()) {
+				logger.info("Redis-sub client is disconnected.");			
+			}
+			clientSub = null;
+		}
+		if (clientPub != null) {
+			if (clientPub.disconnect()) {
+				logger.info("Redis-pub client is disconnected.");			
+			}
+			clientPub = null;
+		}
+	}
+
+	// --- RECONNECT ---
+
+	protected final void reconnect() {
+		disconnect();
+		scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
 	}
 
 	// --- STOP TRANSPORTER ---
@@ -143,15 +189,14 @@ public final class RedisTransporter extends Transporter {
 	 */
 	@Override
 	public final void stop() {
-		clientSub.disconnect();
-		clientPub.disconnect();
+		disconnect();
 	}
 
 	// --- SUBSCRIBE ---
 
 	@Override
-	public final void subscribe(String channel) {
-		clientSub.subscribe(channel);
+	public final Promise subscribe(String channel) {
+		return clientSub.subscribe(channel);
 	}
 
 	// --- PUBLISH ---

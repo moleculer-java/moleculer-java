@@ -25,6 +25,7 @@
 package services.moleculer.transporter;
 
 import io.datatree.Tree;
+import services.moleculer.Promise;
 import services.moleculer.service.Name;
 
 /**
@@ -38,7 +39,8 @@ public final class NatsTransporter extends Transporter {
 	}
 
 	@Override
-	public final void subscribe(String channel) {
+	public final Promise subscribe(String channel) {
+		return null;
 	}
 
 }

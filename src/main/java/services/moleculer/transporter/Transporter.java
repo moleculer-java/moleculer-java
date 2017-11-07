@@ -24,16 +24,18 @@
  */
 package services.moleculer.transporter;
 
-import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 import static services.moleculer.util.CommonUtils.nameOf;
+import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 
 import java.util.Objects;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
+import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.MoleculerComponent;
 import services.moleculer.context.CallingOptions;
@@ -93,6 +95,7 @@ public abstract class Transporter implements MoleculerComponent {
 	// --- COMPONENTS ---
 
 	protected Executor executor;
+	protected ScheduledExecutorService scheduler;
 	protected ServiceRegistry serviceRegistry;
 
 	// --- CONSTUCTORS ---
@@ -150,8 +153,9 @@ public abstract class Transporter implements MoleculerComponent {
 		logger.info(nameOf(this, true) + " is using " + nameOf(serializer, true) + '.');
 		serializer.start(broker, serializerNode);
 
-		// Get componentMap
+		// Get components
 		executor = broker.components().executor();
+		scheduler = broker.components().scheduler();
 		serviceRegistry = broker.components().registry();
 
 		// Get properties from broker
@@ -191,26 +195,35 @@ public abstract class Transporter implements MoleculerComponent {
 		executor.execute(() -> {
 
 			// Subscribe channels
-			subscribe(eventChannel);
-			subscribe(requestChannel);
-			subscribe(responseChannel);
-			subscribe(discoverBroadcastChannel);
-			subscribe(discoverChannel);
-			subscribe(infoBroadcastChannel);
-			subscribe(infoChannel);
-			subscribe(disconnectChannel);
-			subscribe(heartbeatChannel);
-			subscribe(pingBroadcastChannel);
-			subscribe(pingChannel);
-			subscribe(pongChannel);
+			Promise.all( // Waiting for all subscriptions...
+					subscribe(eventChannel), // EVENT
+					subscribe(requestChannel), // REQ
+					subscribe(responseChannel), // RES
+					subscribe(discoverBroadcastChannel), // DISCOVER
+					subscribe(discoverChannel), // DISCOVER
+					subscribe(infoBroadcastChannel), // INFO
+					subscribe(infoChannel), // INFO
+					subscribe(disconnectChannel), // DISCONNECT
+					subscribe(heartbeatChannel), // HEARTBEAT
+					subscribe(pingBroadcastChannel), // PING
+					subscribe(pingChannel), // PING
+					subscribe(pongChannel) // PONG
+			).then(in -> {
+			
+				// TODO
+				logger.info("All channels subscribed.");
+				sendDiscoverPacket(discoverBroadcastChannel);
+				sendInfoPacket(infoBroadcastChannel);				
+				// - Start heartbeat timer
+				// - Start checkNodes timer
 
-			subscribed(discoverBroadcastChannel);
-			subscribed(infoBroadcastChannel);
+			}).Catch(error -> {
+				
+				logger.warn("Unable to subscribe channels!", error);
+				reconnect();
+				
+			});
 		});
-
-		// TODO
-		// - Start heartbeat timer
-		// - Start checkNodes timer
 	}
 
 	// --- SERVER DISCONNECTED ---
@@ -249,27 +262,26 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- SUBSCRIBE ---
 
-	public void subscribe(String cmd, String nodeID) {
-		subscribe(channel(cmd, nodeID));
+	public Promise subscribe(String cmd, String nodeID) {
+		return subscribe(channel(cmd, nodeID));
 	}
 
-	public abstract void subscribe(String channel);
+	public abstract Promise subscribe(String channel);
 
 	// --- PROCESS INCOMING MESSAGE ---
 
-	protected void received(String channel, byte[] message, Object connectionID) {
+	protected void received(String channel, byte[] message) {
 		executor.execute(() -> {
 
 			// TODO
 			logger.info("FROM " + channel + ": " + new String(message));
-			
+
 			// Parse message
 			Tree data;
 			try {
 				data = serializer.read(message);
 			} catch (Exception cause) {
 				logger.warn("Unable to parse incoming message!", cause);
-				failed(connectionID, cause);
 				return;
 			}
 
@@ -282,46 +294,69 @@ public abstract class Transporter implements MoleculerComponent {
 					return;
 				}
 
+				// Info packet
+				if (channel.equals(infoChannel) || channel.equals(infoBroadcastChannel)) {
+					String sender = data.get("sender", "");
+					if (sender == null || sender.isEmpty()) {
+						logger.warn("Missing \"sender\" property:\r\n" + data);
+						return;
+					}
+					if (sender.equals(nodeID)) {
+
+						// It's our INFO block
+						return;
+					}
+					Tree services = data.get("services");
+					if (services != null && services.isEnumeration()) {
+						for (Tree service : services) {
+							serviceRegistry.addService(service);
+						}
+					}
+					return;
+				}
+
+				// Discover packet
+				if (channel.equals(discoverChannel) || channel.equals(discoverBroadcastChannel)) {
+					String sender = data.get("sender", "");
+					if (sender == null || sender.isEmpty()) {
+						logger.warn("Missing \"sender\" property:\r\n" + data);
+						return;
+					}
+					if (sender.equals(nodeID)) {
+
+						// It's our DISCOVER block
+						return;
+					}
+
+					// Send node desriptor to the sender
+					sendInfoPacket(channel(PACKET_INFO, sender));
+				}
+
 			} catch (Exception cause) {
 				logger.warn("Unable to process incoming message!", cause);
 			}
 		});
 	}
 
-	// --- SUBSCRIPTION FINISHED ---
+	// --- GENERIC MOLECULER PACKETS ---
 
-	protected void subscribed(String channel) {
-		executor.execute(() -> {
-			try {
-				logger.info(channel + " channel subscribed.");
-
-				// Send version and sender to all nodes
-				if (channel.equals(discoverBroadcastChannel)) {
-					Tree message = new Tree();
-					message.put("ver", "2");
-					message.put("sender", nodeID);
-					publish(discoverBroadcastChannel, message);
-					return;
-				}
-
-				// Send service desriptor to all nodes
-				if (channel.equals(infoBroadcastChannel)) {
-					Tree descriptor = broker.components().registry().generateDescriptor();
-					publish(infoBroadcastChannel, descriptor);
-					return;
-				}
-				
-			} catch (Exception cause) {
-				logger.warn("Unable to process subscription!", cause);
-			}
-		});
+	private final void sendDiscoverPacket(String channel) {
+		Tree message = new Tree();
+		message.put("ver", "2");
+		message.put("sender", nodeID);
+		publish(channel, message);
 	}
 
-	// --- OPTIONAL DISCONNECTION ON ERROR ---
-
-	protected void failed(Object connectionID, Throwable cause) {
+	private final void sendInfoPacket(String channel) {
+		Tree descriptor = broker.components().registry().generateDescriptor();
+		publish(channel, descriptor);
 	}
 
+	// --- RECONNECT METHOD ---
+	
+	protected void reconnect() {		
+	}
+	
 	// --- GETTERS / SETTERS ---
 
 	public final Serializer getSerializer() {

@@ -25,10 +25,12 @@
 package services.moleculer;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 import io.datatree.Tree;
+import services.moleculer.util.CheckedTree;
 
 /**
  * ES6-like Promise based on the Java8's CompletableFuture API. A Promise is an
@@ -436,18 +438,30 @@ public class Promise {
 				future.completeExceptionally((Throwable) object);
 				return future;
 			}
+			if (object instanceof CompletionStage) {
+				CompletableFuture<Tree> future = new CompletableFuture<>();
+				((CompletionStage<?>) object).handle((value, error) -> {
+					if (error == null) {
+						future.complete(toTree(value));
+					} else {
+						future.completeExceptionally(error);
+					}
+					return null;
+				});
+				return future;
+			}
 		}
 		return CompletableFuture.completedFuture(toTree(object));
 	}
 
 	protected static final Tree toTree(Object object) {
 		if (object == null) {
-			return new Tree().setObject(null);
+			return new CheckedTree(null);
 		}
 		if (object instanceof Tree) {
 			return (Tree) object;
 		}
-		return new Tree().setObject(object);
+		return new CheckedTree(object);
 	}
 
 	// --- SUBCLASSES AND INTERFACES ---

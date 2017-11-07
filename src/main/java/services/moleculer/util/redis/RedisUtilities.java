@@ -22,7 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.util;
+package services.moleculer.util.redis;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -150,5 +150,5 @@ public final class RedisUtilities {
 		builder.eventBus(eventBus);
 		return builder.build();
 	}
-
+	
 }

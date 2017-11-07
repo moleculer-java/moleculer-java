@@ -69,6 +69,10 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 
 	public abstract void addService(Service service, Tree config) throws Exception;
 
+	// --- ADD REMOTE SERVICE ---
+	
+	public abstract void addService(Tree config) throws Exception;
+	
 	// --- GET LOCAL SERVICE ---
 
 	public abstract Service getService(String name);

@@ -166,7 +166,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		for (PromiseContainer container : promises.values()) {
 			container.promise.complete(error);
 		}
-		
+
 		// Stop action containers and services
 		writeLock.lock();
 		try {
@@ -215,7 +215,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		}
 		if (removed) {
 			scheduler.execute(() -> {
-				reschedule(Long.MAX_VALUE);				
+				reschedule(Long.MAX_VALUE);
 			});
 		} else {
 			prevTimeoutAt.set(0);
@@ -390,6 +390,36 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			// Start service
 			service.start(broker, config);
 			services.put(service.name, service);
+
+		} finally {
+			writeLock.unlock();
+		}
+	}
+
+	// --- ADD REMOTE SERVICE ---
+
+	public final void addService(Tree config) throws Exception {
+		
+		// TODO Process configuration
+		String nodeID = config.get("nodeID", "");
+		String serviceName = config.get("name", "");
+		Tree actions = config.get("actions");
+		if (actions != null && actions.isMap()) {
+			for (Tree action: actions) {
+				String actionName = action.get("name", "");
+				if (actionName == null || actionName.isEmpty()) {
+					logger.warn("Missing \"name\" property:\r\n" + action);
+					continue;
+				}
+				boolean cache = action.get("cache", false);
+				
+				// Register action
+			}
+		}
+		
+		writeLock.lock();
+		try {
+
 
 		} finally {
 			writeLock.unlock();

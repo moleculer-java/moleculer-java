@@ -59,7 +59,7 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
 import services.moleculer.service.Name;
-import services.moleculer.util.RedisUtilities;
+import services.moleculer.util.redis.RedisUtilities;
 
 /**
  * Redis-based cache implementation. Supports SSL, clustering and password
@@ -112,26 +112,6 @@ public final class RedisCacher extends Cacher {
 	}
 
 	public RedisCacher(boolean useSSL, boolean startTLS, String password, int ttl, String... urls) {
-		this.useSSL = useSSL;
-		this.startTLS = startTLS;
-		this.password = password;
-		this.ttl = ttl;
-		this.urls = urls;
-	}
-
-	public RedisCacher(RedisAsyncCommands<byte[], byte[]> client, boolean useSSL, boolean startTLS, String password,
-			int ttl, String... urls) {
-		this.client = client;
-		this.useSSL = useSSL;
-		this.startTLS = startTLS;
-		this.password = password;
-		this.ttl = ttl;
-		this.urls = urls;
-	}
-
-	public RedisCacher(RedisAdvancedClusterAsyncCommands<byte[], byte[]> clusteredClient, boolean useSSL,
-			boolean startTLS, String password, int ttl, String... urls) {
-		this.clusteredClient = clusteredClient;
 		this.useSSL = useSSL;
 		this.startTLS = startTLS;
 		this.password = password;
@@ -415,22 +395,6 @@ public final class RedisCacher extends Cacher {
 
 	public final void setTtl(int ttl) {
 		this.ttl = ttl;
-	}
-
-	public final RedisAsyncCommands<byte[], byte[]> getClient() {
-		return client;
-	}
-
-	public final void setClient(RedisAsyncCommands<byte[], byte[]> client) {
-		this.client = client;
-	}
-
-	public final RedisAdvancedClusterAsyncCommands<byte[], byte[]> getClusteredClient() {
-		return clusteredClient;
-	}
-
-	public final void setClusteredClient(RedisAdvancedClusterAsyncCommands<byte[], byte[]> clusteredClient) {
-		this.clusteredClient = clusteredClient;
 	}
 
 	public final Serializer getSerializer() {
