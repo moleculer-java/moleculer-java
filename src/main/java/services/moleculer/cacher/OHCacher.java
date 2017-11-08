@@ -283,12 +283,21 @@ public final class OHCacher extends Cacher {
 	}
 
 	@Override
-	public final void set(String key, Tree value) {
+	public final void set(String key, Tree value, int ttl) {
 		try {
 			if (value == null) {
 				cache.remove(keyToBytes(key));
 			} else {
-				cache.put(keyToBytes(key), valueToBytes(value));
+				if (ttl > 0) {
+					
+					// Entry-level TTL (in seconds)
+					long expireAt = ttl * 1000L + System.currentTimeMillis();
+					cache.put(keyToBytes(key), valueToBytes(value), expireAt);
+				} else {
+					
+					// Use the default TTL
+					cache.put(keyToBytes(key), valueToBytes(value));
+				}
 			}
 		} catch (Throwable cause) {
 			logger.warn("Unable to write data to off-heap cache!", cause);

@@ -24,6 +24,7 @@
  */
 package services.moleculer;
 
+import services.moleculer.cacher.Cache;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
@@ -31,6 +32,7 @@ import services.moleculer.service.Service;
 @Name("math")
 public class TestService extends Service {
 
+	@Cache(keys = { "a", "b" }, ttl = 30)
 	public Action add = (ctx) -> {
 		return ctx.params().get("a", 0) + ctx.params().get("b", 0);
 	};

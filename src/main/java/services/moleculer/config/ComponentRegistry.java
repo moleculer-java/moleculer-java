@@ -35,6 +35,7 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.EventBus;
+import services.moleculer.monitor.Monitor;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
@@ -175,6 +176,20 @@ public abstract class ComponentRegistry {
 	 */
 	public static final String TRANSPORTER_ID = "transporter";
 
+	/**
+	 * ID of System Monitor definition in the configuration file. Sample
+	 * configuration entry in JSON format:<br>
+	 * <br>
+	 * "monitor": {<br>
+	 * "type": "sigar"<br>
+	 * }<br>
+	 * <br>
+	 * Yo can access this component via {@code ServiceBroker}'s
+	 * {@code components()} method:<br>
+	 * borker.components().monitor();
+	 */
+	public static final String MONITOR_ID = "monitor";
+
 	// --- LOGGER ---
 
 	/**
@@ -280,6 +295,14 @@ public abstract class ComponentRegistry {
 	 */
 	public abstract Transporter transporter();
 
+	/**
+	 * Returns the ServiceBroker's Monitor (which is defined in the
+	 * configuration file's "monitor" block).
+	 * 
+	 * @return ServiceBroker's System Monitor
+	 */
+	public abstract Monitor monitor();
+	
 	// --- GET IDS OF ALL COMPONENTS ---
 
 	/**

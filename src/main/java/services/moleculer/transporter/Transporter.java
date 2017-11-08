@@ -30,6 +30,8 @@ import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +42,7 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.config.MoleculerComponent;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
+import services.moleculer.monitor.Monitor;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
 import services.moleculer.service.Name;
@@ -97,6 +100,7 @@ public abstract class Transporter implements MoleculerComponent {
 	protected ExecutorService executor;
 	protected ScheduledExecutorService scheduler;
 	protected ServiceRegistry serviceRegistry;
+	protected Monitor monitor;
 
 	// --- CONSTUCTORS ---
 
@@ -157,6 +161,7 @@ public abstract class Transporter implements MoleculerComponent {
 		executor = broker.components().executor();
 		scheduler = broker.components().scheduler();
 		serviceRegistry = broker.components().registry();
+		monitor = broker.components().monitor();
 
 		// Get properties from broker
 		this.broker = broker;
@@ -191,6 +196,11 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- SERVER CONNECTED ---
 
+	/**
+	 * Cancelable timer
+	 */
+	private volatile ScheduledFuture<?> heartBeatTimer;
+
 	protected void connected() {
 		executor.execute(() -> {
 
@@ -209,19 +219,26 @@ public abstract class Transporter implements MoleculerComponent {
 					subscribe(pingChannel), // PING
 					subscribe(pongChannel) // PONG
 			).then(in -> {
-			
-				// TODO
+
+				// Redis transporter is ready for use
 				logger.info("All channels subscribed.");
+
+				// Do the discovery process
 				sendDiscoverPacket(discoverBroadcastChannel);
-				sendInfoPacket(infoBroadcastChannel);				
-				// - Start heartbeat timer
-				// - Start checkNodes timer
+				sendInfoPacket(infoBroadcastChannel);
+
+				// Start heartbeat timer
+				if (heartBeatTimer == null) {
+					heartBeatTimer = scheduler.scheduleAtFixedRate(this::sendHeartbeatPacket, 5, 5, TimeUnit.SECONDS);
+				}
+
+				// TODO Start checkNodes timer
 
 			}).Catch(error -> {
-				
+
 				logger.warn("Unable to subscribe channels!", error);
-				reconnect();
-				
+				error(error);
+
 			});
 		});
 	}
@@ -230,8 +247,14 @@ public abstract class Transporter implements MoleculerComponent {
 
 	protected void disconnected() {
 
-		// TODO on disconnected (move to superclass):
+		// TODO on disconnected
+
 		// Stop heartbeat timer
+		if (heartBeatTimer != null) {
+			heartBeatTimer.cancel(false);
+			heartBeatTimer = null;
+		}
+
 		// Stop checkNodes timer
 		// Call `this.tx.disconnect()`
 	}
@@ -352,11 +375,19 @@ public abstract class Transporter implements MoleculerComponent {
 		publish(channel, descriptor);
 	}
 
-	// --- RECONNECT METHOD ---
-	
-	protected void reconnect() {		
+	private final void sendHeartbeatPacket() {
+		Tree message = new Tree();
+		message.put("ver", "2");
+		message.put("sender", nodeID);
+		message.put("cpu", monitor.getTotalCpuPercent());
+		publish(heartbeatChannel, message);
 	}
-	
+
+	// --- OPTIONAL ERROR HANDLER ---
+
+	protected void error(Throwable error) {
+	}
+
 	// --- GETTERS / SETTERS ---
 
 	public final Serializer getSerializer() {

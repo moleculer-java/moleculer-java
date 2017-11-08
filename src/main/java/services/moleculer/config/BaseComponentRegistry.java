@@ -51,6 +51,10 @@ import services.moleculer.context.ContextFactory;
 import services.moleculer.context.DefaultContextFactory;
 import services.moleculer.eventbus.DefaultEventBus;
 import services.moleculer.eventbus.EventBus;
+import services.moleculer.monitor.ConstantMonitor;
+import services.moleculer.monitor.JMXMonitor;
+import services.moleculer.monitor.Monitor;
+import services.moleculer.monitor.SigarMonitor;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.RoundRobinStrategyFactory;
@@ -60,8 +64,8 @@ import services.moleculer.strategy.XORShiftRandomStrategyFactory;
 import services.moleculer.transporter.NatsTransporter;
 import services.moleculer.transporter.RedisTransporter;
 import services.moleculer.transporter.Transporter;
-import services.moleculer.uid.StandardUUIDGenerator;
 import services.moleculer.uid.IncrementalUIDGenerator;
+import services.moleculer.uid.StandardUUIDGenerator;
 import services.moleculer.uid.UIDGenerator;
 
 /**
@@ -89,6 +93,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	private Cacher cacher;
 	private ServiceRegistry registry;
 	private Transporter transporter;
+	private Monitor monitor;
 
 	// --- CUSTOM COMPONENTS ---
 
@@ -124,6 +129,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		cacher = settings.getCacher();
 		eventbus = settings.getEventbus();
 		transporter = settings.getTransporter();
+		monitor = settings.getMonitor();
 		componentMap = settings.getComponentMap();
 
 		// Create components by config file
@@ -205,7 +211,11 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 				transporter = (Transporter) component;
 				continue;
 			}
-
+			if (MONITOR_ID.equals(id) && checkType(Monitor.class, implClass)) {
+				monitor = (Monitor) component;
+				continue;
+			}
+			
 			// Store as custom component
 			componentMap.put(id, new MoleculerComponentContainer(component, subConfig));
 		}
@@ -220,6 +230,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		start(broker, cacher, configOf(CACHER_ID, config));
 		start(broker, strategy, configOf(STRATEGY_ID, config));
 		start(broker, registry, configOf(REGISTRY_ID, config));
+		start(broker, monitor, configOf(MONITOR_ID, config));
 		start(broker, transporter, configOf(TRANSPORTER_ID, config));
 
 		// Start custom components
@@ -245,6 +256,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		internalTypes.add(Strategy.class);
 		internalTypes.add(ServiceRegistry.class);
 		internalTypes.add(Transporter.class);
+		internalTypes.add(Monitor.class);
 	}
 
 	protected static final boolean isInternalComponent(Object component) {
@@ -413,6 +425,16 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			if (test.equals("default")) {
 				return newConfig(DefaultEventBus.class);
 			}
+		} else if (MONITOR_ID.equals(id)) {
+			if (test.equals("sigar")) {
+				return newConfig(SigarMonitor.class);
+			}
+			if (test.equals("jmx")) {
+				return newConfig(JMXMonitor.class);
+			}			
+			if (test.equals("constant")) {
+				return newConfig(ConstantMonitor.class);
+			}			
 		}
 		return null;
 	}
@@ -434,6 +456,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 
 		// Stop internal components
 		stop(transporter);
+		stop(monitor);
 		stop(registry);
 		stop(strategy);
 		stop(cacher);
@@ -523,6 +546,11 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		return transporter;
 	}
 
+	@Override
+	public final Monitor monitor() {
+		return monitor;
+	}
+	
 	// --- GET IDS OF CUSTOM COMPONENTS ---
 
 	private final AtomicReference<String[]> cachedNames = new AtomicReference<>();
@@ -553,6 +581,9 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			if (transporter != null) {
 				set.add(TRANSPORTER_ID);
 			}
+			if (monitor != null) {
+				set.add(MONITOR_ID);
+			}			
 			set.addAll(componentMap.keySet());
 			array = new String[set.size()];
 			set.toArray(array);
@@ -583,6 +614,8 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			return registry;
 		case TRANSPORTER_ID:
 			return transporter;
+		case MONITOR_ID:
+			return monitor;
 		default:
 			MoleculerComponentContainer container = componentMap.get(id);
 			if (container == null) {

@@ -49,6 +49,8 @@ import services.moleculer.context.ContextFactory;
 import services.moleculer.context.DefaultContextFactory;
 import services.moleculer.eventbus.DefaultEventBus;
 import services.moleculer.eventbus.EventBus;
+import services.moleculer.monitor.ConstantMonitor;
+import services.moleculer.monitor.Monitor;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.RoundRobinStrategyFactory;
@@ -93,6 +95,7 @@ public final class ServiceBrokerSettings {
 	private StrategyFactory strategy = new RoundRobinStrategyFactory();
 	private Transporter transporter;
 	private Cacher cacher = new MemoryCacher();
+	private Monitor monitor;
 
 	// --- CUSTOM COMPONENTS ---
 	
@@ -110,7 +113,9 @@ public final class ServiceBrokerSettings {
 	
 	// --- CONSTRUCTORS ---
 
-	public ServiceBrokerSettings() {		
+	public ServiceBrokerSettings() {
+		
+		// Set the default NodeID
 		try {
 			nodeID = InetAddress.getLocalHost().getHostName();
 		} catch (Exception ignored) {
@@ -122,6 +127,29 @@ public final class ServiceBrokerSettings {
 		// Create thread pools
 		executor = Executors.newWorkStealingPool();
 		scheduler = Executors.newSingleThreadScheduledExecutor();
+		
+		// Set the default System Monitor
+		try {
+			Class<?> c = getClass().getClassLoader().loadClass("services.moleculer.monitor.SigarMonitor");
+			Monitor m = (Monitor) c.newInstance();
+			m.start(null, null);
+			monitor = m;
+		} catch (Throwable ignored) {
+			logger.info("Sigar System Monitoring API not available.");
+		}	
+		if (monitor == null) {
+			try {
+				Class<?> c = getClass().getClassLoader().loadClass("services.moleculer.monitor.JMXMonitor");
+				Monitor m = (Monitor) c.newInstance();
+				m.start(null, null);
+				monitor = m;
+			} catch (Throwable ignored) {
+				logger.info("JMX System Monitoring API not available.");
+			}			
+		}
+		if (monitor == null) {
+			monitor = new ConstantMonitor();
+		}
 	}
 
 	public ServiceBrokerSettings(String nodeID, Transporter transporter, Cacher cacher) {
@@ -341,6 +369,14 @@ public final class ServiceBrokerSettings {
 
 	public final void setShutDownThreadPools(boolean shutDownThreadPools) {
 		this.shutDownThreadPools = shutDownThreadPools;
+	}
+
+	public final Monitor getMonitor() {
+		return monitor;
+	}
+
+	public final void setMonitor(Monitor monitor) {
+		this.monitor = monitor;
 	}
 	
 }

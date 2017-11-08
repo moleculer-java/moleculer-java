@@ -41,6 +41,13 @@ public @interface Cache {
 	 * 
 	 * @return cache keys
 	 */
-	String[] value() default {};
+	String[] keys() default {};
+
+	/**
+	 * Time To Live (TTL) of entry, in seconds.
+	 * 
+	 * @return ttl in seconds (0 = never expires)
+	 */
+	int ttl() default 0;
 
 }

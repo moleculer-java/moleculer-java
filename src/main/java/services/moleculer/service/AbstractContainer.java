@@ -24,6 +24,7 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 	protected boolean cached;
 	protected String[] cacheKeys;	
 	protected int defaultTimeout;
+	protected int ttl;
 
 	// --- COMPONENTS ---
 
@@ -57,7 +58,8 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 		// Set cache parameters
 		cached = config.get("cached", false);
 		cacheKeys = config.get("cacheKeys", "").split(",");
-
+		ttl = config.get("ttl", 0);
+		
 		// Set default invaocation timeout
 		defaultTimeout = config.get("defaultTimeout", 0);
 		
@@ -84,11 +86,11 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 			String cacheKey = cacher.getCacheKey(name, params, cacheKeys);
 			Promise promise = cacher.get(cacheKey);
 			if (promise == null) {
-				return callActionAndStore(params, opts, parent, cacheKey);
+				return callActionAndStore(params, opts, parent, cacheKey, ttl);
 			}
 			return promise.then(rsp -> {
 				if (rsp == null) {
-					return callActionAndStore(params, opts, parent, cacheKey);
+					return callActionAndStore(params, opts, parent, cacheKey, ttl);
 				}
 				return rsp;
 			}).Catch(error -> {
@@ -101,10 +103,10 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 		return callActionNoStore(params, opts, parent);
 	}
 	
-	private final Promise callActionAndStore(Tree params, CallingOptions opts, Context parent, String cacheKey) {
+	private final Promise callActionAndStore(Tree params, CallingOptions opts, Context parent, String cacheKey, int ttl) {
 		return callActionNoStore(params, opts, parent).then(result -> {
 			if (result != null) {
-				cacher.set(cacheKey, result);
+				cacher.set(cacheKey, result, ttl);
 			}
 		});
 	}
@@ -136,6 +138,11 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 	@Override
 	public final int defaultTimeout() {
 		return defaultTimeout;
+	}
+
+	@Override
+	public final int ttl() {
+		return ttl;
 	}
 	
 }

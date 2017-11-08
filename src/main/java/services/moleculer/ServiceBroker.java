@@ -128,7 +128,7 @@ public final class ServiceBroker {
 	/**
 	 * Start broker. If has transporter, transporter.connect will be called.
 	 */
-	public final boolean start() {
+	public final void start() {
 
 		// Check state
 		if (registry != null) {
@@ -158,12 +158,11 @@ public final class ServiceBroker {
 
 			// All components and services started successfully
 			services.clear();
-			return true;
+			
 		} catch (Throwable cause) {
 			logger.error("Moleculer Service Broker could not be started!", cause);
 			stop();
 		}
-		return false;
 	}
 
 	// --- STOP BROKER INSTANCE ---

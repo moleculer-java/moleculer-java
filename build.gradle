@@ -30,6 +30,11 @@ dependencies {
     	    
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-adapters
 	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.3'
+
+	// --- SIGAR API TO QUERY THE CPU USAGE ---
+	
+	// https://mvnrepository.com/artifact/org.fusesource/sigar
+	compile group: 'org.fusesource', name: 'sigar', version: '1.6.4'
 	
 	// --- REDIS CLIENT ---
 	

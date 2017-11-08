@@ -33,6 +33,10 @@ public class Test {
 
 	public static void main(String[] args) throws Exception {
 
+		// Test sigar
+		String nativeDir = "C:\\test-eclipse\\workspace\\moleculer-java\\native";
+		System.setProperty("java.library.path", nativeDir);
+		
 		// Define a service
 		ServiceBroker broker = ServiceBroker.builder().registry(new DefaultServiceRegistry(false))
 				.transporter(new RedisTransporter()).build();
@@ -47,6 +51,7 @@ public class Test {
 
 		});
 		broker.start();
+		
 	}
 
 }

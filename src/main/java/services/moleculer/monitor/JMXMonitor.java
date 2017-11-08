@@ -22,38 +22,47 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.serializer;
+package services.moleculer.monitor;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.OperatingSystemMXBean;
+
+import io.datatree.Tree;
+import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
-/**
- * <b>BINARY ION SERIALIZER</b><br>
- * <br>
- * Amazon Ion is a richly-typed, self-describing, hierarchical data
- * serialization format offering interchangeable binary and text
- * representations. The binary representation is efficient to store, transmit,
- * and skip-scan parse. The rich type system provides unambiguous semantics for
- * long-term preservation of business data which can survive multiple
- * generations of software evolution. Ion was built to solve the rapid
- * development, decoupling, and efficiency challenges faced every day while
- * engineering large-scale, service-oriented architectures. This serializer is
- * NOT compatible with the JavaScript/Node version of Moleculer.<br>
- * <br>
- * <b>Required dependency:</b><br>
- * <br>
- * https://mvnrepository.com/artifact/software.amazon.ion/ion-java<br>
- * compile group: 'software.amazon.ion', name: 'ion-java', version: '1.0.2'
- * 
- * @see JsonSerializer
- * @see MsgPackSerializer
- */
-@Name("Amazon ION Serializer")
-public final class IonSerializer extends Serializer {
+@Name("JMX System Monitor")
+public final class JMXMonitor extends Monitor {
 
-	// --- CONSTRUCTOR ---
+	// --- PROPERTIES ---
+	
+	private OperatingSystemMXBean os;
+	
+	// --- START MONITOR ---
 
-	public IonSerializer() {
-		super("ion");
+	/**
+	 * Initializes monitor instance.
+	 * 
+	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
+	 */
+	@Override
+	public final void start(ServiceBroker broker, Tree config) throws Exception {
+		os = ManagementFactory.getOperatingSystemMXBean();
+	}
+	
+	// --- SYSTEM MONITORING METHODS ---
+	
+	/**
+	 * Returns the system CPU usage, in percents, between 0 and 100.
+	 * 
+	 * @return total CPU usage of the current OS
+	 */
+	@Override
+	public final int getTotalCpuPercent() {
+		return (int) Math.max(os.getSystemLoadAverage() * 100, 0);
 	}
 
 }

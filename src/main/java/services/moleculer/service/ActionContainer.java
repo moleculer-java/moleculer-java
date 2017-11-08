@@ -52,4 +52,6 @@ public interface ActionContainer {
 
 	public int defaultTimeout();
 	
+	public int ttl();
+	
 }

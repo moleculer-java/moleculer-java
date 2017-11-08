@@ -22,26 +22,48 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.serializer;
+package services.moleculer.monitor;
 
+import org.hyperic.sigar.CpuPerc;
+import org.hyperic.sigar.Sigar;
+
+import io.datatree.Tree;
+import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
-/**
- * <b>BUILT-IN JAVA OBJECT SERIALIZATOR</b><br>
- * <br>
- * Built-in binary reader / writer. Based on Java Object Serialization. This
- * serializer is NOT compatible with the JavaScript/Node version of Moleculer.
- * 
- * @see JsonSerializer
- * @see MsgPackSerializer
- */
-@Name("Java Object Serializer")
-public final class JavaSerializer extends Serializer {
+@Name("Sigar System Monitor")
+public final class SigarMonitor extends Monitor {
 
-	// --- CONSTRUCTOR ---
+	// --- PROPERTIES ---
+	
+	private CpuPerc cpu;
+	
+	// --- START MONITOR ---
 
-	public JavaSerializer() {
-		super("java");
+	/**
+	 * Initializes monitor instance.
+	 * 
+	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
+	 */
+	@Override
+	public final void start(ServiceBroker broker, Tree config) throws Exception {
+		Sigar sigar = new Sigar();
+		cpu = sigar.getCpuPerc();
 	}
-
+	
+	// --- SYSTEM MONITORING METHODS ---
+	
+	/**
+	 * Returns the system CPU usage, in percents, between 0 and 100.
+	 * 
+	 * @return total CPU usage of the current OS
+	 */
+	@Override	
+	public final int getTotalCpuPercent() {
+		return (int) Math.max(cpu.getSys() * 100, 0);
+	}
+	
 }

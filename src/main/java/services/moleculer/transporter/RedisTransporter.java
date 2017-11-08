@@ -4,11 +4,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.lambdaworks.redis.event.Event;
 import com.lambdaworks.redis.event.EventBus;
-import com.lambdaworks.redis.event.connection.ConnectionActivatedEvent;
-import com.lambdaworks.redis.event.connection.ConnectionDeactivatedEvent;
+import com.lambdaworks.redis.event.connection.ConnectedEvent;
+import com.lambdaworks.redis.event.connection.DisconnectedEvent;
 import com.lambdaworks.redis.pubsub.RedisPubSubListener;
 
 import io.datatree.Tree;
@@ -20,6 +21,19 @@ import services.moleculer.util.redis.RedisPubSubClient;
 
 @Name("Redis Transporter")
 public class RedisTransporter extends Transporter implements EventBus, RedisPubSubListener<byte[], byte[]> {
+
+	// --- LIST OF STATUS CODES ---
+
+	private static final int STATUS_DISCONNECTING = 1;
+	private static final int STATUS_DISCONNECTED = 2;
+	private static final int STATUS_CONNECTING_1 = 3;
+	private static final int STATUS_CONNECTING_2 = 4;
+	private static final int STATUS_CONNECTED = 5;
+	private static final int STATUS_STOPPED = 6;
+
+	// --- CONNECTION STATUS ---
+
+	private final AtomicInteger status = new AtomicInteger(STATUS_DISCONNECTED);
 
 	// --- PROPERTIES ---
 
@@ -95,7 +109,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 		password = config.get("password", password);
 		useSSL = config.get("useSSL", useSSL);
 		startTLS = config.get("startTLS", startTLS);
-
+		
 		// Connect to Redis server
 		connect();
 	}
@@ -103,42 +117,44 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	// --- CONNECT ---
 
 	private final void connect() {
+		status.set(STATUS_CONNECTING_1);
 
 		// Create redis clients
 		clientSub = new RedisPubSubClient(urls, password, useSSL, startTLS, executor, this, this);
 		clientPub = new RedisPubSubClient(urls, password, useSSL, startTLS, executor, this, null);
 
-		// Connect
-		clientSub.connect().then(subConnected -> {
+		// Connect sub
+		try {
+			clientSub.connect();
+		} catch (Exception cause) {
+			unableToConnect(cause);
+			return;
+		}
 
-			// Ok, sub connected
-			logger.info("Redis-sub client is connected.");
-
-			clientPub.connect().then(pubConnected -> {
-
-				// Ok, all connected
-				logger.info("Redis-pub client is connected.");
-				connected();
-
-			}).Catch(error -> {
-
-				// Failed
-				logger.warn("Redis-pub error (" + error.getMessage() + ")!");
-				reconnect();
-
-			});
-		}).Catch(error -> {
-
-			// Failed
-			logger.warn("Redis-sub error (" + error.getMessage() + ")!");
-			reconnect();
-
-		});
+		// Connect pub
+		try {
+			clientPub.connect();
+		} catch (Exception cause) {
+			unableToConnect(cause);
+			return;
+		}
+	}
+	
+	private final void unableToConnect(Exception cause) {
+		String msg = cause.getMessage();
+		if (msg == null || msg.isEmpty()) {
+			msg = "Unable to connect to Redis server!";
+		} else if (!msg.endsWith("!") && !msg.endsWith(".")) {
+			msg += "!";
+		}
+		logger.warn(msg);
+		reconnect();		
 	}
 
 	// --- DISCONNECT ---
 
 	private final Promise disconnect() {
+		status.set(STATUS_DISCONNECTING);
 		List<Promise> promises = new LinkedList<>();
 		if (clientSub != null) {
 			promises.add(clientSub.disconnect());
@@ -146,17 +162,29 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 		if (clientPub != null) {
 			promises.add(clientPub.disconnect());
 		}
-		return Promise.all(promises);
+		return Promise.all(promises).then(ok -> {
+			status.set(STATUS_DISCONNECTED);
+		});
 	}
 
 	// --- RECONNECT ---
 
-	protected final void reconnect() {
+	private final void reconnect() {
 		disconnect().then(ok -> {
+			logger.info("Trying to reconnect...");
 			scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
-		}).Catch(error -> {
+		}).Catch(cause -> {
+			logger.warn("Unable to disconnect from Redis server!", cause);
 			scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
 		});
+	}
+
+	// --- ANY I/O ERROR ---
+
+	@Override
+	protected final void error(Throwable cause) {
+		logger.warn("Unexpected communication error occured!", cause);
+		reconnect();
 	}
 
 	// --- STOP TRANSPORTER ---
@@ -166,28 +194,39 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	 */
 	@Override
 	public final void stop() {
-		disconnect();
+		int s = status.getAndSet(STATUS_STOPPED);
+		if (s != STATUS_STOPPED) {
+			disconnect();
+		} else {
+			throw new IllegalStateException("Redis Trransporter is already stopped!");
+		}
 	}
 
 	// --- SUBSCRIBE ---
 
 	@Override
 	public final Promise subscribe(String channel) {
-		return clientSub.subscribe(channel);
+		if (status.get() == STATUS_CONNECTED) {
+			return clientSub.subscribe(channel);
+		}
+		return Promise.resolve();
 	}
 
 	// --- PUBLISH ---
 
 	@Override
 	public final void publish(String channel, Tree message) {
-		try {
-			clientPub.publish(channel, serializer.write(message));
-		} catch (Exception cause) {
-			logger.warn("Unable to send message to Redis!", cause);
+		if (status.get() == STATUS_CONNECTED) {
+			try {
+				clientPub.publish(channel, serializer.write(message));
+			} catch (Exception cause) {
+				logger.warn("Unable to send message to Redis!", cause);
+				reconnect();
+			}
 		}
 	}
 
-	// --- REDIS EVENT LISTENER METHODS ---
+	// --- REDIS MESSAGE LISTENER METHODS ---
 
 	@Override
 	public final void message(byte[] channel, byte[] message) {
@@ -215,25 +254,46 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	public final void punsubscribed(byte[] pattern, long count) {
 	}
 
-	@Override
-	public final Observable<Event> get() {
-		return null;
-	}
+	// --- REDIS EVENT LISTENER METHODS ---
 
 	@Override
 	public final void publish(Event event) {
-		
-		// Connected to Redis server
-		if (event instanceof ConnectionActivatedEvent) {
-			connected();
+
+		// Check state
+		if (status.get() == STATUS_STOPPED) {
 			return;
 		}
 
-		// Disconnected from Redis server
-		if (event instanceof ConnectionDeactivatedEvent) {
-			disconnected();
+		// Connected
+		if (event instanceof ConnectedEvent) {
+			if (status.compareAndSet(STATUS_CONNECTING_1, STATUS_CONNECTING_2)) {
+
+				// First connection is Ok
+				return;
+			}
+			if (status.compareAndSet(STATUS_CONNECTING_2, STATUS_CONNECTED)) {
+
+				// Second connection is Ok
+				logger.info("All Redis pub-sub connections are estabilished.");
+				connected();
+			}
+			return;
 		}
 
+		// Disconnected
+		if (event instanceof DisconnectedEvent) {
+			int s = status.getAndSet(STATUS_DISCONNECTED);
+			if (s != STATUS_DISCONNECTED) {
+				logger.info("Redis pub-sub connection aborted.");
+				reconnect();
+			}
+		}
+
+	}
+
+	@Override
+	public final Observable<Event> get() {
+		return null;
 	}
 
 	// --- GETTERS / SETTERS ---

@@ -67,6 +67,11 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	 */
 	private int ttl;
 
+	/**
+	 * Cleanup period time, in seconds (0 = process is disabled)
+	 */
+	private int cleanup = 5;
+	
 	// --- LOCKS ---
 
 	private final Lock readLock;
@@ -122,9 +127,8 @@ public final class MemoryCacher extends Cacher implements Runnable {
 		ttl = config.get("ttl", ttl);
 
 		// Start timer
+		timer = broker.components().scheduler().scheduleWithFixedDelay(this, cleanup, cleanup, TimeUnit.SECONDS);
 		if (ttl > 0) {
-			int cleanup = Math.max(5, ttl / 2);
-			timer = broker.components().scheduler().scheduleWithFixedDelay(this, cleanup, cleanup, TimeUnit.SECONDS);
 			logger.info("Entries in cache expire after " + ttl + " seconds.");
 		}
 		logger.info("Maximum number of cached entries is " + capacity + " per partition.");
@@ -134,11 +138,11 @@ public final class MemoryCacher extends Cacher implements Runnable {
 
 	@Override
 	public final void run() {
-		long limit = System.currentTimeMillis() - (1000L * ttl);
+		long now = System.currentTimeMillis();
 		readLock.lock();
 		try {
 			for (MemoryPartition partition : partitions.values()) {
-				partition.removeOldEntries(limit);
+				partition.removeOldEntries(now);
 			}
 		} finally {
 			readLock.unlock();
@@ -194,7 +198,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	}
 
 	@Override
-	public final void set(String key, Tree value) {
+	public final void set(String key, Tree value, int ttl) {
 		int pos = partitionPosition(key, true);
 		String prefix = key.substring(0, pos);
 		MemoryPartition partition;
@@ -208,7 +212,17 @@ public final class MemoryCacher extends Cacher implements Runnable {
 		} finally {
 			writeLock.unlock();
 		}
-		partition.set(key.substring(pos + 1), value);
+		int entryTTL;
+		if (ttl > 0) {
+			
+			// Entry-level TTL (in seconds)
+			entryTTL = ttl;			
+		} else {
+			
+			// Use the default TTL
+			entryTTL = this.ttl;
+		}
+		partition.set(key.substring(pos + 1), value, entryTTL);
 	}
 
 	@Override
@@ -321,7 +335,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 
 		// --- REMOVE OLD ENTRIES ---
 
-		private final void removeOldEntries(long limit) {
+		private final void removeOldEntries(long now) {
 			writerLock.lock();
 			try {
 				Iterator<Map.Entry<String, PartitionEntry>> i = cache.entrySet().iterator();
@@ -330,7 +344,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 				while (i.hasNext()) {
 					mEntry = i.next();
 					pEntry = mEntry.getValue();
-					if (pEntry.timestamp <= limit) {
+					if (pEntry.expireAt > 0 && pEntry.expireAt <= now) {
 						i.remove();
 					}
 				}
@@ -355,13 +369,19 @@ public final class MemoryCacher extends Cacher implements Runnable {
 			return entry.value;
 		}
 
-		private final void set(String key, Tree value) {
+		private final void set(String key, Tree value, int ttl) {
 			writerLock.lock();
 			try {
 				if (value == null) {
 					cache.remove(key);
 				} else {
-					cache.put(key, new PartitionEntry(value));
+					long expireAt;
+					if (ttl > 0) {
+						expireAt = ttl * 1000L + System.currentTimeMillis();
+					} else {
+						expireAt = 0;
+					}
+					cache.put(key, new PartitionEntry(value, expireAt));
 				}
 			} finally {
 				writerLock.unlock();
@@ -406,10 +426,11 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	private static final class PartitionEntry {
 
 		private final Tree value;
-		private final long timestamp = System.currentTimeMillis();
+		private final long expireAt;
 
-		private PartitionEntry(Tree value) {
+		private PartitionEntry(Tree value, long expireAt) {
 			this.value = value;
+			this.expireAt = expireAt;
 		}
 
 	}

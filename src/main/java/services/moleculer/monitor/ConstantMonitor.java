@@ -22,38 +22,61 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.serializer;
+package services.moleculer.monitor;
 
+import io.datatree.Tree;
+import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
-/**
- * <b>BINARY CBOR SERIALIZER</b><br>
- * <br>
- * CBOR is based on the wildly successful JSON data model: numbers, strings,
- * arrays, maps (called objects in JSON), and a few values such as false, true,
- * and null. One of the major practical wins of JSON is that successful data
- * interchange is possible without casting a schema in concrete. This works much
- * better in a world where both ends of a communication relationship may be
- * evolving at high speed. This serializer is NOT compatible with the
- * JavaScript/Node version of Moleculer.<br>
- * <br>
- * <b>Required dependency:</b><br>
- * <br>
- * https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/
- * jackson-dataformat-cbor<br>
- * compile group: 'com.fasterxml.jackson.dataformat', name:
- * 'jackson-dataformat-cbor', version: '2.9.0.pr3'
- * 
- * @see JsonSerializer
- * @see MsgPackSerializer
- */
-@Name("CBOR Serializer")
-public final class CborSerializer extends Serializer {
+@Name("Constant-value System Monitor")
+public final class ConstantMonitor extends Monitor {
 
-	// --- CONSTRUCTOR ---
+	// --- PROPERTIES ---
+	
+	private int totalCpuPercent;
+	
+	// --- CONSTUCTORS ---
+	
+	public ConstantMonitor() {
+	}
+	
+	public ConstantMonitor(int totalCpuPercent) {
+		this.totalCpuPercent = totalCpuPercent;
+	}
+	
+	// --- START MONITOR ---
 
-	public CborSerializer() {
-		super("cbor");
+	/**
+	 * Initializes monitor instance.
+	 * 
+	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
+	 */
+	@Override
+	public final void start(ServiceBroker broker, Tree config) throws Exception {
+
+		// Process config
+		totalCpuPercent = config.get("totalCpuPercent", totalCpuPercent);
+	}
+	
+	// --- SYSTEM MONITORING METHODS ---
+	
+	/**
+	 * Returns the system CPU usage, in percents, between 0 and 100.
+	 * 
+	 * @return total CPU usage of the current OS
+	 */
+	@Override
+	public final int getTotalCpuPercent() {
+		return totalCpuPercent;
+	}
+	
+	// --- GETTERS / SETTERS ---
+	
+	public final void setTotalCpuPercent(int value) {
+		this.totalCpuPercent = value;
 	}
 
 }

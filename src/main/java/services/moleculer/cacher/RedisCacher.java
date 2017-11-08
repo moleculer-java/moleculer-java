@@ -27,46 +27,47 @@ package services.moleculer.cacher;
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 
-import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import com.lambdaworks.redis.RedisClient;
-import com.lambdaworks.redis.RedisFuture;
-import com.lambdaworks.redis.RedisURI;
 import com.lambdaworks.redis.SetArgs;
-import com.lambdaworks.redis.api.async.RedisAsyncCommands;
-import com.lambdaworks.redis.cluster.RedisClusterClient;
-import com.lambdaworks.redis.cluster.api.async.RedisAdvancedClusterAsyncCommands;
-import com.lambdaworks.redis.codec.ByteArrayCodec;
 import com.lambdaworks.redis.event.Event;
 import com.lambdaworks.redis.event.EventBus;
-import com.lambdaworks.redis.event.connection.ConnectionActivatedEvent;
-import com.lambdaworks.redis.event.connection.ConnectionDeactivatedEvent;
-import com.lambdaworks.redis.resource.DefaultClientResources;
+import com.lambdaworks.redis.event.connection.ConnectedEvent;
+import com.lambdaworks.redis.event.connection.DisconnectedEvent;
 
 import io.datatree.Tree;
-import io.datatree.dom.TreeWriter;
-import io.datatree.dom.TreeWriterRegistry;
-import io.netty.channel.nio.NioEventLoopGroup;
 import rx.Observable;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
 import services.moleculer.service.Name;
-import services.moleculer.util.redis.RedisUtilities;
+import services.moleculer.util.redis.RedisGetSetClient;
 
 /**
  * Redis-based cache implementation. Supports SSL, clustering and password
  * authentication.
  */
 @Name("Redis Cacher")
-public final class RedisCacher extends Cacher {
+public final class RedisCacher extends Cacher implements EventBus {
+
+	// --- LIST OF STATUS CODES ---
+
+	private static final int STATUS_DISCONNECTING = 1;
+	private static final int STATUS_DISCONNECTED = 2;
+	private static final int STATUS_CONNECTING = 3;
+	private static final int STATUS_CONNECTED = 4;
+	private static final int STATUS_STOPPED = 5;
+
+	// --- CONNECTION STATUS ---
+
+	private final AtomicInteger status = new AtomicInteger(STATUS_DISCONNECTED);
 
 	// --- PROPERTIES ---
 
@@ -74,34 +75,21 @@ public final class RedisCacher extends Cacher {
 	private String password;
 	private boolean useSSL;
 	private boolean startTLS;
-
-	/**
-	 * Expire time, in seconds (0 = never expires)
-	 */
 	private int ttl;
 
-	/**
-	 * TCP acceptor group of the Redis client.
-	 */
-	private NioEventLoopGroup closeableGroup;
+	// --- REDIS CLIENT ---
 
-	// --- REDIS CLIENTS ---
-
-	protected RedisAsyncCommands<byte[], byte[]> client;
-	protected RedisAdvancedClusterAsyncCommands<byte[], byte[]> clusteredClient;
-
-	// --- CACHED JSON CONVERTER ---
-
-	protected final TreeWriter writer = TreeWriterRegistry.getWriter(null);
-
-	// --- COMMON EXECUTOR ---
-
-	protected Executor executor;
+	private RedisGetSetClient client;
 
 	// --- SERIALIZER / DESERIALIZER ---
 
 	protected Serializer serializer;
-	
+
+	// --- COMPONENTS ---
+
+	protected ExecutorService executor;
+	protected ScheduledExecutorService scheduler;
+
 	// --- CONSTUCTORS ---
 
 	public RedisCacher() {
@@ -186,84 +174,77 @@ public final class RedisCacher extends Cacher {
 		if (serializer == null) {
 			serializer = new JsonSerializer();
 		}
-		
+
+		// Get components
+		executor = broker.components().executor();
+		scheduler = broker.components().scheduler();
+
 		// Start serializer
 		logger.info(nameOf(this, true) + " is using " + nameOf(serializer, true) + '.');
 		serializer.start(broker, serializerNode);
-		
-		// Get the common executor
-		executor = broker.components().executor();
 
-		// Init Redis client
-		if (client == null && clusteredClient == null) {
+		// Connect to Redis server
+		connect();
+	}
 
-			// Get or create NioEventLoopGroup
-			NioEventLoopGroup redisGroup;
-			ExecutorService executor = broker.components().executor();
-			if (executor instanceof NioEventLoopGroup) {
-				redisGroup = (NioEventLoopGroup) executor;
-			} else {
-				redisGroup = new NioEventLoopGroup(1);
-				closeableGroup = redisGroup;
+	// --- CONNECT ---
+
+	private final void connect() {
+		status.set(STATUS_CONNECTING);
+
+		// Create redis client
+		client = new RedisGetSetClient(urls, password, useSSL, startTLS, executor, this);
+
+		// Connect Redis
+		try {
+			client.connect();
+		} catch (Exception cause) {
+			String msg = cause.getMessage();
+			if (msg == null || msg.isEmpty()) {
+				msg = "Unable to connect to Redis server!";
+			} else if (!msg.endsWith("!") && !msg.endsWith(".")) {
+				msg += "!";
 			}
-
-			// Create Redis connection
-			List<RedisURI> redisURIs = RedisUtilities.parseURLs(urls, password, useSSL, startTLS);
-			DefaultClientResources clientResources = RedisUtilities.createClientResources(new EventBus() {
-
-				@Override
-				public final void publish(Event event) {
-
-					// Connected to Redis server
-					if (event instanceof ConnectionActivatedEvent) {
-						ConnectionActivatedEvent e = (ConnectionActivatedEvent) event;
-						logger.info("Redis cacher connected to " + e.remoteAddress() + ".");
-						return;
-					}
-
-					// Disconnected from Redis server
-					if (event instanceof ConnectionDeactivatedEvent) {
-						ConnectionDeactivatedEvent e = (ConnectionDeactivatedEvent) event;
-						logger.info("Redis cacher disconnected from " + e.remoteAddress() + ".");
-						return;
-					}
-				}
-
-				@Override
-				public final Observable<Event> get() {
-					return null;
-				}
-
-			}, redisGroup);
-			ByteArrayCodec codec = new ByteArrayCodec();
-			if (urls.length > 1) {
-
-				// Clustered client
-				clusteredClient = RedisClusterClient.create(clientResources, redisURIs).connect(codec).async();
-
-			} else {
-
-				// Single connection
-				client = RedisClient.create(clientResources, redisURIs.get(0)).connect(codec).async();
-
-			}
+			logger.warn(msg);
+			reconnect();
+			return;
 		}
+	}
+
+	// --- DISCONNECT ---
+
+	private final Promise disconnect() {
+		if (client == null) {
+			status.set(STATUS_DISCONNECTED);
+			return Promise.resolve();
+		}
+		status.set(STATUS_DISCONNECTING);
+		return client.disconnect().then(ok -> {
+			status.set(STATUS_DISCONNECTED);
+		});
+	}
+
+	// --- RECONNECT ---
+
+	private final void reconnect() {
+		disconnect().then(ok -> {
+			logger.info("Trying to reconnect...");
+			scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
+		}).Catch(cause -> {
+			logger.warn("Unable to disconnect from Redis server!", cause);
+			scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
+		});
 	}
 
 	// --- CLOSE CACHE INSTANCE ---
 
 	@Override
 	public final void stop() {
-		if (client != null) {
-			client.close();
-			client = null;
-		}
-		if (clusteredClient != null) {
-			clusteredClient.close();
-			clusteredClient = null;
-		}
-		if (closeableGroup != null) {
-			closeableGroup.shutdownGracefully(1, 3, TimeUnit.SECONDS);
+		int s = status.getAndSet(STATUS_STOPPED);
+		if (s != STATUS_STOPPED) {
+			disconnect();
+		} else {
+			throw new IllegalStateException("Redis Cacher is already stopped!");
 		}
 	}
 
@@ -271,88 +252,103 @@ public final class RedisCacher extends Cacher {
 
 	@Override
 	public final Promise get(String key) {
-		try {
-
-			// Create cache key
-			byte[] binaryKey = key.getBytes(StandardCharsets.UTF_8);
-
-			// Get future
-			final RedisFuture<byte[]> response;
-			if (client != null) {
-				response = client.get(binaryKey);
-			} else if (clusteredClient != null) {
-				response = clusteredClient.get(binaryKey);
-			} else {
-				return null;
+		if (status.get() == STATUS_CONNECTED) {
+			try {
+				return client.get(key).then(in -> {
+					byte[] source = in.asBytes();
+					if (source != null) {
+						try {
+							return serializer.read(source);
+						} catch (Exception cause) {
+							logger.warn("Unable to deserialize cached data!", cause);
+						}
+					}
+					return Promise.resolve();
+				});
+			} catch (Exception cause) {
+				logger.warn("Unable to get data from Redis!", cause);
 			}
-
-			// Async invocation
-			return new Promise(response.thenApplyAsync((bytes) -> {
-				try {
-					return serializer.read(bytes);
-				} catch (Throwable cause) {
-					logger.warn("Unable to deserialize data!", cause);
-				}
-				return null;
-			}, executor));
-
-		} catch (Throwable cause) {
-			logger.warn("Unable to get data from from Redis!", cause);
 		}
-		return null;
+		return Promise.resolve();
 	}
 
 	@Override
-	public final void set(String key, Tree value) {
-		byte[] binaryKey = key.getBytes(StandardCharsets.UTF_8);
-		byte[] bytes;
-		try {
-			bytes = serializer.write(value);			
-		} catch (Exception cause) {
-			logger.warn("Unable to serialize data!", cause);
-			return;
-		}
-
-		// Send to Redis
-		if (client != null) {
-			if (value == null) {
-				client.del(binaryKey);
-			} else {
-				if (expiration == null) {
-					client.set(binaryKey, bytes);
+	public final void set(String key, Tree value, int ttl) {
+		if (status.get() == STATUS_CONNECTED) {
+			try {
+				SetArgs args;
+				if (ttl > 0) {
+					
+					// Entry-level TTL (in seconds)
+					args = SetArgs.Builder.ex(ttl);
 				} else {
-					client.set(binaryKey, bytes, expiration);
+					
+					// Use the default TTL
+					args = expiration;
 				}
-			}
-			return;
-		}
-		if (clusteredClient != null) {
-			if (value == null) {
-				clusteredClient.del(binaryKey);
-			} else {
-				if (expiration == null) {
-					clusteredClient.set(binaryKey, bytes);
-				} else {
-					clusteredClient.set(binaryKey, bytes, expiration);
-				}
+				client.set(key, serializer.write(value), args);
+			} catch (Exception cause) {
+				logger.warn("Unable to put data into Redis!", cause);
 			}
 		}
 	}
 
 	@Override
 	public final void del(String key) {
-		byte[] binaryKey = key.getBytes(StandardCharsets.UTF_8);
-		if (client != null) {
-			client.del(binaryKey);
-			return;
-		}
-		if (clusteredClient != null) {
-			clusteredClient.del(binaryKey);
+		if (status.get() == STATUS_CONNECTED) {
+			try {
+				client.del(key);
+			} catch (Exception cause) {
+				logger.warn("Unable to delete data from Redis!", cause);
+			}
 		}
 	}
 
 	@Override
 	public final void clean(String match) {
+		if (status.get() == STATUS_CONNECTED) {
+			try {
+				client.clean(match);
+			} catch (Exception cause) {
+				logger.warn("Unable to delete data from Redis!", cause);
+			}
+		}
+	}
+
+	// --- REDIS EVENT LISTENER METHODS ---
+
+	@Override
+	public final void publish(Event event) {
+
+		// Check state
+		if (status.get() == STATUS_STOPPED) {
+			return;
+		}
+
+		// Connected
+		if (event instanceof ConnectedEvent) {
+			if (status.compareAndSet(STATUS_CONNECTING, STATUS_CONNECTED)) {
+
+				// Redis connection is Ok
+				logger.info("Redis get-set connection are estabilished.");
+			}
+			return;
+		}
+
+		// Disconnected
+		if (event instanceof DisconnectedEvent) {
+			int s = status.getAndSet(STATUS_DISCONNECTED);
+			if (s != STATUS_DISCONNECTED) {
+				logger.info("Redis get-set connection aborted.");
+				reconnect();
+			}
+		}
+
+	}
+
+	@Override
+	public final Observable<Event> get() {
+		return null;
 	}
 
 	// --- GETTERS / SETTERS ---
@@ -404,5 +400,5 @@ public final class RedisCacher extends Cacher {
 	public final void setSerializer(Serializer serializer) {
 		this.serializer = Objects.requireNonNull(serializer);
 	}
-	
+
 }

@@ -35,6 +35,7 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.EventBus;
+import services.moleculer.monitor.Monitor;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
@@ -123,6 +124,11 @@ public final class ServiceBrokerBuilder {
 	public final ServiceBrokerBuilder components(ComponentRegistry componentRegistry) {
 		settings.setComponents(componentRegistry);
 		return this;		
+	}
+	
+	public final ServiceBrokerBuilder monitor(Monitor monitor) {
+		settings.setMonitor(Objects.requireNonNull(monitor));
+		return this;
 	}
 	
 	// --- ADD CUSTOM COMPONENT ---

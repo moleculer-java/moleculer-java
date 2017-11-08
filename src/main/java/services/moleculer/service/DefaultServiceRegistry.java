@@ -357,16 +357,21 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 						Cache cache = field.getAnnotation(Cache.class);
 						boolean cached = false;
 						String[] keys = null;
+						int ttl = 0;
 						if (cache != null) {
 							cached = true;
 							if (cached) {
-								keys = cache.value();
+								keys = cache.keys();
 								if (keys != null && keys.length == 0) {
 									keys = null;
 								}
+								ttl = cache.ttl();
 							}
 						}
 						actionConfig.put("cached", cached);
+						if (ttl > 0) {
+							actionConfig.put("ttl", ttl);
+						}
 						if (keys != null && keys.length > 0) {
 							actionConfig.put("cacheKeys", String.join(",", keys));
 						}

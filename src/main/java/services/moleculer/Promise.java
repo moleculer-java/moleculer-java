@@ -354,7 +354,7 @@ public class Promise {
 		}
 		Promise[] array = new Promise[promises.size()];
 		promises.toArray(array);
-		return all(promises);
+		return all(array);
 	}
 	
 	/**
@@ -407,7 +407,7 @@ public class Promise {
 		}
 		Promise[] array = new Promise[promises.size()];
 		promises.toArray(array);
-		return race(promises);
+		return race(array);
 	}
 	
 	/**

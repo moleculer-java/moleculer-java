@@ -144,8 +144,10 @@ public abstract class Cacher implements MoleculerComponent {
 	 * 
 	 * @param key
 	 * @param value
+	 * @param ttl
+	 *            optional TTL of entry (0 == use default TTL)
 	 */
-	public abstract void set(String key, Tree value);
+	public abstract void set(String key, Tree value, int ttl);
 
 	/**
 	 * Deletes a content from this cache.

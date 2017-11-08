@@ -22,31 +22,56 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.serializer;
+package services.moleculer.monitor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.datatree.Tree;
+import services.moleculer.ServiceBroker;
+import services.moleculer.config.MoleculerComponent;
 import services.moleculer.service.Name;
 
 /**
- * <b>BINARY BSON SERIALIZER</b><br>
- * <br>
- * Binary BSON reader and writer. This serializer is NOT compatible with the
- * JavaScript/Node version of Moleculer.<br>
- * <br>
- * <b>Required dependency:</b><br>
- * <br>
- * https://mvnrepository.com/artifact/de.undercouch/bson4jackson<br>
- * compile group: 'de.undercouch', name: 'bson4jackson', version: '2.7.0'
- * 
- * @see JsonSerializer
- * @see MsgPackSerializer
+ * Base superclass of all System Monitor implementations.
  */
-@Name("BSON Serializer")
-public final class BsonSerializer extends Serializer {
+@Name("Monitor")
+public abstract class Monitor implements MoleculerComponent {
 
-	// --- CONSTRUCTOR ---
+	// --- LOGGER ---
 
-	public BsonSerializer() {
-		super("bson");
+	protected final Logger logger = LoggerFactory.getLogger(getClass());
+
+	// --- START MONITOR INSTANCE ---
+
+	/**
+	 * Initializes monitor instance.
+	 * 
+	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
+	 */
+	@Override
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 	}
 
+	// --- STOP MONITOR INSTANCE ---
+
+	/**
+	 * Closes monitor.
+	 */
+	@Override
+	public void stop() {
+	}
+	
+	// --- SYSTEM MONITORING METHODS ---
+	
+	/**
+	 * Returns the system CPU usage, in percents, between 0 and 100.
+	 * 
+	 * @return total CPU usage of the current OS
+	 */
+	public abstract int getTotalCpuPercent();
+	
 }

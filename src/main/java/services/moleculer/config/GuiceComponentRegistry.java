@@ -44,6 +44,7 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.EventBus;
+import services.moleculer.monitor.Monitor;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
@@ -304,6 +305,10 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 			if (transporter != null) {
 				bind(Transporter.class).toInstance(transporter);
 			}
+			Monitor monitor = monitor();
+			if (monitor != null) {
+				bind(Monitor.class).toInstance(monitor);
+			}			
 		}
 
 	}
