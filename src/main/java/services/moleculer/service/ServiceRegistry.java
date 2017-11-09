@@ -63,18 +63,26 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 	public void stop() {
 	}
 
+	// --- RECEIVE REQUEST FROM REMOTE SERVICE ---
+
+	public abstract void receiveRequest(Tree message);
+
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
 
-	public abstract void receive(Tree message);
+	public abstract void receiveResponse(Tree message);
 
 	// --- ADD LOCAL SERVICE ---
 
 	public abstract void addService(Service service, Tree config) throws Exception;
 
 	// --- ADD REMOTE SERVICE ---
-	
+
 	public abstract void addService(Tree config) throws Exception;
-	
+
+	// --- REMOVE ALL REMOTE SERVICES/ACTIONS OF A NODE ---
+
+	public abstract void removeService(String nodeID);
+
 	// --- GET LOCAL SERVICE ---
 
 	public abstract Service getService(String name);
@@ -86,4 +94,5 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
 	public abstract Tree generateDescriptor();
+	
 }

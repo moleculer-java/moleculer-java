@@ -22,7 +22,7 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 	protected String nodeID;
 	protected String name;
 	protected boolean cached;
-	protected String[] cacheKeys;	
+	protected String[] cacheKeys;
 	protected int defaultTimeout;
 	protected int ttl;
 
@@ -30,12 +30,12 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 
 	protected ServiceBroker broker;
 	private Cacher cacher;
-	
+
 	// --- CONSTRUCTOR ---
-	
+
 	AbstractContainer() {
 	}
-	
+
 	// --- INIT CONTAINER ---
 
 	/**
@@ -59,10 +59,10 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 		cached = config.get(CACHE, false);
 		cacheKeys = config.get(CACHE_KEYS, "").split(",");
 		ttl = config.get(TTL, 0);
-		
+
 		// Set default invaocation timeout
 		defaultTimeout = config.get(DEFAULT_TIMEOUT, 0);
-		
+
 		// Set components
 		this.broker = broker;
 		if (cached) {
@@ -80,7 +80,7 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 
 	@Override
 	public final Promise call(Tree params, CallingOptions opts, Context parent) {
-		
+
 		// Caching enabled
 		if (cached) {
 			String cacheKey = cacher.getCacheKey(name, params, cacheKeys);
@@ -102,15 +102,16 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 		// Caching disabled
 		return callActionNoStore(params, opts, parent);
 	}
-	
-	private final Promise callActionAndStore(Tree params, CallingOptions opts, Context parent, String cacheKey, int ttl) {
+
+	private final Promise callActionAndStore(Tree params, CallingOptions opts, Context parent, String cacheKey,
+			int ttl) {
 		return callActionNoStore(params, opts, parent).then(result -> {
 			if (result != null) {
 				cacher.set(cacheKey, result, ttl);
 			}
 		});
 	}
-	
+
 	protected abstract Promise callActionNoStore(Tree params, CallingOptions opts, Context parent);
 
 	// --- PROPERTY GETTERS ---
@@ -144,5 +145,38 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 	public final int ttl() {
 		return ttl;
 	}
-	
+
+	// --- EQUALS / HASHCODE ---
+
+	@Override
+	public final int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((name == null) ? 0 : name.hashCode());
+		result = prime * result + ((nodeID == null) ? 0 : nodeID.hashCode());
+		return result;
+	}
+
+	@Override
+	public final boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		AbstractContainer other = (AbstractContainer) obj;
+		if (name == null) {
+			if (other.name != null)
+				return false;
+		} else if (!name.equals(other.name))
+			return false;
+		if (nodeID == null) {
+			if (other.nodeID != null)
+				return false;
+		} else if (!nodeID.equals(other.nodeID))
+			return false;
+		return true;
+	}
+
 }

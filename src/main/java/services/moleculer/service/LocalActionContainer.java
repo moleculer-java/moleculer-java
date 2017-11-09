@@ -52,7 +52,7 @@ public final class LocalActionContainer extends AbstractContainer {
 	/**
 	 * Invoke all local services via Thread pool (true) or directly (false)
 	 */
-	private final boolean asyncLocalInvocation;
+	private boolean asyncLocalInvocation;
 
 	/**
 	 * Atomic counter for internal timout handling
@@ -87,6 +87,9 @@ public final class LocalActionContainer extends AbstractContainer {
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 		super.start(broker, config);
 
+		// Process config
+		asyncLocalInvocation = config.get(ASYNC_LOCAL_INVOCATION, asyncLocalInvocation);
+		
 		// Set name
 		if (name == null || name.isEmpty()) {
 			name = nameOf(action, false);

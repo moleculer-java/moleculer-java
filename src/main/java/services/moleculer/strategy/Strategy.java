@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.MoleculerComponent;
-import services.moleculer.service.Action;
 import services.moleculer.service.ActionContainer;
 import services.moleculer.service.Name;
 
@@ -67,19 +66,19 @@ public abstract class Strategy implements MoleculerComponent {
 	public void stop() {
 	}
 
-	// --- ADD ACCTION ---
+	// --- ADD A LOCAL OR REMOTE ACCTION CONTAINER ---
 
-	public abstract void add(ActionContainer action, Tree config);
+	public abstract void add(ActionContainer action);
 
-	// --- REMOVE ACTION ---
+	// --- REMOVE ACTION OF NODE ---
 
-	public abstract void remove(Action action);
+	public abstract void remove(String nodeID);
 
 	// --- HAS ACTIONS ---
 
 	public abstract boolean isEmpty();
 
-	// --- GET ACTION ---
+	// --- GET LOCAL OR REMOTE ACCTION CONTAINER ---
 
 	public abstract ActionContainer get(String nodeID);
 

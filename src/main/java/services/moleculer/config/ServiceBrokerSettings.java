@@ -133,11 +133,11 @@ public final class ServiceBrokerSettings implements CommonNames {
 		monitor = tryToLoadMonitor("Sigar");
 		if (monitor == null) {
 			logger.info("Sigar System Monitoring API not available.");
-		}
-		monitor = tryToLoadMonitor("JMX");
-		if (monitor == null) {
-			logger.info("JMX Monitoring API not available.");
-			monitor = new ConstantMonitor();
+			monitor = tryToLoadMonitor("JMX");
+			if (monitor == null) {
+				logger.info("JMX Monitoring API not available.");
+				monitor = new ConstantMonitor();
+			}			
 		}
 	}
 

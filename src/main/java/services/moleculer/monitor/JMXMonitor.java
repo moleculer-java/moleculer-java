@@ -25,22 +25,30 @@
 package services.moleculer.monitor;
 
 import java.lang.management.ManagementFactory;
-import java.lang.management.OperatingSystemMXBean;
+
+import javax.management.Attribute;
+import javax.management.AttributeList;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * OperatingSystemMXBean-based System Monitor.
+ * JMX-based System Monitor. {@link SigarMonitor} is more accurate than this
+ * monitor.
+ * 
+ * @see SigarMonitor
  */
 @Name("JMX System Monitor")
 public final class JMXMonitor extends Monitor {
 
 	// --- PROPERTIES ---
-	
-	private OperatingSystemMXBean os;
-	
+
+	private MBeanServer mbs;
+	private ObjectName os;
+
 	// --- START MONITOR ---
 
 	/**
@@ -53,11 +61,12 @@ public final class JMXMonitor extends Monitor {
 	 */
 	@Override
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
-		os = ManagementFactory.getOperatingSystemMXBean();
+		mbs = ManagementFactory.getPlatformMBeanServer();
+		os = ObjectName.getInstance("java.lang:type=OperatingSystem");
 	}
-	
+
 	// --- SYSTEM MONITORING METHODS ---
-	
+
 	/**
 	 * Returns the system CPU usage, in percents, between 0 and 100.
 	 * 
@@ -65,7 +74,18 @@ public final class JMXMonitor extends Monitor {
 	 */
 	@Override
 	public final int getTotalCpuPercent() {
-		return (int) Math.max(os.getSystemLoadAverage() * 100, 0);
+		try {
+			AttributeList list = mbs.getAttributes(os, new String[] { "ProcessCpuLoad" });
+			if (list.isEmpty()) {
+				return 0;
+			}
+			Attribute att = (Attribute) list.get(0);
+			Double value = (Double) att.getValue();
+			return (int) Math.max(value * 100d, 0d);
+		} catch (Exception cause) {
+			logger.warn("Unable to get CPU usage!", cause);
+		}
+		return 0;
 	}
 
 }

@@ -109,7 +109,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 		password = config.get(PASSWORD, password);
 		useSSL = config.get(USE_SSL, useSSL);
 		startTLS = config.get(START_TLS, startTLS);
-		
+
 		// Connect to Redis server
 		connect();
 	}
@@ -139,7 +139,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 			return;
 		}
 	}
-	
+
 	private final void unableToConnect(Exception cause) {
 		String msg = cause.getMessage();
 		if (msg == null || msg.isEmpty()) {
@@ -148,7 +148,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 			msg += "!";
 		}
 		logger.warn(msg);
-		reconnect();		
+		reconnect();
 	}
 
 	// --- DISCONNECT ---

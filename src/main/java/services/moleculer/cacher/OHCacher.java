@@ -218,7 +218,7 @@ public final class OHCacher extends Cacher {
 		}
 
 		// Start serializer
-		logger.info(nameOf(this, true) + " is using " + nameOf(serializer, true) + '.');
+		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
 		serializer.start(broker, serializerNode);
 
 		// Create cache

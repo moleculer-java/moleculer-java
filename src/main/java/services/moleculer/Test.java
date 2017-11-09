@@ -32,14 +32,14 @@ import services.moleculer.transporter.RedisTransporter;
 public class Test {
 
 	public static void main(String[] args) throws Exception {
-
+		
 		// Test sigar
-		String nativeDir = "C:\\test-eclipse\\workspace\\moleculer-java\\native";
+		String nativeDir = "./native";
 		System.setProperty("java.library.path", nativeDir);
 		
 		// Define a service
 		ServiceBroker broker = ServiceBroker.builder().registry(new DefaultServiceRegistry(false))
-				.transporter(new RedisTransporter()).build();
+				.transporter(new RedisTransporter()).nodeID("server-2").build();
 		broker.createService(new Service("math") {
 
 			@SuppressWarnings("unused")

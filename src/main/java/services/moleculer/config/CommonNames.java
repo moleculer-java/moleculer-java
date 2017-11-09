@@ -244,4 +244,14 @@ public interface CommonNames {
 	 */
 	public static final String COMPRESS_ABOVE = "compressAbove";
 
+	/**
+	 * Heartbeat interval of Transporters (default is 5 seconds).
+	 */
+	public static final String HEARTBEAT_INTERVAL = "heartbeatInterval";
+	
+	/**
+	 * Heartbeat timeout limit of Transporters (default is 30 seconds).
+	 */
+	public static final String HEARTBEAT_TIMEOUT = "heartbeatTimeout";
+	
 }

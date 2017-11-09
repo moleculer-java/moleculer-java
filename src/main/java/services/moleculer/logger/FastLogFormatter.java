@@ -53,7 +53,7 @@ public final class FastLogFormatter extends Formatter {
 
 	private final StringBuilder line = new StringBuilder(512);
 
-	private volatile int position;
+	private volatile int position = 83;
 
 	public final String format(LogRecord record) {
 		line.setLength(0);

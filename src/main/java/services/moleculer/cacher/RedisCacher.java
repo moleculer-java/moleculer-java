@@ -177,7 +177,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 		scheduler = broker.components().scheduler();
 
 		// Start serializer
-		logger.info(nameOf(this, true) + " is using " + nameOf(serializer, true) + '.');
+		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
 		serializer.start(broker, serializerNode);
 
 		// Connect to Redis server

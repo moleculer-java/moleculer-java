@@ -24,7 +24,6 @@
  */
 package services.moleculer.monitor;
 
-import org.hyperic.sigar.CpuPerc;
 import org.hyperic.sigar.Sigar;
 
 import io.datatree.Tree;
@@ -34,14 +33,14 @@ import services.moleculer.service.Name;
 /**
  * Sigar API-based System Monitor. You need to copy Sigar natives (DLLs, etc.)
  * into the directory which is defined by the "java.library.path" System
- * Property.
+ * Property. This monitor is more accurate than the {@link JMXMonitor}.
  */
 @Name("Sigar System Monitor")
 public final class SigarMonitor extends Monitor {
 
 	// --- PROPERTIES ---
 
-	private CpuPerc cpu;
+	private Sigar sigar;
 
 	// --- START MONITOR ---
 
@@ -55,8 +54,7 @@ public final class SigarMonitor extends Monitor {
 	 */
 	@Override
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
-		Sigar sigar = new Sigar();
-		cpu = sigar.getCpuPerc();
+		sigar = new Sigar();
 	}
 
 	// --- SYSTEM MONITORING METHODS ---
@@ -68,7 +66,12 @@ public final class SigarMonitor extends Monitor {
 	 */
 	@Override
 	public final int getTotalCpuPercent() {
-		return (int) Math.max(cpu.getSys() * 100, 0);
+		try {
+			return (int) Math.max(sigar.getCpuPerc().getCombined() * 100d, 0d);			
+		} catch (Exception cause) {
+			logger.warn("Unable to get CPU usage!", cause);
+		}
+		return 0;
 	}
 
 }

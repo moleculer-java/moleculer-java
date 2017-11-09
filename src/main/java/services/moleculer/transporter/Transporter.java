@@ -28,7 +28,10 @@ import static services.moleculer.ServiceBroker.MOLECULER_VERSION;
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -58,7 +61,7 @@ import services.moleculer.service.ServiceRegistry;
 @Name("Transporter")
 public abstract class Transporter implements MoleculerComponent {
 
-	// --- CONSTANTS ---
+	// --- CHANNEL NAMES / PACKET TYPES ---
 
 	public static final String PACKET_EVENT = "EVENT";
 	public static final String PACKET_REQUEST = "REQ";
@@ -70,7 +73,7 @@ public abstract class Transporter implements MoleculerComponent {
 	public static final String PACKET_PING = "PING";
 	public static final String PACKET_PONG = "PONG";
 
-	// --- CHANNELS ---
+	// --- CHANNELS OF CURRENT NODE ---
 
 	public String eventChannel;
 	public String requestChannel;
@@ -94,6 +97,8 @@ public abstract class Transporter implements MoleculerComponent {
 	protected String prefix;
 	protected ServiceBroker broker;
 	protected String nodeID;
+	protected int heartbeatInterval;
+	protected int heartbeatTimeout;
 
 	// --- SERIALIZER / DESERIALIZER ---
 
@@ -105,6 +110,10 @@ public abstract class Transporter implements MoleculerComponent {
 	protected ScheduledExecutorService scheduler;
 	protected ServiceRegistry registry;
 	protected Monitor monitor;
+
+	// --- HEARTBEAT TIMES OF OTHER NODES ---
+
+	protected final ConcurrentHashMap<String, Long> lastNodeActivities = new ConcurrentHashMap<>(128);
 
 	// --- CONSTUCTORS ---
 
@@ -157,8 +166,32 @@ public abstract class Transporter implements MoleculerComponent {
 			serializer = new JsonSerializer();
 		}
 
+		// Heartbeat interval (find in Transporter config)
+		heartbeatInterval = config.get(HEARTBEAT_INTERVAL, heartbeatInterval);
+		if (heartbeatInterval < 1) {
+
+			// Find in broker config
+			heartbeatInterval = config.getParent().get(HEARTBEAT_INTERVAL, 0);
+			if (heartbeatInterval < 1) {
+				heartbeatInterval = 5;
+			}
+		}
+		logger.info(nameOf(this, true) + " sends heartbeat signal every " + heartbeatInterval + " seconds.");
+
+		// Heartbeat timeout (find in Transporter config)
+		heartbeatTimeout = config.get(HEARTBEAT_TIMEOUT, heartbeatTimeout);
+		if (heartbeatTimeout < 1) {
+
+			// Find in broker config
+			heartbeatTimeout = config.getParent().get(HEARTBEAT_TIMEOUT, 0);
+			if (heartbeatTimeout < 1) {
+				heartbeatTimeout = 30;
+			}
+		}
+		logger.info("Heartbeat timeout of " + nameOf(this, true) + " is " + heartbeatTimeout + " seconds.");
+
 		// Start serializer
-		logger.info(nameOf(this, true) + " is using " + nameOf(serializer, true) + '.');
+		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
 		serializer.start(broker, serializerNode);
 
 		// Get components
@@ -201,9 +234,14 @@ public abstract class Transporter implements MoleculerComponent {
 	// --- SERVER CONNECTED ---
 
 	/**
-	 * Cancelable timer
+	 * Cancelable "Heart Beat" timer
 	 */
 	private volatile ScheduledFuture<?> heartBeatTimer;
+
+	/**
+	 * Cancelable "Check Nodes" timer
+	 */
+	private volatile ScheduledFuture<?> checkNodesTimer;
 
 	protected void connected() {
 		executor.execute(() -> {
@@ -231,12 +269,17 @@ public abstract class Transporter implements MoleculerComponent {
 				sendDiscoverPacket(discoverBroadcastChannel);
 				sendInfoPacket(infoBroadcastChannel);
 
-				// Start heartbeat timer
+				// Start sendHeartbeatPacket timer
 				if (heartBeatTimer == null) {
-					heartBeatTimer = scheduler.scheduleAtFixedRate(this::sendHeartbeatPacket, 5, 5, TimeUnit.SECONDS);
+					heartBeatTimer = scheduler.scheduleAtFixedRate(this::sendHeartbeatPacket, heartbeatInterval,
+							heartbeatInterval, TimeUnit.SECONDS);
 				}
 
-				// TODO Start checkNodes timer
+				// Start checkNodes timer
+				if (checkNodesTimer == null) {
+					checkNodesTimer = scheduler.scheduleAtFixedRate(this::checkNodes, heartbeatTimeout,
+							heartbeatTimeout, TimeUnit.SECONDS);
+				}
 
 			}).Catch(error -> {
 
@@ -251,8 +294,6 @@ public abstract class Transporter implements MoleculerComponent {
 
 	protected void disconnected() {
 
-		// TODO on disconnected
-
 		// Stop heartbeat timer
 		if (heartBeatTimer != null) {
 			heartBeatTimer.cancel(false);
@@ -260,7 +301,13 @@ public abstract class Transporter implements MoleculerComponent {
 		}
 
 		// Stop checkNodes timer
-		// Call `this.tx.disconnect()`
+		if (checkNodesTimer != null) {
+			checkNodesTimer.cancel(false);
+			checkNodesTimer = null;
+		}
+
+		// Clear timestamps
+		lastNodeActivities.clear();
 	}
 
 	// --- STOP TRANSPORTER ---
@@ -270,7 +317,7 @@ public abstract class Transporter implements MoleculerComponent {
 	 */
 	@Override
 	public void stop() {
-		// If isConnected() call `sendDisconnectPacket()`
+		sendDisconnectPacket();
 	}
 
 	// --- REQUEST PACKET ---
@@ -315,48 +362,71 @@ public abstract class Transporter implements MoleculerComponent {
 			// Send message to proper component
 			try {
 
-				// Messages of ServiceRegistry
-				if (channel.equals(eventChannel) || channel.equals(requestChannel) || channel.equals(responseChannel)) {
-					registry.receive(data);
+				// Get "sender" property
+				String sender = data.get(SENDER, "");
+				if (sender == null || sender.isEmpty()) {
+					logger.warn("Missing \"" + SENDER + "\" property:\r\n" + data);
+					return;
+				}
+				if (sender.equals(nodeID)) {
+
+					// It's our message
+					return;
+				}
+
+				// Invoming event
+				if (channel.equals(eventChannel)) {
+					
+					// TODO
+					return;
+				}
+				
+				// Incoming request
+				if (channel.equals(requestChannel)) {
+					registry.receiveRequest(data);
+					return;
+				}
+
+				// Incoming response
+				if (channel.equals(responseChannel)) {
+					registry.receiveResponse(data);
+					return;
+				}
+
+				// HeartBeat packet
+				if (channel.endsWith(heartbeatChannel)) {
+
+					// Store timestamp of the sender's last activity
+					lastNodeActivities.put(sender, System.currentTimeMillis());
 					return;
 				}
 
 				// Info packet
 				if (channel.equals(infoChannel) || channel.equals(infoBroadcastChannel)) {
-					String sender = data.get(SENDER, "");
-					if (sender == null || sender.isEmpty()) {
-						logger.warn("Missing \"" + SENDER + "\" property:\r\n" + data);
-						return;
-					}
-					if (sender.equals(nodeID)) {
 
-						// It's our INFO block
-						return;
-					}
+					// Register services in info block
 					Tree services = data.get(SERVICES);
 					if (services != null && services.isEnumeration()) {
 						for (Tree service : services) {
 							registry.addService(service);
 						}
+						logger.info("Node \"" + sender + "\" connected.");
 					}
 					return;
 				}
 
 				// Discover packet
 				if (channel.equals(discoverChannel) || channel.equals(discoverBroadcastChannel)) {
-					String sender = data.get(SENDER, "");
-					if (sender == null || sender.isEmpty()) {
-						logger.warn("Missing \"" + SENDER + "\" property:\r\n" + data);
-						return;
-					}
-					if (sender.equals(nodeID)) {
-
-						// It's our DISCOVER block
-						return;
-					}
 
 					// Send node desriptor to the sender
 					sendInfoPacket(channel(PACKET_INFO, sender));
+				}
+
+				// Disconnect packet
+				if (channel.equals(disconnectChannel)) {
+					lastNodeActivities.remove(sender);
+					registry.removeService(sender);
+					logger.info("Node \"" + sender + "\" disconnected.");
 				}
 
 			} catch (Exception cause) {
@@ -386,6 +456,43 @@ public abstract class Transporter implements MoleculerComponent {
 		publish(heartbeatChannel, message);
 	}
 
+	private final void sendDisconnectPacket() {
+		Tree message = new Tree();
+		message.put(SENDER, nodeID);
+		publish(disconnectChannel, message);
+	}
+	
+	// --- "CHECK NODES" PROCESS ---
+
+	private volatile long lastCheck;
+
+	private final void checkNodes() {
+		Iterator<Map.Entry<String, Long>> entries = lastNodeActivities.entrySet().iterator();
+		long now = System.currentTimeMillis();
+		if (now < lastCheck) {
+
+			// The clock has been reset for one hour?
+			lastCheck = now;
+			return;
+		}
+		lastCheck = now;
+		Map.Entry<String, Long> entry;
+		long timeoutMillis = heartbeatTimeout * 1000L;
+		while (entries.hasNext()) {
+			entry = entries.next();
+			if (now - entry.getValue() > timeoutMillis) {
+
+				// Node has been timeouted
+				String nodeID = entry.getKey();
+				registry.removeService(nodeID);
+				entries.remove();
+				logger.info("Node \"" + nodeID
+						+ "\" is no longer available because it hasn't submitted heartbeat signal for "
+						+ heartbeatTimeout + " seconds.");
+			}
+		}
+	}
+
 	// --- OPTIONAL ERROR HANDLER ---
 
 	/**
@@ -406,6 +513,22 @@ public abstract class Transporter implements MoleculerComponent {
 
 	public final void setSerializer(Serializer serializer) {
 		this.serializer = Objects.requireNonNull(serializer);
+	}
+
+	public final int getHeartbeatInterval() {
+		return heartbeatInterval;
+	}
+
+	public final void setHeartbeatInterval(int heartbeatInterval) {
+		this.heartbeatInterval = heartbeatInterval;
+	}
+
+	public final int getHeartbeatTimeout() {
+		return heartbeatTimeout;
+	}
+
+	public final void setHeartbeatTimeout(int heartbeatTimeout) {
+		this.heartbeatTimeout = heartbeatTimeout;
 	}
 
 }

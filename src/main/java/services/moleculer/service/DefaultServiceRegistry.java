@@ -96,6 +96,10 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	 */
 	private final Lock writeLock;
 
+	// --- LOCAL NODE ID ---
+	
+	private String nodeID;
+	
 	// --- COMPONENTS ---
 
 	private ServiceBroker broker;
@@ -144,6 +148,9 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			logger.warn("Service Registry has no \"" + STRATEGY + "\" or \"" + PREFER_LOCAL + "\" properties.");
 		}
 
+		// Local nodeID
+		this.nodeID = broker.nodeID();
+		
 		// Set components
 		this.broker = broker;
 		this.strategy = broker.components().strategy();
@@ -182,15 +189,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			strategies.clear();
 
 			// Stop registered services
-			for (Service service : services.values()) {
-				try {
-					service.stop();
-					logger.info("Service \"" + service.name + "\" stopped.");
-				} catch (Throwable cause) {
-					logger.warn("Unable to stop \"" + service.name + "\" service!", cause);
-				}
-			}
-			services.clear();
+			stopAllLocalServices();
 
 		} finally {
 			writeLock.unlock();
@@ -297,10 +296,30 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		promises.remove(id);
 	}
 
+	// --- RECEIVE REQUEST FROM REMOTE SERVICE ---
+
+	public final void receiveRequest(Tree message) {
+		String ver = message.get(VER, "2");
+		String sender = message.get(SENDER, (String) null);
+		String id = message.get("id", (String) null);
+		String action = message.get("action", (String) null);
+		Tree params = message.get(PARAMS);
+		Tree meta = message.get("meta");
+		int timeout = message.get("timeout", 0);
+		int level = message.get("level", 1);
+		boolean metrics = message.get("metrics", false);
+		String parentID = message.get("parentID", (String) null);
+		String requestID = message.get("requestID", (String) null);
+		
+		ActionContainer container = getAction(action, nodeID);
+		
+		// TODO container.call(params, opts, parent)
+	}
+	
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
 
 	@Override
-	public final void receive(Tree message) {
+	public final void receiveResponse(Tree message) {
 		String id = message.get("id", "");
 		if (id.isEmpty()) {
 			logger.warn("Missing \"id\" property!", message);
@@ -326,7 +345,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		}
 	}
 
-	// --- ADD LOCAL SERVICE ---
+	// --- ADD A LOCAL SERVICE ---
 
 	@Override
 	public final void addService(Service service, Tree config) throws Exception {
@@ -338,19 +357,19 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			Field[] fields = clazz.getFields();
 			for (Field field : fields) {
 				if (Action.class.isAssignableFrom(field.getType())) {
-					String name = field.getName();
-					Tree actionConfig = config.get(name);
+					String actionName = field.getName();
+					Tree actionConfig = config.get(actionName);
 					if (actionConfig == null) {
 						if (config.isMap()) {
-							actionConfig = config.putMap(name);
+							actionConfig = config.putMap(actionName);
 						} else {
 							actionConfig = new Tree();
 						}
 					}
 
 					// Name of the action (eg. "v2.service.add")
-					name = service.name + '.' + name;
-					actionConfig.put(NAME, name);
+					actionName = service.name + '.' + actionName;
+					actionConfig.put(NAME, actionName);
 
 					// Process "Cache" annotation
 					if (actionConfig.get(CACHE) == null) {
@@ -381,13 +400,13 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 					field.setAccessible(true);
 					Action action = (Action) field.get(service);
 					LocalActionContainer container = new LocalActionContainer(this, action, asyncLocalInvocation);
-					Strategy actionStrategy = strategies.get(name);
+					Strategy actionStrategy = strategies.get(actionName);
 					if (actionStrategy == null) {
 						actionStrategy = strategy.create();
 						actionStrategy.start(broker, actionConfig);
-						strategies.put(name, actionStrategy);
+						strategies.put(actionName, actionStrategy);
 					}
-					actionStrategy.add(container, actionConfig);
+					actionStrategy.add(container);
 					container.start(broker, actionConfig);
 				}
 			}
@@ -401,36 +420,79 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		}
 	}
 
-	// --- ADD REMOTE SERVICE ---
+	// --- ADD A REMOTE SERVICE ---
 
+	@Override
 	public final void addService(Tree config) throws Exception {
-
-		// TODO Process configuration
-		String nodeID = config.get(NODE_ID, "");
-		String serviceName = config.get(NAME, "");
-		Tree actions = config.get(ACTIONS);
-		if (actions != null && actions.isMap()) {
-			for (Tree action : actions) {
-				String actionName = action.get(NAME, "");
-				if (actionName == null || actionName.isEmpty()) {
-					logger.warn("Missing \"" + NAME + "\" property:\r\n" + action);
-					continue;
-				}
-				boolean cached = action.get(CACHE, false);
-
-				// Register action
-			}
-		}
-
+		String nodeID = config.get(NODE_ID, (String) null);
 		writeLock.lock();
 		try {
 
+			// Process configuration
+			Tree actions = config.get(ACTIONS);
+			if (actions != null && actions.isMap()) {
+				for (Tree actionConfig : actions) {
+
+					// Register action
+					actionConfig.put(NODE_ID, nodeID);
+					String actionName = actionConfig.get(NAME, "");
+					RemoteActionContainer container = new RemoteActionContainer(this);
+					container.start(broker, actionConfig);
+					Strategy actionStrategy = strategies.get(actionName);
+					if (actionStrategy == null) {
+						actionStrategy = strategy.create();
+						actionStrategy.start(broker, actionConfig);
+						strategies.put(actionName, actionStrategy);
+					}
+					actionStrategy.add(container);
+					container.start(broker, actionConfig);
+				}
+			}
 		} finally {
 			writeLock.unlock();
 		}
 	}
 
-	// --- GET SERVICE ---
+	// --- REMOVE ALL REMOTE SERVICES/ACTIONS OF A NODE ---
+
+	@Override
+	public final void removeService(String nodeID) {
+		writeLock.lock();
+		try {
+			Iterator<Strategy> containers = strategies.values().iterator();
+			while (containers.hasNext()) {
+				Strategy strategy = containers.next();
+				strategy.remove(nodeID);
+				if (strategy.isEmpty()) {
+					try {
+						strategy.stop();
+					} catch (Throwable cause) {
+						logger.warn("Unable to stop strategy!", cause);
+					}
+					containers.remove();
+				}
+			}
+			if (broker.nodeID().equals(nodeID)) {
+				stopAllLocalServices();
+			}
+		} finally {
+			writeLock.unlock();
+		}
+	}
+
+	private final void stopAllLocalServices() {
+		for (Service service : services.values()) {
+			try {
+				service.stop();
+				logger.info("Service \"" + service.name + "\" stopped.");
+			} catch (Throwable cause) {
+				logger.warn("Unable to stop \"" + service.name + "\" service!", cause);
+			}
+		}
+		services.clear();
+	}
+
+	// --- GET LOCAL SERVICE ---
 
 	@Override
 	public final Service getService(String name) {
@@ -447,7 +509,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		return service;
 	}
 
-	// --- GET ACTION ---
+	// --- GET LOCAL OR REMOTE ACTION CONTAINER ---
 
 	@Override
 	public final ActionContainer getAction(String name, String nodeID) {
