@@ -70,6 +70,9 @@ import services.moleculer.uid.UIDGenerator;
 
 /**
  * Abstract class for Standalone, Spring, and Guice Component Registries.
+ * ComponentRegistry has similar functionality to Spring's ApplicationContext;
+ * stores "beans" (MoleculerComponents), and by using the method "get(id)" you
+ * can retrieve instances of your component.
  *
  * @see StandaloneComponentRegistry
  * @see SpringComponentRegistry
@@ -156,16 +159,16 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			if (!subConfig.isMap()) {
 				continue;
 			}
-			
+
 			// Get class name / type
 			String type = typeOf(subConfig);
 
 			// Rewrite short type
 			Tree replace = replaceType(id, type);
 			if (replace != null) {
-				type = replace.get("type", type);
+				type = replace.get(TYPE, type);
 			}
-			
+
 			// Unknown entry
 			if (type == null || type.isEmpty()) {
 				continue;
@@ -215,7 +218,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 				monitor = (Monitor) component;
 				continue;
 			}
-			
+
 			// Store as custom component
 			componentMap.put(id, new MoleculerComponentContainer(component, subConfig));
 		}
@@ -328,10 +331,10 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		if (component != null) {
 			String name = nameOf(component, true);
 			try {
-				Tree opts = config.get("opts");
+				Tree opts = config.get(OPTS);
 				if (opts == null) {
 					if (config.isMap()) {
-						opts = config.putMap("opts");
+						opts = config.putMap(OPTS);
 					} else {
 						opts = new Tree();
 					}
@@ -377,14 +380,14 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			if (test.startsWith("redis")) {
 				Tree cfg = newConfig(RedisTransporter.class);
 				if (test.contains("://")) {
-					cfg.put("url", value);
+					cfg.put(URL, value);
 				}
 				return cfg;
 			}
 			if (test.startsWith("nats")) {
 				Tree cfg = newConfig(NatsTransporter.class);
 				if (test.contains("://")) {
-					cfg.put("url", value);
+					cfg.put(URL, value);
 				}
 				return cfg;
 			}
@@ -392,7 +395,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			if (test.startsWith("redis")) {
 				Tree cfg = newConfig(RedisCacher.class);
 				if (value.contains("://")) {
-					cfg.put("url", value);
+					cfg.put(URL, value);
 				}
 				return cfg;
 			}
@@ -431,16 +434,16 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			}
 			if (test.equals("jmx")) {
 				return newConfig(JMXMonitor.class);
-			}			
+			}
 			if (test.equals("constant")) {
 				return newConfig(ConstantMonitor.class);
-			}			
+			}
 		}
 		return null;
 	}
 
 	private static final Tree newConfig(Class<? extends MoleculerComponent> type) {
-		return new Tree().put("type", type.getName());
+		return new Tree().put(TYPE, type.getName());
 	}
 
 	// --- STOP REGISTRY AND COMPONENTS ---
@@ -550,7 +553,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	public final Monitor monitor() {
 		return monitor;
 	}
-	
+
 	// --- GET IDS OF CUSTOM COMPONENTS ---
 
 	private final AtomicReference<String[]> cachedNames = new AtomicReference<>();
@@ -583,7 +586,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			}
 			if (monitor != null) {
 				set.add(MONITOR_ID);
-			}			
+			}
 			set.addAll(componentMap.keySet());
 			array = new String[set.size()];
 			set.toArray(array);

@@ -31,13 +31,18 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
+/**
+ * Sigar API-based System Monitor. You need to copy Sigar natives (DLLs, etc.)
+ * into the directory which is defined by the "java.library.path" System
+ * Property.
+ */
 @Name("Sigar System Monitor")
 public final class SigarMonitor extends Monitor {
 
 	// --- PROPERTIES ---
-	
+
 	private CpuPerc cpu;
-	
+
 	// --- START MONITOR ---
 
 	/**
@@ -53,17 +58,17 @@ public final class SigarMonitor extends Monitor {
 		Sigar sigar = new Sigar();
 		cpu = sigar.getCpuPerc();
 	}
-	
+
 	// --- SYSTEM MONITORING METHODS ---
-	
+
 	/**
 	 * Returns the system CPU usage, in percents, between 0 and 100.
 	 * 
 	 * @return total CPU usage of the current OS
 	 */
-	@Override	
+	@Override
 	public final int getTotalCpuPercent() {
 		return (int) Math.max(cpu.getSys() * 100, 0);
 	}
-	
+
 }

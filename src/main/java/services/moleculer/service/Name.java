@@ -30,7 +30,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 
+ * Human readable name of a Moleculer Component (eg. "Redis Cacher"), or short
+ * name (eg. "math") of a Moleculer Service.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.TYPE })

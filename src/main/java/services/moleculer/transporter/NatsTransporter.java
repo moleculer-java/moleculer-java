@@ -29,7 +29,7 @@ import services.moleculer.Promise;
 import services.moleculer.service.Name;
 
 /**
- * Not implemented (yet)
+ * Not implemented (yet).
  */
 @Name("NATS Transporter")
 public final class NatsTransporter extends Transporter {

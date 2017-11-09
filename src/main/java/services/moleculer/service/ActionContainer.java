@@ -30,7 +30,17 @@ import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
 
 /**
- * Interface of Local or Remote actions.
+ * Interface of Local or Remote actions. Sample action:<br>
+ * <br>
+ * &#64;Name("math")<br>
+ * public class MathService extends Service {<br>
+ * <br>
+ * &#64;Cache(keys = { "a", "b" }, ttl = 30)<br>
+ * public Action add = (ctx) -> {<br>
+ * return ctx.params().get("a", 0) + ctx.params().get("b", 0);<br>
+ * };<br>
+ * <br>
+ * }
  */
 public interface ActionContainer {
 

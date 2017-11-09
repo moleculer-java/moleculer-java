@@ -53,6 +53,9 @@ import io.netty.util.concurrent.Future;
 import rx.Observable;
 import services.moleculer.Promise;
 
+/**
+ * Promise-based pub/sub Redis client. 
+ */
 public final class RedisPubSubClient {
 
 	// --- VARIABLES ---

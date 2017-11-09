@@ -84,7 +84,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	/**
 	 * Timeout-checker's period delay (seconds)
 	 */
-	private int cleanupDelay = 1;
+	private int cleanup = 1;
 
 	/**
 	 * Reader lock of configuration
@@ -133,15 +133,15 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
-		cleanupDelay = config.get("cleanupDelay", cleanupDelay);
-		defaultTimeout = config.get("defaultTimeout", defaultTimeout);
+		asyncLocalInvocation = config.get(ASYNC_LOCAL_INVOCATION, asyncLocalInvocation);
+		cleanup = config.get(CLEANUP, cleanup);
+		defaultTimeout = config.get(DEFAULT_TIMEOUT, defaultTimeout);
 
 		// Node-style Service Registry config?
 		Tree parent = config.getParent();
-		if (parent != null && (parent.get("strategy", (String) null) != null
-				|| parent.get("preferLocal", (String) null) != null)) {
-			logger.warn("Service Registry has no \"strategy\" or \"preferLocal\" properties.");
+		if (parent != null
+				&& (parent.get(STRATEGY, (String) null) != null || parent.get(PREFER_LOCAL, (String) null) != null)) {
+			logger.warn("Service Registry has no \"" + STRATEGY + "\" or \"" + PREFER_LOCAL + "\" properties.");
 		}
 
 		// Set components
@@ -350,10 +350,10 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 					// Name of the action (eg. "v2.service.add")
 					name = service.name + '.' + name;
-					actionConfig.put("name", name);
+					actionConfig.put(NAME, name);
 
 					// Process "Cache" annotation
-					if (actionConfig.get("cached") == null) {
+					if (actionConfig.get(CACHE) == null) {
 						Cache cache = field.getAnnotation(Cache.class);
 						boolean cached = false;
 						String[] keys = null;
@@ -368,12 +368,12 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 								ttl = cache.ttl();
 							}
 						}
-						actionConfig.put("cached", cached);
+						actionConfig.put(CACHE, cached);
 						if (ttl > 0) {
-							actionConfig.put("ttl", ttl);
+							actionConfig.put(TTL, ttl);
 						}
 						if (keys != null && keys.length > 0) {
-							actionConfig.put("cacheKeys", String.join(",", keys));
+							actionConfig.put(CACHE_KEYS, String.join(",", keys));
 						}
 					}
 
@@ -404,27 +404,26 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	// --- ADD REMOTE SERVICE ---
 
 	public final void addService(Tree config) throws Exception {
-		
+
 		// TODO Process configuration
-		String nodeID = config.get("nodeID", "");
-		String serviceName = config.get("name", "");
-		Tree actions = config.get("actions");
+		String nodeID = config.get(NODE_ID, "");
+		String serviceName = config.get(NAME, "");
+		Tree actions = config.get(ACTIONS);
 		if (actions != null && actions.isMap()) {
-			for (Tree action: actions) {
-				String actionName = action.get("name", "");
+			for (Tree action : actions) {
+				String actionName = action.get(NAME, "");
 				if (actionName == null || actionName.isEmpty()) {
-					logger.warn("Missing \"name\" property:\r\n" + action);
+					logger.warn("Missing \"" + NAME + "\" property:\r\n" + action);
 					continue;
 				}
-				boolean cache = action.get("cache", false);
-				
+				boolean cached = action.get(CACHE, false);
+
 				// Register action
 			}
 		}
-		
+
 		writeLock.lock();
 		try {
-
 
 		} finally {
 			writeLock.unlock();
@@ -476,14 +475,14 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		Tree root = new Tree();
 
 		// Protocol version
-		root.put("ver", "2");
+		root.put(VER, ServiceBroker.MOLECULER_VERSION);
 
 		// NodeID
 		String nodeID = broker.nodeID();
-		root.put("sender", nodeID);
+		root.put(SENDER, nodeID);
 
 		// Services array
-		Tree services = root.putList("services");
+		Tree services = root.putList(SERVICES);
 		Tree servicesMap = new Tree();
 		readLock.lock();
 		try {
@@ -500,27 +499,27 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 				// Service block
 				Tree serviceMap = servicesMap.putMap(service, true);
-				serviceMap.put("name", service);
+				serviceMap.put(NAME, service);
 
 				// Not used
-				serviceMap.putMap("settings");
-				serviceMap.putMap("metadata");
-				serviceMap.put("nodeID", nodeID);
+				serviceMap.putMap(SETTINGS);
+				serviceMap.putMap(METADATA);
+				serviceMap.put(NODE_ID, nodeID);
 
 				// Action block
 				@SuppressWarnings("unchecked")
-				Map<String, Object> actions = (Map<String, Object>) serviceMap.putMap("actions", true).asObject();
+				Map<String, Object> actions = (Map<String, Object>) serviceMap.putMap(ACTIONS, true).asObject();
 				LinkedHashMap<String, Object> map = new LinkedHashMap<>();
 				actions.put(name, map);
 				Tree actionMap = new Tree(map);
 
-				actionMap.put("name", name);
+				actionMap.put(NAME, name);
 				boolean cached = container.cached();
-				actionMap.put("cache", cached);
+				actionMap.put(CACHE, cached);
 				if (cached) {
 					String[] keys = container.cacheKeys();
 					if (keys != null) {
-						Tree cacheKeys = actionMap.putList("cacheKeys");
+						Tree cacheKeys = actionMap.putList(CACHE_KEYS);
 						for (String key : keys) {
 							cacheKeys.add(key);
 						}
@@ -528,7 +527,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 				}
 
 				// Not used
-				actionMap.putMap("params");
+				actionMap.putMap(PARAMS);
 
 			}
 		} finally {
@@ -539,7 +538,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		}
 
 		// IP array
-		Tree ipList = root.putList("ipList");
+		Tree ipList = root.putList(IP_LIST);
 		try {
 			Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
 			while (e.hasMoreElements()) {
@@ -560,16 +559,16 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		}
 
 		// Client descriptor
-		Tree client = root.putMap("client");
-		client.put("type", "java");
-		client.put("version", ServiceBroker.VERSION);
-		client.put("langVersion", System.getProperty("java.version", "1.8"));
+		Tree client = root.putMap(CLIENT);
+		client.put(TYPE, "java");
+		client.put(VERSION, ServiceBroker.IMPLEMENTATION_VERSION);
+		client.put(LANG_VERSION, System.getProperty("java.version", "1.8"));
 
 		// Port (reserved)
-		root.put("port", (String) null);
+		root.put(PORT, (String) null);
 
 		// Config (not used in this version)
-		root.putMap("config");
+		root.putMap(CONFIG);
 
 		return root;
 	}
@@ -588,16 +587,16 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		return defaultTimeout;
 	}
 
-	public final void setDefaultTimeout(int defaultTimeout) {
-		this.defaultTimeout = defaultTimeout;
+	public final void setDefaultTimeout(int defaultTimeoutSeconds) {
+		this.defaultTimeout = defaultTimeoutSeconds;
 	}
 
-	public final int getCleanupDelay() {
-		return cleanupDelay;
+	public final int getCleanup() {
+		return cleanup;
 	}
 
-	public final void setCleanupDelay(int cleanupDelay) {
-		this.cleanupDelay = cleanupDelay;
+	public final void setCleanup(int cleanupSeconds) {
+		this.cleanup = cleanupSeconds;
 	}
 
 }

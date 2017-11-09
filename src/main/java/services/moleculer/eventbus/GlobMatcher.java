@@ -25,7 +25,7 @@
 package services.moleculer.eventbus;
 
 /**
- * 
+ * Simple and fast glob matcher.
  */
 public final class GlobMatcher {
 

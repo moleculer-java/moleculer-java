@@ -34,6 +34,9 @@ import services.moleculer.service.Name;
 
 /**
  * Base superclass of all System Monitor implementations.
+ * 
+ * @see SigarMonitor
+ * @see JMXMonitor
  */
 @Name("Monitor")
 public abstract class Monitor implements MoleculerComponent {

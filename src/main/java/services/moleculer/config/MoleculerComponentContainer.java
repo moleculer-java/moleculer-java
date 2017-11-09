@@ -27,7 +27,7 @@ package services.moleculer.config;
 import io.datatree.Tree;
 
 /**
- * 
+ * Contains a component and its configuration.
  */
 final class MoleculerComponentContainer {
 	

@@ -35,6 +35,10 @@ import services.moleculer.service.Name;
 
 /**
  * Base superclass of all Cacher implementations.
+ * 
+ * @see MemoryCacher
+ * @see OHCacher
+ * @see RedisCacher
  */
 @Name("Cacher")
 public abstract class Cacher implements MoleculerComponent {

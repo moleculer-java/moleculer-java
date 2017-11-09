@@ -31,8 +31,8 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * Fast UIDGenerator, based on nodeID and an atomic sequence number.
- * It's faster than the StandardUIDGenerator.
+ * Fast {@link UIDGenerator}, based on nodeID and an atomic sequence number.
+ * It's faster than the {@link StandardUUIDGenerator}.
  * 
  * @see StandardUUIDGenerator
  */
@@ -59,7 +59,7 @@ public final class IncrementalUIDGenerator extends UIDGenerator {
 	 */
 	@Override
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
-		String id = config.get("prefix", broker.nodeID());
+		String id = config.get(PREFIX, broker.nodeID());
 		prefix = (id + ':').toCharArray();
 	}
 
@@ -67,7 +67,7 @@ public final class IncrementalUIDGenerator extends UIDGenerator {
 
 	@Override
 	public final String nextUID() {
-		StringBuilder tmp = new StringBuilder(32);
+		StringBuilder tmp = new StringBuilder(prefix.length + 16);
 		tmp.append(prefix);
 		tmp.append(counter.incrementAndGet());
 		return tmp.toString();

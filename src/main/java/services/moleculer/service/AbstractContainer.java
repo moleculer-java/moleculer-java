@@ -50,18 +50,18 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Set name
-		name = config.get("name", (String) null);
+		name = config.get(NAME, (String) null);
 
 		// Set nodeID
-		nodeID = config.get("nodeID", (String) null);
+		nodeID = config.get(NODE_ID, (String) null);
 
 		// Set cache parameters
-		cached = config.get("cached", false);
-		cacheKeys = config.get("cacheKeys", "").split(",");
-		ttl = config.get("ttl", 0);
+		cached = config.get(CACHE, false);
+		cacheKeys = config.get(CACHE_KEYS, "").split(",");
+		ttl = config.get(TTL, 0);
 		
 		// Set default invaocation timeout
-		defaultTimeout = config.get("defaultTimeout", 0);
+		defaultTimeout = config.get(DEFAULT_TIMEOUT, 0);
 		
 		// Set components
 		this.broker = broker;

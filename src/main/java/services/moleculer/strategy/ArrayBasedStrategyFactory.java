@@ -68,7 +68,7 @@ public abstract class ArrayBasedStrategyFactory extends StrategyFactory {
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 		
 		// Process config
-		preferLocal = config.get("preferLocal", preferLocal);
+		preferLocal = config.get(PREFER_LOCAL, preferLocal);
 	}
 
 	// --- GETTERS / SETTERS ---

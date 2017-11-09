@@ -31,6 +31,9 @@ import services.moleculer.service.Name;
 
 /**
  * Base superclass of all UID Generator implementations.
+ * 
+ * @see IncrementalUIDGenerator
+ * @see StandardUUIDGenerator
  */
 @Name("UID Generator")
 public abstract class UIDGenerator implements MoleculerComponent {

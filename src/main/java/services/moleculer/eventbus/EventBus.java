@@ -34,6 +34,8 @@ import services.moleculer.service.Name;
 
 /**
  * Base superclass of all Event Bus implementations.
+ * 
+ * @see DefaultEventBus
  */
 @Name("Event Bus")
 public abstract class EventBus implements MoleculerComponent {

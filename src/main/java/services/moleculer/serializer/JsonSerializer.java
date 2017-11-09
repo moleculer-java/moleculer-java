@@ -32,7 +32,7 @@ import services.moleculer.service.Name;
 import services.moleculer.util.CheckedTree;
 
 /**
- * <b>GENERIC JSON SERIALIZER</b><br>
+ * <b>Generic JSON serializer</b><br>
  * <br>
  * JSON (JavaScript Object Notation) is a lightweight data-interchange format.
  * It is easy for humans to read and write. This serializer is fully COMPATIBLE

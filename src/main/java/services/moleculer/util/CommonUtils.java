@@ -34,12 +34,13 @@ import java.util.zip.Inflater;
 
 import io.datatree.Tree;
 import io.datatree.dom.TreeReaderRegistry;
+import services.moleculer.config.CommonNames;
 import services.moleculer.service.Name;
 
 /**
  * Common utilities.
  */
-public final class CommonUtils {
+public final class CommonUtils implements CommonNames {
 
 	public static final String serializerTypeToClass(String type) {
 		String test = type.toLowerCase();
@@ -49,17 +50,8 @@ public final class CommonUtils {
 		if ("msgpack".equals(test) || "messagepack".equals(test)) {
 			return "services.moleculer.serializer.MsgPackSerializer";
 		}
-		if ("bson".equals(test)) {
-			return "services.moleculer.serializer.BsonSerializer";
-		}
-		if ("cbor".equals(test)) {
-			return "services.moleculer.serializer.CborSerializer";
-		}
 		if ("smile".equals(test)) {
 			return "services.moleculer.serializer.SmileSerializer";
-		}
-		if ("ion".equals(test)) {
-			return "services.moleculer.serializer.IonSerializer";
 		}
 		if (test.indexOf('.') > -1) {
 			return type;
@@ -94,7 +86,7 @@ public final class CommonUtils {
 	}
 
 	public static final String nameOf(Tree tree) {
-		String name = tree.get("name", "");
+		String name = tree.get(NAME, "");
 		if (name == null || name.isEmpty()) {
 			name = tree.getName();
 		}
@@ -105,7 +97,7 @@ public final class CommonUtils {
 	}
 
 	public static final String typeOf(Tree tree) {
-		String type = tree.get("type", "");
+		String type = tree.get(TYPE, "");
 		if ((type == null || type.isEmpty()) && tree.isPrimitive()) {
 			type = tree.asString();
 		}

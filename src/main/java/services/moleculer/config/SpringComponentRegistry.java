@@ -50,7 +50,7 @@ import services.moleculer.service.Service;
  * class="services.moleculer.config.ServiceBrokerSettings"&gt;
  * <ul>
  * &lt;property name="nodeID" value="server-2" /&gt;<br>
- * &lt;property name="componentMap" ref="components"/&gt;
+ * &lt;property name="component" ref="components"/&gt;
  * </ul>
  * &lt;/bean&gt;<br>
  * &lt;bean id="broker" class="services.moleculer.ServiceBroker"

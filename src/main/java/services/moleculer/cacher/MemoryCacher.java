@@ -41,8 +41,8 @@ import services.moleculer.service.Name;
 
 /**
  * On-heap memory cache. MemoryCacher is the fastest cache implementation in
- * Moleculer. This is a distributed cache, the content of the cache is
- * synchronized between Moleculer nodes via events. Configuration properties:
+ * Moleculer. This can be a "distributed" cache, the content of the other node's
+ * cache is removable via events. Configuration properties:
  * <ul>
  * <li>capacity: Maximum capacity per partition (must be a power of 2), defaults
  * to 2048
@@ -68,10 +68,10 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	private int ttl;
 
 	/**
-	 * Cleanup period time, in seconds (0 = process is disabled)
+	 * Cleanup period time, in seconds (0 = disable cleanup process)
 	 */
 	private int cleanup = 5;
-	
+
 	// --- LOCKS ---
 
 	private final Lock readLock;
@@ -84,10 +84,14 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	// --- CONSTUCTORS ---
 
 	public MemoryCacher() {
-		this(2048, 0);
+		this(2048, 0, 0);
 	}
 
 	public MemoryCacher(int capacity, int ttl) {
+		this(capacity, ttl, ttl > 0 ? 5 : 0);
+	}
+
+	public MemoryCacher(int capacity, int ttl, int cleanup) {
 
 		// Check variables
 		if (capacity < 16) {
@@ -97,6 +101,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 		// Set properties
 		this.capacity = capacity;
 		this.ttl = ttl;
+		this.cleanup = cleanup;
 
 		// Init locks
 		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);
@@ -123,11 +128,14 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		capacity = config.get("capacity", capacity);
-		ttl = config.get("ttl", ttl);
+		capacity = config.get(CAPACITY, capacity);
+		ttl = config.get(TTL, ttl);
+		cleanup = config.get(CLEANUP, cleanup);
 
 		// Start timer
-		timer = broker.components().scheduler().scheduleWithFixedDelay(this, cleanup, cleanup, TimeUnit.SECONDS);
+		if (cleanup > 0) {
+			timer = broker.components().scheduler().scheduleWithFixedDelay(this, cleanup, cleanup, TimeUnit.SECONDS);
+		}
 		if (ttl > 0) {
 			logger.info("Entries in cache expire after " + ttl + " seconds.");
 		}
@@ -214,11 +222,11 @@ public final class MemoryCacher extends Cacher implements Runnable {
 		}
 		int entryTTL;
 		if (ttl > 0) {
-			
+
 			// Entry-level TTL (in seconds)
-			entryTTL = ttl;			
+			entryTTL = ttl;
 		} else {
-			
+
 			// Use the default TTL
 			entryTTL = this.ttl;
 		}
@@ -422,7 +430,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	}
 
 	// --- PARTITION ENTRY ---
-	
+
 	private static final class PartitionEntry {
 
 		private final Tree value;
@@ -436,7 +444,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	}
 
 	// --- GETTERS / SETTERS ---
-	
+
 	public final int getCapacity() {
 		return capacity;
 	}
@@ -452,5 +460,13 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	public final void setTtl(int ttl) {
 		this.ttl = ttl;
 	}
-	
+
+	public final int getCleanup() {
+		return cleanup;
+	}
+
+	public final void setCleanup(int cleanup) {
+		this.cleanup = cleanup;
+	}
+
 }

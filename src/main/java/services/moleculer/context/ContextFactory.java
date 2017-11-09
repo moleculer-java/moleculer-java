@@ -34,6 +34,8 @@ import services.moleculer.service.Name;
 
 /**
  * Base superclass of all Context Factory implementations.
+ * 
+ * @see DefaultContextFactory
  */
 @Name("Context Factory")
 public abstract class ContextFactory implements MoleculerComponent {

@@ -29,8 +29,8 @@ import java.util.UUID;
 import services.moleculer.service.Name;
 
 /**
- * Slower UIDGenerator (but it produces standard UUID's). In production mode
- * preferably use the faster IncrementalUIDGenerator.
+ * Slower {@link UIDGenerator} (but it produces standard UUID's). In production
+ * mode preferably use the faster {@link IncrementalUIDGenerator}.
  * 
  * @see IncrementalUIDGenerator
  */

@@ -86,7 +86,7 @@ public final class StandaloneComponentRegistry extends BaseComponentRegistry {
 	protected final void findServices(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		Tree packagesNode = config.get("packagesToScan");
+		Tree packagesNode = config.get(PACKAGES_TO_SCAN);
 		if (packagesNode != null) {
 			if (packagesNode.isPrimitive()) {
 

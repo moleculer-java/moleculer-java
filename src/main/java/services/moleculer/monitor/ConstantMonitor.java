@@ -28,6 +28,9 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
+/**
+ * "Fake" system monitor, which returns constant values. 
+ */
 @Name("Constant-value System Monitor")
 public final class ConstantMonitor extends Monitor {
 

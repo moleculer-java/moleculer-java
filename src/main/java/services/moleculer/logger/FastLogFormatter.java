@@ -31,7 +31,8 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 
 /**
- * Fast log formatter for AsyncFileLogger.
+ * Fast log formatter for AsyncFileLogger. Generates nice, human-readable logs.
+ * The lines of the generated log file are readable by humans and machines.
  */
 public final class FastLogFormatter extends Formatter {
 
@@ -57,7 +58,7 @@ public final class FastLogFormatter extends Formatter {
 	public final String format(LogRecord record) {
 		line.setLength(0);
 		line.append(DATE_FORMAT.format(new Date(record.getMillis())));
-		
+
 		final Level l = record.getLevel();
 		if (l == Level.SEVERE) {
 			line.append(SEVERE);
@@ -74,7 +75,7 @@ public final class FastLogFormatter extends Formatter {
 		} else {
 			line.append(FINEST);
 		}
-		
+
 		String className = record.getSourceClassName();
 		int n;
 		if (className == null) {
@@ -98,7 +99,7 @@ public final class FastLogFormatter extends Formatter {
 		}
 		line.append(TUBE);
 		line.append(formatMessage(record));
-		
+
 		final Throwable cause = record.getThrown();
 		if (cause != null) {
 			n = line.length();

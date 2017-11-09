@@ -27,7 +27,7 @@ package services.moleculer.serializer;
 import services.moleculer.service.Name;
 
 /**
- * <b>BINARY SMILE SERIALIZER</b><br>
+ * <b>Smile serializer</b><br>
  * <br>
  * Smile is a computer data interchange format based on JSON. It can also be
  * considered as a binary serialization of generic JSON data model, which means

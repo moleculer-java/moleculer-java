@@ -31,6 +31,9 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
+/**
+ * OperatingSystemMXBean-based System Monitor.
+ */
 @Name("JMX System Monitor")
 public final class JMXMonitor extends Monitor {
 

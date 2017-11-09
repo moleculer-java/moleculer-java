@@ -123,10 +123,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		Tree urlNode = config.get("urls");
-		if (urlNode == null) {
-			urlNode = config.get("url");
-		}
+		Tree urlNode = config.get(URL);
 		if (urlNode != null) {
 			List<String> urlList;
 			if (urlNode.isPrimitive()) {
@@ -143,10 +140,10 @@ public final class RedisCacher extends Cacher implements EventBus {
 				urlList.toArray(urls);
 			}
 		}
-		password = config.get("password", password);
-		useSSL = config.get("useSSL", useSSL);
-		startTLS = config.get("startTLS", startTLS);
-		ttl = config.get("ttl", ttl);
+		password = config.get(PASSWORD, password);
+		useSSL = config.get(USE_SSL, useSSL);
+		startTLS = config.get(START_TLS, startTLS);
+		ttl = config.get(TTL, ttl);
 		if (ttl > 0) {
 
 			// Set the default expire time, in seconds.
@@ -156,20 +153,20 @@ public final class RedisCacher extends Cacher implements EventBus {
 		}
 
 		// Create serializer
-		Tree serializerNode = config.get("serializer");
+		Tree serializerNode = config.get(SERIALIZER);
 		if (serializerNode != null) {
 			String type;
 			if (serializerNode.isPrimitive()) {
 				type = serializerNode.asString();
 			} else {
-				type = serializerNode.get("type", "json");
+				type = serializerNode.get(TYPE, "json");
 			}
 
 			@SuppressWarnings("unchecked")
 			Class<? extends Serializer> c = (Class<? extends Serializer>) Class.forName(serializerTypeToClass(type));
 			serializer = c.newInstance();
 		} else {
-			serializerNode = config.putMap("serializer");
+			serializerNode = config.putMap(SERIALIZER);
 		}
 		if (serializer == null) {
 			serializer = new JsonSerializer();

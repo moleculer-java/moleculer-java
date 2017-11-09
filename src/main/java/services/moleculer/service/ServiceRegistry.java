@@ -33,6 +33,8 @@ import services.moleculer.config.MoleculerComponent;
 
 /**
  * Base superclass of all Service Registry implementations.
+ * 
+ * @see DefaultServiceRegistry
  */
 @Name("Service Registry")
 public abstract class ServiceRegistry implements MoleculerComponent {

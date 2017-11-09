@@ -118,7 +118,7 @@ public final class OHCacher extends Cacher {
 	// --- SERIALIZER / DESERIALIZER ---
 
 	protected Serializer serializer;
-	
+
 	// --- OFF-HEAP CACHE INSTANCE ---
 
 	private OHCache<byte[], byte[]> cache;
@@ -142,7 +142,7 @@ public final class OHCacher extends Cacher {
 	 *            never expires)
 	 */
 	public OHCacher(long capacity, int ttl) {
-		this(capacity, 0, 0, ttl, 1024);
+		this(capacity, ttl, 0, 0, 1024);
 	}
 
 	/**
@@ -161,11 +161,11 @@ public final class OHCacher extends Cacher {
 	 * @param compressAbove
 	 *            compress key and/or value above this size (in BYTES)
 	 */
-	public OHCacher(long capacity, int segmentCount, int hashTableSize, int ttl, int compressAbove) {
+	public OHCacher(long capacity, int ttl, int segmentCount, int hashTableSize, int compressAbove) {
 		this.capacity = capacity;
+		this.ttl = ttl;
 		this.segmentCount = segmentCount;
 		this.hashTableSize = hashTableSize;
-		this.ttl = ttl;
 		this.compressAbove = compressAbove;
 	}
 
@@ -183,36 +183,36 @@ public final class OHCacher extends Cacher {
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		capacity = config.get("capacity", capacity);
-		segmentCount = config.get("segmentCount", segmentCount);
-		hashTableSize = config.get("hashTableSize", hashTableSize);
-		ttl = config.get("ttl", ttl);
-		compressAbove = config.get("compressAbove", compressAbove);
+		capacity = config.get(CAPACITY, capacity);
+		segmentCount = config.get(SEGMENT_COUNT, segmentCount);
+		hashTableSize = config.get(HASH_TABLE_SIZE, hashTableSize);
+		ttl = config.get(TTL, ttl);
+		compressAbove = config.get(COMPRESS_ABOVE, compressAbove);
 
 		// Create serializer
-		Tree serializerNode = config.get("serializer");
+		Tree serializerNode = config.get(SERIALIZER);
 		if (serializerNode != null) {
 			String type;
 			if (serializerNode.isPrimitive()) {
 				type = serializerNode.asString();
 			} else {
-				type = serializerNode.get("type", "json");
+				type = serializerNode.get(TYPE, "json");
 			}
 
 			@SuppressWarnings("unchecked")
 			Class<? extends Serializer> c = (Class<? extends Serializer>) Class.forName(serializerTypeToClass(type));
 			serializer = c.newInstance();
 		} else {
-			serializerNode = config.putMap("serializer");
+			serializerNode = config.putMap(SERIALIZER);
 		}
 		if (serializer == null) {
 			try {
 				TreeWriterRegistry.getWriter("smile");
-				serializer = new SmileSerializer();				
-			} catch (Exception notSupported) {
+				serializer = new SmileSerializer();
+			} catch (Throwable notSupported) {
 			} finally {
 				if (serializer == null) {
-					serializer = new JsonSerializer();					
+					serializer = new JsonSerializer();
 				}
 			}
 		}
@@ -220,7 +220,7 @@ public final class OHCacher extends Cacher {
 		// Start serializer
 		logger.info(nameOf(this, true) + " is using " + nameOf(serializer, true) + '.');
 		serializer.start(broker, serializerNode);
-		
+
 		// Create cache
 		OHCacheBuilder<byte[], byte[]> builder = OHCacheBuilder.newBuilder();
 		if (capacity > 0) {
@@ -289,12 +289,12 @@ public final class OHCacher extends Cacher {
 				cache.remove(keyToBytes(key));
 			} else {
 				if (ttl > 0) {
-					
+
 					// Entry-level TTL (in seconds)
 					long expireAt = ttl * 1000L + System.currentTimeMillis();
 					cache.put(keyToBytes(key), valueToBytes(value), expireAt);
 				} else {
-					
+
 					// Use the default TTL
 					cache.put(keyToBytes(key), valueToBytes(value));
 				}
@@ -410,12 +410,12 @@ public final class OHCacher extends Cacher {
 	}
 
 	private final Tree bytesToValue(byte[] bytes) throws Exception {
-		
+
 		// Decompress content
 		byte[] copy = new byte[bytes.length - 1];
 		System.arraycopy(bytes, 1, copy, 0, bytes.length - 1);
 		if (bytes[0] == 1) {
-			
+
 			// First byte == 1 -> compressed
 			copy = decompress(copy);
 		}
@@ -493,5 +493,5 @@ public final class OHCacher extends Cacher {
 	public final void setSerializer(Serializer serializer) {
 		this.serializer = Objects.requireNonNull(serializer);
 	}
-	
+
 }

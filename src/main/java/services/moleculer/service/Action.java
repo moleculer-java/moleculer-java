@@ -27,7 +27,7 @@ package services.moleculer.service;
 import services.moleculer.context.Context;
 
 /**
- * 
+ * Interface all Actions.
  */
 @FunctionalInterface
 public interface Action {

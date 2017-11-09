@@ -32,12 +32,12 @@ import services.moleculer.Promise;
 final class PromiseContainer {
 
 	// --- PROPERTIES ---
-	
+
 	final Promise promise;
 	final long timeoutAt;
-	
+
 	// --- CONSTRUCTOR ---
-	
+
 	PromiseContainer(Promise promise, long timeoutAt) {
 		this.promise = promise;
 		this.timeoutAt = timeoutAt;

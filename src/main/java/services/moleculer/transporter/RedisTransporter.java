@@ -19,6 +19,9 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 import services.moleculer.util.redis.RedisPubSubClient;
 
+/**
+ * Redis-based Transporter.
+ */
 @Name("Redis Transporter")
 public class RedisTransporter extends Transporter implements EventBus, RedisPubSubListener<byte[], byte[]> {
 
@@ -86,10 +89,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 		super.start(broker, config);
 
 		// Process config
-		Tree urlNode = config.get("urls");
-		if (urlNode == null) {
-			urlNode = config.get("url");
-		}
+		Tree urlNode = config.get(URL);
 		if (urlNode != null) {
 			List<String> urlList;
 			if (urlNode.isPrimitive()) {
@@ -106,9 +106,9 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 				urlList.toArray(urls);
 			}
 		}
-		password = config.get("password", password);
-		useSSL = config.get("useSSL", useSSL);
-		startTLS = config.get("startTLS", startTLS);
+		password = config.get(PASSWORD, password);
+		useSSL = config.get(USE_SSL, useSSL);
+		startTLS = config.get(START_TLS, startTLS);
 		
 		// Connect to Redis server
 		connect();

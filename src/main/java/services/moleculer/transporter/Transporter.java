@@ -24,6 +24,7 @@
  */
 package services.moleculer.transporter;
 
+import static services.moleculer.ServiceBroker.MOLECULER_VERSION;
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 
@@ -50,6 +51,9 @@ import services.moleculer.service.ServiceRegistry;
 
 /**
  * Base superclass of all Transporter implementations.
+ * 
+ * @see RedisTransporter
+ * @see NatsTransporter
  */
 @Name("Transporter")
 public abstract class Transporter implements MoleculerComponent {
@@ -99,7 +103,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 	protected ExecutorService executor;
 	protected ScheduledExecutorService scheduler;
-	protected ServiceRegistry serviceRegistry;
+	protected ServiceRegistry registry;
 	protected Monitor monitor;
 
 	// --- CONSTUCTORS ---
@@ -131,23 +135,23 @@ public abstract class Transporter implements MoleculerComponent {
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		prefix = config.get("prefix", prefix);
+		prefix = config.get(PREFIX, prefix);
 
 		// Create serializer
-		Tree serializerNode = config.get("serializer");
+		Tree serializerNode = config.get(SERIALIZER);
 		if (serializerNode != null) {
 			String type;
 			if (serializerNode.isPrimitive()) {
 				type = serializerNode.asString();
 			} else {
-				type = serializerNode.get("type", "json");
+				type = serializerNode.get(TYPE, "json");
 			}
 
 			@SuppressWarnings("unchecked")
 			Class<? extends Serializer> c = (Class<? extends Serializer>) Class.forName(serializerTypeToClass(type));
 			serializer = c.newInstance();
 		} else {
-			serializerNode = config.putMap("serializer");
+			serializerNode = config.putMap(SERIALIZER);
 		}
 		if (serializer == null) {
 			serializer = new JsonSerializer();
@@ -160,7 +164,7 @@ public abstract class Transporter implements MoleculerComponent {
 		// Get components
 		executor = broker.components().executor();
 		scheduler = broker.components().scheduler();
-		serviceRegistry = broker.components().registry();
+		registry = broker.components().registry();
 		monitor = broker.components().monitor();
 
 		// Get properties from broker
@@ -313,15 +317,15 @@ public abstract class Transporter implements MoleculerComponent {
 
 				// Messages of ServiceRegistry
 				if (channel.equals(eventChannel) || channel.equals(requestChannel) || channel.equals(responseChannel)) {
-					serviceRegistry.receive(data);
+					registry.receive(data);
 					return;
 				}
 
 				// Info packet
 				if (channel.equals(infoChannel) || channel.equals(infoBroadcastChannel)) {
-					String sender = data.get("sender", "");
+					String sender = data.get(SENDER, "");
 					if (sender == null || sender.isEmpty()) {
-						logger.warn("Missing \"sender\" property:\r\n" + data);
+						logger.warn("Missing \"" + SENDER + "\" property:\r\n" + data);
 						return;
 					}
 					if (sender.equals(nodeID)) {
@@ -329,10 +333,10 @@ public abstract class Transporter implements MoleculerComponent {
 						// It's our INFO block
 						return;
 					}
-					Tree services = data.get("services");
+					Tree services = data.get(SERVICES);
 					if (services != null && services.isEnumeration()) {
 						for (Tree service : services) {
-							serviceRegistry.addService(service);
+							registry.addService(service);
 						}
 					}
 					return;
@@ -340,9 +344,9 @@ public abstract class Transporter implements MoleculerComponent {
 
 				// Discover packet
 				if (channel.equals(discoverChannel) || channel.equals(discoverBroadcastChannel)) {
-					String sender = data.get("sender", "");
+					String sender = data.get(SENDER, "");
 					if (sender == null || sender.isEmpty()) {
-						logger.warn("Missing \"sender\" property:\r\n" + data);
+						logger.warn("Missing \"" + SENDER + "\" property:\r\n" + data);
 						return;
 					}
 					if (sender.equals(nodeID)) {
@@ -365,26 +369,32 @@ public abstract class Transporter implements MoleculerComponent {
 
 	private final void sendDiscoverPacket(String channel) {
 		Tree message = new Tree();
-		message.put("ver", "2");
-		message.put("sender", nodeID);
+		message.put(VER, MOLECULER_VERSION);
+		message.put(SENDER, nodeID);
 		publish(channel, message);
 	}
 
 	private final void sendInfoPacket(String channel) {
-		Tree descriptor = broker.components().registry().generateDescriptor();
-		publish(channel, descriptor);
+		publish(channel, registry.generateDescriptor());
 	}
 
 	private final void sendHeartbeatPacket() {
 		Tree message = new Tree();
-		message.put("ver", "2");
-		message.put("sender", nodeID);
-		message.put("cpu", monitor.getTotalCpuPercent());
+		message.put(VER, MOLECULER_VERSION);
+		message.put(SENDER, nodeID);
+		message.put(CPU, monitor.getTotalCpuPercent());
 		publish(heartbeatChannel, message);
 	}
 
 	// --- OPTIONAL ERROR HANDLER ---
 
+	/**
+	 * Any I/O error occured. Implementation-specific error handling goes here
+	 * (reconnection, etc.).
+	 * 
+	 * @param error
+	 *            I/O error
+	 */
 	protected void error(Throwable error) {
 	}
 

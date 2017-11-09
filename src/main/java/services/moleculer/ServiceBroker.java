@@ -40,44 +40,84 @@ import services.moleculer.config.ServiceBrokerSettings;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
 import services.moleculer.service.ActionContainer;
+import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.transporter.Transporter;
 
 /**
- * 
+ * Service Broker.
  */
+@Name("Service Broker")
 public final class ServiceBroker {
 
-	// --- VERSION ---
+	// --- VERSIONS ---
 
-	public static final String VERSION = "1.2";
+	/**
+	 * Version of ServiceBroker.
+	 */
+	public static final String IMPLEMENTATION_VERSION = "1.2";
+
+	/**
+	 * Version of the implemented Moleculer API.
+	 */
+	public static final String MOLECULER_VERSION = "2";
 
 	// --- LOGGER ---
 
+	/**
+	 * SLF4J logger of this class.
+	 */
 	protected final static Logger logger = LoggerFactory.getLogger(ServiceBroker.class);
 
 	// --- UNIQUE NODE IDENTIFIER ---
 
+	/**
+	 * Unique server ID (eg. "node1", "server-2", etc.)
+	 */
 	private final String nodeID;
 
 	// --- CONFIGURATIONS ---
 
+	/**
+	 * Configuration (created by the {@link ServiceBrokerBuilder}).
+	 */
 	private final ServiceBrokerSettings settings;
+
+	/**
+	 * Optional configuration (loaded from JSON/YAML/TOML/XML file).
+	 */
 	private final Tree config;
 
 	// --- INERNAL AND USER-DEFINED COMPONENTS ---
 
+	/**
+	 * Component registry of the Service Broker instance. ComponentRegistry has
+	 * similar functionality to Spring's ApplicationContext; stores "beans"
+	 * (MoleculerComponents), and by using the method "get(id)" you can retrieve
+	 * instances of your component.
+	 */
 	private final ComponentRegistry components;
 
+	/**
+	 * Registry of local and remote Moleculer Services.
+	 */
 	private ServiceRegistry registry;
 
 	// --- SERVICES AND CONFIGURATIONS ---
 
+	/**
+	 * Services which defined and added to the Broker before the boot process.
+	 */
 	private final LinkedHashMap<Service, Tree> services = new LinkedHashMap<>();
 
 	// --- STATIC SERVICE BROKER BUILDER ---
 
+	/**
+	 * Creates a new {@link ServiceBrokerBuilder} instance.
+	 * 
+	 * @return builder instance
+	 */
 	public static final ServiceBrokerBuilder builder() {
 		return new ServiceBrokerBuilder(new ServiceBrokerSettings());
 	}
@@ -107,7 +147,7 @@ public final class ServiceBroker {
 		// Set nodeID
 		nodeID = settings.getNodeID();
 
-		// Create component registry
+		// Set the component registry
 		components = settings.getComponents();
 	}
 
@@ -117,7 +157,7 @@ public final class ServiceBroker {
 		return nodeID;
 	}
 
-	// --- GET COMPONENTS ---
+	// --- GET COMPONENT REGISTRY ---
 
 	public final ComponentRegistry components() {
 		return components;
@@ -137,7 +177,7 @@ public final class ServiceBroker {
 		try {
 
 			// Start internal and custom components
-			logger.info("Starting Moleculer Service Broker (version " + VERSION + ")...");
+			logger.info("Starting Moleculer Service Broker (version " + IMPLEMENTATION_VERSION + ")...");
 			String name = nameOf(components, true);
 			logger.info("Using " + name + " to load service classes.");
 			components.start(this, settings, config);
@@ -146,7 +186,7 @@ public final class ServiceBroker {
 			// Set the pointers of frequently used components
 			registry = components.registry();
 
-			// Start pending services
+			// Register and start pending services
 			for (Map.Entry<Service, Tree> entry : services.entrySet()) {
 				Service service = entry.getKey();
 				Tree cfg = entry.getValue();
@@ -158,7 +198,7 @@ public final class ServiceBroker {
 
 			// All components and services started successfully
 			services.clear();
-			
+
 		} catch (Throwable cause) {
 			logger.error("Moleculer Service Broker could not be started!", cause);
 			stop();
@@ -168,7 +208,8 @@ public final class ServiceBroker {
 	// --- STOP BROKER INSTANCE ---
 
 	/**
-	 * Stop broker. If has transporter, transporter.disconnect will be called.
+	 * Stop broker. If the Broker has a Transporter, transporter.disconnect will
+	 * be called.
 	 */
 	public final void stop() {
 		if (registry != null) {

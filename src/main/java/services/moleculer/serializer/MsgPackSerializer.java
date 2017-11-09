@@ -27,7 +27,7 @@ package services.moleculer.serializer;
 import services.moleculer.service.Name;
 
 /**
- * <b>BINARY MESSAGEPACK SERIALIZER</b><br>
+ * <b>MessagePack serializer</b><br>
  * <br>
  * MessagePack is an efficient binary serialization format. It lets you exchange
  * data among multiple languages like JSON. But it's faster and smaller. Small

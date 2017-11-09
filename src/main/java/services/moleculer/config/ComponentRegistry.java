@@ -44,13 +44,16 @@ import services.moleculer.uid.UIDGenerator;
 /**
  * ComponentRegistry is a registry for loaded Moleculer Components. A Moleculer
  * Component can be a required internal component (eg. Cacher), or a custom
- * user-defined object (eg. DAO object to access a database).
+ * user-defined object (eg. DAO object to access a database). ComponentRegistry
+ * has similar functionality to Spring's ApplicationContext; stores "beans"
+ * (MoleculerComponents), and by using the method "get(id)" you can retrieve
+ * instances of your component.
  *
  * @see StandaloneComponentRegistry
  * @see SpringComponentRegistry
  * @see GuiceComponentRegistry
  */
-public abstract class ComponentRegistry {
+public abstract class ComponentRegistry implements CommonNames {
 
 	// --- PROTECTED / INTERNAL COMPONENT IDS ---
 
@@ -190,6 +193,16 @@ public abstract class ComponentRegistry {
 	 */
 	public static final String MONITOR_ID = "monitor";
 
+	/**
+	 * ID of ExecutorService definition in the configuration file.
+	 */
+	public static final String EXECUTOR_ID = "executor";
+
+	/**
+	 * ID of SchedulerService definition in the configuration file.
+	 */
+	public static final String SCHEDULER_ID = "scheduler";
+	
 	// --- LOGGER ---
 
 	/**
@@ -302,7 +315,7 @@ public abstract class ComponentRegistry {
 	 * @return ServiceBroker's System Monitor
 	 */
 	public abstract Monitor monitor();
-	
+
 	// --- GET IDS OF ALL COMPONENTS ---
 
 	/**

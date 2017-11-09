@@ -70,7 +70,8 @@ import services.moleculer.uid.UIDGenerator;
  * "nodeID": "node-1",<br>
  * "componentRegistry": {<br>
  * "class": "services.moleculer.config.GuiceComponentRegistry",<br>
- * "packagesToScan": "your.service.package"<br>
+ * "packagesToScan": "your.service.package",<br>
+ * "stage": "production"<br>
  * }<br>
  * }<br>
  * <br>
@@ -97,7 +98,7 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 	// --- DEVELOPMENT / PRODUCTION / TOOL STAGE ---
 
 	/**
-	 * The stage we're running in (TOOL, DEVELOPMENT or PRODUCTION)
+	 * The stage we're running in ("tool", "development" or "production")
 	 */
 	private Stage stage = Stage.PRODUCTION;
 
@@ -151,7 +152,7 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 	protected final void findServices(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		Tree packagesNode = config.get("packagesToScan");
+		Tree packagesNode = config.get(PACKAGES_TO_SCAN);
 		if (packagesNode != null) {
 			if (packagesNode.isPrimitive()) {
 
@@ -168,18 +169,18 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 				}
 			}
 		}
-		String s = config.get("stage", "").toUpperCase();
+		String s = config.get(STAGE, "").toUpperCase();
 		if (!s.isEmpty()) {
 			stage = Stage.valueOf(s);
 		}
-		String m = config.get("module", "");
+		String m = config.get(MODULE, "");
 		if (!m.isEmpty()) {
 			module = (Module) Class.forName(m).newInstance();
 		}
 
 		// Check required "packagesToScan" parameter
 		if (packagesToScan == null || packagesToScan.length == 0) {
-			logger.warn("The \"packagesToScan\" parameter is required for the Dependency Injector!");
+			logger.warn("The \"" + PACKAGES_TO_SCAN + "\" parameter is required for the Dependency Injector!");
 			logger.warn("Please specify the proper Java package(s) where your Services are located.");
 			return;
 		}
@@ -308,7 +309,7 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 			Monitor monitor = monitor();
 			if (monitor != null) {
 				bind(Monitor.class).toInstance(monitor);
-			}			
+			}
 		}
 
 	}

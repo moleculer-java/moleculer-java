@@ -27,7 +27,7 @@ package services.moleculer.eventbus;
 import io.datatree.Tree;
 
 /**
- * 
+ * Interface of all event listeners.
  */
 @FunctionalInterface
 public interface Listener {

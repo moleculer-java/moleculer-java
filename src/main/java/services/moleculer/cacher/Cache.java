@@ -30,7 +30,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 
+ * Cache annotation to set the caching policy of Actions.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.FIELD, ElementType.TYPE })
@@ -46,7 +46,7 @@ public @interface Cache {
 	/**
 	 * Time To Live (TTL) of entry, in seconds.
 	 * 
-	 * @return ttl in seconds (0 = never expires)
+	 * @return ttl in seconds (0 = never expires / use cache's default TTL)
 	 */
 	int ttl() default 0;
 

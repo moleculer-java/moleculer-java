@@ -26,6 +26,7 @@ package services.moleculer.config;
 
 import static services.moleculer.util.CommonUtils.getFormat;
 import static services.moleculer.util.CommonUtils.readTree;
+import static services.moleculer.config.ComponentRegistry.*;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -67,17 +68,17 @@ import services.moleculer.uid.UIDGenerator;
  * settings.setCacher(cacher);<br>
  * ServiceBroker settings = new ServiceBroker(settings);
  */
-public final class ServiceBrokerSettings {
+public final class ServiceBrokerSettings implements CommonNames {
 
 	// --- LOGGER ---
 
 	private static final Logger logger = LoggerFactory.getLogger(ServiceBrokerSettings.class);
 
 	// --- THREAD POOLS ---
-		
+
 	private ExecutorService executor;
 	private ScheduledExecutorService scheduler;
-	
+
 	private boolean shutDownThreadPools = true;
 
 	// --- PROPERTIES AND COMPONENTS ---
@@ -98,11 +99,11 @@ public final class ServiceBrokerSettings {
 	private Monitor monitor;
 
 	// --- CUSTOM COMPONENTS ---
-	
+
 	private final LinkedHashMap<String, MoleculerComponentContainer> componentMap = new LinkedHashMap<>();
 
 	// --- INSTALL JS PARSER ---
-	
+
 	static {
 		try {
 			TreeReaderRegistry.getReader("js");
@@ -110,11 +111,11 @@ public final class ServiceBrokerSettings {
 			TreeReaderRegistry.setReader("js", new JSReader());
 		}
 	}
-	
+
 	// --- CONSTRUCTORS ---
 
 	public ServiceBrokerSettings() {
-		
+
 		// Set the default NodeID
 		try {
 			nodeID = InetAddress.getLocalHost().getHostName();
@@ -123,33 +124,34 @@ public final class ServiceBrokerSettings {
 		if (nodeID == null || nodeID.isEmpty()) {
 			nodeID = "node" + System.currentTimeMillis();
 		}
-		
+
 		// Create thread pools
 		executor = Executors.newWorkStealingPool();
 		scheduler = Executors.newSingleThreadScheduledExecutor();
-		
+
 		// Set the default System Monitor
-		try {
-			Class<?> c = getClass().getClassLoader().loadClass("services.moleculer.monitor.SigarMonitor");
-			Monitor m = (Monitor) c.newInstance();
-			m.start(null, null);
-			monitor = m;
-		} catch (Throwable ignored) {
+		monitor = tryToLoadMonitor("Sigar");
+		if (monitor == null) {
 			logger.info("Sigar System Monitoring API not available.");
-		}	
-		if (monitor == null) {
-			try {
-				Class<?> c = getClass().getClassLoader().loadClass("services.moleculer.monitor.JMXMonitor");
-				Monitor m = (Monitor) c.newInstance();
-				m.start(null, null);
-				monitor = m;
-			} catch (Throwable ignored) {
-				logger.info("JMX System Monitoring API not available.");
-			}			
 		}
+		monitor = tryToLoadMonitor("JMX");
 		if (monitor == null) {
+			logger.info("JMX Monitoring API not available.");
 			monitor = new ConstantMonitor();
 		}
+	}
+
+	private static final Monitor tryToLoadMonitor(String type) {
+		try {
+			Class<?> c = ServiceBrokerSettings.class.getClassLoader()
+					.loadClass("services.moleculer.monitor." + type + "Monitor");
+			Monitor m = (Monitor) c.newInstance();
+			m.start(null, new Tree());
+			m.getTotalCpuPercent();
+			return m;
+		} catch (Throwable ignored) {
+		}
+		return null;
 	}
 
 	public ServiceBrokerSettings(String nodeID, Transporter transporter, Cacher cacher) {
@@ -197,31 +199,31 @@ public final class ServiceBrokerSettings {
 		if (logger.isDebugEnabled()) {
 			logger.debug("Apply configuration:\r\n" + config);
 		}
-		
+
 		// Set base proeprties
-		setNamespace(config.get("namespace", namespace));
-		setNodeID(config.get("nodeID", nodeID));
+		setNamespace(config.get(NAMESPACE, namespace));
+		setNodeID(config.get(NODE_ID, nodeID));
 
 		// Create executor
-		String value = config.get("executor.type", "");
+		String value = config.get(EXECUTOR_ID + '.' + TYPE, "");
 		if (!value.isEmpty()) {
 			setExecutor((ExecutorService) Class.forName(value).newInstance());
 		}
 
 		// Create scheduler
-		value = config.get("scheduler.type", "");
+		value = config.get(SCHEDULER_ID + '.' + TYPE, "");
 		if (!value.isEmpty()) {
 			setScheduler((ScheduledExecutorService) Class.forName(value).newInstance());
 		}
-		
+
 		// Should terminate thread pools on stop()?
-		value = config.get("shutDownThreadPools", "");
+		value = config.get(SHUT_DOWN_THREAD_POOLS, "");
 		if (!value.isEmpty()) {
 			shutDownThreadPools = "true".equals(value);
 		}
-		
-		// Create component componentMap
-		value = config.get("componentMap.type", "");
+
+		// Create Component Registry
+		value = config.get(COMPONENTS_ID + '.' + TYPE, "");
 		if (!value.isEmpty()) {
 			String test = value.toLowerCase();
 			if (test.equals("standalone")) {
@@ -259,7 +261,7 @@ public final class ServiceBrokerSettings {
 			this.nodeID = nodeID;
 		}
 	}
-	
+
 	public final Map<String, MoleculerComponentContainer> getComponentMap() {
 		return componentMap;
 	}
@@ -378,5 +380,5 @@ public final class ServiceBrokerSettings {
 	public final void setMonitor(Monitor monitor) {
 		this.monitor = monitor;
 	}
-	
+
 }
