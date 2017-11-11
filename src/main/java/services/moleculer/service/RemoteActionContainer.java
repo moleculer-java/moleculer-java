@@ -106,7 +106,7 @@ public final class RemoteActionContainer  extends AbstractContainer {
 		registry.register(ctx.id(), promise, timeoutAt);
 		
 		// Send request via transporter
-		Tree message = transporter.createRequestPacket(params, opts, ctx);
+		Tree message = transporter.createRequestPacket(ctx);
 		transporter.publish(Transporter.PACKET_REQUEST, nodeID, message);
 		
 		// Return promise

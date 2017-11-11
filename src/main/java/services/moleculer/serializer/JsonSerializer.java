@@ -24,12 +24,7 @@
  */
 package services.moleculer.serializer;
 
-import java.nio.charset.StandardCharsets;
-
-import io.datatree.Tree;
-import io.datatree.dom.builtin.JsonBuiltin;
 import services.moleculer.service.Name;
-import services.moleculer.util.CheckedTree;
 
 /**
  * <b>Generic JSON serializer</b><br>
@@ -41,59 +36,15 @@ import services.moleculer.util.CheckedTree;
  * <b>Required dependency:</b> none / optional (eg. if you add Jackson API to
  * the classpath, JsonSerializer will user Jackson parser)
  * 
- * @see MsgPackSerializer
+ * @see MessagePackSerializer
  */
 @Name("JSON Serializer")
 public final class JsonSerializer extends Serializer {
-
-	// --- NULL VALUE ---
-
-	private static final byte[] NULL = { 'n', 'u', 'l', 'l' };
 
 	// --- CONSTRUCTOR ---
 
 	public JsonSerializer() {
 		super("json");
-	}
-
-	// --- SERIALIZE TREE TO BYTE ARRAY ---
-
-	@Override
-	public final byte[] write(Tree value) throws Exception {
-
-		// Null value
-		if (value == null || value.isNull()) {
-			return NULL;
-		}
-
-		// Hierarchial JSON structure
-		if (value.isStructure()) {
-			return ((Tree) value).toBinary(null, true);
-		}
-
-		// Scalar value (String, Boolean, etc.)
-		return JsonBuiltin.serialize(value.asObject(), null).getBytes(StandardCharsets.UTF_8);
-	}
-
-	@Override
-	public final Tree read(byte[] source) throws Exception {
-
-		// Null values
-		if (source == null) {
-			return new CheckedTree(null);
-		}
-		if (source.length > 3 && source[0] == 'n' && source[1] == 'u' && source[2] == 'l' && source[3] == 'l') {
-			return new CheckedTree(null);
-		}
-
-		// Hierarchial JSON structure
-		final byte b = source[0];
-		if (b == '{' || b == '[') {
-			return new Tree(source);
-		}
-
-		// Scalar value (String, Boolean, etc.)
-		return new Tree(source, "JsonBuiltin");
 	}
 
 }

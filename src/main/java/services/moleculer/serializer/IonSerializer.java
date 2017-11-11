@@ -27,28 +27,30 @@ package services.moleculer.serializer;
 import services.moleculer.service.Name;
 
 /**
- * <b>MessagePack serializer</b><br>
+ * <b>Amazon ION Serializer</b><br>
  * <br>
- * MessagePack is an efficient binary serialization format. It lets you exchange
- * data among multiple languages like JSON. But it's faster and smaller. Small
- * integers are encoded into a single byte, and typical short strings require
- * only one extra byte in addition to the strings themselves. This serializer is
- * COMPATIBLE with the JavaScript/Node version of Moleculer.<br>
+ * Description: Amazon Ion is a richly-typed, self-describing, hierarchical data
+ * serialization format offering interchangeable binary and text
+ * representations. The binary representation is efficient to store, transmit,
+ * and skip-scan parse. The rich type system provides unambiguous semantics for
+ * long-term preservation of business data which can survive multiple
+ * generations of software evolution. Ion was built to solve the rapid
+ * development, decoupling, and efficiency challenges faced every day while
+ * engineering large-scale, service-oriented architectures. This serializer is
+ * NOT compatible with the JavaScript/Node version of Moleculer.<br>
  * <br>
  * <b>Required dependency:</b><br>
  * <br>
- * https://mvnrepository.com/artifact/org.msgpack/msgpack<br>
- * compile group: 'org.msgpack', name: 'msgpack', version: '0.6.12'
- * 
- * @see JsonSerializer
+ * https://mvnrepository.com/artifact/software.amazon.ion/ion-java<br>
+ * compile group: 'software.amazon.ion', name: 'ion-java', version: '1.0.2'
  */
-@Name("MessagePack Serializer")
-public final class MsgPackSerializer extends Serializer {
+@Name("Amazon ION Serializer")
+public final class IonSerializer extends Serializer {
 
 	// --- CONSTRUCTOR ---
 
-	public MsgPackSerializer() {
-		super("msgpack");
+	public IonSerializer() {
+		super("ion");
 	}
 
 }

@@ -322,8 +322,26 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- REQUEST PACKET ---
 
-	public Tree createRequestPacket(Tree params, CallingOptions opts, Context ctx) {
-		return null;
+	public Tree createRequestPacket(Context ctx) {
+		Tree message = new Tree();
+		message.put(VER, ServiceBroker.MOLECULER_VERSION);
+		message.put(SENDER, nodeID);
+		message.put("id", ctx.id());
+		message.put("action", ctx.name());
+
+		message.putObject(PARAMS, ctx.params());
+		message.put("meta", (String) null);
+		
+		CallingOptions opts = ctx.opts();
+		if (opts != null) {
+			message.put("timeout", ctx.opts().timeout());
+		}
+		
+		message.put("level", 1);
+		message.put("metrics", false);
+		message.put("parentID", (String) null);
+		message.put("requestID", (String) null);		
+		return message;
 	}
 
 	// --- PUBLISH ---

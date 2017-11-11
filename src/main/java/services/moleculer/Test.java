@@ -24,7 +24,9 @@
  */
 package services.moleculer;
 
+import io.datatree.Tree;
 import services.moleculer.service.Action;
+import services.moleculer.service.ActionContainer;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Service;
 import services.moleculer.transporter.RedisTransporter;
@@ -51,7 +53,19 @@ public class Test {
 
 		});
 		broker.start();
+
+		Thread.sleep(2000);
 		
+		ActionContainer sub = broker.getAction("math.sub");
+		Tree params = new Tree();
+		params.put("a", 50);
+		params.put("b", 2);
+		Promise p = sub.call(params, null, null);
+		p.then(rsp -> {
+			System.out.println(rsp.asInteger());
+		}).Catch(err -> {
+			System.out.println(err);
+		});
 	}
 
 }

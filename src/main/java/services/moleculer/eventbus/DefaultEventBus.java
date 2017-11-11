@@ -36,12 +36,12 @@ import io.datatree.dom.Cache;
 import services.moleculer.service.Name;
 
 /**
- * 
+ * Default EventBus implementation.
  */
 @Name("Default Event Bus")
 public final class DefaultEventBus extends EventBus {
 
-	// --- EVENT BUS VARIABLES ---
+	// --- PROPERTIES ---
 
 	/**
 	 * Main listener registry of the Event Bus

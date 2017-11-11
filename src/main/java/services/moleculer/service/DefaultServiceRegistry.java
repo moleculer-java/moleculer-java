@@ -48,8 +48,10 @@ import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.cacher.Cache;
+import services.moleculer.context.CallingOptions;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
+import services.moleculer.transporter.Transporter;
 
 /**
  * Default implementation of the Service Registry.
@@ -97,14 +99,15 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	private final Lock writeLock;
 
 	// --- LOCAL NODE ID ---
-	
+
 	private String nodeID;
-	
+
 	// --- COMPONENTS ---
 
 	private ServiceBroker broker;
 	private StrategyFactory strategy;
 	private ScheduledExecutorService scheduler;
+	private Transporter transporter;
 
 	// --- CONSTRUCTORS ---
 
@@ -150,11 +153,12 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 		// Local nodeID
 		this.nodeID = broker.nodeID();
-		
+
 		// Set components
 		this.broker = broker;
 		this.strategy = broker.components().strategy();
 		this.scheduler = broker.components().scheduler();
+		this.transporter = broker.components().transporter();
 	}
 
 	// --- STOP SERVICE REGISTRY ---
@@ -299,7 +303,8 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	// --- RECEIVE REQUEST FROM REMOTE SERVICE ---
 
 	public final void receiveRequest(Tree message) {
-		String ver = message.get(VER, "2");
+
+		int ver = message.get(VER, -1);
 		String sender = message.get(SENDER, (String) null);
 		String id = message.get("id", (String) null);
 		String action = message.get("action", (String) null);
@@ -310,36 +315,91 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		boolean metrics = message.get("metrics", false);
 		String parentID = message.get("parentID", (String) null);
 		String requestID = message.get("requestID", (String) null);
-		
+
+		// TODO
 		ActionContainer container = getAction(action, nodeID);
-		
-		// TODO container.call(params, opts, parent)
+		CallingOptions opts = new CallingOptions(nodeID, timeout, 0);
+		try {
+			container.call(params, opts, null).then(data -> {
+
+				Tree response = new Tree();
+				response.put("id", id);
+				response.put(VER, ServiceBroker.MOLECULER_VERSION);
+				response.put("success", true);
+
+				response.putObject("data", data);
+
+				transporter.publish(Transporter.PACKET_RESPONSE, sender, response);
+
+			}).Catch(error -> {
+
+				Tree response = new Tree();
+				response.put("id", id);
+				response.put(VER, ServiceBroker.MOLECULER_VERSION);
+				response.put("success", false);
+				response.put("data", (String) null);
+
+				Tree errorMap = response.putMap("error");
+				errorMap.put("message", error.getMessage());
+
+				transporter.publish(Transporter.PACKET_RESPONSE, sender, response);
+
+			});
+		} catch (Throwable error) {
+
+			Tree response = new Tree();
+			response.put("id", id);
+			response.put(VER, ServiceBroker.MOLECULER_VERSION);
+			response.put("success", false);
+			response.put("data", (String) null);
+
+			Tree errorMap = response.putMap("error");
+			errorMap.put("message", error.getMessage());
+
+			transporter.publish(Transporter.PACKET_RESPONSE, sender, response);
+
+		}
 	}
-	
+
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
 
 	@Override
 	public final void receiveResponse(Tree message) {
+
+		// Get ID
 		String id = message.get("id", "");
 		if (id.isEmpty()) {
 			logger.warn("Missing \"id\" property!", message);
 			return;
 		}
+
+		// Get version
+		int ver = message.get(VER, -1);
+		if (ver != ServiceBroker.MOLECULER_VERSION) {
+			logger.warn("Invalid version:\r\n" + message);
+		}
+
+		// Get stored promise
 		PromiseContainer container = promises.remove(id);
 		if (container == null) {
 			logger.warn("Unknown (maybe timeouted) response received!", message);
 			return;
 		}
 		try {
-			String error = message.get("error", "");
-			if (!error.isEmpty()) {
+			boolean success = message.get("success", true);
+			if (success) {
 
-				// Error response
-				container.promise.complete(new RemoteException(error));
+				// Resolve
+				Tree response = message.get("data");
+				container.promise.complete(response);
+
+			} else {
+
+				// Reject
+				String msg = message.get("error.message", "Unknown");
+				container.promise.complete(new RemoteException(msg));
 				return;
 			}
-			Tree response = message.get("response");
-			container.promise.complete(response);
 		} catch (Throwable error) {
 			container.promise.complete(error);
 		}

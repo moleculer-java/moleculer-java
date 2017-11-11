@@ -27,33 +27,23 @@ package services.moleculer.serializer;
 import services.moleculer.service.Name;
 
 /**
- * <b>Smile Serializer</b><br>
+ * <b>BSON Serializer</b><br>
  * <br>
- * Smile is a computer data interchange format based on JSON. It can also be
- * considered as a binary serialization of generic JSON data model, which means
- * that tools that operate on JSON may be used with Smile as well, as long as
- * proper encoder/decoder exists for tool to use. Compared to JSON, Smile is
- * both more compact and more efficient to process (both to read and write). It
- * is the FASTEST serializer, but it is NOT compatible with the JavaScript/Node
- * version of Moleculer.<br>
+ * Binary BSON reader and writer. This serializer is NOT compatible with the
+ * JavaScript/Node version of Moleculer.<br>
  * <br>
  * <b>Required dependency:</b><br>
  * <br>
- * https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/
- * jackson-dataformat-smile<br>
- * compile group: 'com.fasterxml.jackson.dataformat', name:
- * 'jackson-dataformat-smile', version: '2.9.0.pr3'
- * 
- * @see JsonSerializer
- * @see MessagePackSerializer
+ * https://mvnrepository.com/artifact/de.undercouch/bson4jackson<br>
+ * compile group: 'de.undercouch', name: 'bson4jackson', version: '2.7.0'
  */
-@Name("SMILE Serializer")
-public final class SmileSerializer extends Serializer {
+@Name("BSON Serializer")
+public final class BsonSerializer extends Serializer {
 
 	// --- CONSTRUCTOR ---
 
-	public SmileSerializer() {
-		super("smile");
+	public BsonSerializer() {
+		super("bson");
 	}
 
 }

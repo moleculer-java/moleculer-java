@@ -48,10 +48,22 @@ public final class CommonUtils implements CommonNames {
 			return "services.moleculer.serializer.JsonSerializer";
 		}
 		if ("msgpack".equals(test) || "messagepack".equals(test)) {
-			return "services.moleculer.serializer.MsgPackSerializer";
+			return "services.moleculer.serializer.MessagePackSerializer";
 		}
 		if ("smile".equals(test)) {
 			return "services.moleculer.serializer.SmileSerializer";
+		}
+		if ("bson".equals(test)) {
+			return "services.moleculer.serializer.BsonSerializer";
+		}
+		if ("ion".equals(test)) {
+			return "services.moleculer.serializer.IonSerializer";
+		}
+		if ("cbor".equals(test)) {
+			return "services.moleculer.serializer.CborSerializer";
+		}
+		if ("xml".equals(test)) {
+			return "services.moleculer.serializer.XmlSerializer";
 		}
 		if (test.indexOf('.') > -1) {
 			return type;

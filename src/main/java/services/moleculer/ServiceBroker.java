@@ -56,12 +56,12 @@ public final class ServiceBroker {
 	/**
 	 * Version of ServiceBroker.
 	 */
-	public static final String IMPLEMENTATION_VERSION = "1.2";
+	public static final double IMPLEMENTATION_VERSION = 1.2;
 
 	/**
 	 * Version of the implemented Moleculer API.
 	 */
-	public static final String MOLECULER_VERSION = "2";
+	public static final int MOLECULER_VERSION = 2;
 
 	// --- LOGGER ---
 
@@ -295,7 +295,7 @@ public final class ServiceBroker {
 	 * @return
 	 */
 	public ActionContainer getAction(String actionName) {
-		return null;
+		return registry.getAction(actionName, null);
 	}
 
 	/**

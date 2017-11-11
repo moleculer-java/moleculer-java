@@ -25,6 +25,10 @@
 package services.moleculer.serializer;
 
 import io.datatree.Tree;
+import io.datatree.dom.TreeReader;
+import io.datatree.dom.TreeReaderRegistry;
+import io.datatree.dom.TreeWriter;
+import io.datatree.dom.TreeWriterRegistry;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.MoleculerComponent;
 import services.moleculer.util.CheckedTree;
@@ -33,13 +37,16 @@ import services.moleculer.util.CheckedTree;
  * Base superclass of all data serializer implementations.
  *
  * @see JsonSerializer
- * @see MsgPackSerializer
+ * @see MessagePackSerializer
  */
 public abstract class Serializer implements MoleculerComponent {
 
-	// --- FORMAT NAME (MSGPACK, BSON, ETC) ---
+	// --- PROPERTIES ---
 
-	private final String format;
+	protected final String format;
+
+	protected TreeWriter writer;
+	protected TreeReader reader;
 
 	// --- CONSTRUCTOR ---
 
@@ -59,6 +66,8 @@ public abstract class Serializer implements MoleculerComponent {
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
+		writer = TreeWriterRegistry.getWriter(format);
+		reader = TreeReaderRegistry.getReader(format);
 	}
 
 	// --- STOP SERIALIZER INSTANCE ---
@@ -72,19 +81,14 @@ public abstract class Serializer implements MoleculerComponent {
 
 	// --- SERIALIZE TREE TO BYTE ARRAY ---
 
-	protected static final Tree NULL_TREE = new CheckedTree(null);
-
 	public byte[] write(Tree value) throws Exception {
-		if (value == null) {
-			value = NULL_TREE;
-		}
-		return value.toBinary(format, true);
+		return writer.toBinary(value.asObject(), null, true);
 	}
 
 	// --- DESERIALIZE BYTE ARRAY TO TREE ---
 
 	public Tree read(byte[] source) throws Exception {
-		return new Tree(source, format);
+		return new CheckedTree(reader.parse(source));
 	}
 
 	// --- GET FORMAT NAME ---
