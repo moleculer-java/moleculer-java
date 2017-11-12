@@ -24,6 +24,8 @@
  */
 package services.moleculer;
 
+import services.moleculer.eventbus.Listener;
+import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Service;
@@ -49,6 +51,11 @@ public class Test {
 				return a + b;
 			};
 
+			@Subscribe("math.*")
+			public Listener evt = payload -> {
+				System.out.println(payload);
+			};
+			
 		});
 		broker.start();
 	}

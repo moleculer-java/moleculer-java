@@ -24,62 +24,18 @@
  */
 package services.moleculer.eventbus;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
-import services.moleculer.service.Name;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Base superclass of all Event Bus implementations.
- * 
- * @see DefaultEventBus
+ * Event mask.
  */
-@Name("Event Bus")
-public abstract class EventBus implements MoleculerComponent {
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ ElementType.FIELD, ElementType.TYPE })
+public @interface Subscribe {
 
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
-
-	// --- START EVENT BUS ---
-
-	/**
-	 * Initializes internal EventBus instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-	}
-
-	// --- STOP EVENT BUS ---
-
-	@Override
-	public void stop() {
-	}
-
-	// --- REGISTER LISTENER ----
-
-	public abstract void on(String name, Listener listener);
-
-	// --- UNREGISTER LISTENER ---
-
-	/**
-	 * Unsubscribe from an event
-	 * 
-	 * @param name
-	 * @param listener
-	 */
-	public abstract void off(String name, Listener listener);
-
-	// --- EMIT EVENT TO LISTENERS ---
-
-	public abstract void emit(String name, Tree payload);
+	String value();
 
 }

@@ -24,8 +24,6 @@
  */
 package services.moleculer.strategy;
 
-import java.util.Arrays;
-
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.ActionContainer;
@@ -89,8 +87,10 @@ public abstract class ArrayBasedStrategy extends Strategy {
 			}
 
 			// Add to array
-			actions = Arrays.copyOf(actions, actions.length + 1);
-			actions[actions.length - 1] = action;
+			ActionContainer[] copy = new ActionContainer[actions.length + 1];
+			System.arraycopy(actions, 0, copy, 0, actions.length);
+			copy[actions.length] = action;
+			actions = copy;
 		}
 
 		// Store local action

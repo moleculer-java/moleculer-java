@@ -25,6 +25,8 @@
 package services.moleculer;
 
 import services.moleculer.cacher.Cache;
+import services.moleculer.eventbus.Listener;
+import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
@@ -37,4 +39,9 @@ public class TestService extends Service {
 		return ctx.params().get("a", 0) + ctx.params().get("b", 0);
 	};
 
+	@Subscribe("math.*")
+	public Listener evt = payload -> {
+		System.out.println(payload);
+	};
+	
 }

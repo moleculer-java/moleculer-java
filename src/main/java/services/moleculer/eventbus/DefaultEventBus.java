@@ -26,7 +26,6 @@ package services.moleculer.eventbus;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -44,9 +43,9 @@ public final class DefaultEventBus extends EventBus {
 	// --- PROPERTIES ---
 
 	/**
-	 * Main listener registry of the Event Bus
+	 * Listener registry of the Event Bus
 	 */
-	private final HashMap<String, HashMap<Listener, Boolean>> listeners;
+	private final HashMap<String, Listener[]> listeners;
 
 	/**
 	 * Cache of the Event Bus
@@ -76,17 +75,31 @@ public final class DefaultEventBus extends EventBus {
 	// --- REGISTER LISTENER ----
 
 	@Override
-	public final void on(String name, Listener listener, boolean once) {
+	public final void on(String name, Listener listener) {
 
 		// Lock getter and setter threads
 		writeLock.lock();
 		try {
-			HashMap<Listener, Boolean> handlers = listeners.get(name);
-			if (handlers == null) {
-				handlers = new HashMap<>();
-				listeners.put(name, handlers);
+			Listener[] array = listeners.get(name);
+			if (array == null) {
+				array = new Listener[1];
+				array[0] = listener;
+				listeners.put(name, array);
+			} else {
+				for (int i = 0; i < array.length; i++) {
+					if (array[i] == listener) {
+
+						// Already registered
+						return;
+					}
+				}
+
+				// Add to array
+				Listener[] copy = new Listener[array.length + 1];
+				System.arraycopy(array, 0, copy, 0, array.length);
+				copy[array.length] = listener;
+				listeners.put(name, copy);
 			}
-			handlers.put(listener, once);
 		} finally {
 			writeLock.unlock();
 		}
@@ -106,43 +119,30 @@ public final class DefaultEventBus extends EventBus {
 	@Override
 	public final void off(String name, Listener listener) {
 
-		// Check listener
-		boolean found = false;
-
-		// Lock setter threads
-		readLock.lock();
+		// Lock getter and setter threads
+		writeLock.lock();
 		try {
-			HashMap<Listener, Boolean> handlers = listeners.get(name);
-			if (handlers != null) {
-				found = handlers.containsKey(listener);
+			Listener[] array = listeners.get(name);
+			if (array != null) {
+				for (int i = 0; i < array.length; i++) {
+					if (array[i] == listener) {
+						if (array.length == 1) {
+							listeners.remove(name);
+						} else {
+							Listener[] copy = new Listener[array.length - 1];
+							System.arraycopy(array, 0, copy, 0, i);
+							System.arraycopy(array, i + 1, copy, i, array.length - i - 1);
+							listeners.put(name, copy);
+						}
+					}
+				}
 			}
 		} finally {
-			readLock.unlock();
+			writeLock.unlock();
 		}
 
-		// Remove listener
-		if (found) {
-
-			// Lock getter and setter threads
-			writeLock.lock();
-			try {
-				HashMap<Listener, Boolean> handlers = listeners.get(name);
-				if (handlers != null) {
-
-					// Remove listener
-					handlers.remove(listener);
-					if (handlers.isEmpty()) {
-						listeners.remove(name);
-					}
-
-				}
-			} finally {
-				writeLock.unlock();
-			}
-
-			// Clear cache
-			cache.clear();
-		}
+		// Clear cache
+		cache.clear();
 	}
 
 	// --- EMIT EVENT TO LISTENERS ---
@@ -153,58 +153,26 @@ public final class DefaultEventBus extends EventBus {
 		// Get from cache
 		Listener[] cachedListeners = cache.get(name);
 
-		// If not found...
+		// If not found in cache...
 		if (cachedListeners == null) {
 
-			// Collected handlers
+			// Collected listeners
 			final HashSet<Listener> collected = new HashSet<Listener>();
 
-			// Processing variables
-			Entry<String, HashMap<Listener, Boolean>> mappedEntry;
-			HashMap<Listener, Boolean> listenersAndOnce;
-			Iterator<Entry<Listener, Boolean>> listenersAndOnceIterator;
-			Entry<Listener, Boolean> listenerAndOnce;
-			boolean foundOnce = false;
-
 			// Lock getter and setter threads
-			writeLock.lock();
+			readLock.lock();
 			try {
-
-				// Iterator of all listener mappings
-				final Iterator<Entry<String, HashMap<Listener, Boolean>>> mappingIterator = listeners.entrySet()
-						.iterator();
-
-				// Collect listeners
-				while (mappingIterator.hasNext()) {
-					mappedEntry = mappingIterator.next();
-					listenersAndOnce = mappedEntry.getValue();
+				for (Entry<String, Listener[]> entry : listeners.entrySet()) {
 
 					// Matches?
-					if (GlobMatcher.matches(name, mappedEntry.getKey())) {
-						listenersAndOnceIterator = listenersAndOnce.entrySet().iterator();
-						while (listenersAndOnceIterator.hasNext()) {
-							listenerAndOnce = listenersAndOnceIterator.next();
-
-							// Invoke once?
-							if (listenerAndOnce.getValue()) {
-								listenersAndOnceIterator.remove();
-								foundOnce = true;
-							}
-
-							// Add to listener set
-							collected.add(listenerAndOnce.getKey());
+					if (GlobMatcher.matches(name, entry.getKey())) {
+						for (Listener listener : entry.getValue()) {
+							collected.add(listener);
 						}
 					}
-
-					// Empty map?
-					if (listenersAndOnce.isEmpty()) {
-						mappingIterator.remove();
-						continue;
-					}
 				}
-
 			} finally {
-				writeLock.unlock();
+				readLock.unlock();
 			}
 
 			// Convert listener set to array
@@ -216,9 +184,7 @@ public final class DefaultEventBus extends EventBus {
 			}
 
 			// Store into cache
-			if (!foundOnce) {
-				cache.put(name, cachedListeners);
-			}
+			cache.put(name, cachedListeners);
 		}
 
 		// Invoke one listener without looping

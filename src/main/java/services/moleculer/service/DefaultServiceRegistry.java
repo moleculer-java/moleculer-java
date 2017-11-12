@@ -51,6 +51,7 @@ import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.cacher.Cache;
 import services.moleculer.context.CallingOptions;
+import services.moleculer.eventbus.Listener;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
@@ -491,6 +492,8 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			Class<? extends Service> clazz = service.getClass();
 			Field[] fields = clazz.getFields();
 			for (Field field : fields) {
+				
+				// Register action
 				if (Action.class.isAssignableFrom(field.getType())) {
 					String actionName = field.getName();
 					Tree actionConfig = config.get(actionName);
@@ -543,6 +546,21 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 					}
 					actionStrategy.add(container);
 					container.start(broker, actionConfig);
+					continue;
+				}
+				
+				// Register event listener
+				if (Listener.class.isAssignableFrom(field.getType())) {
+					String listenerName = field.getName();
+
+					// Name of the listener (eg. "v2.service.event")
+					// It's the subscribed event name by default
+					listenerName = service.name + '.' + listenerName;
+					
+					// TODO Register listener
+					// broker.components().eventbus().off(name, listener);
+					
+					continue;
 				}
 			}
 
