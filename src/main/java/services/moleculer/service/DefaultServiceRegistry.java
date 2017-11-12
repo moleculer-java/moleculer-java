@@ -427,6 +427,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		int ver = message.get(VER, -1);
 		if (ver != ServiceBroker.MOLECULER_VERSION) {
 			logger.warn("Invalid version:\r\n" + message);
+			return;
 		}
 		
 		// Get response's unique ID
