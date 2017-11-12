@@ -82,4 +82,8 @@ public abstract class Strategy implements MoleculerComponent {
 
 	public abstract ActionContainer get(String nodeID);
 
+	// --- GET LOCAL (CACHED) ACCTION CONTAINER ---
+	
+	public abstract ActionContainer getLocal();
+	
 }

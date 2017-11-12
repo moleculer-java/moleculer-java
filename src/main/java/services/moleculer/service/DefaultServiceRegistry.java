@@ -24,6 +24,8 @@
  */
 package services.moleculer.service;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -304,61 +306,116 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 	public final void receiveRequest(Tree message) {
 
+		// Verify Moleculer version
 		int ver = message.get(VER, -1);
-		String sender = message.get(SENDER, (String) null);
-		String id = message.get("id", (String) null);
+		if (ver != ServiceBroker.MOLECULER_VERSION) {
+			logger.warn("Invalid message version (" + ver + ")!");
+			return;
+		}
+		
+		// Get action property
 		String action = message.get("action", (String) null);
-		Tree params = message.get(PARAMS);
-		Tree meta = message.get("meta");
-		int timeout = message.get("timeout", 0);
-		int level = message.get("level", 1);
-		boolean metrics = message.get("metrics", false);
-		String parentID = message.get("parentID", (String) null);
-		String requestID = message.get("requestID", (String) null);
+		if (action == null || action.isEmpty()) {
+			logger.warn("Missing \"action\" property!");
+			return;
+		}
+		
+		// Get strategy (action container array) by action name
+		Strategy containers;
+		readLock.lock();
+		try {
+			containers = strategies.get(action);
+		} finally {
+			readLock.unlock();
+		}
+		if (containers == null) {
+			logger.warn("Invalid action name (" + action + ")!");
+			return;
+		}
 
-		// TODO
-		ActionContainer container = getAction(action, nodeID);
+		// Get local action container (with cache handling)
+		ActionContainer container = containers.getLocal();
+		if (container == null) {
+			logger.warn("Not a local action (" + action + ")!");
+			return;
+		}
+
+		// Get request's unique ID
+		String id = message.get("id", (String) null);
+		if (id == null || id.isEmpty()) {
+			logger.warn("Missing \"id\" property!");
+			return;
+		}
+
+		// Get sender's nodeID
+		String sender = message.get(SENDER, (String) null);		
+		if (sender == null || sender.isEmpty()) {
+			logger.warn("Missing \"sender\" property!");
+			return;
+		}
+
+		// Create CallingOptions
+		int timeout = message.get("timeout", 0);
+		Tree params = message.get(PARAMS);
+		
+		// TODO Process other properties:
+		//
+		// Tree meta = message.get("meta");
+		// int level = message.get("level", 1);
+		// boolean metrics = message.get("metrics", false);
+		// String parentID = message.get("parentID", (String) null);
+		// String requestID = message.get("requestID", (String) null);
+		
 		CallingOptions opts = new CallingOptions(nodeID, timeout, 0);
+		
+		// Invoke action
 		try {
 			container.call(params, opts, null).then(data -> {
 
+				// Send response
 				Tree response = new Tree();
 				response.put("id", id);
 				response.put(VER, ServiceBroker.MOLECULER_VERSION);
 				response.put("success", true);
-
 				response.putObject("data", data);
-
 				transporter.publish(Transporter.PACKET_RESPONSE, sender, response);
 
 			}).Catch(error -> {
 
-				Tree response = new Tree();
-				response.put("id", id);
-				response.put(VER, ServiceBroker.MOLECULER_VERSION);
-				response.put("success", false);
-				response.put("data", (String) null);
-
-				Tree errorMap = response.putMap("error");
-				errorMap.put("message", error.getMessage());
-
+				// Send error
+				Tree response = throwableToTree(id, error);
 				transporter.publish(Transporter.PACKET_RESPONSE, sender, response);
 
 			});
 		} catch (Throwable error) {
 
-			Tree response = new Tree();
-			response.put("id", id);
-			response.put(VER, ServiceBroker.MOLECULER_VERSION);
-			response.put("success", false);
-			response.put("data", (String) null);
-
-			Tree errorMap = response.putMap("error");
-			errorMap.put("message", error.getMessage());
-
+			// Send error
+			Tree response = throwableToTree(id, error);
 			transporter.publish(Transporter.PACKET_RESPONSE, sender, response);
 
 		}
+	}
+
+	private final Tree throwableToTree(String id, Throwable error) {
+		Tree response = new Tree();
+		response.put("id", id);
+		response.put(VER, ServiceBroker.MOLECULER_VERSION);
+		response.put("success", false);
+		response.put("data", (String) null);
+		if (error != null) {
+
+			// Add message
+			Tree errorMap = response.putMap("error");
+			errorMap.put("message", error.getMessage());
+
+			// Add trace
+			StringWriter sw = new StringWriter(128);
+			PrintWriter pw = new PrintWriter(sw);
+			error.printStackTrace(pw);
+			errorMap.put("trace", sw.toString());
+
+		}
+		return response;
 	}
 
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
@@ -366,17 +423,17 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	@Override
 	public final void receiveResponse(Tree message) {
 
-		// Get ID
-		String id = message.get("id", "");
-		if (id.isEmpty()) {
-			logger.warn("Missing \"id\" property!", message);
-			return;
-		}
-
-		// Get version
+		// Verify Moleculer version
 		int ver = message.get(VER, -1);
 		if (ver != ServiceBroker.MOLECULER_VERSION) {
 			logger.warn("Invalid version:\r\n" + message);
+		}
+		
+		// Get response's unique ID
+		String id = message.get("id", (String) null);
+		if (id == null || id.isEmpty()) {
+			logger.warn("Missing \"id\" property!", message);
+			return;
 		}
 
 		// Get stored promise
@@ -386,22 +443,39 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			return;
 		}
 		try {
+			
+			// Get response status (successed or not?)
 			boolean success = message.get("success", true);
 			if (success) {
 
-				// Resolve
+				// Ok -> resolve
 				Tree response = message.get("data");
 				container.promise.complete(response);
 
 			} else {
 
-				// Reject
-				String msg = message.get("error.message", "Unknown");
-				container.promise.complete(new RemoteException(msg));
+				// Failed -> reject
+				Tree error = message.get("error");
+				String errorMessage = null;
+				String trace = null;
+				if (error != null) {
+					errorMessage = error.get("message", (String) null);
+					trace = error.get("trace", (String) null);
+					if (trace != null && !trace.isEmpty()) {
+						logger.error("Remote invaction failed!\r\n" + trace);
+					}
+				}
+				if (errorMessage == null || errorMessage.isEmpty()) {
+					errorMessage = "Unknow error!";
+				}
+				if (trace == null || trace.isEmpty()) {
+					logger.error("Remote invaction failed (unknown error occured)!");
+				}
+				container.promise.complete(new RemoteException(errorMessage));
 				return;
 			}
-		} catch (Throwable error) {
-			container.promise.complete(error);
+		} catch (Throwable cause) {
+			logger.error("Unable to pass on incoming response!", cause);
 		}
 	}
 
@@ -616,8 +690,10 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 				String service = name.substring(0, i);
 
 				// Get container
-				LocalActionContainer container = (LocalActionContainer) entry.getValue().get(nodeID);
-				container.cached();
+				LocalActionContainer container = (LocalActionContainer) entry.getValue().getLocal();
+				if (container == null) {
+					continue;
+				}
 
 				// Service block
 				Tree serviceMap = servicesMap.putMap(service, true);

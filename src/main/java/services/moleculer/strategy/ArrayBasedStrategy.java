@@ -148,6 +148,12 @@ public abstract class ArrayBasedStrategy extends Strategy {
 		return null;
 	}
 
+	// --- GET LOCAL (CACHED) ACCTION CONTAINER ---
+	
+	public final ActionContainer getLocal() {
+		return localAction;
+	}
+	
 	// --- GET NEXT REMOTE INSTANCE ---
 
 	public abstract ActionContainer next();

@@ -366,7 +366,7 @@ public abstract class Transporter implements MoleculerComponent {
 		executor.execute(() -> {
 
 			// TODO
-			logger.info("FROM " + channel + ": " + new String(message));
+			// logger.info("FROM " + channel + ": " + new String(message));
 
 			// Parse message
 			Tree data;
@@ -395,7 +395,7 @@ public abstract class Transporter implements MoleculerComponent {
 				// Invoming event
 				if (channel.equals(eventChannel)) {
 					
-					// TODO
+					// TODO Process events
 					return;
 				}
 				

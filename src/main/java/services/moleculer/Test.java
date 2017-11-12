@@ -24,9 +24,7 @@
  */
 package services.moleculer;
 
-import io.datatree.Tree;
 import services.moleculer.service.Action;
-import services.moleculer.service.ActionContainer;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Service;
 import services.moleculer.transporter.RedisTransporter;
@@ -34,11 +32,11 @@ import services.moleculer.transporter.RedisTransporter;
 public class Test {
 
 	public static void main(String[] args) throws Exception {
-		
+
 		// Test sigar
 		String nativeDir = "./native";
 		System.setProperty("java.library.path", nativeDir);
-		
+
 		// Define a service
 		ServiceBroker broker = ServiceBroker.builder().registry(new DefaultServiceRegistry(false))
 				.transporter(new RedisTransporter()).nodeID("server-2").build();
@@ -53,19 +51,6 @@ public class Test {
 
 		});
 		broker.start();
-
-		Thread.sleep(2000);
-		
-		ActionContainer sub = broker.getAction("math.sub");
-		Tree params = new Tree();
-		params.put("a", 50);
-		params.put("b", 2);
-		Promise p = sub.call(params, null, null);
-		p.then(rsp -> {
-			System.out.println(rsp.asInteger());
-		}).Catch(err -> {
-			System.out.println(err);
-		});
 	}
 
 }
