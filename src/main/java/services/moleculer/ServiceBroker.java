@@ -39,11 +39,13 @@ import services.moleculer.config.ServiceBrokerBuilder;
 import services.moleculer.config.ServiceBrokerSettings;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
+import services.moleculer.eventbus.EventBus;
 import services.moleculer.service.ActionContainer;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.transporter.Transporter;
+import services.moleculer.util.CheckedTree;
 
 /**
  * Service Broker.
@@ -103,6 +105,11 @@ public final class ServiceBroker {
 	 * Registry of local and remote Moleculer Services.
 	 */
 	private ServiceRegistry registry;
+
+	/**
+	 * Local EventBus.
+	 */
+	private EventBus eventbus;
 
 	// --- SERVICES AND CONFIGURATIONS ---
 
@@ -185,6 +192,7 @@ public final class ServiceBroker {
 
 			// Set the pointers of frequently used components
 			registry = components.registry();
+			eventbus = components.eventbus();
 
 			// Register and start pending services
 			for (Map.Entry<Service, Tree> entry : services.entrySet()) {
@@ -326,7 +334,7 @@ public final class ServiceBroker {
 				if (params[0] instanceof Tree) {
 					tree = (Tree) params[0];
 				} else {
-					tree = new Tree().setObject(params[0]);
+					tree = new CheckedTree(params[0]);
 				}
 			} else {
 				LinkedHashMap<String, Object> map = new LinkedHashMap<>();
@@ -385,9 +393,50 @@ public final class ServiceBroker {
 	}
 
 	/**
-	 * Emits an event for all local services
+	 * Emits an event for all local services. Sample invocations:<br>
+	 * <br>
+	 * One scalar value:<br>
+	 * broker.broadcastLocal("service.event", 1234);<br>
+	 * <br>
+	 * Key-value pairs:<br>
+	 * broker.broadcastLocal("service.event", "a", 1, "b", 2);<br>
+	 * <br>
+	 * Structure:<br>
+	 * Tree payload = new Tree();<br>
+	 * payload.put("node.subnode", 5);<br>
+	 * payload.putList("list").add(1).add(2).add(3);<br>
+	 * broker.broadcastLocal("service.event", payload);
 	 */
-	public void broadcastLocal(String name, Object payload) {
+	public void broadcastLocal(String name, Object... payload) {
+		Tree tree = null;
+		if (payload != null) {
+			if (payload.length == 1) {
+				if (payload[0] instanceof Tree) {
+					tree = (Tree) payload[0];
+				} else {
+					tree = new CheckedTree(payload[0]);
+				}
+			} else {
+				LinkedHashMap<String, Object> map = new LinkedHashMap<>();
+				String prev = null;
+				Object value;
+				for (int i = 0; i < payload.length; i++) {
+					value = payload[i];
+					if (prev == null) {
+						if (!(value instanceof String)) {
+							throw new IllegalArgumentException(
+									"Parameter #" + i + " (\"" + value + "\") must be String!");
+						}
+						prev = (String) value;
+						continue;
+					}
+					map.put(prev, value);
+					prev = null;
+				}
+				tree = new Tree(map);
+			}
+		}
+		eventbus.emit(name, tree);
 	}
 
 }

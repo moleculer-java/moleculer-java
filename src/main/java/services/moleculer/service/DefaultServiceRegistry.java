@@ -51,7 +51,9 @@ import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.cacher.Cache;
 import services.moleculer.context.CallingOptions;
+import services.moleculer.eventbus.EventBus;
 import services.moleculer.eventbus.Listener;
+import services.moleculer.eventbus.Subscribe;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
@@ -111,6 +113,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	private StrategyFactory strategy;
 	private ScheduledExecutorService scheduler;
 	private Transporter transporter;
+	private EventBus eventbus;
 
 	// --- CONSTRUCTORS ---
 
@@ -162,6 +165,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		this.strategy = broker.components().strategy();
 		this.scheduler = broker.components().scheduler();
 		this.transporter = broker.components().transporter();
+		this.eventbus = broker.components().eventbus();
 	}
 
 	// --- STOP SERVICE REGISTRY ---
@@ -552,14 +556,36 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 				// Register event listener
 				if (Listener.class.isAssignableFrom(field.getType())) {
 					String listenerName = field.getName();
-
-					// Name of the listener (eg. "v2.service.event")
+					Tree listenerConfig = config.get(listenerName);
+					if (listenerConfig == null) {
+						if (config.isMap()) {
+							listenerConfig = config.putMap(listenerName);
+						} else {
+							listenerConfig = new Tree();
+						}
+					}
+					
+					// Name of the listener (eg. "v2.service.listener")
 					// It's the subscribed event name by default
 					listenerName = service.name + '.' + listenerName;
+					listenerConfig.put(NAME, listenerName);
 					
-					// TODO Register listener
-					// broker.components().eventbus().off(name, listener);
+					// Process "Subscribe" annotation
+					String pattern = listenerConfig.get("subscribe", (String) null);
+					if (pattern == null || pattern.isEmpty()) {
+						Subscribe subscribe = field.getAnnotation(Subscribe.class);
+						if (subscribe != null) {
+							pattern = subscribe.value();
+						}
+					}
+					if (pattern == null || pattern.isEmpty()) {
+						pattern = listenerName;
+					}
 					
+					// Register listener in EventBus
+					field.setAccessible(true);
+					Listener listener = (Listener) field.get(service);
+					eventbus.on(pattern, listener);				
 					continue;
 				}
 			}

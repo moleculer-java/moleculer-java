@@ -53,11 +53,14 @@ public class Test {
 
 			@Subscribe("math.*")
 			public Listener evt = payload -> {
-				System.out.println(payload);
+				System.out.println(payload.get("a", -1));
 			};
 			
 		});
 		broker.start();
+		
+		// Emit local event
+		broker.broadcastLocal("math.foo", "a", 5);
 	}
 
 }
