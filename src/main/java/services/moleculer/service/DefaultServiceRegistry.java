@@ -64,17 +64,17 @@ import services.moleculer.transporter.Transporter;
 @Name("Default Service Registry")
 public final class DefaultServiceRegistry extends ServiceRegistry implements Runnable {
 
-	// --- REGISTERED SERVICES ---
+	// --- REGISTERED LOCAL SERVICES ---
 
 	private final HashMap<String, Service> services = new HashMap<>(64);
 
-	// --- REGISTERED ACTIONS ---
+	// --- REGISTERED STRATEGIES PER ACTIONS ---
 
 	private final HashMap<String, Strategy> strategies = new HashMap<>(256);
 
 	// --- PENDING REMOTE INVOCATIONS ---
 
-	private final ConcurrentHashMap<String, PromiseContainer> promises = new ConcurrentHashMap<>(8192);
+	private final ConcurrentHashMap<String, PendingPromise> promises = new ConcurrentHashMap<>(8192);
 
 	// --- PROPERTIES ---
 
@@ -181,18 +181,18 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 		// Stop pending invocations
 		InterruptedException error = new InterruptedException("Registry is shutting down.");
-		for (PromiseContainer container : promises.values()) {
-			container.promise.complete(error);
+		for (PendingPromise pending : promises.values()) {
+			pending.promise.complete(error);
 		}
 
-		// Stop action containers and services
+		// Stop action endpoints and services
 		writeLock.lock();
 		try {
 
 			// Stop strategies (and registered actions)
-			for (Strategy containers : strategies.values()) {
+			for (Strategy strategy : strategies.values()) {
 				try {
-					containers.stop();
+					strategy.stop();
 				} catch (Throwable cause) {
 					logger.warn("Unable to stop strategy!", cause);
 				}
@@ -211,14 +211,14 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 	public final void run() {
 		long now = System.currentTimeMillis();
-		PromiseContainer container;
-		Iterator<PromiseContainer> i = promises.values().iterator();
+		PendingPromise pending;
+		Iterator<PendingPromise> i = promises.values().iterator();
 		boolean removed = false;
 		Exception error = new TimeoutException("Action invocation timeouted!");
 		while (i.hasNext()) {
-			container = i.next();
-			if (container.timeoutAt > 0 && now >= container.timeoutAt) {
-				container.promise.complete(error);
+			pending = i.next();
+			if (pending.timeoutAt > 0 && now >= pending.timeoutAt) {
+				pending.promise.complete(error);
 				i.remove();
 				removed = true;
 			}
@@ -249,9 +249,9 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	 */
 	private final void reschedule(long minTimeoutAt) {
 		if (minTimeoutAt == Long.MAX_VALUE) {
-			for (PromiseContainer container : promises.values()) {
-				if (container.timeoutAt > 0 && container.timeoutAt < minTimeoutAt) {
-					minTimeoutAt = container.timeoutAt;
+			for (PendingPromise pending : promises.values()) {
+				if (pending.timeoutAt > 0 && pending.timeoutAt < minTimeoutAt) {
+					minTimeoutAt = pending.timeoutAt;
 				}
 			}
 		}
@@ -292,8 +292,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	// --- REGISTER PROMISE ---
 
 	final void register(String id, Promise promise, long timeoutAt) {
-		PromiseContainer container = new PromiseContainer(promise, timeoutAt);
-		promises.put(id, container);
+		promises.put(id, new PendingPromise(promise, timeoutAt));
 
 		long nextTimeoutAt = prevTimeoutAt.get();
 		if (nextTimeoutAt == 0 || (timeoutAt / 1000 * 1000) + 1000 < nextTimeoutAt) {
@@ -317,30 +316,30 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			logger.warn("Invalid message version (" + ver + ")!");
 			return;
 		}
-		
+
 		// Get action property
 		String action = message.get("action", (String) null);
 		if (action == null || action.isEmpty()) {
 			logger.warn("Missing \"action\" property!");
 			return;
 		}
-		
-		// Get strategy (action container array) by action name
-		Strategy containers;
+
+		// Get strategy (action endpoint array) by action name
+		Strategy strategy;
 		readLock.lock();
 		try {
-			containers = strategies.get(action);
+			strategy = strategies.get(action);
 		} finally {
 			readLock.unlock();
 		}
-		if (containers == null) {
+		if (strategy == null) {
 			logger.warn("Invalid action name (" + action + ")!");
 			return;
 		}
 
-		// Get local action container (with cache handling)
-		ActionContainer container = containers.getLocal();
-		if (container == null) {
+		// Get local action endpoint (with cache handling)
+		ActionEndpoint endpoint = strategy.getLocalAction();
+		if (endpoint == null) {
 			logger.warn("Not a local action (" + action + ")!");
 			return;
 		}
@@ -353,7 +352,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		}
 
 		// Get sender's nodeID
-		String sender = message.get(SENDER, (String) null);		
+		String sender = message.get(SENDER, (String) null);
 		if (sender == null || sender.isEmpty()) {
 			logger.warn("Missing \"sender\" property!");
 			return;
@@ -362,7 +361,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		// Create CallingOptions
 		int timeout = message.get("timeout", 0);
 		Tree params = message.get(PARAMS);
-		
+
 		// TODO Process other properties:
 		//
 		// Tree meta = message.get("meta");
@@ -370,12 +369,12 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		// boolean metrics = message.get("metrics", false);
 		// String parentID = message.get("parentID", (String) null);
 		// String requestID = message.get("requestID", (String) null);
-		
+
 		CallingOptions opts = new CallingOptions(nodeID, timeout, 0);
-		
+
 		// Invoke action
 		try {
-			container.call(params, opts, null).then(data -> {
+			endpoint.call(params, opts, null).then(data -> {
 
 				// Send response
 				Tree response = new Tree();
@@ -388,15 +387,13 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			}).Catch(error -> {
 
 				// Send error
-				Tree response = throwableToTree(id, error);
-				transporter.publish(Transporter.PACKET_RESPONSE, sender, response);
+				transporter.publish(Transporter.PACKET_RESPONSE, sender, throwableToTree(id, error));
 
 			});
 		} catch (Throwable error) {
 
 			// Send error
-			Tree response = throwableToTree(id, error);
-			transporter.publish(Transporter.PACKET_RESPONSE, sender, response);
+			transporter.publish(Transporter.PACKET_RESPONSE, sender, throwableToTree(id, error));
 
 		}
 	}
@@ -434,7 +431,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			logger.warn("Invalid version:\r\n" + message);
 			return;
 		}
-		
+
 		// Get response's unique ID
 		String id = message.get("id", (String) null);
 		if (id == null || id.isEmpty()) {
@@ -443,20 +440,19 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		}
 
 		// Get stored promise
-		PromiseContainer container = promises.remove(id);
-		if (container == null) {
+		PendingPromise pending = promises.remove(id);
+		if (pending == null) {
 			logger.warn("Unknown (maybe timeouted) response received!", message);
 			return;
 		}
 		try {
-			
+
 			// Get response status (successed or not?)
 			boolean success = message.get("success", true);
 			if (success) {
 
 				// Ok -> resolve
-				Tree response = message.get("data");
-				container.promise.complete(response);
+				pending.promise.complete(message.get("data"));
 
 			} else {
 
@@ -477,7 +473,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 				if (trace == null || trace.isEmpty()) {
 					logger.error("Remote invaction failed (unknown error occured)!");
 				}
-				container.promise.complete(new RemoteException(errorMessage));
+				pending.promise.complete(new RemoteException(errorMessage));
 				return;
 			}
 		} catch (Throwable cause) {
@@ -496,7 +492,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 			Class<? extends Service> clazz = service.getClass();
 			Field[] fields = clazz.getFields();
 			for (Field field : fields) {
-				
+
 				// Register action
 				if (Action.class.isAssignableFrom(field.getType())) {
 					String actionName = field.getName();
@@ -541,18 +537,18 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 					// Register actions
 					field.setAccessible(true);
 					Action action = (Action) field.get(service);
-					LocalActionContainer container = new LocalActionContainer(this, action, asyncLocalInvocation);
+					LocalActionEndpoint endpoint = new LocalActionEndpoint(this, action, asyncLocalInvocation);
 					Strategy actionStrategy = strategies.get(actionName);
 					if (actionStrategy == null) {
 						actionStrategy = strategy.create();
 						actionStrategy.start(broker, actionConfig);
 						strategies.put(actionName, actionStrategy);
 					}
-					actionStrategy.add(container);
-					container.start(broker, actionConfig);
+					actionStrategy.addAction(endpoint);
+					endpoint.start(broker, actionConfig);
 					continue;
 				}
-				
+
 				// Register event listener
 				if (Listener.class.isAssignableFrom(field.getType())) {
 					String listenerName = field.getName();
@@ -564,12 +560,12 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 							listenerConfig = new Tree();
 						}
 					}
-					
+
 					// Name of the listener (eg. "v2.service.listener")
 					// It's the subscribed event name by default
 					listenerName = service.name + '.' + listenerName;
 					listenerConfig.put(NAME, listenerName);
-					
+
 					// Process "Subscribe" annotation
 					String pattern = listenerConfig.get("subscribe", (String) null);
 					if (pattern == null || pattern.isEmpty()) {
@@ -581,11 +577,11 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 					if (pattern == null || pattern.isEmpty()) {
 						pattern = listenerName;
 					}
-					
+
 					// Register listener in EventBus
 					field.setAccessible(true);
 					Listener listener = (Listener) field.get(service);
-					eventbus.on(pattern, listener);				
+					eventbus.addListener(listener, listenerConfig);
 					continue;
 				}
 			}
@@ -615,16 +611,16 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 					// Register action
 					actionConfig.put(NODE_ID, nodeID);
 					String actionName = actionConfig.get(NAME, "");
-					RemoteActionContainer container = new RemoteActionContainer(this);
-					container.start(broker, actionConfig);
+					RemoteActionEndpoint endpoint = new RemoteActionEndpoint(this);
+					endpoint.start(broker, actionConfig);
 					Strategy actionStrategy = strategies.get(actionName);
 					if (actionStrategy == null) {
 						actionStrategy = strategy.create();
 						actionStrategy.start(broker, actionConfig);
 						strategies.put(actionName, actionStrategy);
 					}
-					actionStrategy.add(container);
-					container.start(broker, actionConfig);
+					actionStrategy.addAction(endpoint);
+					endpoint.start(broker, actionConfig);
 				}
 			}
 		} finally {
@@ -635,12 +631,12 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	// --- REMOVE ALL REMOTE SERVICES/ACTIONS OF A NODE ---
 
 	@Override
-	public final void removeService(String nodeID) {
+	public final void removeServices(String nodeID) {
 		writeLock.lock();
 		try {
-			Iterator<Strategy> containers = strategies.values().iterator();
-			while (containers.hasNext()) {
-				Strategy strategy = containers.next();
+			Iterator<Strategy> endpoints = strategies.values().iterator();
+			while (endpoints.hasNext()) {
+				Strategy strategy = endpoints.next();
 				strategy.remove(nodeID);
 				if (strategy.isEmpty()) {
 					try {
@@ -648,7 +644,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 					} catch (Throwable cause) {
 						logger.warn("Unable to stop strategy!", cause);
 					}
-					containers.remove();
+					endpoints.remove();
 				}
 			}
 			if (broker.nodeID().equals(nodeID)) {
@@ -691,22 +687,22 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	// --- GET LOCAL OR REMOTE ACTION CONTAINER ---
 
 	@Override
-	public final ActionContainer getAction(String name, String nodeID) {
-		Strategy containers;
+	public final ActionEndpoint getAction(String name, String nodeID) {
+		Strategy strategy;
 		readLock.lock();
 		try {
-			containers = strategies.get(name);
+			strategy = strategies.get(name);
 		} finally {
 			readLock.unlock();
 		}
-		if (containers == null) {
+		if (strategy == null) {
 			throw new NoSuchElementException("Invalid action name (" + name + ")!");
 		}
-		ActionContainer container = containers.get(nodeID);
-		if (container == null) {
+		ActionEndpoint endpoint = strategy.getAction(nodeID);
+		if (endpoint == null) {
 			throw new NoSuchElementException("Invalid nodeID (" + nodeID + ")!");
 		}
-		return container;
+		return endpoint;
 	}
 
 	// --- GENERATE SERVICE DESCRIPTOR ---
@@ -734,9 +730,9 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 				int i = name.lastIndexOf('.');
 				String service = name.substring(0, i);
 
-				// Get container
-				LocalActionContainer container = (LocalActionContainer) entry.getValue().getLocal();
-				if (container == null) {
+				// Get endpoint
+				ActionEndpoint endpoint = entry.getValue().getLocalAction();
+				if (endpoint == null) {
 					continue;
 				}
 
@@ -757,10 +753,10 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 				Tree actionMap = new Tree(map);
 
 				actionMap.put(NAME, name);
-				boolean cached = container.cached();
+				boolean cached = endpoint.cached();
 				actionMap.put(CACHE, cached);
 				if (cached) {
-					String[] keys = container.cacheKeys();
+					String[] keys = endpoint.cacheKeys();
 					if (keys != null) {
 						Tree cacheKeys = actionMap.putList(CACHE_KEYS);
 						for (String key : keys) {

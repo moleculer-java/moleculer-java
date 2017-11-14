@@ -29,7 +29,7 @@ import services.moleculer.Promise;
 /**
  * Promise container of a pending invocation.
  */
-final class PromiseContainer {
+final class PendingPromise {
 
 	// --- PROPERTIES ---
 
@@ -38,7 +38,7 @@ final class PromiseContainer {
 
 	// --- CONSTRUCTOR ---
 
-	PromiseContainer(Promise promise, long timeoutAt) {
+	PendingPromise(Promise promise, long timeoutAt) {
 		this.promise = promise;
 		this.timeoutAt = timeoutAt;
 	}

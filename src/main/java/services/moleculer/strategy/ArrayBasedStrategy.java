@@ -26,7 +26,7 @@ package services.moleculer.strategy;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.service.ActionContainer;
+import services.moleculer.service.ActionEndpoint;
 
 /**
  * Abstract class for Round-Robin and Random invocation strategies.
@@ -40,11 +40,11 @@ public abstract class ArrayBasedStrategy extends Strategy {
 
 	// --- ARRAY OF THE ALL ACTION INSTANCES ---
 
-	protected ActionContainer[] actions = new ActionContainer[0];
+	protected ActionEndpoint[] actions = new ActionEndpoint[0];
 
 	// --- POINTER TO A LOCAL ACTION INSTANCE ---
 
-	private ActionContainer localAction;
+	private ActionEndpoint localAction;
 
 	// --- PROPERTIES ---
 
@@ -73,9 +73,9 @@ public abstract class ArrayBasedStrategy extends Strategy {
 	// --- ADD A LOCAL OR REMOTE ACCTION CONTAINER ---
 
 	@Override
-	public final void add(ActionContainer action) {
+	public final void addAction(ActionEndpoint action) {
 		if (actions.length == 0) {
-			actions = new ActionContainer[1];
+			actions = new ActionEndpoint[1];
 			actions[0] = action;
 		} else {
 			for (int i = 0; i < actions.length; i++) {
@@ -87,7 +87,7 @@ public abstract class ArrayBasedStrategy extends Strategy {
 			}
 
 			// Add to array
-			ActionContainer[] copy = new ActionContainer[actions.length + 1];
+			ActionEndpoint[] copy = new ActionEndpoint[actions.length + 1];
 			System.arraycopy(actions, 0, copy, 0, actions.length);
 			copy[actions.length] = action;
 			actions = copy;
@@ -103,7 +103,7 @@ public abstract class ArrayBasedStrategy extends Strategy {
 
 	@Override
 	public final void remove(String nodeID) {
-		ActionContainer action;
+		ActionEndpoint action;
 		for (int i = 0; i < actions.length; i++) {
 			action = actions[i];
 			if (nodeID.equals(action.nodeID())) {
@@ -111,9 +111,9 @@ public abstract class ArrayBasedStrategy extends Strategy {
 					localAction = null;
 				}
 				if (actions.length == 1) {
-					actions = new ActionContainer[0];
+					actions = new ActionEndpoint[0];
 				} else {
-					ActionContainer[] copy = new ActionContainer[actions.length - 1];
+					ActionEndpoint[] copy = new ActionEndpoint[actions.length - 1];
 					System.arraycopy(actions, 0, copy, 0, i);
 					System.arraycopy(actions, i + 1, copy, i, actions.length - i - 1);
 					actions = copy;
@@ -133,14 +133,14 @@ public abstract class ArrayBasedStrategy extends Strategy {
 	// --- GET LOCAL OR REMOTE ACCTION CONTAINER ---
 
 	@Override
-	public final ActionContainer get(String nodeID) {
+	public final ActionEndpoint getAction(String nodeID) {
 		if (nodeID == null) {
 			if (!preferLocal || localAction == null) {
 				return next();
 			}
 			return localAction;
 		}
-		for (ActionContainer action : actions) {
+		for (ActionEndpoint action : actions) {
 			if (action.nodeID().equals(nodeID)) {
 				return action;
 			}
@@ -148,14 +148,14 @@ public abstract class ArrayBasedStrategy extends Strategy {
 		return null;
 	}
 
-	// --- GET LOCAL (CACHED) ACCTION CONTAINER ---
+	// --- GET LOCAL ACCTION CONTAINER ---
 	
-	public final ActionContainer getLocal() {
+	public final ActionEndpoint getLocalAction() {
 		return localAction;
 	}
 	
-	// --- GET NEXT REMOTE INSTANCE ---
+	// --- GET NEXT LOCAL OR REMOTE REMOTE ACTION CONTAINER ---
 
-	public abstract ActionContainer next();
+	public abstract ActionEndpoint next();
 
 }

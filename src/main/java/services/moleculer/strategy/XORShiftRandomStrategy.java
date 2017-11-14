@@ -26,7 +26,7 @@ package services.moleculer.strategy;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-import services.moleculer.service.ActionContainer;
+import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.Name;
 
 /**
@@ -52,7 +52,7 @@ public final class XORShiftRandomStrategy extends ArrayBasedStrategy {
 	// --- GET NEXT ACTION CONTAINER ---
 
 	@Override
-	public final ActionContainer next() {
+	public final ActionEndpoint next() {
 
 		// Generate pseudo random
 		long start, next;
@@ -64,7 +64,7 @@ public final class XORShiftRandomStrategy extends ArrayBasedStrategy {
 			next ^= (next << 4);
 		} while (!rnd.compareAndSet(start, next));
 
-		// Return ActionContainer
+		// Return ActionEndpoint
 		return actions[(int) Math.abs(next % actions.length)];
 	}
 

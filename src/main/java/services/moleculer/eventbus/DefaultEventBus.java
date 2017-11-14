@@ -72,9 +72,52 @@ public final class DefaultEventBus extends EventBus {
 		cache = new Cache<>(2048, true);
 	}
 
+	// --- RECEIVE EVENT FROM REMOTE SERVICE ---
+
+	public final void receiveEvent(Tree message) {
+		
+	}
+	
+	// --- ADD LOCAL LISTENER ---
+
+	public final void addListener(Listener listener, Tree config) throws Exception {
+		
+	}
+
+	// --- ADD REMOTE LISTENER ---
+
+	public final void addListener(Tree config) throws Exception {
+		
+	}
+	
+	// --- REMOVE ALL REMOTE SERVICES/ACTIONS OF A NODE ---
+
+	public final void removeListeners(String nodeID) {
+		
+	}
+
+	// --- EMIT EVENT TO LOCAL AND REMOTE LISTENERS BY GROUPS ---
+
+	public final void emit(String name, Tree payload, String[] groups) {
+		
+	}
+
+	// --- EMIT EVENT TO LOCAL AND REMOTE LISTENERS ---
+
+	public final void broadcast(String name, Tree payload) {
+		
+	}
+
+	// --- EMIT EVENT TO LOCAL LISTENERS ONLY ---
+
+	public final void broadcastLocal(String name, Tree payload) {
+		
+	}
+	
+	// =========================
+	
 	// --- REGISTER LISTENER ----
 
-	@Override
 	public final void on(String name, Listener listener) {
 
 		// Lock getter and setter threads
@@ -116,7 +159,6 @@ public final class DefaultEventBus extends EventBus {
 	 * @param name
 	 * @param handler
 	 */
-	@Override
 	public final void off(String name, Listener listener) {
 
 		// Lock getter and setter threads
@@ -147,7 +189,6 @@ public final class DefaultEventBus extends EventBus {
 
 	// --- EMIT EVENT TO LISTENERS ---
 
-	@Override
 	public final void emit(String name, Tree payload) {
 
 		// Get from cache

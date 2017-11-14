@@ -11,7 +11,20 @@ import services.moleculer.config.MoleculerComponent;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
 
-public abstract class AbstractContainer implements ActionContainer, MoleculerComponent {
+/**
+ * Base superclass of Local or Remote actions. Sample action:<br>
+ * <br>
+ * &#64;Name("math")<br>
+ * public class MathService extends Service {<br>
+ * <br>
+ * &#64;Cache(keys = { "a", "b" }, ttl = 30)<br>
+ * public Action add = (ctx) -> {<br>
+ * return ctx.params().get("a", 0) + ctx.params().get("b", 0);<br>
+ * };<br>
+ * <br>
+ * }
+ */
+public abstract class ActionEndpoint implements MoleculerComponent {
 
 	// --- LOGGER ---
 
@@ -33,7 +46,7 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 
 	// --- CONSTRUCTOR ---
 
-	AbstractContainer() {
+	ActionEndpoint() {
 	}
 
 	// --- INIT CONTAINER ---
@@ -78,7 +91,6 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 
 	// --- INVOKE LOCAL OR REMOTE ACTION + CACHING ---
 
-	@Override
 	public final Promise call(Tree params, CallingOptions opts, Context parent) {
 
 		// Caching enabled
@@ -116,32 +128,28 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 
 	// --- PROPERTY GETTERS ---
 
-	@Override
+	public abstract boolean local();
+	
 	public final String name() {
 		return name;
 	}
 
-	@Override
 	public final String nodeID() {
 		return nodeID;
 	}
 
-	@Override
 	public final boolean cached() {
 		return cached;
 	}
 
-	@Override
 	public final String[] cacheKeys() {
 		return cacheKeys;
 	}
 
-	@Override
 	public final int defaultTimeout() {
 		return defaultTimeout;
 	}
 
-	@Override
 	public final int ttl() {
 		return ttl;
 	}
@@ -165,7 +173,7 @@ public abstract class AbstractContainer implements ActionContainer, MoleculerCom
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		AbstractContainer other = (AbstractContainer) obj;
+		ActionEndpoint other = (ActionEndpoint) obj;
 		if (name == null) {
 			if (other.name != null)
 				return false;

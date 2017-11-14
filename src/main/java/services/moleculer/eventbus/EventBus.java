@@ -64,22 +64,32 @@ public abstract class EventBus implements MoleculerComponent {
 	public void stop() {
 	}
 
-	// --- REGISTER LISTENER ----
+	// --- RECEIVE EVENT FROM REMOTE SERVICE ---
 
-	public abstract void on(String name, Listener listener);
+	public abstract void receiveEvent(Tree message);
+	
+	// --- ADD LOCAL LISTENER ---
 
-	// --- UNREGISTER LISTENER ---
+	public abstract void addListener(Listener listener, Tree config) throws Exception;
 
-	/**
-	 * Unsubscribe from an event
-	 * 
-	 * @param name
-	 * @param listener
-	 */
-	public abstract void off(String name, Listener listener);
+	// --- ADD REMOTE LISTENER ---
 
-	// --- EMIT EVENT TO LISTENERS ---
+	public abstract void addListener(Tree config) throws Exception;
+	
+	// --- REMOVE ALL REMOTE SERVICES/ACTIONS OF A NODE ---
 
-	public abstract void emit(String name, Tree payload);
+	public abstract void removeListeners(String nodeID);
+
+	// --- SEND EVENT TO ONE LISTENER IN GROUPS ---
+
+	public abstract void emit(String name, Tree payload, String[] groups);
+
+	// --- SEND EVENT TO ALL LISTENERS IN GROUPS ---
+
+	public abstract void broadcast(String name, Tree payload, String[] groups);
+
+	// --- SEND EVENT TO ALL LOCAL LISTENERS IN GROUPS ---
+
+	public abstract void broadcastLocal(String name, Tree payload, String[] groups);
 
 }

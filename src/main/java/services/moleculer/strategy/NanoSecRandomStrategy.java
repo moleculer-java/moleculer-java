@@ -24,7 +24,7 @@
  */
 package services.moleculer.strategy;
 
-import services.moleculer.service.ActionContainer;
+import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.Name;
 
 /**
@@ -46,7 +46,7 @@ public final class NanoSecRandomStrategy extends ArrayBasedStrategy {
 	// --- GET NEXT ACTION CONTAINER ---
 
 	@Override
-	public final ActionContainer next() {
+	public final ActionEndpoint next() {
 		return actions[(int) (System.nanoTime() % actions.length)];
 	}
 

@@ -27,6 +27,7 @@ package services.moleculer.util;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.LinkedHashMap;
 import java.util.Objects;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
@@ -41,6 +42,37 @@ import services.moleculer.service.Name;
  * Common utilities.
  */
 public final class CommonUtils implements CommonNames {
+
+	public static final Tree parametersToTree(Object[] payload) {
+		Tree tree;
+		if (payload == null) {
+			tree = new CheckedTree(null);
+		} else if (payload.length == 1) {
+			if (payload[0] instanceof Tree) {
+				tree = (Tree) payload[0];
+			} else {
+				tree = new CheckedTree(payload[0]);
+			}
+		} else {
+			LinkedHashMap<String, Object> map = new LinkedHashMap<>();
+			String prev = null;
+			Object value;
+			for (int i = 0; i < payload.length; i++) {
+				value = payload[i];
+				if (prev == null) {
+					if (!(value instanceof String)) {
+						throw new IllegalArgumentException("Parameter #" + i + " (\"" + value + "\") must be String!");
+					}
+					prev = (String) value;
+					continue;
+				}
+				map.put(prev, value);
+				prev = null;
+			}
+			tree = new Tree(map);
+		}
+		return tree;
+	}
 
 	public static final String serializerTypeToClass(String type) {
 		String test = type.toLowerCase();

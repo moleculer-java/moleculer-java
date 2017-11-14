@@ -24,11 +24,7 @@
  */
 package services.moleculer.service;
 
-import static services.moleculer.util.CommonUtils.nameOf;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.Objects;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
@@ -36,44 +32,26 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
+import services.moleculer.transporter.Transporter;
 
 /**
- * Container (action invoker) of local actions.
+ * Container (action invoker) of remote actions.
  */
-public final class LocalActionContainer extends AbstractContainer {
+public final class RemoteActionEndpoint  extends ActionEndpoint {
 
-	// --- PROPERTIES ---
-
-	/**
-	 * Action instance (it's a field / inner class in Service object)
-	 */
-	private final Action action;
-
-	/**
-	 * Invoke all local services via Thread pool (true) or directly (false)
-	 */
-	private boolean asyncLocalInvocation;
-
-	/**
-	 * Atomic counter for internal timout handling
-	 */
-	private final AtomicLong internalUID = new AtomicLong();
-	
 	// --- COMPONENTS ---
-
+	
 	private final DefaultServiceRegistry registry;
 	private ContextFactory context;
-	private ExecutorService executor;
-
+	private Transporter transporter;
+	
 	// --- CONSTRUCTOR ---
-
-	LocalActionContainer(DefaultServiceRegistry registry, Action action, boolean asyncLocalInvocation) {
+	
+	RemoteActionEndpoint(DefaultServiceRegistry registry) {
 		this.registry = registry;
-		this.action = action;
-		this.asyncLocalInvocation = asyncLocalInvocation;
 	}
 
-	// --- START CONTAINER ---
+	// --- INIT CONTAINER ---
 
 	/**
 	 * Initializes Container instance.
@@ -86,28 +64,27 @@ public final class LocalActionContainer extends AbstractContainer {
 	@Override
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 		super.start(broker, config);
-
-		// Process config
-		asyncLocalInvocation = config.get(ASYNC_LOCAL_INVOCATION, asyncLocalInvocation);
 		
-		// Set name
-		if (name == null || name.isEmpty()) {
-			name = nameOf(action, false);
-		}
-
-		// Set nodeID
-		nodeID = broker.nodeID();
-
+		// Check parameters
+		Objects.requireNonNull(name);
+		Objects.requireNonNull(nodeID);
+		
 		// Set components
 		context = broker.components().context();
-		executor = broker.components().executor();
+		transporter = broker.components().transporter();
 	}
 
-	// --- INVOKE LOCAL ACTION ---
+	// --- INVOKE REMOTE ACTION ---
 
 	@Override
 	protected final Promise callActionNoStore(Tree params, CallingOptions opts, Context parent) {
-
+		
+		// Create new context (with ID)
+		Context ctx = context.create(name, params, opts, parent, true);
+		
+		// Create new promise
+		Promise promise = new Promise();
+		
 		// Set timeout (limit timestamp in millis)
 		int timeout;
 		if (opts == null) {
@@ -115,7 +92,7 @@ public final class LocalActionContainer extends AbstractContainer {
 		} else {
 			timeout = opts.timeout();
 			if (timeout < 1) {
-				timeout = defaultTimeout;
+				timeout = defaultTimeout;	
 			}
 		}
 		long timeoutAt;
@@ -124,47 +101,23 @@ public final class LocalActionContainer extends AbstractContainer {
 		} else {
 			timeoutAt = 0;
 		}
-
-		// Create new context (without ID)
-		final Context ctx = context.create(name, params, opts, parent, false);
-
-		// A.) Async invocation
-		if (asyncLocalInvocation || timeout > 0) {
-			
-			// Execute in thread pool
-			Promise promise = new Promise(CompletableFuture.supplyAsync(() -> {
-				try {
-					return action.handler(ctx);
-				} catch (Throwable error) {
-					return error;
-				}
-			}, executor));
-			
-			// No timeout / done
-			if (timeoutAt < 0 || promise.isDone()) {
-				return promise;
-			}
-			
-			// Register promise (timeout handling)
-			final String id = Long.toString(internalUID.incrementAndGet());
-			registry.register(id, promise, timeoutAt);
-			return promise;
-		}
-
-		// B.) Faster in-process (direct) action invocation
-		try {
-			return new Promise(action.handler(ctx));
-		} catch (Throwable error) {
-			return Promise.reject(error);
-		}
-
+		
+		// Register promise (timeout and response handling)
+		registry.register(ctx.id(), promise, timeoutAt);
+		
+		// Send request via transporter
+		Tree message = transporter.createRequestPacket(ctx);
+		transporter.publish(Transporter.PACKET_REQUEST, nodeID, message);
+		
+		// Return promise
+		return promise;
 	}
-
+	
 	// --- PROPERTY GETTERS ---
 
 	@Override
 	public final boolean local() {
-		return true;
+		return false;
 	}
 
 }

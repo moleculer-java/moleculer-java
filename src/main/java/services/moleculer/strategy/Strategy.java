@@ -30,7 +30,8 @@ import org.slf4j.LoggerFactory;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.MoleculerComponent;
-import services.moleculer.service.ActionContainer;
+import services.moleculer.eventbus.Listener;
+import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.Name;
 
 /**
@@ -68,22 +69,34 @@ public abstract class Strategy implements MoleculerComponent {
 
 	// --- ADD A LOCAL OR REMOTE ACCTION CONTAINER ---
 
-	public abstract void add(ActionContainer action);
+	public abstract void addAction(ActionEndpoint action);
 
-	// --- REMOVE ACTION OF NODE ---
+	// --- ADD A LOCAL OR REMOTE LISTENER ---
+
+	public abstract void addListener(String group, Listener listener);
+	
+	// --- REMOVE ACTIONS / LISTENERS OF THE SPECIFIED NODE ---
 
 	public abstract void remove(String nodeID);
 
-	// --- HAS ACTIONS ---
+	// --- HAS ACTIONS OR LISTENERS ---
 
 	public abstract boolean isEmpty();
 
 	// --- GET LOCAL OR REMOTE ACCTION CONTAINER ---
 
-	public abstract ActionContainer get(String nodeID);
+	public abstract ActionEndpoint getAction(String nodeID);
 
-	// --- GET LOCAL (CACHED) ACCTION CONTAINER ---
+	// --- GET LOCAL OR REMOTE LISTENER FROM A GROUP ---
+
+	public abstract Listener getListener(String group);
 	
-	public abstract ActionContainer getLocal();
+	// --- GET LOCAL ACCTION CONTAINER ---
+	
+	public abstract ActionEndpoint getLocalAction();
+	
+	// --- GET ALL EVENT LISTENERS ---
+	
+	public abstract Listener[] getAllListeners();
 	
 }

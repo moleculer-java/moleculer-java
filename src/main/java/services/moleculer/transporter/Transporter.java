@@ -46,6 +46,7 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.config.MoleculerComponent;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
+import services.moleculer.eventbus.EventBus;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
@@ -109,6 +110,7 @@ public abstract class Transporter implements MoleculerComponent {
 	protected ExecutorService executor;
 	protected ScheduledExecutorService scheduler;
 	protected ServiceRegistry registry;
+	protected EventBus eventbus;
 	protected Monitor monitor;
 
 	// --- HEARTBEAT TIMES OF OTHER NODES ---
@@ -199,6 +201,7 @@ public abstract class Transporter implements MoleculerComponent {
 		scheduler = broker.components().scheduler();
 		registry = broker.components().registry();
 		monitor = broker.components().monitor();
+		eventbus = broker.components().eventbus();
 
 		// Get properties from broker
 		this.broker = broker;
@@ -394,8 +397,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 				// Invoming event
 				if (channel.equals(eventChannel)) {
-					
-					// TODO Process events
+					eventbus.receiveEvent(data);
 					return;
 				}
 				
@@ -443,7 +445,14 @@ public abstract class Transporter implements MoleculerComponent {
 				// Disconnect packet
 				if (channel.equals(disconnectChannel)) {
 					lastNodeActivities.remove(sender);
-					registry.removeService(sender);
+					
+					// Remove remote actions
+					registry.removeServices(sender);
+					
+					// Remove remote event listeners
+					eventbus.removeListeners(sender);
+					
+					// Ok, all actions and listeners removed
 					logger.info("Node \"" + sender + "\" disconnected.");
 				}
 
@@ -500,10 +509,19 @@ public abstract class Transporter implements MoleculerComponent {
 			entry = entries.next();
 			if (now - entry.getValue() > timeoutMillis) {
 
-				// Node has been timeouted
+				// Get timeouted node's ID
 				String nodeID = entry.getKey();
-				registry.removeService(nodeID);
+
+				// Remove remote actions
+				registry.removeServices(nodeID);
+				
+				// Remove remote event listeners
+				eventbus.removeListeners(nodeID);
+				
+				// Remove local timestamp entry
 				entries.remove();
+				
+				// Ok, all actions and listeners removed
 				logger.info("Node \"" + nodeID
 						+ "\" is no longer available because it hasn't submitted heartbeat signal for "
 						+ heartbeatTimeout + " seconds.");

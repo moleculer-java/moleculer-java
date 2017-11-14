@@ -81,7 +81,7 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 
 	// --- REMOVE ALL REMOTE SERVICES/ACTIONS OF A NODE ---
 
-	public abstract void removeService(String nodeID);
+	public abstract void removeServices(String nodeID);
 
 	// --- GET LOCAL SERVICE ---
 
@@ -89,7 +89,7 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 
 	// --- GET LOCAL OR REMOTE ACTION CONTAINER ---
 
-	public abstract ActionContainer getAction(String name, String nodeID);
+	public abstract ActionEndpoint getAction(String name, String nodeID);
 
 	// --- GENERATE SERVICE DESCRIPTOR ---
 

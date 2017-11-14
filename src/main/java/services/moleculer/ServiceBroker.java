@@ -25,6 +25,7 @@
 package services.moleculer;
 
 import static services.moleculer.util.CommonUtils.nameOf;
+import static services.moleculer.util.CommonUtils.parametersToTree;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -40,7 +41,7 @@ import services.moleculer.config.ServiceBrokerSettings;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
 import services.moleculer.eventbus.EventBus;
-import services.moleculer.service.ActionContainer;
+import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
@@ -302,7 +303,7 @@ public final class ServiceBroker {
 	 * @param actionName
 	 * @return
 	 */
-	public ActionContainer getAction(String actionName) {
+	public ActionEndpoint getAction(String actionName) {
 		return registry.getAction(actionName, null);
 	}
 
@@ -384,12 +385,14 @@ public final class ServiceBroker {
 	 * Emits an event (grouped & balanced global event)
 	 */
 	public void emit(String name, Object payload, String... groups) {
+		// eventbus.emit(name, parametersToTree(payload), groups);
 	}
 
 	/**
 	 * Emits an event for all local & remote services
 	 */
-	public void broadcast(String name, Object payload) {
+	public void broadcast(String name, Object... payload) {
+		eventbus.broadcast(name, parametersToTree(payload));
 	}
 
 	/**
@@ -408,35 +411,7 @@ public final class ServiceBroker {
 	 * broker.broadcastLocal("service.event", payload);
 	 */
 	public void broadcastLocal(String name, Object... payload) {
-		Tree tree = null;
-		if (payload != null) {
-			if (payload.length == 1) {
-				if (payload[0] instanceof Tree) {
-					tree = (Tree) payload[0];
-				} else {
-					tree = new CheckedTree(payload[0]);
-				}
-			} else {
-				LinkedHashMap<String, Object> map = new LinkedHashMap<>();
-				String prev = null;
-				Object value;
-				for (int i = 0; i < payload.length; i++) {
-					value = payload[i];
-					if (prev == null) {
-						if (!(value instanceof String)) {
-							throw new IllegalArgumentException(
-									"Parameter #" + i + " (\"" + value + "\") must be String!");
-						}
-						prev = (String) value;
-						continue;
-					}
-					map.put(prev, value);
-					prev = null;
-				}
-				tree = new Tree(map);
-			}
-		}
-		eventbus.emit(name, tree);
+		eventbus.broadcastLocal(name, parametersToTree(payload));
 	}
 
 }
