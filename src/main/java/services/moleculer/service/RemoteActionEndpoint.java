@@ -37,21 +37,21 @@ import services.moleculer.transporter.Transporter;
 /**
  * Container (action invoker) of remote actions.
  */
-public final class RemoteActionEndpoint  extends ActionEndpoint {
+public final class RemoteActionEndpoint extends ActionEndpoint {
 
 	// --- COMPONENTS ---
-	
+
 	private final DefaultServiceRegistry registry;
 	private ContextFactory context;
 	private Transporter transporter;
-	
+
 	// --- CONSTRUCTOR ---
-	
+
 	RemoteActionEndpoint(DefaultServiceRegistry registry) {
 		this.registry = registry;
 	}
 
-	// --- INIT CONTAINER ---
+	// --- START ENDPOINT ---
 
 	/**
 	 * Initializes Container instance.
@@ -64,11 +64,11 @@ public final class RemoteActionEndpoint  extends ActionEndpoint {
 	@Override
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 		super.start(broker, config);
-		
+
 		// Check parameters
 		Objects.requireNonNull(name);
 		Objects.requireNonNull(nodeID);
-		
+
 		// Set components
 		context = broker.components().context();
 		transporter = broker.components().transporter();
@@ -78,13 +78,13 @@ public final class RemoteActionEndpoint  extends ActionEndpoint {
 
 	@Override
 	protected final Promise callActionNoStore(Tree params, CallingOptions opts, Context parent) {
-		
+
 		// Create new context (with ID)
 		Context ctx = context.create(name, params, opts, parent, true);
-		
+
 		// Create new promise
 		Promise promise = new Promise();
-		
+
 		// Set timeout (limit timestamp in millis)
 		int timeout;
 		if (opts == null) {
@@ -92,7 +92,7 @@ public final class RemoteActionEndpoint  extends ActionEndpoint {
 		} else {
 			timeout = opts.timeout();
 			if (timeout < 1) {
-				timeout = defaultTimeout;	
+				timeout = defaultTimeout;
 			}
 		}
 		long timeoutAt;
@@ -101,18 +101,18 @@ public final class RemoteActionEndpoint  extends ActionEndpoint {
 		} else {
 			timeoutAt = 0;
 		}
-		
+
 		// Register promise (timeout and response handling)
 		registry.register(ctx.id(), promise, timeoutAt);
-		
+
 		// Send request via transporter
 		Tree message = transporter.createRequestPacket(ctx);
 		transporter.publish(Transporter.PACKET_REQUEST, nodeID, message);
-		
+
 		// Return promise
 		return promise;
 	}
-	
+
 	// --- PROPERTY GETTERS ---
 
 	@Override

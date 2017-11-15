@@ -70,7 +70,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 	// --- REGISTERED STRATEGIES PER ACTIONS ---
 
-	private final HashMap<String, Strategy> strategies = new HashMap<>(256);
+	private final HashMap<String, Strategy<ActionEndpoint>> strategies = new HashMap<>(256);
 
 	// --- PENDING REMOTE INVOCATIONS ---
 
@@ -143,7 +143,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
+	public final void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
 		asyncLocalInvocation = config.get(ASYNC_LOCAL_INVOCATION, asyncLocalInvocation);
@@ -190,7 +190,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		try {
 
 			// Stop strategies (and registered actions)
-			for (Strategy strategy : strategies.values()) {
+			for (Strategy<ActionEndpoint> strategy : strategies.values()) {
 				try {
 					strategy.stop();
 				} catch (Throwable cause) {
@@ -325,7 +325,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		}
 
 		// Get strategy (action endpoint array) by action name
-		Strategy strategy;
+		Strategy<ActionEndpoint> strategy;
 		readLock.lock();
 		try {
 			strategy = strategies.get(action);
@@ -338,7 +338,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		}
 
 		// Get local action endpoint (with cache handling)
-		ActionEndpoint endpoint = strategy.getLocalAction();
+		ActionEndpoint endpoint = strategy.getLocalEndpoint();
 		if (endpoint == null) {
 			logger.warn("Not a local action (" + action + ")!");
 			return;
@@ -538,13 +538,13 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 					field.setAccessible(true);
 					Action action = (Action) field.get(service);
 					LocalActionEndpoint endpoint = new LocalActionEndpoint(this, action, asyncLocalInvocation);
-					Strategy actionStrategy = strategies.get(actionName);
+					Strategy<ActionEndpoint> actionStrategy = strategies.get(actionName);
 					if (actionStrategy == null) {
 						actionStrategy = strategy.create();
 						actionStrategy.start(broker, actionConfig);
 						strategies.put(actionName, actionStrategy);
 					}
-					actionStrategy.addAction(endpoint);
+					actionStrategy.addEndpoint(endpoint);
 					endpoint.start(broker, actionConfig);
 					continue;
 				}
@@ -613,13 +613,13 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 					String actionName = actionConfig.get(NAME, "");
 					RemoteActionEndpoint endpoint = new RemoteActionEndpoint(this);
 					endpoint.start(broker, actionConfig);
-					Strategy actionStrategy = strategies.get(actionName);
+					Strategy<ActionEndpoint> actionStrategy = strategies.get(actionName);
 					if (actionStrategy == null) {
 						actionStrategy = strategy.create();
 						actionStrategy.start(broker, actionConfig);
 						strategies.put(actionName, actionStrategy);
 					}
-					actionStrategy.addAction(endpoint);
+					actionStrategy.addEndpoint(endpoint);
 					endpoint.start(broker, actionConfig);
 				}
 			}
@@ -634,9 +634,9 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	public final void removeServices(String nodeID) {
 		writeLock.lock();
 		try {
-			Iterator<Strategy> endpoints = strategies.values().iterator();
+			Iterator<Strategy<ActionEndpoint>> endpoints = strategies.values().iterator();
 			while (endpoints.hasNext()) {
-				Strategy strategy = endpoints.next();
+				Strategy<ActionEndpoint> strategy = endpoints.next();
 				strategy.remove(nodeID);
 				if (strategy.isEmpty()) {
 					try {
@@ -688,7 +688,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 	@Override
 	public final ActionEndpoint getAction(String name, String nodeID) {
-		Strategy strategy;
+		Strategy<ActionEndpoint> strategy;
 		readLock.lock();
 		try {
 			strategy = strategies.get(name);
@@ -698,7 +698,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		if (strategy == null) {
 			throw new NoSuchElementException("Invalid action name (" + name + ")!");
 		}
-		ActionEndpoint endpoint = strategy.getAction(nodeID);
+		ActionEndpoint endpoint = strategy.getEndpoint(nodeID);
 		if (endpoint == null) {
 			throw new NoSuchElementException("Invalid nodeID (" + nodeID + ")!");
 		}
@@ -723,7 +723,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		Tree servicesMap = new Tree();
 		readLock.lock();
 		try {
-			for (Map.Entry<String, Strategy> entry : strategies.entrySet()) {
+			for (Map.Entry<String, Strategy<ActionEndpoint>> entry : strategies.entrySet()) {
 
 				// Split into parts ("math.add" -> "math" and "add")
 				String name = entry.getKey();
@@ -731,7 +731,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 				String service = name.substring(0, i);
 
 				// Get endpoint
-				ActionEndpoint endpoint = entry.getValue().getLocalAction();
+				ActionEndpoint endpoint = entry.getValue().getLocalEndpoint();
 				if (endpoint == null) {
 					continue;
 				}

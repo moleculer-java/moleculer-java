@@ -49,8 +49,8 @@ public final class RoundRobinStrategyFactory extends ArrayBasedStrategyFactory {
 	// --- FACTORY METHOD ---
 
 	@Override
-	public final Strategy create() {
-		return new RoundRobinStrategy(preferLocal);
+	public final <T extends Endpoint> Strategy<T> create() {
+		return new RoundRobinStrategy<T>(preferLocal);
 	}
 
 }

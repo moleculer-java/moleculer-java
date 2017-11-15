@@ -79,6 +79,6 @@ public abstract class StrategyFactory implements MoleculerComponent {
 
 	// --- FACTORY METHOD ---
 
-	public abstract Strategy create();
+	public abstract <T extends Endpoint> Strategy<T> create();
 
 }

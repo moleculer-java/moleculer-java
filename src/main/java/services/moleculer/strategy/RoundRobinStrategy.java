@@ -26,7 +26,6 @@ package services.moleculer.strategy;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.Name;
 
 /**
@@ -37,23 +36,23 @@ import services.moleculer.service.Name;
  * @see XORShiftRandomStrategy
  */
 @Name("Round-Robin Strategy")
-public final class RoundRobinStrategy extends ArrayBasedStrategy {
+public final class RoundRobinStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
 
 	// --- PROPERTIES ---
 
 	private final AtomicInteger counter = new AtomicInteger();
 
 	// --- CONSTRUCTOR ---
-	
+
 	public RoundRobinStrategy(boolean preferLocal) {
 		super(preferLocal);
 	}
-	
-	// --- GET NEXT ACTION CONTAINER ---
+
+	// --- GET NEXT ENDPOINT ---
 
 	@Override
-	public final ActionEndpoint next() {
-		return actions[counter.incrementAndGet() % actions.length];
+	public final Endpoint next() {
+		return endpoints[counter.incrementAndGet() % endpoints.length];
 	}
 
 }

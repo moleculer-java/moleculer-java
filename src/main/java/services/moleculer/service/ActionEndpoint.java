@@ -1,3 +1,27 @@
+/**
+ * This software is licensed under MIT license.<br>
+ * <br>
+ * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * <br>
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:<br>
+ * <br>
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.<br>
+ * <br>
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package services.moleculer.service;
 
 import org.slf4j.Logger;
@@ -10,6 +34,7 @@ import services.moleculer.cacher.Cacher;
 import services.moleculer.config.MoleculerComponent;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
+import services.moleculer.strategy.Endpoint;
 
 /**
  * Base superclass of Local or Remote actions. Sample action:<br>
@@ -24,7 +49,7 @@ import services.moleculer.context.Context;
  * <br>
  * }
  */
-public abstract class ActionEndpoint implements MoleculerComponent {
+public abstract class ActionEndpoint implements MoleculerComponent, Endpoint {
 
 	// --- LOGGER ---
 
@@ -49,15 +74,15 @@ public abstract class ActionEndpoint implements MoleculerComponent {
 	ActionEndpoint() {
 	}
 
-	// --- INIT CONTAINER ---
+	// --- START ENDPOINT ---
 
 	/**
-	 * Initializes Container instance.
+	 * Initializes enpoint instance.
 	 * 
 	 * @param broker
 	 *            parent ServiceBroker
 	 * @param config
-	 *            optional configuration of the current component
+	 *            optional configuration of the current endpoint
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
@@ -83,10 +108,10 @@ public abstract class ActionEndpoint implements MoleculerComponent {
 		}
 	}
 
-	// --- STOP CONTAINER ---
+	// --- STOP ENDPOINT ---
 
 	@Override
-	public void stop() {
+	public final void stop() {
 	}
 
 	// --- INVOKE LOCAL OR REMOTE ACTION + CACHING ---

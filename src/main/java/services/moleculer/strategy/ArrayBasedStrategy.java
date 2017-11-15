@@ -26,7 +26,6 @@ package services.moleculer.strategy;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.service.ActionEndpoint;
 
 /**
  * Abstract class for Round-Robin and Random invocation strategies.
@@ -36,19 +35,19 @@ import services.moleculer.service.ActionEndpoint;
  * @see SecureRandomStrategy
  * @see XORShiftRandomStrategy
  */
-public abstract class ArrayBasedStrategy extends Strategy {
+public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T> {
 
-	// --- ARRAY OF THE ALL ACTION INSTANCES ---
+	// --- ARRAY OF ENDPOINTS ---
 
-	protected ActionEndpoint[] actions = new ActionEndpoint[0];
+	protected Endpoint[] endpoints = new Endpoint[0];
 
 	// --- POINTER TO A LOCAL ACTION INSTANCE ---
 
-	private ActionEndpoint localAction;
+	private T localEndpoint;
 
 	// --- PROPERTIES ---
 
-	private boolean preferLocal;
+	private final boolean preferLocal;
 
 	// --- CONSTRUCTOR ---
 
@@ -70,16 +69,16 @@ public abstract class ArrayBasedStrategy extends Strategy {
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 	}
 
-	// --- ADD A LOCAL OR REMOTE ACCTION CONTAINER ---
+	// --- ADD A LOCAL OR REMOTE ENDPOINT ---
 
 	@Override
-	public final void addAction(ActionEndpoint action) {
-		if (actions.length == 0) {
-			actions = new ActionEndpoint[1];
-			actions[0] = action;
+	public final void addEndpoint(T endpoint) {
+		if (endpoints.length == 0) {
+			endpoints = new Endpoint[1];
+			endpoints[0] = endpoint;
 		} else {
-			for (int i = 0; i < actions.length; i++) {
-				if (actions[i].equals(action)) {
+			for (int i = 0; i < endpoints.length; i++) {
+				if (endpoints[i].equals(endpoints)) {
 
 					// Already registered
 					return;
@@ -87,75 +86,85 @@ public abstract class ArrayBasedStrategy extends Strategy {
 			}
 
 			// Add to array
-			ActionEndpoint[] copy = new ActionEndpoint[actions.length + 1];
-			System.arraycopy(actions, 0, copy, 0, actions.length);
-			copy[actions.length] = action;
-			actions = copy;
+			Endpoint[] copy = new Endpoint[endpoints.length + 1];
+			System.arraycopy(endpoints, 0, copy, 0, endpoints.length);
+			copy[endpoints.length] = endpoint;
+			endpoints = copy;
 		}
 
 		// Store local action
-		if (action.local()) {
-			localAction = action;
+		if (endpoint.local()) {
+			localEndpoint = endpoint;
 		}
 	}
 
-	// --- REMOVE ACTION OF NODE ---
+	// --- REMOVE ALL ENDPOINTS OF THE SPECIFIED NODE ---
 
 	@Override
 	public final void remove(String nodeID) {
-		ActionEndpoint action;
-		for (int i = 0; i < actions.length; i++) {
-			action = actions[i];
-			if (nodeID.equals(action.nodeID())) {
-				if (action.equals(localAction)) {
-					localAction = null;
+		Endpoint endpoint;
+		for (int i = 0; i < endpoints.length; i++) {
+			endpoint = endpoints[i];
+			if (nodeID.equals(endpoint.nodeID())) {
+				if (endpoint.equals(localEndpoint)) {
+					localEndpoint = null;
 				}
-				if (actions.length == 1) {
-					actions = new ActionEndpoint[0];
+				if (endpoints.length == 1) {
+					endpoints = new Endpoint[0];
 				} else {
-					ActionEndpoint[] copy = new ActionEndpoint[actions.length - 1];
-					System.arraycopy(actions, 0, copy, 0, i);
-					System.arraycopy(actions, i + 1, copy, i, actions.length - i - 1);
-					actions = copy;
+					Endpoint[] copy = new Endpoint[endpoints.length - 1];
+					System.arraycopy(endpoints, 0, copy, 0, i);
+					System.arraycopy(endpoints, i + 1, copy, i, endpoints.length - i - 1);
+					endpoints = copy;
+					i--;
 				}
-				return;
 			}
 		}
 	}
 
-	// --- HAS ACTIONS ---
+	// --- HAS ENDPOINTS ---
 
 	@Override
 	public final boolean isEmpty() {
-		return actions.length == 0;
+		return endpoints.length == 0;
 	}
 
-	// --- GET LOCAL OR REMOTE ACCTION CONTAINER ---
+	// --- GET LOCAL OR REMOTE ENDPOINT ---
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public final ActionEndpoint getAction(String nodeID) {
+	public final T getEndpoint(String nodeID) {
 		if (nodeID == null) {
-			if (!preferLocal || localAction == null) {
-				return next();
+			if (!preferLocal || localEndpoint == null) {
+				return (T) next();
 			}
-			return localAction;
+			return localEndpoint;
 		}
-		for (ActionEndpoint action : actions) {
-			if (action.nodeID().equals(nodeID)) {
-				return action;
+		for (Endpoint endpoint : endpoints) {
+			if (endpoint.nodeID().equals(nodeID)) {
+				return (T) endpoint;
 			}
 		}
 		return null;
 	}
 
-	// --- GET LOCAL ACCTION CONTAINER ---
-	
-	public final ActionEndpoint getLocalAction() {
-		return localAction;
-	}
-	
-	// --- GET NEXT LOCAL OR REMOTE REMOTE ACTION CONTAINER ---
+	// --- GET NEXT ENDPOINT ---
 
-	public abstract ActionEndpoint next();
+	public abstract Endpoint next();
+
+	// --- GET LOCAL ENDPOINT ---
+
+	@Override
+	public final T getLocalEndpoint() {
+		return localEndpoint;
+	}
+
+	// --- GET ALL ENDPOINTS ---
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public final T[] getAllEndpoints() {
+		return (T[]) endpoints;
+	}
 
 }

@@ -49,8 +49,8 @@ public final class SecureRandomStrategyFactory extends ArrayBasedStrategyFactory
 	// --- FACTORY METHOD ---
 
 	@Override
-	public final Strategy create() {
-		return new SecureRandomStrategy(preferLocal);
+	public final <T extends Endpoint> Strategy<T> create() {
+		return new SecureRandomStrategy<T>(preferLocal);
 	}
 
 }

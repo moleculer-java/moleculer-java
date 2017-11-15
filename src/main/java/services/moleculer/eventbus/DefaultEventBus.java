@@ -25,14 +25,16 @@
 package services.moleculer.eventbus;
 
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map.Entry;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.datatree.Tree;
 import io.datatree.dom.Cache;
+import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
+import services.moleculer.strategy.Strategy;
+import services.moleculer.strategy.StrategyFactory;
+import services.moleculer.transporter.Transporter;
 
 /**
  * Default EventBus implementation.
@@ -40,18 +42,26 @@ import services.moleculer.service.Name;
 @Name("Default Event Bus")
 public final class DefaultEventBus extends EventBus {
 
-	// --- PROPERTIES ---
+	// --- REGISTERED STRATEGIES PER ACTIONS ---
 
-	/**
-	 * Listener registry of the Event Bus
-	 */
-	private final HashMap<String, Listener[]> listeners;
+	private final HashMap<String, HashMap<String, Strategy<ListenerEndpoint>>> strategies = new HashMap<>(256);
+
+	// --- CACHE ---
 
 	/**
 	 * Cache of the Event Bus
 	 */
-	private final Cache<String, Listener[]> cache;
+	private final Cache<String, Listener[]> cache = new Cache<>(2048, true);
 
+	// --- PROPERTIES ---
+
+	/**
+	 * Invoke all local listeners via Thread pool (true) or directly (false)
+	 */
+	private boolean asyncLocalInvocation;
+	
+	// --- LOCKS ---
+	
 	/**
 	 * Reader lock of the Event Bus
 	 */
@@ -62,16 +72,68 @@ public final class DefaultEventBus extends EventBus {
 	 */
 	private final Lock writeLock;
 
-	// --- CONSTRUCTOR ---
+	// --- COMPONENTS ---
+
+	private ServiceBroker broker;
+	private StrategyFactory strategy;
+	private Transporter transporter;
+	
+	// --- CONSTRUCTORS ---
 
 	public DefaultEventBus() {
+		this(false);
+	}
+
+	public DefaultEventBus(boolean asyncLocalInvocation) {
+
+		// Async or direct local invocation
+		this.asyncLocalInvocation = asyncLocalInvocation;
+		
+		// Create locks
 		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
 		readLock = lock.readLock();
 		writeLock = lock.writeLock();
-		listeners = new HashMap<>(2048);
-		cache = new Cache<>(2048, true);
 	}
 
+	// --- START EVENT BUS ---
+
+	/**
+	 * Initializes default EventBus instance.
+	 * 
+	 * @param broker
+	 *            parent ServiceBroker
+	 * @param config
+	 *            optional configuration of the current component
+	 */
+	@Override
+	public final void start(ServiceBroker broker, Tree config) throws Exception {
+		
+		// Process config
+		asyncLocalInvocation = config.get(ASYNC_LOCAL_INVOCATION, asyncLocalInvocation);
+		
+		// Set components
+		this.broker = broker;
+		this.strategy = broker.components().strategy();
+		this.transporter = broker.components().transporter();
+	}
+	
+	// --- STOP EVENT BUS ---
+
+	@Override
+	public final void stop() {
+		
+		// Stop listener endpoints
+		writeLock.lock();
+		try {
+
+			// TODO Stop strategies (and registered listeners)
+			strategies.clear();
+
+		} finally {
+			writeLock.unlock();
+		}
+	}
+	
 	// --- RECEIVE EVENT FROM REMOTE SERVICE ---
 
 	public final void receiveEvent(Tree message) {
@@ -82,6 +144,24 @@ public final class DefaultEventBus extends EventBus {
 
 	public final void addListener(Listener listener, Tree config) throws Exception {
 		
+		// Process config
+		String subscribe = config.get("subscribe", (String) null);
+		if (subscribe == null || subscribe.isEmpty()) {
+			Subscribe s = listener.getClass().getAnnotation(Subscribe.class);
+			if (s != null) {
+				subscribe = s.value();
+				config.put("subscribe", subscribe);
+			}
+		}
+		boolean async = config.get(ASYNC_LOCAL_INVOCATION, asyncLocalInvocation);
+		
+		// TODO Get or create strategy
+		Strategy<ListenerEndpoint> strategy = null;
+		
+		// Add endpoint
+		LocalListenerEndpoint endpoint = new LocalListenerEndpoint(listener, async);
+		endpoint.start(broker, config);
+		strategy.addEndpoint(endpoint);
 	}
 
 	// --- ADD REMOTE LISTENER ---
@@ -104,150 +184,14 @@ public final class DefaultEventBus extends EventBus {
 
 	// --- EMIT EVENT TO LOCAL AND REMOTE LISTENERS ---
 
-	public final void broadcast(String name, Tree payload) {
+	public final void broadcast(String name, Tree payload, String[] groups) {
 		
 	}
 
 	// --- EMIT EVENT TO LOCAL LISTENERS ONLY ---
 
-	public final void broadcastLocal(String name, Tree payload) {
+	public final void broadcastLocal(String name, Tree payload, String[] groups) {
 		
 	}
 	
-	// =========================
-	
-	// --- REGISTER LISTENER ----
-
-	public final void on(String name, Listener listener) {
-
-		// Lock getter and setter threads
-		writeLock.lock();
-		try {
-			Listener[] array = listeners.get(name);
-			if (array == null) {
-				array = new Listener[1];
-				array[0] = listener;
-				listeners.put(name, array);
-			} else {
-				for (int i = 0; i < array.length; i++) {
-					if (array[i] == listener) {
-
-						// Already registered
-						return;
-					}
-				}
-
-				// Add to array
-				Listener[] copy = new Listener[array.length + 1];
-				System.arraycopy(array, 0, copy, 0, array.length);
-				copy[array.length] = listener;
-				listeners.put(name, copy);
-			}
-		} finally {
-			writeLock.unlock();
-		}
-
-		// Clear cache
-		cache.clear();
-	}
-
-	// --- UNREGISTER LISTENER ---
-
-	/**
-	 * Unsubscribe from an event
-	 * 
-	 * @param name
-	 * @param handler
-	 */
-	public final void off(String name, Listener listener) {
-
-		// Lock getter and setter threads
-		writeLock.lock();
-		try {
-			Listener[] array = listeners.get(name);
-			if (array != null) {
-				for (int i = 0; i < array.length; i++) {
-					if (array[i] == listener) {
-						if (array.length == 1) {
-							listeners.remove(name);
-						} else {
-							Listener[] copy = new Listener[array.length - 1];
-							System.arraycopy(array, 0, copy, 0, i);
-							System.arraycopy(array, i + 1, copy, i, array.length - i - 1);
-							listeners.put(name, copy);
-						}
-					}
-				}
-			}
-		} finally {
-			writeLock.unlock();
-		}
-
-		// Clear cache
-		cache.clear();
-	}
-
-	// --- EMIT EVENT TO LISTENERS ---
-
-	public final void emit(String name, Tree payload) {
-
-		// Get from cache
-		Listener[] cachedListeners = cache.get(name);
-
-		// If not found in cache...
-		if (cachedListeners == null) {
-
-			// Collected listeners
-			final HashSet<Listener> collected = new HashSet<Listener>();
-
-			// Lock getter and setter threads
-			readLock.lock();
-			try {
-				for (Entry<String, Listener[]> entry : listeners.entrySet()) {
-
-					// Matches?
-					if (GlobMatcher.matches(name, entry.getKey())) {
-						for (Listener listener : entry.getValue()) {
-							collected.add(listener);
-						}
-					}
-				}
-			} finally {
-				readLock.unlock();
-			}
-
-			// Convert listener set to array
-			if (collected.isEmpty()) {
-				cachedListeners = new Listener[0];
-			} else {
-				cachedListeners = new Listener[collected.size()];
-				collected.toArray(cachedListeners);
-			}
-
-			// Store into cache
-			cache.put(name, cachedListeners);
-		}
-
-		// Invoke one listener without looping
-		if (cachedListeners.length == 1) {
-			try {
-				cachedListeners[0].on(payload);
-			} catch (Exception cause) {
-				cause.printStackTrace();
-			}
-			return;
-		}
-
-		// Invoke more listeners in loop
-		if (cachedListeners.length > 1) {
-			for (Listener listener : cachedListeners) {
-				try {
-					listener.on(payload);
-				} catch (Exception cause) {
-					cause.printStackTrace();
-				}
-			}
-		}
-	}
-
 }

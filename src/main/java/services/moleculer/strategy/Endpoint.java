@@ -24,29 +24,10 @@
  */
 package services.moleculer.strategy;
 
-import services.moleculer.service.Name;
+public interface Endpoint {
 
-/**
- * Nanosec-based pseudorandom invocation strategy.
- * 
- * @see RoundRobinStrategy
- * @see SecureRandomStrategy
- * @see XORShiftRandomStrategy
- */
-@Name("Nanosecond-based Pseudorandom Strategy")
-public final class NanoSecRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
-
-	// --- CONSTRUCTOR ---
-
-	public NanoSecRandomStrategy(boolean preferLocal) {
-		super(preferLocal);
-	}
-
-	// --- GET NEXT ENDPOINT ---
-
-	@Override
-	public final Endpoint next() {
-		return endpoints[(int) (System.nanoTime() % endpoints.length)];
-	}
-
+	public String nodeID();
+	
+	public boolean local();
+	
 }

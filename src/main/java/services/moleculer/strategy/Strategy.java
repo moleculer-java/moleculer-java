@@ -30,15 +30,13 @@ import org.slf4j.LoggerFactory;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.MoleculerComponent;
-import services.moleculer.eventbus.Listener;
-import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.Name;
 
 /**
  * Base superclass of all Strategy implementations.
  */
 @Name("Strategy")
-public abstract class Strategy implements MoleculerComponent {
+public abstract class Strategy<T extends Endpoint> implements MoleculerComponent {
 
 	// --- LOGGER ---
 
@@ -67,36 +65,28 @@ public abstract class Strategy implements MoleculerComponent {
 	public void stop() {
 	}
 
-	// --- ADD A LOCAL OR REMOTE ACCTION CONTAINER ---
+	// --- ADD A LOCAL OR REMOTE ENDPOINT ---
 
-	public abstract void addAction(ActionEndpoint action);
+	public abstract void addEndpoint(T endpoint);
 
-	// --- ADD A LOCAL OR REMOTE LISTENER ---
-
-	public abstract void addListener(String group, Listener listener);
-	
-	// --- REMOVE ACTIONS / LISTENERS OF THE SPECIFIED NODE ---
+	// --- REMOVE ALL ENDPOINTS OF THE SPECIFIED NODE ---
 
 	public abstract void remove(String nodeID);
 
-	// --- HAS ACTIONS OR LISTENERS ---
+	// --- HAS ENDPOINTS ---
 
 	public abstract boolean isEmpty();
 
-	// --- GET LOCAL OR REMOTE ACCTION CONTAINER ---
+	// --- GET LOCAL OR REMOTE ENDPOINT ---
 
-	public abstract ActionEndpoint getAction(String nodeID);
+	public abstract T getEndpoint(String nodeID);
 
-	// --- GET LOCAL OR REMOTE LISTENER FROM A GROUP ---
+	// --- GET LOCAL ENDPOINT ---
+	
+	public abstract T getLocalEndpoint();
+	
+	// --- GET ALL ENDPOINTS ---
+	
+	public abstract T[] getAllEndpoints();
 
-	public abstract Listener getListener(String group);
-	
-	// --- GET LOCAL ACCTION CONTAINER ---
-	
-	public abstract ActionEndpoint getLocalAction();
-	
-	// --- GET ALL EVENT LISTENERS ---
-	
-	public abstract Listener[] getAllListeners();
-	
 }

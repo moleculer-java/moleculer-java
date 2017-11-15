@@ -49,8 +49,8 @@ public final class NanoSecRandomStrategyFactory extends ArrayBasedStrategyFactor
 	// --- FACTORY METHOD ---
 
 	@Override
-	public final Strategy create() {
-		return new NanoSecRandomStrategy(preferLocal);
+	public final <T extends Endpoint> Strategy<T> create() {
+		return new NanoSecRandomStrategy<T>(preferLocal);
 	}
 
 }

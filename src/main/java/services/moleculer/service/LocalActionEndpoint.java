@@ -50,7 +50,7 @@ public final class LocalActionEndpoint extends ActionEndpoint {
 	private final Action action;
 
 	/**
-	 * Invoke all local services via Thread pool (true) or directly (false)
+	 * Invoke all local actions via Thread pool (true) or directly (false)
 	 */
 	private boolean asyncLocalInvocation;
 

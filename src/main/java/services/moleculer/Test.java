@@ -24,6 +24,7 @@
  */
 package services.moleculer;
 
+import io.datatree.Tree;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
@@ -33,8 +34,8 @@ import services.moleculer.transporter.RedisTransporter;
 
 public class Test {
 
-	public static void main(String[] args) throws Exception {
-
+	public static void main(String[] args) throws Exception {		
+		
 		// Test sigar
 		String nativeDir = "./native";
 		System.setProperty("java.library.path", nativeDir);
@@ -42,6 +43,7 @@ public class Test {
 		// Define a service
 		ServiceBroker broker = ServiceBroker.builder().registry(new DefaultServiceRegistry(false))
 				.transporter(new RedisTransporter()).nodeID("server-2").build();
+		
 		broker.createService(new Service("math") {
 
 			@SuppressWarnings("unused")
@@ -55,12 +57,14 @@ public class Test {
 			public Listener evt = payload -> {
 				System.out.println(payload.get("a", -1));
 			};
-			
+
 		});
 		broker.start();
-		
+
 		// Emit local event
-		broker.broadcastLocal("math.foo", "a", 5);
+		Tree payload = new Tree();
+		payload.put("a", 5);
+		broker.broadcastLocal("math.foo", payload, new String[] { "test" });
 	}
 
 }

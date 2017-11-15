@@ -26,7 +26,6 @@ package services.moleculer.strategy;
 
 import java.security.SecureRandom;
 
-import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.Name;
 
 /**
@@ -37,23 +36,23 @@ import services.moleculer.service.Name;
  * @see XORShiftRandomStrategy
  */
 @Name("Secure Random Strategy")
-public final class SecureRandomStrategy extends ArrayBasedStrategy {
+public final class SecureRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
 
 	// --- PROPERTIES ---
 
 	private final SecureRandom rnd = new SecureRandom();
 
 	// --- CONSTRUCTOR ---
-	
+
 	public SecureRandomStrategy(boolean preferLocal) {
 		super(preferLocal);
 	}
-	
-	// --- GET NEXT ACTION CONTAINER ---
+
+	// --- GET NEXT ENDPOINT ---
 
 	@Override
-	public final ActionEndpoint next() {
-		return actions[rnd.nextInt(actions.length)];
+	public final Endpoint next() {
+		return endpoints[rnd.nextInt(endpoints.length)];
 	}
 
 }

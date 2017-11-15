@@ -25,7 +25,6 @@
 package services.moleculer;
 
 import static services.moleculer.util.CommonUtils.nameOf;
-import static services.moleculer.util.CommonUtils.parametersToTree;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -384,34 +383,22 @@ public final class ServiceBroker {
 	/**
 	 * Emits an event (grouped & balanced global event)
 	 */
-	public void emit(String name, Object payload, String... groups) {
-		// eventbus.emit(name, parametersToTree(payload), groups);
+	public void emit(String name, Tree payload, String[] groups) {
+		eventbus.emit(name, payload, groups);
 	}
 
 	/**
 	 * Emits an event for all local & remote services
 	 */
-	public void broadcast(String name, Object... payload) {
-		eventbus.broadcast(name, parametersToTree(payload));
+	public void broadcast(String name, Tree payload, String[] groups) {
+		eventbus.broadcast(name, payload, groups);
 	}
 
 	/**
-	 * Emits an event for all local services. Sample invocations:<br>
-	 * <br>
-	 * One scalar value:<br>
-	 * broker.broadcastLocal("service.event", 1234);<br>
-	 * <br>
-	 * Key-value pairs:<br>
-	 * broker.broadcastLocal("service.event", "a", 1, "b", 2);<br>
-	 * <br>
-	 * Structure:<br>
-	 * Tree payload = new Tree();<br>
-	 * payload.put("node.subnode", 5);<br>
-	 * payload.putList("list").add(1).add(2).add(3);<br>
-	 * broker.broadcastLocal("service.event", payload);
+	 * Emits an event for all local services.
 	 */
-	public void broadcastLocal(String name, Object... payload) {
-		eventbus.broadcastLocal(name, parametersToTree(payload));
+	public void broadcastLocal(String name, Tree payload, String[] groups) {
+		eventbus.broadcastLocal(name, payload, groups);
 	}
 
 }

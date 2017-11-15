@@ -49,8 +49,8 @@ public final class XORShiftRandomStrategyFactory extends ArrayBasedStrategyFacto
 	// --- FACTORY METHOD ---
 
 	@Override
-	public final Strategy create() {
-		return new XORShiftRandomStrategy(preferLocal);
+	public final <T extends Endpoint> Strategy<T> create() {
+		return new XORShiftRandomStrategy<T>(preferLocal);
 	}
 
 }
