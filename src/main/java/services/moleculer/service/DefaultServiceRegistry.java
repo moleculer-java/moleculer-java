@@ -567,17 +567,21 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 					listenerConfig.put(NAME, listenerName);
 
 					// Process "Subscribe" annotation
-					String pattern = listenerConfig.get("subscribe", (String) null);
-					if (pattern == null || pattern.isEmpty()) {
-						Subscribe subscribe = field.getAnnotation(Subscribe.class);
-						if (subscribe != null) {
-							pattern = subscribe.value();
+					String subscribe = listenerConfig.get("subscribe", (String) null);
+					if (subscribe == null || subscribe.isEmpty()) {
+						Subscribe s = field.getAnnotation(Subscribe.class);
+						if (s != null) {
+							subscribe = s.value();
+							listenerConfig.put("subscribe", subscribe);
 						}
 					}
-					if (pattern == null || pattern.isEmpty()) {
-						pattern = listenerName;
+					if (subscribe == null || subscribe.isEmpty()) {
+						subscribe = listenerName;
 					}
 
+					// TODO Process Group annotation
+					listenerConfig.put("group", service.name);
+					
 					// Register listener in EventBus
 					field.setAccessible(true);
 					Listener listener = (Listener) field.get(service);

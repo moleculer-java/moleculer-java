@@ -24,6 +24,8 @@
  */
 package services.moleculer.eventbus;
 
+import java.util.Set;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,14 +84,14 @@ public abstract class EventBus implements MoleculerComponent {
 
 	// --- SEND EVENT TO ONE LISTENER IN GROUPS ---
 
-	public abstract void emit(String name, Tree payload, String[] groups);
+	public abstract void emit(String name, Tree payload, Set<String> groups);
 
 	// --- SEND EVENT TO ALL LISTENERS IN GROUPS ---
 
-	public abstract void broadcast(String name, Tree payload, String[] groups);
+	public abstract void broadcast(String name, Tree payload, Set<String> groups);
 
 	// --- SEND EVENT TO ALL LOCAL LISTENERS IN GROUPS ---
 
-	public abstract void broadcastLocal(String name, Tree payload, String[] groups);
+	public abstract void broadcastLocal(String name, Tree payload, Set<String> groups);
 
 }
