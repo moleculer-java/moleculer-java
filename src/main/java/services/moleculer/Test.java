@@ -24,7 +24,10 @@
  */
 package services.moleculer;
 
+import java.util.concurrent.TimeUnit;
+
 import io.datatree.Tree;
+import services.moleculer.cacher.Cache;
 import services.moleculer.eventbus.Group;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
@@ -47,11 +50,21 @@ public class Test {
 		
 		broker.createService(new Service("math") {
 
-			@SuppressWarnings("unused")
+			@Cache(keys={"a", "b"})
 			public Action add = (ctx) -> {
 				int a = ctx.params().get("a", 0);
 				int b = ctx.params().get("b", 0);
-				return a + b;
+				
+				return ctx.call("math2.mult", "a", a + b, "b", 2).then(in -> {
+					System.out.println("Res: " + in);
+					return new Promise(r -> {
+						broker.components().scheduler().schedule(() -> {
+							
+							r.resolve("Eredmény: " + in.asString());
+							
+						}, 3, TimeUnit.SECONDS);
+					});
+				});	
 			};
 
 			@Subscribe("user.*")
@@ -67,6 +80,8 @@ public class Test {
 			
 		});
 		broker.start();
+		
+		Thread.sleep(2000);
 
 		// Emit local event
 		Tree payload = new Tree();
@@ -75,6 +90,13 @@ public class Test {
 		broker.broadcastLocal("user.foo", payload, new String[] { "math" });
 		broker.broadcastLocal("user.foo", payload, new String[] { "special" });
 		broker.emit("test.foo", payload, null);
+		broker.broadcast("user.foo", payload, null);
+		
+		//broker.call("e.test", "name", "Norbi").then(in -> {
+		broker.call("math2.mult", "a", 5, "b", 2).then(in -> {
+			System.out.println("Result: " + in.asString());
+			//broker.emit("test.foo", payload, null);
+		});
 	}
 
 }

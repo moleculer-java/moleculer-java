@@ -29,6 +29,7 @@ import java.util.LinkedHashMap;
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.service.ServiceRegistry;
+import services.moleculer.util.CheckedTree;
 
 /**
  * Invocation context of Actions.
@@ -84,7 +85,7 @@ public final class Context {
 				if (params[0] instanceof Tree) {
 					tree = (Tree) params[0];
 				} else {
-					tree = new Tree().setObject(params[0]);
+					tree = new CheckedTree(params[0]);
 				}
 			} else {
 				LinkedHashMap<String, Object> map = new LinkedHashMap<>();
@@ -98,9 +99,6 @@ public final class Context {
 								opts = (CallingOptions) value;
 								continue;
 							}
-							if (value instanceof Context) {
-								continue;
-							}
 							i++;
 							throw new IllegalArgumentException("Parameter #" + i + " (\"" + value
 									+ "\") must be String, Context, or CallingOptions!");
@@ -109,6 +107,7 @@ public final class Context {
 						continue;
 					}
 					map.put(prev, value);
+					prev = null;
 				}
 				tree = new Tree(map);
 			}
