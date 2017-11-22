@@ -369,7 +369,7 @@ public abstract class Transporter implements MoleculerComponent {
 		executor.execute(() -> {
 
 			// TODO
-			// logger.info("FROM " + channel + ": " + new String(message));
+			logger.info("FROM " + channel + ": " + new String(message));
 
 			// Parse message
 			Tree data;
@@ -428,7 +428,12 @@ public abstract class Transporter implements MoleculerComponent {
 					Tree services = data.get(SERVICES);
 					if (services != null && services.isEnumeration()) {
 						for (Tree service : services) {
-							registry.addService(service);
+							
+							// Register actions
+							registry.addActions(service);
+							
+							// Register listeners
+							eventbus.addListeners(service);
 						}
 						logger.info("Node \"" + sender + "\" connected.");
 					}
@@ -447,7 +452,7 @@ public abstract class Transporter implements MoleculerComponent {
 					lastNodeActivities.remove(sender);
 					
 					// Remove remote actions
-					registry.removeServices(sender);
+					registry.removeActions(sender);
 					
 					// Remove remote event listeners
 					eventbus.removeListeners(sender);
@@ -497,8 +502,6 @@ public abstract class Transporter implements MoleculerComponent {
 		Iterator<Map.Entry<String, Long>> entries = lastNodeActivities.entrySet().iterator();
 		long now = System.currentTimeMillis();
 		if (now < lastCheck) {
-
-			// The clock has been reset for one hour?
 			lastCheck = now;
 			return;
 		}
@@ -513,7 +516,7 @@ public abstract class Transporter implements MoleculerComponent {
 				String nodeID = entry.getKey();
 
 				// Remove remote actions
-				registry.removeServices(nodeID);
+				registry.removeActions(nodeID);
 				
 				// Remove remote event listeners
 				eventbus.removeListeners(nodeID);

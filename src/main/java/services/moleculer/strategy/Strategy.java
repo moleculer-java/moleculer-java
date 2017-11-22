@@ -24,6 +24,8 @@
  */
 package services.moleculer.strategy;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,6 +89,6 @@ public abstract class Strategy<T extends Endpoint> implements MoleculerComponent
 	
 	// --- GET ALL ENDPOINTS ---
 	
-	public abstract T[] getAllEndpoints();
+	public abstract List<T> getAllEndpoints();
 
 }

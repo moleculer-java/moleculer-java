@@ -2,8 +2,6 @@ package services.moleculer.eventbus;
 
 import static services.moleculer.transporter.Transporter.PACKET_EVENT;
 
-import java.util.Objects;
-
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.transporter.Transporter;
@@ -26,13 +24,10 @@ public final class RemoteListenerEndpoint extends ListenerEndpoint {
 	 */
 	@Override
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
-		super.start(broker, config);
-
-		// Check parameters
-		Objects.requireNonNull(subscribe);
-		Objects.requireNonNull(nodeID);
-		Objects.requireNonNull(group);
 		
+		// Set base properties
+		super.start(broker, config);
+	
 		// Set components
 		transporter = broker.components().transporter();
 	}

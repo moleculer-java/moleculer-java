@@ -36,6 +36,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -52,8 +53,6 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.cacher.Cache;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.eventbus.EventBus;
-import services.moleculer.eventbus.Listener;
-import services.moleculer.eventbus.Subscribe;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
@@ -484,7 +483,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	// --- ADD A LOCAL SERVICE ---
 
 	@Override
-	public final void addService(Service service, Tree config) throws Exception {
+	public final void addActions(Service service, Tree config) throws Exception {
 		writeLock.lock();
 		try {
 
@@ -538,6 +537,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 					field.setAccessible(true);
 					Action action = (Action) field.get(service);
 					LocalActionEndpoint endpoint = new LocalActionEndpoint(this, action, asyncLocalInvocation);
+					endpoint.start(broker, actionConfig);
 					Strategy<ActionEndpoint> actionStrategy = strategies.get(actionName);
 					if (actionStrategy == null) {
 						actionStrategy = strategy.create();
@@ -545,48 +545,6 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 						strategies.put(actionName, actionStrategy);
 					}
 					actionStrategy.addEndpoint(endpoint);
-					endpoint.start(broker, actionConfig);
-					continue;
-				}
-
-				// Register event listener
-				if (Listener.class.isAssignableFrom(field.getType())) {
-					String listenerName = field.getName();
-					Tree listenerConfig = config.get(listenerName);
-					if (listenerConfig == null) {
-						if (config.isMap()) {
-							listenerConfig = config.putMap(listenerName);
-						} else {
-							listenerConfig = new Tree();
-						}
-					}
-
-					// Name of the listener (eg. "v2.service.listener")
-					// It's the subscribed event name by default
-					listenerName = service.name + '.' + listenerName;
-					listenerConfig.put(NAME, listenerName);
-
-					// Process "Subscribe" annotation
-					String subscribe = listenerConfig.get("subscribe", (String) null);
-					if (subscribe == null || subscribe.isEmpty()) {
-						Subscribe s = field.getAnnotation(Subscribe.class);
-						if (s != null) {
-							subscribe = s.value();
-							listenerConfig.put("subscribe", subscribe);
-						}
-					}
-					if (subscribe == null || subscribe.isEmpty()) {
-						subscribe = listenerName;
-					}
-
-					// TODO Process Group annotation
-					listenerConfig.put("group", service.name);
-					
-					// Register listener in EventBus
-					field.setAccessible(true);
-					Listener listener = (Listener) field.get(service);
-					eventbus.addListener(listener, listenerConfig);
-					continue;
 				}
 			}
 
@@ -602,19 +560,17 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	// --- ADD A REMOTE SERVICE ---
 
 	@Override
-	public final void addService(Tree config) throws Exception {
-		String nodeID = config.get(NODE_ID, (String) null);
-		writeLock.lock();
-		try {
-
-			// Process configuration
-			Tree actions = config.get(ACTIONS);
-			if (actions != null && actions.isMap()) {
+	public final void addActions(Tree config) throws Exception {
+		Tree actions = config.get(ACTIONS);
+		if (actions != null && actions.isMap()) {
+			String nodeID = Objects.requireNonNull(config.get(NODE_ID, (String) null));
+			writeLock.lock();
+			try {
 				for (Tree actionConfig : actions) {
-
-					// Register action
-					actionConfig.put(NODE_ID, nodeID);
+					actionConfig.putObject(NODE_ID, nodeID, true);
 					String actionName = actionConfig.get(NAME, "");
+
+					// Register remote action
 					RemoteActionEndpoint endpoint = new RemoteActionEndpoint(this);
 					endpoint.start(broker, actionConfig);
 					Strategy<ActionEndpoint> actionStrategy = strategies.get(actionName);
@@ -624,18 +580,17 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 						strategies.put(actionName, actionStrategy);
 					}
 					actionStrategy.addEndpoint(endpoint);
-					endpoint.start(broker, actionConfig);
 				}
+			} finally {
+				writeLock.unlock();
 			}
-		} finally {
-			writeLock.unlock();
 		}
 	}
 
 	// --- REMOVE ALL REMOTE SERVICES/ACTIONS OF A NODE ---
 
 	@Override
-	public final void removeServices(String nodeID) {
+	public final void removeActions(String nodeID) {
 		writeLock.lock();
 		try {
 			Iterator<Strategy<ActionEndpoint>> endpoints = strategies.values().iterator();
@@ -751,9 +706,9 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 				// Action block
 				@SuppressWarnings("unchecked")
-				Map<String, Object> actions = (Map<String, Object>) serviceMap.putMap(ACTIONS, true).asObject();
+				Map<String, Object> actionBlock = (Map<String, Object>) serviceMap.putMap(ACTIONS, true).asObject();
 				LinkedHashMap<String, Object> map = new LinkedHashMap<>();
-				actions.put(name, map);
+				actionBlock.put(name, map);
 				Tree actionMap = new Tree(map);
 
 				actionMap.put(NAME, name);
@@ -767,6 +722,12 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 							cacheKeys.add(key);
 						}
 					}
+				}
+
+				// Listener block
+				Tree listeners = eventbus.generateListenerDescriptor(service);
+				if (listeners != null && !listeners.isEmpty()) {
+					serviceMap.putMap("events").assign(listeners);
 				}
 
 				// Not used

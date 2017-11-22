@@ -201,7 +201,12 @@ public final class ServiceBroker {
 				if (cfg == null) {
 					cfg = new Tree();
 				}
-				registry.addService(service, cfg);
+				
+				// Register actions
+				registry.addActions(service, cfg);
+
+				// Register listeners
+				eventbus.addListeners(service, cfg);
 			}
 
 			// All components and services started successfully
@@ -273,7 +278,7 @@ public final class ServiceBroker {
 		} else {
 
 			// Start service now
-			registry.addService(service, config);
+			registry.addActions(service, config);
 		}
 		return service;
 	}

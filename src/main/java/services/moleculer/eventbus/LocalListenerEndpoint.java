@@ -1,8 +1,5 @@
 package services.moleculer.eventbus;
 
-import static services.moleculer.util.CommonUtils.nameOf;
-
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
 import io.datatree.Tree;
@@ -45,23 +42,13 @@ public final class LocalListenerEndpoint extends ListenerEndpoint {
 	 */
 	@Override
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
+		
+		// Set base properties
 		super.start(broker, config);
 
 		// Process config
 		asyncLocalInvocation = config.get(ASYNC_LOCAL_INVOCATION, asyncLocalInvocation);
-		group = config.get("group", group);
-
-		// Set name
-		if (subscribe == null || subscribe.isEmpty()) {
-			subscribe = nameOf(listener, false);
-		}
-
-		// Check group
-		Objects.requireNonNull(group);
-		
-		// Set nodeID
-		nodeID = broker.nodeID();
-
+	
 		// Set components
 		if (asyncLocalInvocation) {
 			executor = broker.components().executor();

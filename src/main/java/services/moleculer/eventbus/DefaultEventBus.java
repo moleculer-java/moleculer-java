@@ -24,12 +24,14 @@
  */
 package services.moleculer.eventbus;
 
+import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -37,9 +39,10 @@ import io.datatree.Tree;
 import io.datatree.dom.Cache;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
+import services.moleculer.service.Service;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
-import services.moleculer.transporter.Transporter;
+import services.moleculer.util.CheckedTree;
 
 /**
  * Default EventBus implementation.
@@ -79,7 +82,6 @@ public final class DefaultEventBus extends EventBus {
 
 	private ServiceBroker broker;
 	private StrategyFactory strategy;
-	private Transporter transporter;
 
 	// --- CONSTRUCTORS ---
 
@@ -117,7 +119,6 @@ public final class DefaultEventBus extends EventBus {
 		// Set components
 		this.broker = broker;
 		this.strategy = broker.components().strategy();
-		this.transporter = broker.components().transporter();
 	}
 
 	// --- STOP EVENT BUS ---
@@ -128,10 +129,17 @@ public final class DefaultEventBus extends EventBus {
 		// Stop listener endpoints
 		writeLock.lock();
 		try {
-
-			// TODO Stop strategies (and registered listeners)
+			for (HashMap<String, Strategy<ListenerEndpoint>> groups : listeners.values()) {
+				for (Strategy<ListenerEndpoint> strategy : groups.values()) {
+					for (ListenerEndpoint endpoint : strategy.getAllEndpoints()) {
+						endpoint.stop();
+					}
+					strategy.stop();
+				}
+			}
 			listeners.clear();
-
+			emitterCache.clear();
+			broadcasterCache.clear();
 		} finally {
 			writeLock.unlock();
 		}
@@ -141,49 +149,99 @@ public final class DefaultEventBus extends EventBus {
 
 	@Override
 	public final void receiveEvent(Tree message) {
-
+		System.out.println(message);
 	}
 
 	// --- ADD LOCAL LISTENER ---
 
 	@Override
-	public final void addListener(Listener listener, Tree config) throws Exception {
+	public final void addListeners(Service service, Tree config) throws Exception {
+		String nodeID = broker.nodeID();
 		writeLock.lock();
 		try {
 
-			// Process config
-			String subscribe = config.get("subscribe", (String) null);
-			if (subscribe == null || subscribe.isEmpty()) {
-				Subscribe s = listener.getClass().getAnnotation(Subscribe.class);
-				if (s != null) {
-					subscribe = s.value();
-					config.put("subscribe", subscribe);
+			// Initialize actions in services
+			Class<? extends Service> clazz = service.getClass();
+			Field[] fields = clazz.getFields();
+			for (Field field : fields) {
+
+				// Register event listener
+				if (Listener.class.isAssignableFrom(field.getType())) {
+					String listenerName = field.getName();
+					Tree listenerConfig = config.get(listenerName);
+					if (listenerConfig == null) {
+						if (config.isMap()) {
+							listenerConfig = config.putMap(listenerName);
+						} else {
+							listenerConfig = new Tree();
+						}
+					}
+
+					// Name of the listener (eg. "v2.service.listener")
+					// It's the subscribed event name by default
+					listenerName = service.name() + '.' + listenerName;
+					listenerConfig.put(NAME, listenerName);
+					listenerConfig.put(NODE_ID, nodeID);
+					listenerConfig.put("service", service.name());
+
+					// Process "Subscribe" annotation
+					String subscribe = listenerConfig.get("subscribe", (String) null);
+					if (subscribe == null || subscribe.isEmpty()) {
+						Subscribe s = field.getAnnotation(Subscribe.class);
+						if (s != null) {
+							subscribe = s.value();
+						}
+						if (subscribe == null || subscribe.isEmpty()) {
+							subscribe = listenerName;
+						}
+						listenerConfig.put("subscribe", subscribe);
+					}
+
+					// Process "Group" annotation
+					String group = listenerConfig.get("group", (String) null);
+					if (group == null || group.isEmpty()) {
+						Group g = field.getAnnotation(Group.class);
+						if (g != null) {
+							group = g.value();
+						}
+						if (group == null || group.isEmpty()) {
+							group = service.name();
+						}
+						listenerConfig.put("group", group);
+					}
+
+					// Register listener in EventBus
+					field.setAccessible(true);
+					Listener listener = (Listener) field.get(service);
+
+					// Get or create group map
+					HashMap<String, Strategy<ListenerEndpoint>> groups = listeners.get(subscribe);
+					if (groups == null) {
+						groups = new HashMap<String, Strategy<ListenerEndpoint>>();
+						listeners.put(subscribe, groups);
+					}
+
+					// Get or create strategy
+					Strategy<ListenerEndpoint> strategy = groups.get(group);
+					if (strategy == null) {
+						strategy = this.strategy.create();
+						strategy.start(broker, config);
+						groups.put(group, strategy);
+					}
+
+					// Add endpoint to strategy
+					LocalListenerEndpoint endpoint = new LocalListenerEndpoint(listener, asyncLocalInvocation);
+					endpoint.start(broker, listenerConfig);
+					strategy.addEndpoint(endpoint);
 				}
 			}
-			String group = Objects.requireNonNull(config.get("group", (String) null));
-			boolean async = config.get(ASYNC_LOCAL_INVOCATION, asyncLocalInvocation);
-
-			// Get or create group map
-			HashMap<String, Strategy<ListenerEndpoint>> groups = listeners.get(subscribe);
-			if (groups == null) {
-				groups = new HashMap<String, Strategy<ListenerEndpoint>>();
-				listeners.put(subscribe, groups);
-			}
-
-			// Get or create strategy
-			Strategy<ListenerEndpoint> strategy = groups.get(group);
-			if (strategy == null) {
-				strategy = this.strategy.create();
-				strategy.start(broker, config);
-				groups.put(group, strategy);
-			}
-
-			// Add endpoint to strategy
-			LocalListenerEndpoint endpoint = new LocalListenerEndpoint(listener, async);
-			endpoint.start(broker, config);
-			strategy.addEndpoint(endpoint);
-
 		} finally {
+
+			// Clear caches
+			emitterCache.clear();
+			broadcasterCache.clear();
+
+			// Unlock reader threads
 			writeLock.unlock();
 		}
 	}
@@ -191,14 +249,50 @@ public final class DefaultEventBus extends EventBus {
 	// --- ADD REMOTE LISTENER ---
 
 	@Override
-	public final void addListener(Tree config) throws Exception {
-		writeLock.lock();
-		try {
+	public final void addListeners(Tree config) throws Exception {
+		Tree events = config.get("events");
+		if (events != null && events.isMap()) {
+			String nodeID = Objects.requireNonNull(config.get(NODE_ID, (String) null));
+			String serviceName = Objects.requireNonNull(config.get(NAME, (String) null));
+			writeLock.lock();
+			try {
+				for (Tree listenerConfig : events) {
+					String subscribe = listenerConfig.get(NAME, "");
+					String group = listenerConfig.get("group", serviceName);
+					listenerConfig.putObject(NODE_ID, nodeID, true);
+					listenerConfig.putObject("service", serviceName, true);
+					listenerConfig.putObject("group", group, true);
+					listenerConfig.putObject("subscribe", subscribe, true);
 
-			// TODO Add remote listener
+					// Register remote listener
+					RemoteListenerEndpoint endpoint = new RemoteListenerEndpoint();
+					endpoint.start(broker, listenerConfig);
 
-		} finally {
-			writeLock.unlock();
+					// Get or create group map
+					HashMap<String, Strategy<ListenerEndpoint>> groups = listeners.get(subscribe);
+					if (groups == null) {
+						groups = new HashMap<String, Strategy<ListenerEndpoint>>();
+						listeners.put(subscribe, groups);
+					}
+
+					// Get or create strategy
+					Strategy<ListenerEndpoint> listenerStrategy = groups.get(group);
+					if (listenerStrategy == null) {
+						listenerStrategy = this.strategy.create();
+						listenerStrategy.start(broker, config);
+						groups.put(group, listenerStrategy);
+					}
+					listenerStrategy.addEndpoint(endpoint);
+				}
+			} finally {
+
+				// Clear caches
+				emitterCache.clear();
+				broadcasterCache.clear();
+
+				// Unlock reader threads
+				writeLock.unlock();
+			}
 		}
 	}
 
@@ -216,6 +310,11 @@ public final class DefaultEventBus extends EventBus {
 					Strategy<ListenerEndpoint> strategy = strategyIterator.next();
 					strategy.remove(nodeID);
 					if (strategy.isEmpty()) {
+						try {
+							strategy.stop();
+						} catch (Throwable cause) {
+							logger.warn("Unable to stop strategy!", cause);
+						}
 						strategyIterator.remove();
 					}
 				}
@@ -232,22 +331,48 @@ public final class DefaultEventBus extends EventBus {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public final void emit(String name, Tree payload, Set<String> groups) {
-		readLock.lock();
-		try {
-			String key = getCacheKey(false, name, groups);
-			Strategy<ListenerEndpoint>[] strategies = emitterCache.get(key);
-			if (strategies == null) {
-				LinkedList<Strategy<ListenerEndpoint>> list = new LinkedList<>();
+	public final void emit(String name, Tree payload, String[] groups) {
+		String key = getCacheKey('#', name, groups);
+		Strategy<ListenerEndpoint>[] strategies = emitterCache.get(key);
+		if (strategies == null) {
+			LinkedList<Strategy<ListenerEndpoint>> list = new LinkedList<>();
+			readLock.lock();
+			try {
 				for (Map.Entry<String, HashMap<String, Strategy<ListenerEndpoint>>> entry : listeners.entrySet()) {
 					if (GlobMatcher.matches(name, entry.getKey())) {
-						list.addAll(entry.getValue().values());
+						if (groups != null && groups.length > 0) {
+							for (Map.Entry<String, Strategy<ListenerEndpoint>> test : entry.getValue().entrySet()) {
+								final String testGroup = test.getKey();
+								for (String group : groups) {
+									if (group.equals(testGroup)) {
+										list.add(test.getValue());
+									}
+								}
+							}
+						} else {
+							list.addAll(entry.getValue().values());
+						}
 					}
 				}
-				strategies = new Strategy[list.size()];
-				list.toArray(strategies);
-				emitterCache.put(key, strategies);
+			} finally {
+				readLock.unlock();
 			}
+			strategies = new Strategy[list.size()];
+			list.toArray(strategies);
+			emitterCache.put(key, strategies);
+		}
+		if (strategies.length == 0) {
+			return;
+		}
+		if (strategies.length == 1) {
+			try {
+				strategies[0].getEndpoint(null).on(payload);
+			} catch (Exception cause) {
+				logger.error("Unable to invoke event listener!", cause);
+			}			
+			return;
+		}
+		if (strategies.length > 0) {
 			for (Strategy<ListenerEndpoint> strategy : strategies) {
 				try {
 					strategy.getEndpoint(null).on(payload);
@@ -255,21 +380,97 @@ public final class DefaultEventBus extends EventBus {
 					logger.error("Unable to invoke event listener!", cause);
 				}
 			}
-
-		} finally {
-			readLock.unlock();
 		}
 	}
 
-	private static final String getCacheKey(boolean local, String name, Set<String> groups) {
-		StringBuilder tmp = new StringBuilder(64);
-		if (local) {
-			tmp.append('>');
-		} else {
-			tmp.append('<');
+	// --- EMIT EVENT TO LOCAL AND REMOTE LISTENERS ---
+
+	@Override
+	public final void broadcast(String name, Tree payload, String[] groups) {
+		broadcast(name, payload, groups, false);
+	}
+
+	// --- EMIT EVENT TO LOCAL LISTENERS ONLY ---
+
+	@Override
+	public final void broadcastLocal(String name, Tree payload, String[] groups) {
+		broadcast(name, payload, groups, true);
+	}
+
+	private final void broadcast(String name, Tree payload, String[] groups, boolean local) {
+		char prefix = local ? '>' : '<';
+		String key = getCacheKey(prefix, name, groups);
+		ListenerEndpoint[] endpoints = broadcasterCache.get(key);
+		if (endpoints == null) {
+			HashSet<ListenerEndpoint> list = new HashSet<>();
+			readLock.lock();
+			try {
+				for (Map.Entry<String, HashMap<String, Strategy<ListenerEndpoint>>> entry : listeners.entrySet()) {
+					if (GlobMatcher.matches(name, entry.getKey())) {
+						for (Map.Entry<String, Strategy<ListenerEndpoint>> test : entry.getValue().entrySet()) {
+							if (groups != null && groups.length > 0) {
+								final String testGroup = test.getKey();
+								for (String group : groups) {
+									if (group.equals(testGroup)) {
+										for (ListenerEndpoint endpoint : test.getValue().getAllEndpoints()) {
+											if (local) {
+												if (endpoint.local()) {
+													list.add(endpoint);
+												}
+											} else {
+												list.add(endpoint);
+											}
+										}
+									}
+								}
+							} else {
+								for (ListenerEndpoint endpoint : test.getValue().getAllEndpoints()) {
+									if (local) {
+										if (endpoint.local()) {
+											list.add(endpoint);
+										}
+									} else {
+										list.add(endpoint);
+									}
+								}
+							}
+						}
+					}
+				}
+			} finally {
+				readLock.unlock();
+			}
+			endpoints = new ListenerEndpoint[list.size()];
+			list.toArray(endpoints);
+			broadcasterCache.put(key, endpoints);
 		}
+		if (endpoints.length == 0) {
+			return;
+		}
+		if (endpoints.length == 1) {
+			try {
+				endpoints[0].on(payload);
+			} catch (Exception cause) {
+				logger.error("Unable to invoke event listener!", cause);
+			}
+			return;
+		}
+		for (ListenerEndpoint endpoint : endpoints) {
+			try {
+				endpoint.on(payload);
+			} catch (Exception cause) {
+				logger.error("Unable to invoke event listener!", cause);
+			}
+		}
+	}
+
+	// --- CREATE CACHE KEY ---
+
+	private static final String getCacheKey(char prefix, String name, String[] groups) {
+		StringBuilder tmp = new StringBuilder(64);
+		tmp.append(prefix);
 		tmp.append(name);
-		if (groups != null && !groups.isEmpty()) {
+		if (groups != null && groups.length > 0) {
 			for (String group : groups) {
 				tmp.append('|');
 				tmp.append(group);
@@ -278,28 +479,28 @@ public final class DefaultEventBus extends EventBus {
 		return tmp.toString();
 	}
 
-	// --- EMIT EVENT TO LOCAL AND REMOTE LISTENERS ---
+	// --- GENERATE LISTENER DESCRIPTOR ---
 
 	@Override
-	public final void broadcast(String name, Tree payload, Set<String> groups) {
+	public final Tree generateListenerDescriptor(String service) {
+		LinkedHashMap<String, Object> descriptor = new LinkedHashMap<>();
 		readLock.lock();
 		try {
-
+			for (HashMap<String, Strategy<ListenerEndpoint>> groups : listeners.values()) {
+				for (Strategy<ListenerEndpoint> strategy : groups.values()) {
+					for (ListenerEndpoint endpoint : strategy.getAllEndpoints()) {
+						if (endpoint.local() && endpoint.service().endsWith(service)) {
+							LinkedHashMap<String, Object> map = new LinkedHashMap<>();
+							descriptor.put(endpoint.subscribe, map);
+							map.put(NAME, endpoint.subscribe);
+						}
+					}
+				}
+			}
 		} finally {
 			readLock.unlock();
 		}
-	}
-
-	// --- EMIT EVENT TO LOCAL LISTENERS ONLY ---
-
-	@Override
-	public final void broadcastLocal(String name, Tree payload, Set<String> groups) {
-		readLock.lock();
-		try {
-
-		} finally {
-			readLock.unlock();
-		}
+		return new CheckedTree(descriptor);
 	}
 
 }

@@ -25,6 +25,7 @@
 package services.moleculer;
 
 import io.datatree.Tree;
+import services.moleculer.eventbus.Group;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
@@ -53,18 +54,27 @@ public class Test {
 				return a + b;
 			};
 
-			@Subscribe("math.*")
-			public Listener evt = payload -> {
-				System.out.println(payload.get("a", -1));
+			@Subscribe("user.*")
+			public Listener evt1 = payload -> {
+				System.out.println("Event1: " + payload.get("a", -1));
 			};
 
+			@Subscribe("user.*")
+			@Group("special")
+			public Listener evt2 = payload -> {
+				System.out.println("Event2: " + payload.get("a", -1));
+			};
+			
 		});
 		broker.start();
 
 		// Emit local event
 		Tree payload = new Tree();
 		payload.put("a", 5);
-		broker.broadcastLocal("math.foo", payload, new String[] { "test" });
+		broker.broadcastLocal("user.foo", payload, null);
+		broker.broadcastLocal("user.foo", payload, new String[] { "math" });
+		broker.broadcastLocal("user.foo", payload, new String[] { "special" });
+		broker.emit("test.foo", payload, null);
 	}
 
 }

@@ -24,8 +24,6 @@
  */
 package services.moleculer.eventbus;
 
-import java.util.Set;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +31,7 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.MoleculerComponent;
 import services.moleculer.service.Name;
+import services.moleculer.service.Service;
 
 /**
  * Base superclass of all Event Bus implementations.
@@ -70,28 +69,32 @@ public abstract class EventBus implements MoleculerComponent {
 
 	public abstract void receiveEvent(Tree message);
 	
-	// --- ADD LOCAL LISTENER ---
+	// --- ADD LISTENERS OF A LOCAL SERVICE ---
 
-	public abstract void addListener(Listener listener, Tree config) throws Exception;
+	public abstract void addListeners(Service service, Tree config) throws Exception;
 
-	// --- ADD REMOTE LISTENER ---
+	// --- ADD LISTENERS OF A REMOTE SERVICE ---
 
-	public abstract void addListener(Tree config) throws Exception;
+	public abstract void addListeners(Tree config) throws Exception;
 	
-	// --- REMOVE ALL REMOTE SERVICES/ACTIONS OF A NODE ---
+	// --- REMOVE ALL LISTENERS OF A NODE ---
 
 	public abstract void removeListeners(String nodeID);
 
 	// --- SEND EVENT TO ONE LISTENER IN GROUPS ---
 
-	public abstract void emit(String name, Tree payload, Set<String> groups);
+	public abstract void emit(String name, Tree payload, String[] groups);
 
 	// --- SEND EVENT TO ALL LISTENERS IN GROUPS ---
 
-	public abstract void broadcast(String name, Tree payload, Set<String> groups);
+	public abstract void broadcast(String name, Tree payload, String[] groups);
 
 	// --- SEND EVENT TO ALL LOCAL LISTENERS IN GROUPS ---
 
-	public abstract void broadcastLocal(String name, Tree payload, Set<String> groups);
+	public abstract void broadcastLocal(String name, Tree payload, String[] groups);
 
+	// --- GENERATE LISTENER DESCRIPTOR ---
+
+	public abstract Tree generateListenerDescriptor(String service);
+	
 }

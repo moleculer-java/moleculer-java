@@ -30,11 +30,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Mask of the subscribed event (eg. "user.*").
+ * Event group.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.FIELD, ElementType.TYPE })
-public @interface Subscribe {
+public @interface Group {
 
 	String value();
 
