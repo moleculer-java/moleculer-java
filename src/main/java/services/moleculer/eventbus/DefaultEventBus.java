@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.locks.Lock;
@@ -149,7 +150,29 @@ public final class DefaultEventBus extends EventBus {
 
 	@Override
 	public final void receiveEvent(Tree message) {
-		System.out.println(message);
+
+		// Verify Moleculer version
+		int ver = message.get(VER, -1);
+		if (ver != ServiceBroker.MOLECULER_VERSION) {
+			logger.warn("Invalid message version (" + ver + ")!");
+			return;
+		}
+		
+		// Get event property
+		String event = message.get("event", (String) null);
+		if (event == null || event.isEmpty()) {
+			logger.warn("Missing \"event\" property!");
+			return;
+		}
+		
+		// Get groups
+		List<String> groups = message.get("groups").asList(String.class);
+		
+		// Get data
+		Tree data = message.get("data");
+		
+		// Send to local
+		// TODO Emit? Broadcast?
 	}
 
 	// --- ADD LOCAL LISTENER ---
@@ -366,7 +389,7 @@ public final class DefaultEventBus extends EventBus {
 		}
 		if (strategies.length == 1) {
 			try {
-				strategies[0].getEndpoint(null).on(payload);
+				strategies[0].getEndpoint(null).on(name, payload, groups);
 			} catch (Exception cause) {
 				logger.error("Unable to invoke event listener!", cause);
 			}			
@@ -375,7 +398,7 @@ public final class DefaultEventBus extends EventBus {
 		if (strategies.length > 0) {
 			for (Strategy<ListenerEndpoint> strategy : strategies) {
 				try {
-					strategy.getEndpoint(null).on(payload);
+					strategy.getEndpoint(null).on(name, payload, groups);
 				} catch (Exception cause) {
 					logger.error("Unable to invoke event listener!", cause);
 				}
@@ -449,7 +472,7 @@ public final class DefaultEventBus extends EventBus {
 		}
 		if (endpoints.length == 1) {
 			try {
-				endpoints[0].on(payload);
+				endpoints[0].on(name, payload, groups);
 			} catch (Exception cause) {
 				logger.error("Unable to invoke event listener!", cause);
 			}
@@ -457,7 +480,7 @@ public final class DefaultEventBus extends EventBus {
 		}
 		for (ListenerEndpoint endpoint : endpoints) {
 			try {
-				endpoint.on(payload);
+				endpoint.on(name, payload, groups);
 			} catch (Exception cause) {
 				logger.error("Unable to invoke event listener!", cause);
 			}

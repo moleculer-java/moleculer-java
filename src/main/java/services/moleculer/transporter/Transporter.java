@@ -368,8 +368,7 @@ public abstract class Transporter implements MoleculerComponent {
 	protected void received(String channel, byte[] message) {
 		executor.execute(() -> {
 
-			// TODO
-			logger.info("FROM " + channel + ": " + new String(message));
+			// logger.info("FROM " + channel + ": " + new String(message));
 
 			// Parse message
 			Tree data;

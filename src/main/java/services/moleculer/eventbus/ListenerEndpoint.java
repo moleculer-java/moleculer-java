@@ -77,7 +77,7 @@ public abstract class ListenerEndpoint implements MoleculerComponent, Endpoint {
 
 	// --- SEND EVENT TO ENDPOINT ---
 
-	public abstract void on(Tree payload) throws Exception;
+	public abstract void on(String name, Tree payload, String[] groups) throws Exception;
 
 	// --- PROPERTY GETTERS ---
 
