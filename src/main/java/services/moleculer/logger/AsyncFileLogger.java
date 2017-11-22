@@ -397,7 +397,7 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 			logDirectory = null;
 		} else {
 			logDirectory = new File(directory);
-			if (logDirectory.isDirectory()) {
+			if (!logDirectory.isDirectory()) {
 				logDirectory.mkdirs();
 			}
 		}
