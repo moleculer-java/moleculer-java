@@ -49,6 +49,11 @@ dependencies {
 	// https://mvnrepository.com/artifact/biz.paluch.redis/lettuce
 	compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.4.1.Final'
 
+	// --- NATS CLIENT ---
+	
+	// https://mvnrepository.com/artifact/io.nats/jnats
+	compile group: 'io.nats', name: 'jnats', version: '1.0'
+
 	// --- OFF-HEAP CACHE ---
 	
 	// https://mvnrepository.com/artifact/org.caffinitas.ohc/ohc-core-j8

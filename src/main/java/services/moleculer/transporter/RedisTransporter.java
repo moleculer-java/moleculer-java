@@ -141,6 +141,9 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	// --- CONNECT ---
 
 	private final void connect() {
+		if (clientSub != null || clientPub != null) {
+			disconnect();
+		}
 		status.set(STATUS_CONNECTING_1);
 
 		// Create redis clients
@@ -160,7 +163,6 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 			clientPub.connect();
 		} catch (Exception cause) {
 			unableToConnect(cause);
-			return;
 		}
 	}
 
@@ -178,17 +180,21 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	// --- DISCONNECT ---
 
 	private final Promise disconnect() {
-		status.set(STATUS_DISCONNECTING);
-		List<Promise> promises = new LinkedList<>();
-		if (clientSub != null) {
-			promises.add(clientSub.disconnect());
+		int s = status.get();
+		if (s != STATUS_DISCONNECTED || s != STATUS_STOPPED) {
+			status.set(STATUS_DISCONNECTING);
+			List<Promise> promises = new LinkedList<>();
+			if (clientSub != null) {
+				promises.add(clientSub.disconnect());
+			}
+			if (clientPub != null) {
+				promises.add(clientPub.disconnect());
+			}
+			return Promise.all(promises).then(ok -> {
+				status.set(STATUS_DISCONNECTED);
+			});
 		}
-		if (clientPub != null) {
-			promises.add(clientPub.disconnect());
-		}
-		return Promise.all(promises).then(ok -> {
-			status.set(STATUS_DISCONNECTED);
-		});
+		return Promise.resolve();
 	}
 
 	// --- RECONNECT ---
