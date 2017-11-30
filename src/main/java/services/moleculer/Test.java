@@ -34,7 +34,7 @@ import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Service;
-import services.moleculer.transporter.RedisTransporter;
+import services.moleculer.transporter.NatsTransporter;
 
 public class Test {
 
@@ -46,7 +46,7 @@ public class Test {
 
 		// Define a service
 		ServiceBroker broker = ServiceBroker.builder().registry(new DefaultServiceRegistry(false))
-				.transporter(new RedisTransporter()).nodeID("server-2").build();
+				.transporter(new NatsTransporter()).nodeID("server-2").build();
 		
 		broker.createService(new Service("math") {
 
@@ -60,7 +60,7 @@ public class Test {
 					return new Promise(r -> {
 						broker.components().scheduler().schedule(() -> {
 							
-							r.resolve("Eredmény: " + in.asString());
+							r.resolve("Eredmï¿½ny: " + in.asString());
 							
 						}, 3, TimeUnit.SECONDS);
 					});
@@ -93,7 +93,7 @@ public class Test {
 		broker.broadcast("user.foo", payload, null);
 		
 		//broker.call("e.test", "name", "Norbi").then(in -> {
-		broker.call("math2.mult", "a", 5, "b", 2).then(in -> {
+		broker.call("math.sub", "a", 5, "b", 2).then(in -> {
 			System.out.println("Result: " + in.asString());
 			//broker.emit("test.foo", payload, null);
 		});

@@ -26,17 +26,13 @@ package services.moleculer.transporter;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.net.ssl.SSLContext;
+import org.nats.Connection;
+import org.nats.MsgHandler;
 
 import io.datatree.Tree;
-import io.nats.client.Connection;
-import io.nats.client.Message;
-import io.nats.client.MessageHandler;
-import io.nats.client.Nats;
-import io.nats.client.Options;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
@@ -45,25 +41,21 @@ import services.moleculer.service.Name;
  * Not implemented (yet).
  */
 @Name("NATS Transporter")
-public final class NatsTransporter extends Transporter implements MessageHandler {
-
-	// --- LIST OF STATUS CODES ---
-
-	private static final int STATUS_DISCONNECTED = 1;
-	private static final int STATUS_CONNECTED = 2;
-	private static final int STATUS_STOPPED = 3;
-
-	// --- CONNECTION STATUS ---
-
-	private final AtomicInteger status = new AtomicInteger(STATUS_DISCONNECTED);
+public final class NatsTransporter extends Transporter {
 
 	// --- PROPERTIES ---
 
 	private String[] urls = new String[] { "localhost" };
-	private boolean useSSL;
 	private String username;
 	private String password;
-	private SSLContext sslContext;
+
+	// --- ADVANCED PROPERTIES ---
+
+	private Properties properties = new Properties();
+
+	// --- NATS RECEIVER ---
+
+	private MessageReceiver receiver;
 
 	// --- NATS CONNECTION ---
 
@@ -84,9 +76,8 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 		this.urls = urls;
 	}
 
-	public NatsTransporter(String prefix, boolean useSSL, String username, String password, String... urls) {
+	public NatsTransporter(String prefix, String username, String password, String... urls) {
 		super(prefix);
-		this.useSSL = useSSL;
 		this.username = username;
 		this.password = password;
 		this.urls = urls;
@@ -126,7 +117,6 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 				urlList.toArray(urls);
 			}
 		}
-		useSSL = config.get(USE_SSL, useSSL);
 		username = config.get("username", username);
 		password = config.get(PASSWORD, password);
 
@@ -139,33 +129,61 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 	private final void connect() {
 		try {
 
-			// Set NATS connection options
-			Options.Builder builder = new Options.Builder();
-			if (useSSL) {
-				builder.secure();
-				if (username != null && password != null && !username.isEmpty() && !password.isEmpty()) {
-					builder.userInfo(username, password);
-				}
+			// Create receiver
+			if (receiver == null) {
+				receiver = new MessageReceiver(this);
 			}
-			if (sslContext != null) {
-				builder.sslContext(sslContext);
-			}
-			Options options = builder.build();
 
-			// Connect to NATS server
-			if (connection != null) {
-				disconnect();
-			}
-			StringBuilder urlList = new StringBuilder(128);
-			for (String url: urls) {
-				if (urlList.length() > 0) {
-					urlList.append(',');
+			// Set base properties
+			properties.put("reconnect", Boolean.FALSE);
+			if (urls != null && urls.length > 0) {
+				for (int i = 0; i < urls.length; i++) {
+					String url = urls[i];
+					if (url.indexOf(':') == -1) {
+						url = url + ":4222";
+					}
+					if (!url.startsWith("nats://")) {
+						if (username != null && password != null) {
+							url = "nats://" + username + ':' + password + '@' + url;
+						} else {
+							url = "nats://" + url;
+						}
+					}
+					urls[i] = url;
 				}
-				urlList.append(url);
+				if (urls.length == 1) {
+					properties.put("uri", urls[0]);
+					properties.remove("uris");
+				} else {
+					StringBuilder uris = new StringBuilder(64);
+					for (String url : urls) {
+						if (uris.length() > 0) {
+							uris.append(',');
+						}
+						uris.append(url);
+					}
+					properties.put("uris", uris.toString());
+					properties.remove("uri");
+				}
 			}
-			connection = Nats.connect(urlList.toString(), options);
-			status.set(STATUS_CONNECTED);
-			logger.info("NATS pub-sub connection is estabilished.");
+
+			// Create connection
+			disconnect();
+			connection = Connection.connect(properties, new MsgHandler() {
+				public final void execute(Object msg) {
+
+					// Connected
+					logger.info("NATS pub-sub connection is estabilished.");
+					connected();
+
+				}
+			}, new MsgHandler() {
+				public final void execute(Object msg) {
+
+					// Connection lost
+					reconnect();
+				}
+			});
 
 		} catch (Exception cause) {
 			String msg = cause.getMessage();
@@ -181,33 +199,25 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 
 	// --- DISCONNECT ---
 
-	private final Promise disconnect() {
-		if (status.get() != STATUS_DISCONNECTED) {
-			try {
-				if (connection != null) {
-					connection.close();
-					logger.info("NATS pub-sub connection aborted.");
-				}
-			} catch (Throwable cause) {
-				logger.warn("Unexpected error occured while closing NATS connection!", cause);
-			} finally {
-				status.set(STATUS_DISCONNECTED);
-				connection = null;
+	private final void disconnect() {
+		try {
+			if (connection != null) {
+				connection.close(false);
+				logger.info("NATS pub-sub connection aborted.");
 			}
+		} catch (Throwable cause) {
+			logger.warn("Unexpected error occured while closing NATS connection!", cause);
+		} finally {
+			connection = null;
 		}
-		return Promise.resolve();
 	}
 
 	// --- RECONNECT ---
 
 	private final void reconnect() {
-		disconnect().then(ok -> {
-			logger.info("Trying to reconnect...");
-			scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
-		}).Catch(cause -> {
-			logger.warn("Unable to disconnect from NATS server!", cause);
-			scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
-		});
+		disconnect();
+		logger.info("Trying to reconnect...");
+		scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
 	}
 
 	// --- ANY I/O ERROR ---
@@ -217,7 +227,7 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 		logger.warn("Unexpected communication error occured!", cause);
 		reconnect();
 	}
-
+	
 	// --- STOP TRANSPORTER ---
 
 	/**
@@ -225,41 +235,48 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 	 */
 	@Override
 	public final void stop() {
-		int s = status.getAndSet(STATUS_STOPPED);
-		if (s != STATUS_STOPPED) {
-			disconnect();
-		} else {
-			throw new IllegalStateException("NATS Trransporter is already stopped!");
-		}
+		disconnect();
 	}
 
 	// --- SUBSCRIBE ---
 
 	@Override
 	public final Promise subscribe(String channel) {
-		if (status.get() == STATUS_CONNECTED) {
+		if (connection != null) {
 			try {
-				connection.subscribe(channel, this);
+				connection.subscribe(channel, receiver);
 			} catch (Exception cause) {
+				reconnect();
 				return Promise.reject(cause);
 			}
 		}
 		return Promise.resolve();
 	}
 
-	// --- MESSAGE RECEIVED ---
+	// --- MESSAGE RECEIVER ---
 
-	@Override
-	public final void onMessage(Message msg) {
-		received(msg.getSubject(), msg.getData());
+	private static final class MessageReceiver extends MsgHandler {
+
+		private final NatsTransporter transporter;
+
+		private MessageReceiver(NatsTransporter transporter) {
+			this.transporter = transporter;
+		}
+
+		public void execute(byte[] msg, String reply, String subject) {
+			// System.out.println("RECEIVE " + subject + " " + new String(msg));
+			transporter.received(subject, msg);
+		}
+
 	}
 
 	// --- PUBLISH ---
 
 	@Override
 	public final void publish(String channel, Tree message) {
-		if (status.get() == STATUS_CONNECTED) {
+		if (connection != null) {
 			try {
+				// System.out.println("SEND " + channel + " " + message.toString(false));
 				connection.publish(channel, serializer.write(message));
 			} catch (Exception cause) {
 				logger.warn("Unable to send message to NATS server!", cause);
@@ -276,14 +293,6 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 
 	public final void setUrls(String[] urls) {
 		this.urls = urls;
-	}
-	
-	public final boolean isUseSSL() {
-		return useSSL;
-	}
-
-	public final void setUseSSL(boolean useSSL) {
-		this.useSSL = useSSL;
 	}
 
 	public final String getUsername() {
@@ -302,12 +311,12 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 		this.password = password;
 	}
 
-	public final SSLContext getSslContext() {
-		return sslContext;
+	public final Properties getProperties() {
+		return properties;
 	}
 
-	public final void setSslContext(SSLContext sslContext) {
-		this.sslContext = sslContext;
+	public final void setProperties(Properties properties) {
+		this.properties = properties;
 	}
 
 }

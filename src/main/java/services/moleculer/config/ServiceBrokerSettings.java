@@ -24,9 +24,11 @@
  */
 package services.moleculer.config;
 
+import static services.moleculer.config.ComponentRegistry.COMPONENTS_ID;
+import static services.moleculer.config.ComponentRegistry.EXECUTOR_ID;
+import static services.moleculer.config.ComponentRegistry.SCHEDULER_ID;
 import static services.moleculer.util.CommonUtils.getFormat;
 import static services.moleculer.util.CommonUtils.readTree;
-import static services.moleculer.config.ComponentRegistry.*;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -37,6 +39,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.slf4j.Logger;
@@ -126,7 +129,7 @@ public final class ServiceBrokerSettings implements CommonNames {
 		}
 
 		// Create thread pools
-		executor = Executors.newWorkStealingPool();
+		executor = ForkJoinPool.commonPool();
 		scheduler = Executors.newSingleThreadScheduledExecutor();
 
 		// Set the default System Monitor
