@@ -64,10 +64,9 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 
 	// --- PROPERTIES ---
 
-	private String[] urls = new String[] { "localhost" };
 	private String password;
-	private boolean useSSL;
-	private boolean startTLS;
+	private boolean secure;
+	private String[] urls = new String[] { "127.0.0.1" };
 
 	// --- REDIS CLIENTS ---
 
@@ -89,10 +88,10 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 		this.urls = urls;
 	}
 
-	public RedisTransporter(String prefix, boolean useSSL, boolean startTLS, String... urls) {
+	public RedisTransporter(String prefix, String password, boolean secure, String... urls) {
 		super(prefix);
-		this.useSSL = useSSL;
-		this.startTLS = startTLS;
+		this.password = password;
+		this.secure = secure;
 		this.urls = urls;
 	}
 
@@ -131,8 +130,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 			}
 		}
 		password = config.get(PASSWORD, password);
-		useSSL = config.get(USE_SSL, useSSL);
-		startTLS = config.get(START_TLS, startTLS);
+		secure = config.get(SECURE, secure);
 
 		// Connect to Redis server
 		connect();
@@ -147,8 +145,8 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 		status.set(STATUS_CONNECTING_1);
 
 		// Create redis clients
-		clientSub = new RedisPubSubClient(urls, password, useSSL, startTLS, executor, this, this);
-		clientPub = new RedisPubSubClient(urls, password, useSSL, startTLS, executor, this, null);
+		clientSub = new RedisPubSubClient(urls, password, secure, executor, this, this);
+		clientPub = new RedisPubSubClient(urls, password, secure, executor, this, null);
 
 		// Connect sub
 		try {
@@ -345,20 +343,12 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 		this.password = password;
 	}
 
-	public final boolean isUseSSL() {
-		return useSSL;
+	public final boolean isSecure() {
+		return secure;
 	}
 
-	public final void setUseSSL(boolean useSSL) {
-		this.useSSL = useSSL;
-	}
-
-	public final boolean isStartTLS() {
-		return startTLS;
-	}
-
-	public final void setStartTLS(boolean startTLS) {
-		this.startTLS = startTLS;
+	public final void setSecure(boolean secure) {
+		this.secure = secure;
 	}
 
 }

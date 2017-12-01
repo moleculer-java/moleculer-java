@@ -45,9 +45,9 @@ public final class NatsTransporter extends Transporter {
 
 	// --- PROPERTIES ---
 
-	private String[] urls = new String[] { "localhost" };
 	private String username;
 	private String password;
+	private String[] urls = new String[] { "127.0.0.1" };
 
 	// --- ADVANCED PROPERTIES ---
 
@@ -119,7 +119,7 @@ public final class NatsTransporter extends Transporter {
 		}
 		username = config.get("username", username);
 		password = config.get(PASSWORD, password);
-
+		
 		// Connect to NATS server
 		connect();
 	}
@@ -263,7 +263,7 @@ public final class NatsTransporter extends Transporter {
 			this.transporter = transporter;
 		}
 
-		public void execute(byte[] msg, String reply, String subject) {
+		public final void execute(byte[] msg, String reply, String subject) {
 			// System.out.println("RECEIVE " + subject + " " + new String(msg));
 			transporter.received(subject, msg);
 		}

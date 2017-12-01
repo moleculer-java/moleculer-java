@@ -62,8 +62,7 @@ public final class RedisPubSubClient {
 
 	private final String[] urls;
 	private final String password;
-	private final boolean useSSL;
-	private final boolean startTLS;
+	private final boolean secure;
 	private final ExecutorService executor;
 	private final EventBus eventBus;
 	private final RedisPubSubListener<byte[], byte[]> listener;
@@ -75,12 +74,11 @@ public final class RedisPubSubClient {
 
 	// --- CONSTRUCTOR ---
 
-	public RedisPubSubClient(String[] urls, String password, boolean useSSL, boolean startTLS, ExecutorService executor,
+	public RedisPubSubClient(String[] urls, String password, boolean secure, ExecutorService executor,
 			EventBus eventBus, RedisPubSubListener<byte[], byte[]> listener) {
 		this.urls = urls;
 		this.password = password;
-		this.useSSL = useSSL;
-		this.startTLS = startTLS;
+		this.secure = secure;
 		this.executor = executor;
 		this.eventBus = eventBus;
 		this.listener = listener;
@@ -135,7 +133,7 @@ public final class RedisPubSubClient {
 			builder.eventBus(eventBus);
 		}
 		resources = builder.build();
-		List<RedisURI> redisURIs = parseURLs(urls, password, useSSL, startTLS);
+		List<RedisURI> redisURIs = parseURLs(urls, password, secure);
 		StatefulRedisPubSubConnection<byte[], byte[]> connection;
 		ByteArrayCodec codec = new ByteArrayCodec();
 		if (urls.length > 1) {

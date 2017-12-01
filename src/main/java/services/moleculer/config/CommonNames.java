@@ -174,16 +174,10 @@ public interface CommonNames {
 	public static final String PASSWORD = "password";
 
 	/**
-	 * Use SSL ("true") or not ("false") when connects to a remote service (eg.
-	 * to Redis).
+	 * Use SSL/TLS ("true") or not ("false") when connects to a remote service
+	 * (eg. to Redis / NATS servers).
 	 */
-	public static final String USE_SSL = "useSSL";
-
-	/**
-	 * Use TLS ("true") or SSL ("false") when connects to a remote service (eg.
-	 * to Redis).
-	 */
-	public static final String START_TLS = "startTLS";
+	public static final String SECURE = "secure";
 
 	/**
 	 * Prefix of communication channel names (used by Transporters), or UIDs
@@ -248,10 +242,10 @@ public interface CommonNames {
 	 * Heartbeat interval of Transporters (default is 5 seconds).
 	 */
 	public static final String HEARTBEAT_INTERVAL = "heartbeatInterval";
-	
+
 	/**
 	 * Heartbeat timeout limit of Transporters (default is 30 seconds).
 	 */
 	public static final String HEARTBEAT_TIMEOUT = "heartbeatTimeout";
-	
+
 }

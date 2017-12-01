@@ -57,12 +57,14 @@ import services.moleculer.Promise;
  */
 public final class RedisGetSetClient {
 
-	// --- VARIABLES ---
+	// --- PROPERTIES ---
 
 	private final String[] urls;
 	private final String password;
-	private final boolean useSSL;
-	private final boolean startTLS;
+	private final boolean secure;
+
+	// --- COMPONENTS ---
+
 	private final ExecutorService executor;
 	private final EventBus eventBus;
 
@@ -77,12 +79,11 @@ public final class RedisGetSetClient {
 
 	// --- CONSTRUCTOR ---
 
-	public RedisGetSetClient(String[] urls, String password, boolean useSSL, boolean startTLS, ExecutorService executor,
+	public RedisGetSetClient(String[] urls, String password, boolean secure, ExecutorService executor,
 			EventBus eventBus) {
 		this.urls = urls;
 		this.password = password;
-		this.useSSL = useSSL;
-		this.startTLS = startTLS;
+		this.secure = secure;
 		this.executor = executor;
 		this.eventBus = eventBus;
 	}
@@ -136,7 +137,7 @@ public final class RedisGetSetClient {
 			builder.eventBus(eventBus);
 		}
 		resources = builder.build();
-		List<RedisURI> redisURIs = parseURLs(urls, password, useSSL, startTLS);
+		List<RedisURI> redisURIs = parseURLs(urls, password, secure);
 		ByteArrayCodec codec = new ByteArrayCodec();
 		if (urls.length > 1) {
 
@@ -240,7 +241,7 @@ public final class RedisGetSetClient {
 
 	// --- CONFIG PARSER ---
 
-	static final List<RedisURI> parseURLs(String[] urls, String password, boolean useSSL, boolean startTLS) {
+	static final List<RedisURI> parseURLs(String[] urls, String password, boolean secure) {
 		ArrayList<RedisURI> list = new ArrayList<>(urls.length);
 		for (String url : urls) {
 			url = url.trim();
@@ -259,8 +260,7 @@ public final class RedisGetSetClient {
 			} else {
 				host = url;
 			}
-			RedisURI.Builder builder = RedisURI.builder().withHost(host).withPort(port).withSsl(useSSL)
-					.withStartTls(startTLS);
+			RedisURI.Builder builder = RedisURI.builder().withHost(host).withPort(port).withSsl(secure);
 			if (password != null && !password.isEmpty()) {
 				builder.withPassword(password);
 			}

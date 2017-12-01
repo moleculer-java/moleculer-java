@@ -71,11 +71,10 @@ public final class RedisCacher extends Cacher implements EventBus {
 
 	// --- PROPERTIES ---
 
-	private String[] urls = new String[] { "localhost" };
 	private String password;
-	private boolean useSSL;
-	private boolean startTLS;
 	private int ttl;
+	private boolean secure;
+	private String[] urls = new String[] { "127.0.0.1" };
 
 	// --- REDIS CLIENT ---
 
@@ -96,14 +95,13 @@ public final class RedisCacher extends Cacher implements EventBus {
 	}
 
 	public RedisCacher(String... urls) {
-		this(false, false, null, 0, urls);
+		this(null, 0, false, urls);
 	}
 
-	public RedisCacher(boolean useSSL, boolean startTLS, String password, int ttl, String... urls) {
-		this.useSSL = useSSL;
-		this.startTLS = startTLS;
+	public RedisCacher(String password, int ttl, boolean secure, String... urls) {
 		this.password = password;
 		this.ttl = ttl;
+		this.secure = secure;
 		this.urls = urls;
 	}
 
@@ -141,8 +139,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 			}
 		}
 		password = config.get(PASSWORD, password);
-		useSSL = config.get(USE_SSL, useSSL);
-		startTLS = config.get(START_TLS, startTLS);
+		secure = config.get(SECURE, secure);
 		ttl = config.get(TTL, ttl);
 		if (ttl > 0) {
 
@@ -190,7 +187,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 		status.set(STATUS_CONNECTING);
 
 		// Create redis client
-		client = new RedisGetSetClient(urls, password, useSSL, startTLS, executor, this);
+		client = new RedisGetSetClient(urls, password, secure, executor, this);
 
 		// Connect Redis
 		try {
@@ -366,20 +363,12 @@ public final class RedisCacher extends Cacher implements EventBus {
 		this.password = password;
 	}
 
-	public final boolean isUseSSL() {
-		return useSSL;
+	public final boolean isSecure() {
+		return secure;
 	}
 
-	public final void setUseSSL(boolean useSSL) {
-		this.useSSL = useSSL;
-	}
-
-	public final boolean isStartTLS() {
-		return startTLS;
-	}
-
-	public final void setStartTLS(boolean startTLS) {
-		this.startTLS = startTLS;
+	public final void setSecure(boolean useSSL) {
+		this.secure = useSSL;
 	}
 
 	public final int getTtl() {
