@@ -246,7 +246,9 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	public final void publish(String channel, Tree message) {
 		if (status.get() == STATUS_CONNECTED) {
 			try {
-				// logger.info("SEND " + message);
+				if (debug) {
+					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
+				}
 				clientPub.publish(channel, serializer.write(message));
 			} catch (Exception cause) {
 				logger.warn("Unable to send message to Redis!", cause);

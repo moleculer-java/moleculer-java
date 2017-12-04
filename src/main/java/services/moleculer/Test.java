@@ -35,6 +35,7 @@ import services.moleculer.service.Action;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Service;
 import services.moleculer.transporter.NatsTransporter;
+import services.moleculer.transporter.Transporter;
 
 public class Test {
 
@@ -45,8 +46,10 @@ public class Test {
 		System.setProperty("java.library.path", nativeDir);
 
 		// Define a service
+		Transporter transporter = new NatsTransporter();
+		transporter.setDebug(true);
 		ServiceBroker broker = ServiceBroker.builder().registry(new DefaultServiceRegistry(false))
-				.transporter(new NatsTransporter()).nodeID("server-2").build();
+				.transporter(transporter).nodeID("server-2").build();
 		
 		broker.createService(new Service("math") {
 

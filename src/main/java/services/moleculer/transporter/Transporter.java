@@ -101,6 +101,10 @@ public abstract class Transporter implements MoleculerComponent {
 	protected int heartbeatInterval;
 	protected int heartbeatTimeout;
 
+	// --- DEBUG COMMUNICATION ---
+
+	protected boolean debug;
+
 	// --- SERIALIZER / DESERIALIZER ---
 
 	protected Serializer serializer;
@@ -191,6 +195,7 @@ public abstract class Transporter implements MoleculerComponent {
 			}
 		}
 		logger.info("Heartbeat timeout of " + nameOf(this, true) + " is " + heartbeatTimeout + " seconds.");
+		debug = config.get("debug", debug);
 
 		// Start serializer
 		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
@@ -334,16 +339,16 @@ public abstract class Transporter implements MoleculerComponent {
 
 		message.putObject(PARAMS, ctx.params());
 		message.put("meta", (String) null);
-		
+
 		CallingOptions opts = ctx.opts();
 		if (opts != null) {
 			message.put("timeout", ctx.opts().timeout());
 		}
-		
+
 		message.put("level", 1);
 		message.put("metrics", false);
 		message.put("parentID", (String) null);
-		message.put("requestID", (String) null);		
+		message.put("requestID", (String) null);
 		return message;
 	}
 
@@ -368,8 +373,6 @@ public abstract class Transporter implements MoleculerComponent {
 	protected void received(String channel, byte[] message) {
 		executor.execute(() -> {
 
-			// logger.info("FROM " + channel + ": " + new String(message));
-
 			// Parse message
 			Tree data;
 			try {
@@ -377,6 +380,11 @@ public abstract class Transporter implements MoleculerComponent {
 			} catch (Exception cause) {
 				logger.warn("Unable to parse incoming message!", cause);
 				return;
+			}
+
+			// Debug
+			if (debug) {
+				logger.info("Message received from channel \"" + channel + "\":\r\n" + data.toString());
 			}
 
 			// Send message to proper component
@@ -399,7 +407,7 @@ public abstract class Transporter implements MoleculerComponent {
 					eventbus.receiveEvent(data);
 					return;
 				}
-				
+
 				// Incoming request
 				if (channel.equals(requestChannel)) {
 					registry.receiveRequest(data);
@@ -427,10 +435,10 @@ public abstract class Transporter implements MoleculerComponent {
 					Tree services = data.get(SERVICES);
 					if (services != null && services.isEnumeration()) {
 						for (Tree service : services) {
-							
+
 							// Register actions
 							registry.addActions(service);
-							
+
 							// Register listeners
 							eventbus.addListeners(service);
 						}
@@ -449,13 +457,13 @@ public abstract class Transporter implements MoleculerComponent {
 				// Disconnect packet
 				if (channel.equals(disconnectChannel)) {
 					lastNodeActivities.remove(sender);
-					
+
 					// Remove remote actions
 					registry.removeActions(sender);
-					
+
 					// Remove remote event listeners
 					eventbus.removeListeners(sender);
-					
+
 					// Ok, all actions and listeners removed
 					logger.info("Node \"" + sender + "\" disconnected.");
 				}
@@ -492,7 +500,7 @@ public abstract class Transporter implements MoleculerComponent {
 		message.put(SENDER, nodeID);
 		publish(disconnectChannel, message);
 	}
-	
+
 	// --- "CHECK NODES" PROCESS ---
 
 	private volatile long lastCheck;
@@ -516,13 +524,13 @@ public abstract class Transporter implements MoleculerComponent {
 
 				// Remove remote actions
 				registry.removeActions(nodeID);
-				
+
 				// Remove remote event listeners
 				eventbus.removeListeners(nodeID);
-				
+
 				// Remove local timestamp entry
 				entries.remove();
-				
+
 				// Ok, all actions and listeners removed
 				logger.info("Node \"" + nodeID
 						+ "\" is no longer available because it hasn't submitted heartbeat signal for "
@@ -567,6 +575,14 @@ public abstract class Transporter implements MoleculerComponent {
 
 	public final void setHeartbeatTimeout(int heartbeatTimeout) {
 		this.heartbeatTimeout = heartbeatTimeout;
+	}
+
+	public final boolean isDebug() {
+		return debug;
+	}
+
+	public final void setDebug(boolean debug) {
+		this.debug = debug;
 	}
 
 }

@@ -54,6 +54,11 @@ dependencies {
 	// https://mvnrepository.com/artifact/io.nats/jnats
 	compile group: 'io.nats', name: 'jnats', version: '1.0'
 
+	// --- MQTT CLIENT ---
+	
+	// https://mvnrepository.com/artifact/org.eclipse.paho/org.eclipse.paho.client.mqttv3
+	compile group: 'org.eclipse.paho', name: 'org.eclipse.paho.client.mqttv3', version: '1.2.0'	
+
 	// --- OFF-HEAP CACHE ---
 	
 	// https://mvnrepository.com/artifact/org.caffinitas.ohc/ohc-core-j8

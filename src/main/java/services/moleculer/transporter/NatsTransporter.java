@@ -50,15 +50,24 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 
 	// --- PROPERTIES ---
 
-	private SSLContext sslContext;
 	private String username;
 	private String password;
 	private boolean secure;
 	private String[] urls = new String[] { "127.0.0.1" };
 
+	// --- OTHER NATS PROPERTIES ---
+
+	private SSLContext sslContext;
+	private boolean dontRandomize;
+	private int maxPingsOut = Nats.DEFAULT_MAX_PINGS_OUT;
+	private long pingInterval = Nats.DEFAULT_PING_INTERVAL;
+	private int timeout = Nats.DEFAULT_TIMEOUT;
+	private boolean tlsDebug;
+	private boolean verbose;
+	
 	// --- NATS CONNECTION ---
 
-	private Connection connection;
+	private Connection client;
 
 	// --- CONSTUCTORS ---
 
@@ -120,7 +129,13 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 		username = config.get("username", username);
 		password = config.get(PASSWORD, password);
 		secure = config.get(SECURE, secure);
-
+		dontRandomize = config.get("dontRandomize", dontRandomize);
+		maxPingsOut = config.get("maxPingsOut", maxPingsOut);
+		pingInterval = config.get("pingInterval", pingInterval);
+		timeout = config.get("timeout", timeout);
+		tlsDebug = config.get("tlsDebug", tlsDebug);
+		verbose = config.get("verbose", verbose);
+		
 		// Connect to NATS server
 		connect();
 	}
@@ -130,7 +145,7 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 	private final void connect() {
 		try {
 
-			// Set NATS connection options
+			// Create NATS client options
 			Options.Builder builder = new Options.Builder();
 			if (secure) {
 				builder.secure();
@@ -140,6 +155,18 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 			}
 			if (sslContext != null) {
 				builder.sslContext(sslContext);
+			}
+			if (dontRandomize) {
+				builder.dontRandomize();
+			}
+			builder.maxPingsOut(maxPingsOut);
+			builder.pingInterval(pingInterval);
+			builder.timeout(timeout);
+			if (tlsDebug) {
+				builder.tlsDebug();
+			}
+			if (verbose) {
+				builder.verbose();
 			}
 			builder.disconnectedCb(this);
 			builder.noReconnect();
@@ -160,8 +187,8 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 				}
 				urlList.append(url);
 			}
-			connection = Nats.connect(urlList.toString(), options);
-			logger.info("NATS pub-sub connection is estabilished.");
+			client = Nats.connect(urlList.toString(), options);
+			logger.info("NATS pub-sub client is estabilished.");
 			connected();
 		} catch (Exception cause) {
 			String msg = cause.getMessage();
@@ -179,19 +206,19 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 
 	@Override
 	public final void onDisconnect(ConnectionEvent event) {
-		logger.info("NATS pub-sub connection disconnected.");
+		logger.info("NATS pub-sub client disconnected.");
 		reconnect();
 	}
 
 	private final void disconnect() {
-		try {
-			if (connection != null) {
-				connection.close();
+		if (client != null) {
+			try {
+				client.close();
+			} catch (Throwable cause) {
+				logger.warn("Unexpected error occured while closing NATS client!", cause);
+			} finally {
+				client = null;
 			}
-		} catch (Throwable cause) {
-			logger.warn("Unexpected error occured while closing NATS connection!", cause);
-		} finally {
-			connection = null;
 		}
 	}
 
@@ -225,9 +252,9 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 
 	@Override
 	public final Promise subscribe(String channel) {
-		if (connection != null) {
+		if (client != null) {
 			try {
-				connection.subscribe(channel, this);
+				client.subscribe(channel, this);
 			} catch (Exception cause) {
 				return Promise.reject(cause);
 			}
@@ -239,7 +266,6 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 
 	@Override
 	public final void onMessage(Message msg) {
-		// System.out.println("RECEIVED: " + new String(msg.getData()));
 		received(msg.getSubject(), msg.getData());
 	}
 
@@ -247,10 +273,12 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 
 	@Override
 	public final void publish(String channel, Tree message) {
-		if (connection != null) {
+		if (client != null) {
 			try {
-				// System.out.println("SEND: " + message.toString(false));
-				connection.publish(channel, serializer.write(message));
+				if (debug) {
+					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
+				}
+				client.publish(channel, serializer.write(message));
 			} catch (Exception cause) {
 				logger.warn("Unable to send message to NATS server!", cause);
 				reconnect();
@@ -298,6 +326,54 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 
 	public final void setSecure(boolean secure) {
 		this.secure = secure;
+	}
+
+	public final boolean isDontRandomize() {
+		return dontRandomize;
+	}
+
+	public final void setDontRandomize(boolean dontRandomize) {
+		this.dontRandomize = dontRandomize;
+	}
+
+	public final int getMaxPingsOut() {
+		return maxPingsOut;
+	}
+
+	public final void setMaxPingsOut(int maxPingsOut) {
+		this.maxPingsOut = maxPingsOut;
+	}
+
+	public final long getPingInterval() {
+		return pingInterval;
+	}
+
+	public final void setPingInterval(long pingInterval) {
+		this.pingInterval = pingInterval;
+	}
+
+	public final int getTimeout() {
+		return timeout;
+	}
+
+	public final void setTimeout(int timeout) {
+		this.timeout = timeout;
+	}
+
+	public final boolean isTlsDebug() {
+		return tlsDebug;
+	}
+
+	public final void setTlsDebug(boolean tlsDebug) {
+		this.tlsDebug = tlsDebug;
+	}
+
+	public final boolean isVerbose() {
+		return verbose;
+	}
+
+	public final void setVerbose(boolean verbose) {
+		this.verbose = verbose;
 	}
 
 }
