@@ -45,27 +45,13 @@ import java.util.jar.JarFile;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.cacher.Cacher;
-import services.moleculer.cacher.MemoryCacher;
-import services.moleculer.cacher.RedisCacher;
 import services.moleculer.context.ContextFactory;
-import services.moleculer.context.DefaultContextFactory;
-import services.moleculer.eventbus.DefaultEventBus;
 import services.moleculer.eventbus.EventBus;
-import services.moleculer.monitor.ConstantMonitor;
-import services.moleculer.monitor.JMXMonitor;
 import services.moleculer.monitor.Monitor;
-import services.moleculer.monitor.SigarMonitor;
-import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.ServiceRegistry;
-import services.moleculer.strategy.RoundRobinStrategyFactory;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
-import services.moleculer.strategy.XORShiftRandomStrategyFactory;
-import services.moleculer.transporter.NatsTransporter;
-import services.moleculer.transporter.RedisTransporter;
 import services.moleculer.transporter.Transporter;
-import services.moleculer.uid.IncrementalUIDGenerator;
-import services.moleculer.uid.StandardUUIDGenerator;
 import services.moleculer.uid.UIDGenerator;
 
 /**
@@ -378,72 +364,82 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		String test = value.toLowerCase();
 		if (TRANSPORTER_ID.equals(id)) {
 			if (test.startsWith("redis")) {
-				Tree cfg = newConfig(RedisTransporter.class);
+				Tree cfg = newConfig("services.moleculer.transporter.RedisTransporter");
 				if (test.contains("://")) {
 					cfg.put(URL, value);
 				}
 				return cfg;
 			}
 			if (test.startsWith("nats")) {
-				Tree cfg = newConfig(NatsTransporter.class);
+				Tree cfg = newConfig("services.moleculer.transporter.NatsTransporter");
 				if (test.contains("://")) {
 					cfg.put(URL, value);
 				}
 				return cfg;
 			}
+			if (test.startsWith("mqtt")) {
+				Tree cfg = newConfig("services.moleculer.transporter.MqttTransporter");
+				if (test.contains("://")) {
+					cfg.put(URL, value);
+				}
+				return cfg;
+			}			
 		} else if (CACHER_ID.equals(id)) {
 			if (test.startsWith("redis")) {
-				Tree cfg = newConfig(RedisCacher.class);
+				Tree cfg = newConfig("services.moleculer.cacher.RedisCacher");
 				if (value.contains("://")) {
 					cfg.put(URL, value);
 				}
 				return cfg;
 			}
-			if (test.equals("memory")) {
-				return newConfig(MemoryCacher.class);
+			if (test.equals("memory") || test.equals("on-heap")) {
+				return newConfig("services.moleculer.cacher.MemoryCacher");
+			}
+			if (test.equals("offheap") || test.equals("off-heap")) {
+				return newConfig("services.moleculer.cacher.OHCacher");
 			}
 		} else if (CONTEXT_ID.equals(id)) {
 			if (test.equals("default")) {
-				return newConfig(DefaultContextFactory.class);
+				return newConfig("services.moleculer.context.DefaultContextFactory");
 			}
 		} else if (UID_ID.equals(id)) {
 			if (test.equals("incremental")) {
-				return newConfig(IncrementalUIDGenerator.class);
+				return newConfig("services.moleculer.uid.IncrementalUIDGenerator");
 			}
 			if (test.equals("uuid")) {
-				return newConfig(StandardUUIDGenerator.class);
+				return newConfig("services.moleculer.uid.StandardUUIDGenerator");
 			}
 		} else if (STRATEGY_ID.equals(id)) {
 			if (test.startsWith("round")) {
-				return newConfig(RoundRobinStrategyFactory.class);
+				return newConfig("services.moleculer.strategy.RoundRobinStrategyFactory");
 			}
 			if (test.equals("random")) {
-				return newConfig(XORShiftRandomStrategyFactory.class);
+				return newConfig("services.moleculer.strategy.XORShiftRandomStrategyFactory");
 			}
 		} else if (REGISTRY_ID.equals(id)) {
 			if (test.equals("default")) {
-				return newConfig(DefaultServiceRegistry.class);
+				return newConfig("services.moleculer.service.DefaultServiceRegistry");
 			}
 		} else if (EVENTBUS_ID.equals(id)) {
 			if (test.equals("default")) {
-				return newConfig(DefaultEventBus.class);
+				return newConfig("services.moleculer.eventbus.DefaultEventBus");
 			}
 		} else if (MONITOR_ID.equals(id)) {
 			if (test.equals("sigar")) {
-				return newConfig(SigarMonitor.class);
+				return newConfig("services.moleculer.monitor.SigarMonitor");
 			}
 			if (test.equals("jmx")) {
-				return newConfig(JMXMonitor.class);
+				return newConfig("services.moleculer.monitor.JMXMonitor");
 			}
 			if (test.equals("constant")) {
-				return newConfig(ConstantMonitor.class);
+				return newConfig("services.moleculer.monitor.ConstantMonitor");
 			}
 		}
 		return null;
 	}
 
-	private static final Tree newConfig(Class<? extends MoleculerComponent> type) {
-		return new Tree().put(TYPE, type.getName());
+	private static final Tree newConfig(String type) {
+		return new Tree().put(TYPE, type);
 	}
 
 	// --- STOP REGISTRY AND COMPONENTS ---
