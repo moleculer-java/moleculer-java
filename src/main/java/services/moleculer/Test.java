@@ -60,7 +60,7 @@ public class Test {
 					return new Promise(r -> {
 						broker.components().scheduler().schedule(() -> {
 							
-							r.resolve("Eredm�ny: " + in.asString());
+							r.resolve("Result: " + in.asString());
 							
 						}, 3, TimeUnit.SECONDS);
 					});

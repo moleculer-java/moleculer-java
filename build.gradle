@@ -44,17 +44,15 @@ dependencies {
 		exclude group: 'log4j', module: 'log4j'
 	}
 	
-	// --- NIO REDIS CLIENT ---
+	// --- REDIS CLIENT ---
 	
 	// https://mvnrepository.com/artifact/biz.paluch.redis/lettuce
 	compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.4.1.Final'
 
-	// --- NIO NATS CLIENT ---
+	// --- NATS CLIENT ---
 	
-	// https://mvnrepository.com/artifact/com.github.tyagihas/java_nats
-	compile (group: 'com.github.tyagihas', name: 'java_nats', version: '0.7.1') {
-		exclude group: 'org.slf4j', module: 'slf4j-simple'
-	}
+	// https://mvnrepository.com/artifact/io.nats/jnats
+	compile group: 'io.nats', name: 'jnats', version: '1.0'
 
 	// --- OFF-HEAP CACHE ---
 	
