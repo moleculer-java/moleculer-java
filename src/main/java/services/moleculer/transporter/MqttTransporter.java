@@ -4,8 +4,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.fusesource.hawtbuf.Buffer;
+import org.fusesource.hawtbuf.UTF8Buffer;
 import org.fusesource.mqtt.client.Callback;
 import org.fusesource.mqtt.client.CallbackConnection;
+import org.fusesource.mqtt.client.ExtendedListener;
 import org.fusesource.mqtt.client.MQTT;
 import org.fusesource.mqtt.client.QoS;
 import org.fusesource.mqtt.client.Topic;
@@ -120,9 +123,7 @@ public final class MqttTransporter extends Transporter {
 				if (url.indexOf(':') == -1) {
 					url = url + ":1883";
 				}
-
 				url = url.replace("mqtt://", "tcp://");
-
 				if (!url.startsWith("tcp://")) {
 					url = "tcp://" + url;
 				}
@@ -139,35 +140,52 @@ public final class MqttTransporter extends Transporter {
 			// Create MQTT client
 			disconnect();
 			client = options.callbackConnection();
-			client.connect(new Callback<Void>() {
+			MqttTransporter self = this;
+			client.listener(new ExtendedListener() {
 
 				@Override
-				public final void onSuccess(Void value) {
-					logger.info("MQTT pub-sub client is estabilished.");
-					connected();
+				public final void onPublish(UTF8Buffer topic, Buffer body, Runnable ack) {
+					ack.run();
 				}
 
 				@Override
 				public final void onFailure(Throwable cause) {
-					String msg = cause.getMessage();
-					if (msg == null || msg.isEmpty()) {
-						msg = "Unable to connect to NATS server!";
-					} else if (!msg.endsWith("!") && !msg.endsWith(".")) {
-						msg += "!";
-					}
-					logger.warn(msg);
-					reconnect();
+					reconnect(cause);
 				}
+
+				@Override
+				public final void onDisconnected() {
+				}
+
+				@Override
+				public final void onConnected() {
+					logger.info("MQTT pub-sub client is estabilished.");
+					scheduler.schedule(self::connected, 1, TimeUnit.SECONDS);
+				}
+
+				@Override
+				public final void onPublish(UTF8Buffer topic, Buffer body, Callback<Callback<Void>> ack) {
+					byte[] data = new byte[body.length];
+					System.arraycopy(body.data, body.offset, data, 0, body.length);
+					received(topic.toString(), data);
+					ack.onSuccess(noOpCallback);
+				}
+
+			});
+			client.connect(new Callback<Void>() {
+
+				@Override
+				public final void onSuccess(Void value) {
+				}
+
+				@Override
+				public final void onFailure(Throwable cause) {
+					reconnect(cause);
+				}
+
 			});
 		} catch (Exception cause) {
-			String msg = cause.getMessage();
-			if (msg == null || msg.isEmpty()) {
-				msg = "Unable to connect to MQTT server!";
-			} else if (!msg.endsWith("!") && !msg.endsWith(".")) {
-				msg += "!";
-			}
-			logger.warn(msg);
-			reconnect();
+			reconnect(cause);
 		}
 	}
 
@@ -176,18 +194,28 @@ public final class MqttTransporter extends Transporter {
 	private final void disconnect() {
 		if (client != null) {
 			try {
-				client.disconnect(publishCallback);
+				client.disconnect(noOpCallback);
 			} catch (Throwable cause) {
 				logger.warn("Unexpected error occured while closing MQTT client!", cause);
 			} finally {
 				client = null;
+				disconnected();
 			}
 		}
 	}
 
 	// --- RECONNECT ---
 
-	private final void reconnect() {
+	private final void reconnect(Throwable cause) {
+		if (cause != null) {
+			String msg = cause.getMessage();
+			if (msg == null || msg.isEmpty()) {
+				msg = "Unable to connect to MQTT server!";
+			} else if (!msg.endsWith("!") && !msg.endsWith(".")) {
+				msg += "!";
+			}
+			logger.warn(msg);
+		}
 		disconnect();
 		logger.info("Trying to reconnect...");
 		scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
@@ -197,8 +225,7 @@ public final class MqttTransporter extends Transporter {
 
 	@Override
 	protected final void error(Throwable cause) {
-		logger.warn("Unexpected communication error occured!", cause);
-		reconnect();
+		reconnect(cause);
 	}
 
 	// --- STOP TRANSPORTER ---
@@ -215,26 +242,29 @@ public final class MqttTransporter extends Transporter {
 
 	@Override
 	public final Promise subscribe(String channel) {
+		Promise promise = new Promise();
 		if (client != null) {
 			try {
 				client.subscribe(new Topic[] { new Topic(channel, qos) }, new Callback<byte[]>() {
 
 					@Override
 					public final void onSuccess(byte[] bytes) {
-						received(channel, bytes);
+						promise.complete(bytes);
 					}
 
 					@Override
 					public final void onFailure(Throwable cause) {
-						logger.error("Unexpected error occured!", cause);
+						promise.complete(cause);
 					}
 
 				});
 			} catch (Exception cause) {
-				return Promise.reject(cause);
+				promise.complete(cause);
 			}
+		} else {
+			promise.complete(new Throwable("Not connected!"));
 		}
-		return Promise.resolve();
+		return promise;
 	}
 
 	// --- PUBLISH ---
@@ -246,17 +276,16 @@ public final class MqttTransporter extends Transporter {
 				if (debug) {
 					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
 				}
-				client.publish(channel, serializer.write(message), qos, false, publishCallback);
+				client.publish(channel, serializer.write(message), qos, false, noOpCallback);
 			} catch (Exception cause) {
 				logger.warn("Unable to send message to MQTT server!", cause);
-				reconnect();
 			}
 		}
 	}
 
-	// --- EMPTY CALLBACK INSTANCES ---
+	// --- EMPTY CALLBACK ---
 
-	private final Callback<Void> publishCallback = new Callback<Void>() {
+	private static final Callback<Void> noOpCallback = new Callback<Void>() {
 
 		@Override
 		public final void onSuccess(Void value) {
@@ -264,7 +293,6 @@ public final class MqttTransporter extends Transporter {
 
 		@Override
 		public final void onFailure(Throwable cause) {
-			logger.error("Unexpected error occured!", cause);
 		}
 
 	};

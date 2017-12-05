@@ -41,7 +41,8 @@ public class Test {
 		// Test sigar
 		String nativeDir = "./native";
 		System.setProperty("java.library.path", nativeDir);
-
+		// System.setProperty("hawtdispatch.threads", "1");
+		
 		// Define a service
 		MqttTransporter transporter = new MqttTransporter();
 		transporter.setDebug(true);
@@ -84,7 +85,7 @@ public class Test {
 		});
 		broker.start();
 		
-		Thread.sleep(2000);
+		Thread.sleep(20000);
 
 		// Emit local event
 		Tree payload = new Tree();
