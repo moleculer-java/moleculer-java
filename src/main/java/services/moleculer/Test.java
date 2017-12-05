@@ -24,8 +24,6 @@
  */
 package services.moleculer;
 
-import java.util.concurrent.TimeUnit;
-
 import io.datatree.Tree;
 import services.moleculer.cacher.Cache;
 import services.moleculer.eventbus.Group;
@@ -34,7 +32,7 @@ import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Service;
-import services.moleculer.transporter.NatsTransporter;
+import services.moleculer.transporter.MqttTransporter;
 import services.moleculer.transporter.Transporter;
 
 public class Test {
@@ -46,8 +44,10 @@ public class Test {
 		System.setProperty("java.library.path", nativeDir);
 
 		// Define a service
-		Transporter transporter = new NatsTransporter();
-		transporter.setDebug(true);
+		MqttTransporter transporter = new MqttTransporter();
+		transporter.setDebug(false);
+		transporter.setMaxInflight(100);
+		
 		ServiceBroker broker = ServiceBroker.builder().registry(new DefaultServiceRegistry(false))
 				.transporter(transporter).nodeID("server-2").build();
 		
@@ -58,7 +58,7 @@ public class Test {
 				int a = ctx.params().get("a", 0);
 				int b = ctx.params().get("b", 0);
 				
-				return ctx.call("math2.mult", "a", a + b, "b", 2).then(in -> {
+				/*return ctx.call("math2.mult", "a", a + b, "b", 2).then(in -> {
 					System.out.println("Res: " + in);
 					return new Promise(r -> {
 						broker.components().scheduler().schedule(() -> {
@@ -67,7 +67,9 @@ public class Test {
 							
 						}, 3, TimeUnit.SECONDS);
 					});
-				});	
+				});	*/
+				
+				return a + b;
 			};
 
 			@Subscribe("user.*")
@@ -95,11 +97,10 @@ public class Test {
 		broker.emit("test.foo", payload, null);
 		broker.broadcast("user.foo", payload, null);
 		
-		//broker.call("e.test", "name", "Norbi").then(in -> {
-		broker.call("math.sub", "a", 5, "b", 2).then(in -> {
+		/*broker.call("math2.mult", "a", 5, "b", 2).then(in -> {
 			System.out.println("Result: " + in.asString());
 			//broker.emit("test.foo", payload, null);
-		});
+		});*/
 	}
 
 }

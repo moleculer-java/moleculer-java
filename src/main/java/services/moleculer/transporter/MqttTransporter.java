@@ -8,18 +8,23 @@ import java.util.concurrent.TimeUnit;
 import javax.net.SocketFactory;
 import javax.net.ssl.HostnameVerifier;
 
+import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
+import org.eclipse.paho.client.mqttv3.IMqttToken;
 import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
-import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
+import org.eclipse.paho.client.mqttv3.ScheduledExecutorPingSender;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
+import services.moleculer.service.Name;
 
-public final class MqttTransporter extends Transporter implements MqttCallback {
+@Name("MQTT Transporter")
+public final class MqttTransporter extends Transporter implements MqttCallback, IMqttActionListener {
 
 	// --- PROPERTIES ---
 
@@ -28,16 +33,16 @@ public final class MqttTransporter extends Transporter implements MqttCallback {
 	private String[] urls = new String[] { "127.0.0.1" };
 
 	// --- OTHER MQTT PROPERTIES ---
-	
+
 	private boolean cleanSession = MqttConnectOptions.CLEAN_SESSION_DEFAULT;
 	private int connectionTimeout = MqttConnectOptions.CONNECTION_TIMEOUT_DEFAULT;
 	private int keepAliveInterval = MqttConnectOptions.KEEP_ALIVE_INTERVAL_DEFAULT;
 	private int maxInflight = MqttConnectOptions.MAX_INFLIGHT_DEFAULT;
-	private int mqttVersion = MqttConnectOptions.MQTT_VERSION_DEFAULT;	
+	private int mqttVersion = MqttConnectOptions.MQTT_VERSION_DEFAULT;
 	private SocketFactory socketFactory;
 	private HostnameVerifier hostnameVerifier;
 	private Properties sslProperties;
-		
+
 	// --- MQTT CONNECTION ---
 
 	private MqttAsyncClient client;
@@ -105,7 +110,7 @@ public final class MqttTransporter extends Transporter implements MqttCallback {
 		keepAliveInterval = config.get("keepAliveInterval", keepAliveInterval);
 		maxInflight = config.get("maxInflight", maxInflight);
 		mqttVersion = config.get("mqttVersion", mqttVersion);
-		
+
 		// Connect to MQTT server
 		connect();
 	}
@@ -129,15 +134,18 @@ public final class MqttTransporter extends Transporter implements MqttCallback {
 				if (url.indexOf(':') == -1) {
 					url = url + ":1883";
 				}
-				if (!url.startsWith("mqtt://")) {
-					url = "mqtt://" + url;
+
+				url = url.replace("mqtt://", "tcp://");
+
+				if (!url.startsWith("tcp://")) {
+					url = "tcp://" + url;
 				}
 				array[i] = url;
 			}
 			String url = array[0];
 			options.setServerURIs(array);
 			options.setAutomaticReconnect(false);
-			
+
 			options.setCleanSession(cleanSession);
 			options.setConnectionTimeout(connectionTimeout);
 			options.setKeepAliveInterval(keepAliveInterval);
@@ -146,17 +154,13 @@ public final class MqttTransporter extends Transporter implements MqttCallback {
 			options.setSocketFactory(socketFactory);
 			options.setSSLHostnameVerifier(hostnameVerifier);
 			options.setSSLProperties(sslProperties);
-			
-			// Init datastore
-			String userHome = System.getProperty("user.home", "/");
-			String tmpDir = System.getProperty("java.io.tmpdir", userHome);
-			MqttDefaultFilePersistence dataStore = new MqttDefaultFilePersistence(tmpDir);
 
 			// Create MQTT client
 			disconnect();
-			client = new MqttAsyncClient(url, nodeID + '-' + broker.components().uid().nextUID(), dataStore);
+			client = new MqttAsyncClient(url, nodeID + '-' + broker.components().uid().nextUID(),
+					new MemoryPersistence(), new ScheduledExecutorPingSender(scheduler));
 			client.setCallback(this);
-			client.connect(options);
+			client.connect(options, this);
 
 		} catch (Exception cause) {
 			String msg = cause.getMessage();
@@ -168,6 +172,12 @@ public final class MqttTransporter extends Transporter implements MqttCallback {
 			logger.warn(msg);
 			reconnect();
 		}
+	}
+
+	@Override
+	public final void onSuccess(IMqttToken asyncActionToken) {
+		logger.info("MQTT pub-sub client is estabilished.");
+		connected();
 	}
 
 	// --- DISCONNECT ---
@@ -199,6 +209,13 @@ public final class MqttTransporter extends Transporter implements MqttCallback {
 	}
 
 	// --- ANY I/O ERROR ---
+
+	@Override
+	public final void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+
+		// Do nothing
+		exception.printStackTrace();
+	}
 
 	@Override
 	protected final void error(Throwable cause) {
@@ -246,10 +263,7 @@ public final class MqttTransporter extends Transporter implements MqttCallback {
 				if (debug) {
 					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
 				}
-				IMqttDeliveryToken token = client.publish(channel, serializer.write(message), 0, true);
-				if (debug) {
-					logger.info("Delivery submitted: " + token);
-				}
+				client.publish(channel, serializer.write(message), 0, false);
 			} catch (Exception cause) {
 				logger.warn("Unable to send message to MQTT server!", cause);
 				reconnect();
@@ -259,9 +273,6 @@ public final class MqttTransporter extends Transporter implements MqttCallback {
 
 	@Override
 	public final void deliveryComplete(IMqttDeliveryToken token) {
-		if (debug) {
-			logger.info("Delivery completed: " + token);
-		}
 	}
 
 	// --- GETTERS / SETTERS ---
