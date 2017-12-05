@@ -2,21 +2,13 @@ package services.moleculer.transporter;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
-import javax.net.SocketFactory;
-import javax.net.ssl.HostnameVerifier;
-
-import org.eclipse.paho.client.mqttv3.IMqttActionListener;
-import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
-import org.eclipse.paho.client.mqttv3.IMqttToken;
-import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
-import org.eclipse.paho.client.mqttv3.MqttCallback;
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.eclipse.paho.client.mqttv3.MqttMessage;
-import org.eclipse.paho.client.mqttv3.ScheduledExecutorPingSender;
-import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+import org.fusesource.mqtt.client.Callback;
+import org.fusesource.mqtt.client.CallbackConnection;
+import org.fusesource.mqtt.client.MQTT;
+import org.fusesource.mqtt.client.QoS;
+import org.fusesource.mqtt.client.Topic;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
@@ -24,7 +16,7 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 @Name("MQTT Transporter")
-public final class MqttTransporter extends Transporter implements MqttCallback, IMqttActionListener {
+public final class MqttTransporter extends Transporter {
 
 	// --- PROPERTIES ---
 
@@ -34,18 +26,14 @@ public final class MqttTransporter extends Transporter implements MqttCallback, 
 
 	// --- OTHER MQTT PROPERTIES ---
 
-	private boolean cleanSession = MqttConnectOptions.CLEAN_SESSION_DEFAULT;
-	private int connectionTimeout = MqttConnectOptions.CONNECTION_TIMEOUT_DEFAULT;
-	private int keepAliveInterval = MqttConnectOptions.KEEP_ALIVE_INTERVAL_DEFAULT;
-	private int maxInflight = MqttConnectOptions.MAX_INFLIGHT_DEFAULT;
-	private int mqttVersion = MqttConnectOptions.MQTT_VERSION_DEFAULT;
-	private SocketFactory socketFactory;
-	private HostnameVerifier hostnameVerifier;
-	private Properties sslProperties;
+	private boolean cleanSession = true;
+	private short keepAliveSeconds = 60;
+	private String version = "3.1";
+	private QoS qos = QoS.AT_LEAST_ONCE;
 
 	// --- MQTT CONNECTION ---
 
-	private MqttAsyncClient client;
+	private CallbackConnection client;
 
 	// --- CONSTUCTORS ---
 
@@ -106,10 +94,8 @@ public final class MqttTransporter extends Transporter implements MqttCallback, 
 		username = config.get("username", username);
 		password = config.get(PASSWORD, password);
 		cleanSession = config.get("cleanSession", cleanSession);
-		connectionTimeout = config.get("connectionTimeout", connectionTimeout);
-		keepAliveInterval = config.get("keepAliveInterval", keepAliveInterval);
-		maxInflight = config.get("maxInflight", maxInflight);
-		mqttVersion = config.get("mqttVersion", mqttVersion);
+		keepAliveSeconds = config.get("keepAliveSeconds", keepAliveSeconds);
+		version = config.get("version", version);
 
 		// Connect to MQTT server
 		connect();
@@ -121,9 +107,9 @@ public final class MqttTransporter extends Transporter implements MqttCallback, 
 		try {
 
 			// Create MQTT client options
-			MqttConnectOptions options = new MqttConnectOptions();
+			MQTT options = new MQTT();
 			if (password != null) {
-				options.setPassword(this.password.toCharArray());
+				options.setPassword(this.password);
 			}
 			if (username != null) {
 				options.setUserName(this.username);
@@ -142,26 +128,37 @@ public final class MqttTransporter extends Transporter implements MqttCallback, 
 				}
 				array[i] = url;
 			}
-			String url = array[0];
-			options.setServerURIs(array);
-			options.setAutomaticReconnect(false);
-
+			if (array.length > 0) {
+				options.setHost(array[0]);
+			}
+			options.setReconnectAttemptsMax(0);
 			options.setCleanSession(cleanSession);
-			options.setConnectionTimeout(connectionTimeout);
-			options.setKeepAliveInterval(keepAliveInterval);
-			options.setMaxInflight(maxInflight);
-			options.setMqttVersion(mqttVersion);
-			options.setSocketFactory(socketFactory);
-			options.setSSLHostnameVerifier(hostnameVerifier);
-			options.setSSLProperties(sslProperties);
+			options.setKeepAlive(keepAliveSeconds);
+			options.setVersion(version);
 
 			// Create MQTT client
 			disconnect();
-			client = new MqttAsyncClient(url, nodeID + '-' + broker.components().uid().nextUID(),
-					new MemoryPersistence(), new ScheduledExecutorPingSender(scheduler));
-			client.setCallback(this);
-			client.connect(options, this);
+			client = options.callbackConnection();
+			client.connect(new Callback<Void>() {
 
+				@Override
+				public final void onSuccess(Void value) {
+					logger.info("MQTT pub-sub client is estabilished.");
+					connected();
+				}
+
+				@Override
+				public final void onFailure(Throwable cause) {
+					String msg = cause.getMessage();
+					if (msg == null || msg.isEmpty()) {
+						msg = "Unable to connect to NATS server!";
+					} else if (!msg.endsWith("!") && !msg.endsWith(".")) {
+						msg += "!";
+					}
+					logger.warn(msg);
+					reconnect();
+				}
+			});
 		} catch (Exception cause) {
 			String msg = cause.getMessage();
 			if (msg == null || msg.isEmpty()) {
@@ -174,24 +171,12 @@ public final class MqttTransporter extends Transporter implements MqttCallback, 
 		}
 	}
 
-	@Override
-	public final void onSuccess(IMqttToken asyncActionToken) {
-		logger.info("MQTT pub-sub client is estabilished.");
-		connected();
-	}
-
 	// --- DISCONNECT ---
-
-	@Override
-	public final void connectionLost(Throwable cause) {
-		logger.info("MQTT pub-sub client disconnected.");
-		reconnect();
-	}
 
 	private final void disconnect() {
 		if (client != null) {
 			try {
-				client.close();
+				client.disconnect(publishCallback);
 			} catch (Throwable cause) {
 				logger.warn("Unexpected error occured while closing MQTT client!", cause);
 			} finally {
@@ -209,13 +194,6 @@ public final class MqttTransporter extends Transporter implements MqttCallback, 
 	}
 
 	// --- ANY I/O ERROR ---
-
-	@Override
-	public final void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-
-		// Do nothing
-		exception.printStackTrace();
-	}
 
 	@Override
 	protected final void error(Throwable cause) {
@@ -239,19 +217,24 @@ public final class MqttTransporter extends Transporter implements MqttCallback, 
 	public final Promise subscribe(String channel) {
 		if (client != null) {
 			try {
-				client.subscribe(channel, 0);
+				client.subscribe(new Topic[] { new Topic(channel, qos) }, new Callback<byte[]>() {
+
+					@Override
+					public final void onSuccess(byte[] bytes) {
+						received(channel, bytes);
+					}
+
+					@Override
+					public final void onFailure(Throwable cause) {
+						logger.error("Unexpected error occured!", cause);
+					}
+
+				});
 			} catch (Exception cause) {
 				return Promise.reject(cause);
 			}
 		}
 		return Promise.resolve();
-	}
-
-	// --- MESSAGE RECEIVED ---
-
-	@Override
-	public final void messageArrived(String topic, MqttMessage message) throws Exception {
-		received(topic, message.getPayload());
 	}
 
 	// --- PUBLISH ---
@@ -263,7 +246,7 @@ public final class MqttTransporter extends Transporter implements MqttCallback, 
 				if (debug) {
 					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
 				}
-				client.publish(channel, serializer.write(message), 0, false);
+				client.publish(channel, serializer.write(message), qos, false, publishCallback);
 			} catch (Exception cause) {
 				logger.warn("Unable to send message to MQTT server!", cause);
 				reconnect();
@@ -271,9 +254,20 @@ public final class MqttTransporter extends Transporter implements MqttCallback, 
 		}
 	}
 
-	@Override
-	public final void deliveryComplete(IMqttDeliveryToken token) {
-	}
+	// --- EMPTY CALLBACK INSTANCES ---
+
+	private final Callback<Void> publishCallback = new Callback<Void>() {
+
+		@Override
+		public final void onSuccess(Void value) {
+		}
+
+		@Override
+		public final void onFailure(Throwable cause) {
+			logger.error("Unexpected error occured!", cause);
+		}
+
+	};
 
 	// --- GETTERS / SETTERS ---
 
@@ -309,60 +303,20 @@ public final class MqttTransporter extends Transporter implements MqttCallback, 
 		this.cleanSession = cleanSession;
 	}
 
-	public final int getConnectionTimeout() {
-		return connectionTimeout;
+	public final short getKeepAliveSeconds() {
+		return keepAliveSeconds;
 	}
 
-	public final void setConnectionTimeout(int connectionTimeout) {
-		this.connectionTimeout = connectionTimeout;
+	public final void setKeepAliveSeconds(short keepAliveInterval) {
+		this.keepAliveSeconds = keepAliveInterval;
 	}
 
-	public final int getKeepAliveInterval() {
-		return keepAliveInterval;
+	public final String getVersion() {
+		return version;
 	}
 
-	public final void setKeepAliveInterval(int keepAliveInterval) {
-		this.keepAliveInterval = keepAliveInterval;
-	}
-
-	public final int getMaxInflight() {
-		return maxInflight;
-	}
-
-	public final void setMaxInflight(int maxInflight) {
-		this.maxInflight = maxInflight;
-	}
-
-	public final int getMqttVersion() {
-		return mqttVersion;
-	}
-
-	public final void setMqttVersion(int mqttVersion) {
-		this.mqttVersion = mqttVersion;
-	}
-
-	public final SocketFactory getSocketFactory() {
-		return socketFactory;
-	}
-
-	public final void setSocketFactory(SocketFactory socketFactory) {
-		this.socketFactory = socketFactory;
-	}
-
-	public final HostnameVerifier getHostnameVerifier() {
-		return hostnameVerifier;
-	}
-
-	public final void setHostnameVerifier(HostnameVerifier hostnameVerifier) {
-		this.hostnameVerifier = hostnameVerifier;
-	}
-
-	public final Properties getSslProperties() {
-		return sslProperties;
-	}
-
-	public final void setSslProperties(Properties sslProperties) {
-		this.sslProperties = sslProperties;
+	public final void setVersion(String version) {
+		this.version = version;
 	}
 
 }
