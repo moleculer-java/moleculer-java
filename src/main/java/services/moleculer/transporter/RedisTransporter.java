@@ -44,7 +44,7 @@ import services.moleculer.service.Name;
 import services.moleculer.util.redis.RedisPubSubClient;
 
 /**
- * Redis-based Transporter.
+ * Redis Transporter.
  */
 @Name("Redis Transporter")
 public class RedisTransporter extends Transporter implements EventBus, RedisPubSubListener<byte[], byte[]> {

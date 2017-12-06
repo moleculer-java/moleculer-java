@@ -45,7 +45,7 @@ public class Test {
 		
 		// Define a service
 		MqttTransporter transporter = new MqttTransporter();
-		transporter.setDebug(true);
+		transporter.setDebug(false);
 		
 		ServiceBroker broker = ServiceBroker.builder().registry(new DefaultServiceRegistry(false))
 				.transporter(transporter).nodeID("server-2").build();

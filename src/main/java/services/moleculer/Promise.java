@@ -256,6 +256,27 @@ public class Promise {
 	// --- COMPLETE UNRESOLVED / INCOMPLETED PROMISE ---
 
 	/**
+	 * If not already completed, sets the value to {@code null}. Sample code:
+	 * <br>
+	 * <br>
+	 * Promise p = new Promise();<br>
+	 * // Listener:<br>
+	 * p.next(value -> {<br>
+	 * System.out.println("Received: " + value);<br>
+	 * return value;<br>
+	 * });<br>
+	 * // Invoke chain:<br>
+	 * Tree t = new Tree().put("a", "b");<br>
+	 * p.complete();
+	 * 
+	 * @return {@code true} if this invocation caused this Promise to transition
+	 *         to a completed state, else {@code false}
+	 */
+	public boolean complete() {
+		return future.complete(new CheckedTree(null));
+	}
+
+	/**
 	 * If not already completed, sets the value to the given value. Sample code:
 	 * <br>
 	 * <br>
@@ -356,7 +377,7 @@ public class Promise {
 		promises.toArray(array);
 		return all(array);
 	}
-	
+
 	/**
 	 * Returns a new Promise that is completed when all of the given Promise
 	 * complete. If any of the given Promise complete exceptionally, then the
@@ -373,7 +394,7 @@ public class Promise {
 		if (promises == null || promises.length == 0) {
 			return Promise.resolve();
 		}
-		
+
 		@SuppressWarnings("unchecked")
 		CompletableFuture<Tree>[] futures = new CompletableFuture[promises.length];
 		for (int i = 0; i < promises.length; i++) {
@@ -409,7 +430,7 @@ public class Promise {
 		promises.toArray(array);
 		return race(array);
 	}
-	
+
 	/**
 	 * Returns a new Promise that is completed when any of the given Promises
 	 * complete, with the same result. Otherwise, if it completed exceptionally,
@@ -426,7 +447,7 @@ public class Promise {
 		if (promises == null || promises.length == 0) {
 			return Promise.resolve();
 		}
-		
+
 		@SuppressWarnings("unchecked")
 		CompletableFuture<Tree>[] futures = new CompletableFuture[promises.length];
 		for (int i = 0; i < promises.length; i++) {
@@ -509,7 +530,7 @@ public class Promise {
 		public final void resolve() {
 			future.complete(new CheckedTree(null));
 		}
-		
+
 		/**
 		 * Resolve the value of the current Promise with the given value.
 		 * Allowed Object types of the "value" parameter are: Tree, String, int,

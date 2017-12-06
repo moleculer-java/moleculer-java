@@ -1,25 +1,54 @@
+/**
+ * This software is licensed under MIT license.<br>
+ * <br>
+ * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * <br>
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:<br>
+ * <br>
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.<br>
+ * <br>
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package services.moleculer.transporter;
 
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-import org.fusesource.hawtbuf.Buffer;
-import org.fusesource.hawtbuf.UTF8Buffer;
-import org.fusesource.mqtt.client.Callback;
-import org.fusesource.mqtt.client.CallbackConnection;
-import org.fusesource.mqtt.client.ExtendedListener;
-import org.fusesource.mqtt.client.MQTT;
-import org.fusesource.mqtt.client.QoS;
-import org.fusesource.mqtt.client.Topic;
-
 import io.datatree.Tree;
+import net.sf.xenqtt.client.AsyncClientListener;
+import net.sf.xenqtt.client.AsyncMqttClient;
+import net.sf.xenqtt.client.MqttClient;
+import net.sf.xenqtt.client.MqttClientConfig;
+import net.sf.xenqtt.client.NullReconnectStrategy;
+import net.sf.xenqtt.client.PublishMessage;
+import net.sf.xenqtt.client.Subscription;
+import net.sf.xenqtt.message.ConnectReturnCode;
+import net.sf.xenqtt.message.QoS;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
+/**
+ * MQTT Transporter (eg. for Mosquitto MQTT Server).
+ */
 @Name("MQTT Transporter")
-public final class MqttTransporter extends Transporter {
+public final class MqttTransporter extends Transporter implements AsyncClientListener {
 
 	// --- PROPERTIES ---
 
@@ -30,13 +59,16 @@ public final class MqttTransporter extends Transporter {
 	// --- OTHER MQTT PROPERTIES ---
 
 	private boolean cleanSession = true;
-	private short keepAliveSeconds = 60;
-	private String version = "3.1";
+	private short keepAliveSeconds = 300;
+	private int connectTimeoutSeconds = 30;
+	private int messageResendIntervalSeconds = 30;
+	private int blockingTimeoutSeconds = 0;
+	private int maxInFlightMessages = 0xffff;
 	private QoS qos = QoS.AT_LEAST_ONCE;
 
 	// --- MQTT CONNECTION ---
 
-	private CallbackConnection client;
+	private AsyncMqttClient client;
 
 	// --- CONSTUCTORS ---
 
@@ -98,7 +130,10 @@ public final class MqttTransporter extends Transporter {
 		password = config.get(PASSWORD, password);
 		cleanSession = config.get("cleanSession", cleanSession);
 		keepAliveSeconds = config.get("keepAliveSeconds", keepAliveSeconds);
-		version = config.get("version", version);
+		connectTimeoutSeconds = config.get("connectTimeoutSeconds", connectTimeoutSeconds);
+		messageResendIntervalSeconds = config.get("messageResendIntervalSeconds", messageResendIntervalSeconds);
+		blockingTimeoutSeconds = config.get("blockingTimeoutSeconds", blockingTimeoutSeconds);
+		maxInFlightMessages = config.get("maxInFlightMessages", maxInFlightMessages);
 
 		// Connect to MQTT server
 		connect();
@@ -109,14 +144,7 @@ public final class MqttTransporter extends Transporter {
 	private final void connect() {
 		try {
 
-			// Create MQTT client options
-			MQTT options = new MQTT();
-			if (password != null) {
-				options.setPassword(this.password);
-			}
-			if (username != null) {
-				options.setUserName(this.username);
-			}
+			// Create MQTT client config
 			String[] array = new String[urls.length];
 			for (int i = 0; i < urls.length; i++) {
 				String url = urls[i];
@@ -129,77 +157,72 @@ public final class MqttTransporter extends Transporter {
 				}
 				array[i] = url;
 			}
-			if (array.length > 0) {
-				options.setHost(array[0]);
-			}
-			options.setReconnectAttemptsMax(0);
-			options.setCleanSession(cleanSession);
-			options.setKeepAlive(keepAliveSeconds);
-			options.setVersion(version);
+			String url = array[0];
+
+			// Set properties
+			final MqttClientConfig config = new MqttClientConfig();
+			config.setReconnectionStrategy(new NullReconnectStrategy());
+			config.setKeepAliveSeconds(keepAliveSeconds);
+			config.setConnectTimeoutSeconds(connectTimeoutSeconds);
+			config.setMessageResendIntervalSeconds(messageResendIntervalSeconds);
+			config.setBlockingTimeoutSeconds(blockingTimeoutSeconds);
+			config.setMaxInFlightMessages(maxInFlightMessages);
 
 			// Create MQTT client
 			disconnect();
-			client = options.callbackConnection();
-			MqttTransporter self = this;
-			client.listener(new ExtendedListener() {
+			client = new AsyncMqttClient(url, this, executor, config);
+			client.connect(nodeID + '-' + broker.components().uid().nextUID(), cleanSession, username, password);
 
-				@Override
-				public final void onPublish(UTF8Buffer topic, Buffer body, Runnable ack) {
-					ack.run();
-				}
-
-				@Override
-				public final void onFailure(Throwable cause) {
-					reconnect(cause);
-				}
-
-				@Override
-				public final void onDisconnected() {
-				}
-
-				@Override
-				public final void onConnected() {
-					logger.info("MQTT pub-sub client is estabilished.");
-					scheduler.schedule(self::connected, 1, TimeUnit.SECONDS);
-				}
-
-				@Override
-				public final void onPublish(UTF8Buffer topic, Buffer body, Callback<Callback<Void>> ack) {
-					byte[] data = new byte[body.length];
-					System.arraycopy(body.data, body.offset, data, 0, body.length);
-					received(topic.toString(), data);
-					ack.onSuccess(noOpCallback);
-				}
-
-			});
-			client.connect(new Callback<Void>() {
-
-				@Override
-				public final void onSuccess(Void value) {
-				}
-
-				@Override
-				public final void onFailure(Throwable cause) {
-					reconnect(cause);
-				}
-
-			});
 		} catch (Exception cause) {
 			reconnect(cause);
 		}
 	}
 
+	// --- CONNECTED ---
+
+	@Override
+	public final void connected(MqttClient client, ConnectReturnCode returnCode) {
+		logger.info("MQTT pub-sub connection is estabilished.");
+		scheduler.schedule(this::connected, 100, TimeUnit.MILLISECONDS);
+	}
+
 	// --- DISCONNECT ---
+
+	@Override
+	public void disconnected(MqttClient client, Throwable cause, boolean reconnecting) {
+		if (cause != null) {
+			String msg = String.valueOf(cause).toLowerCase();
+			if (!msg.contains("refused")) {
+				logger.info("Redis pub-sub connection aborted.");
+			}
+			reconnect(cause);
+		}
+	}
 
 	private final void disconnect() {
 		if (client != null) {
 			try {
-				client.disconnect(noOpCallback);
+				if (!client.isClosed()) {
+					client.disconnect();
+					client.close();
+				}
 			} catch (Throwable cause) {
 				logger.warn("Unexpected error occured while closing MQTT client!", cause);
 			} finally {
 				client = null;
+				subscriptions.clear();
 				disconnected();
+			}
+			try {
+				ThreadGroup group = Thread.currentThread().getThreadGroup();
+				Thread[] list = new Thread[group.activeCount()];
+				group.enumerate(list);
+				for (Thread t : list) {
+					if ("CommandCleanup".equals(t.getName())) {
+						t.interrupt();
+					}
+				}
+			} catch (Exception ignored) {
 			}
 		}
 	}
@@ -240,24 +263,15 @@ public final class MqttTransporter extends Transporter {
 
 	// --- SUBSCRIBE ---
 
+	private final ConcurrentHashMap<String, Promise> subscriptions = new ConcurrentHashMap<>();
+
 	@Override
 	public final Promise subscribe(String channel) {
 		Promise promise = new Promise();
 		if (client != null) {
 			try {
-				client.subscribe(new Topic[] { new Topic(channel, qos) }, new Callback<byte[]>() {
-
-					@Override
-					public final void onSuccess(byte[] bytes) {
-						promise.complete(bytes);
-					}
-
-					@Override
-					public final void onFailure(Throwable cause) {
-						promise.complete(cause);
-					}
-
-				});
+				client.subscribe(new Subscription[] { new Subscription(channel, qos) });
+				subscriptions.put(channel, promise);
 			} catch (Exception cause) {
 				promise.complete(cause);
 			}
@@ -265,6 +279,38 @@ public final class MqttTransporter extends Transporter {
 			promise.complete(new Throwable("Not connected!"));
 		}
 		return promise;
+	}
+
+	@Override
+	public final void subscribed(MqttClient client, Subscription[] requestedSubscriptions,
+			Subscription[] grantedSubscriptions, boolean requestsGranted) {
+		for (Subscription s : grantedSubscriptions) {
+			String channel = s.getTopic();
+			Promise promise = subscriptions.remove(channel);
+			if (promise != null) {
+				promise.complete();
+			}
+			if (debug) {
+				logger.info("Channel \"" + channel + "\" subscribed successfully.");
+			}
+		}
+	}
+
+	@Override
+	public final void unsubscribed(MqttClient client, String[] topics) {
+		if (debug) {
+			for (String s : topics) {
+				logger.info("Channel \"" + s + "\" unsubscribed successfully.");
+			}
+		}
+	}
+
+	@Override
+	public final void published(MqttClient client, PublishMessage message) {
+		if (debug) {
+			logger.info(
+					"Submitted message received by the server at " + new Date(message.getReceivedTimestamp()) + ".");
+		}
 	}
 
 	// --- PUBLISH ---
@@ -276,26 +322,19 @@ public final class MqttTransporter extends Transporter {
 				if (debug) {
 					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
 				}
-				client.publish(channel, serializer.write(message), qos, false, noOpCallback);
+				client.publish(new PublishMessage(channel, qos, serializer.write(message), false));
 			} catch (Exception cause) {
 				logger.warn("Unable to send message to MQTT server!", cause);
 			}
 		}
 	}
 
-	// --- EMPTY CALLBACK ---
+	// --- RECEIVE ---
 
-	private static final Callback<Void> noOpCallback = new Callback<Void>() {
-
-		@Override
-		public final void onSuccess(Void value) {
-		}
-
-		@Override
-		public final void onFailure(Throwable cause) {
-		}
-
-	};
+	@Override
+	public final void publishReceived(MqttClient client, PublishMessage message) {
+		received(message.getTopic(), message.getPayload());
+	}
 
 	// --- GETTERS / SETTERS ---
 
@@ -339,12 +378,44 @@ public final class MqttTransporter extends Transporter {
 		this.keepAliveSeconds = keepAliveInterval;
 	}
 
-	public final String getVersion() {
-		return version;
+	public final int getConnectTimeoutSeconds() {
+		return connectTimeoutSeconds;
 	}
 
-	public final void setVersion(String version) {
-		this.version = version;
+	public final void setConnectTimeoutSeconds(int connectTimeoutSeconds) {
+		this.connectTimeoutSeconds = connectTimeoutSeconds;
+	}
+
+	public final int getMessageResendIntervalSeconds() {
+		return messageResendIntervalSeconds;
+	}
+
+	public final void setMessageResendIntervalSeconds(int messageResendIntervalSeconds) {
+		this.messageResendIntervalSeconds = messageResendIntervalSeconds;
+	}
+
+	public final int getBlockingTimeoutSeconds() {
+		return blockingTimeoutSeconds;
+	}
+
+	public final void setBlockingTimeoutSeconds(int blockingTimeoutSeconds) {
+		this.blockingTimeoutSeconds = blockingTimeoutSeconds;
+	}
+
+	public final int getMaxInFlightMessages() {
+		return maxInFlightMessages;
+	}
+
+	public final void setMaxInFlightMessages(int maxInFlightMessages) {
+		this.maxInFlightMessages = maxInFlightMessages;
+	}
+
+	public final QoS getQos() {
+		return qos;
+	}
+
+	public final void setQos(QoS qos) {
+		this.qos = qos;
 	}
 
 }

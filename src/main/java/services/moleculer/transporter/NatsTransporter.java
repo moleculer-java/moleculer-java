@@ -43,7 +43,7 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * Not implemented (yet).
+ * NATS Transporter.
  */
 @Name("NATS Transporter")
 public final class NatsTransporter extends Transporter implements MessageHandler, DisconnectedCallback {
@@ -188,7 +188,7 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 				urlList.append(url);
 			}
 			client = Nats.connect(urlList.toString(), options);
-			logger.info("NATS pub-sub client is estabilished.");
+			logger.info("NATS pub-sub connection is estabilished.");
 			connected();
 		} catch (Exception cause) {
 			String msg = cause.getMessage();
@@ -206,7 +206,7 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 
 	@Override
 	public final void onDisconnect(ConnectionEvent event) {
-		logger.info("NATS pub-sub client disconnected.");
+		logger.info("NATS pub-sub connection disconnected.");
 		reconnect();
 	}
 
