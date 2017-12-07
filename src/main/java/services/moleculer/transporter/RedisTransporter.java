@@ -44,7 +44,9 @@ import services.moleculer.service.Name;
 import services.moleculer.util.redis.RedisPubSubClient;
 
 /**
- * Redis Transporter.
+ * Redis Transporter. Redis is an open source (BSD licensed), in-memory data
+ * structure store, used as a database, cache and message broker (website:
+ * https://redis.io).
  */
 @Name("Redis Transporter")
 public class RedisTransporter extends Transporter implements EventBus, RedisPubSubListener<byte[], byte[]> {
@@ -305,7 +307,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 			if (status.compareAndSet(STATUS_CONNECTING_2, STATUS_CONNECTED)) {
 
 				// Second connection is Ok
-				logger.info("All Redis pub-sub connections are estabilished.");
+				logger.info("All Redis pub-sub connections estabilished.");
 				connected();
 			}
 			return;

@@ -43,7 +43,9 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * NATS Transporter.
+ * NATS Transporter. NATS Server is a simple, high performance open source
+ * messaging system for cloud native applications, IoT messaging, and
+ * microservices architectures (website: https://nats.io).
  */
 @Name("NATS Transporter")
 public final class NatsTransporter extends Transporter implements MessageHandler, DisconnectedCallback {
@@ -64,7 +66,7 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 	private int timeout = Nats.DEFAULT_TIMEOUT;
 	private boolean tlsDebug;
 	private boolean verbose;
-	
+
 	// --- NATS CONNECTION ---
 
 	private Connection client;
@@ -135,7 +137,7 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 		timeout = config.get("timeout", timeout);
 		tlsDebug = config.get("tlsDebug", tlsDebug);
 		verbose = config.get("verbose", verbose);
-		
+
 		// Connect to NATS server
 		connect();
 	}
@@ -188,7 +190,7 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 				urlList.append(url);
 			}
 			client = Nats.connect(urlList.toString(), options);
-			logger.info("NATS pub-sub connection is estabilished.");
+			logger.info("NATS pub-sub connection estabilished.");
 			connected();
 		} catch (Exception cause) {
 			String msg = cause.getMessage();

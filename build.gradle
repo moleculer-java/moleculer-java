@@ -59,6 +59,11 @@ dependencies {
 	// https://mvnrepository.com/artifact/net.sf.xenqtt/xenqtt
 	compile group: 'net.sf.xenqtt', name: 'xenqtt', version: '0.9.7'
 
+	// --- SOCKETCLUSTER CLIENT ---
+	
+	// https://bintray.com/sacoo7/Maven/socketcluster-client
+	compile group: 'io.github.sac', name: 'SocketclusterClientJava', version: '1.7.2'
+
 	// --- OFF-HEAP CACHE ---
 	
 	// https://mvnrepository.com/artifact/org.caffinitas.ohc/ohc-core-j8

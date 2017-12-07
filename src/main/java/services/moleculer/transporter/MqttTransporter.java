@@ -45,7 +45,10 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * MQTT Transporter (eg. for Mosquitto MQTT Server).
+ * MQTT Transporter (eg. for Mosquitto MQTT Server). MQTT is a
+ * machine-to-machine (M2M)/"Internet of Things" connectivity protocol. It was
+ * designed as an extremely lightweight publish/subscribe messaging transport
+ * (website: http://mqtt.org).
  */
 @Name("MQTT Transporter")
 public final class MqttTransporter extends Transporter implements AsyncClientListener {
@@ -54,7 +57,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 
 	private String username;
 	private String password;
-	private String[] urls = new String[] { "127.0.0.1" };
+	private String url = "127.0.0.1";
 
 	// --- OTHER MQTT PROPERTIES ---
 
@@ -80,16 +83,16 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 		super(prefix);
 	}
 
-	public MqttTransporter(String prefix, String... urls) {
+	public MqttTransporter(String prefix, String url) {
 		super(prefix);
-		this.urls = urls;
+		this.url = url;
 	}
 
-	public MqttTransporter(String prefix, String username, String password, String... urls) {
+	public MqttTransporter(String prefix, String username, String password, String url) {
 		super(prefix);
 		this.username = username;
 		this.password = password;
-		this.urls = urls;
+		this.url = url;
 	}
 
 	// --- START TRANSPORTER ---
@@ -122,8 +125,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 				urlList = urlNode.asList(String.class);
 			}
 			if (!urlList.isEmpty()) {
-				urls = new String[urlList.size()];
-				urlList.toArray(urls);
+				url = urlList.get(0);
 			}
 		}
 		username = config.get("username", username);
@@ -145,22 +147,17 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 		try {
 
 			// Create MQTT client config
-			String[] array = new String[urls.length];
-			for (int i = 0; i < urls.length; i++) {
-				String url = urls[i];
-				if (url.indexOf(':') == -1) {
-					url = url + ":1883";
-				}
-				url = url.replace("mqtt://", "tcp://");
-				if (!url.startsWith("tcp://")) {
-					url = "tcp://" + url;
-				}
-				array[i] = url;
+			final MqttClientConfig config = new MqttClientConfig();
+			String uri = url;
+			if (uri.indexOf(':') == -1) {
+				uri = uri + ":1883";
 			}
-			String url = array[0];
+			uri = uri.replace("mqtt://", "tcp://");
+			if (!uri.startsWith("tcp://")) {
+				uri = "tcp://" + uri;
+			}
 
 			// Set properties
-			final MqttClientConfig config = new MqttClientConfig();
 			config.setReconnectionStrategy(new NullReconnectStrategy());
 			config.setKeepAliveSeconds(keepAliveSeconds);
 			config.setConnectTimeoutSeconds(connectTimeoutSeconds);
@@ -170,7 +167,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 
 			// Create MQTT client
 			disconnect();
-			client = new AsyncMqttClient(url, this, executor, config);
+			client = new AsyncMqttClient(uri, this, executor, config);
 			client.connect(nodeID + '-' + broker.components().uid().nextUID(), cleanSession, username, password);
 
 		} catch (Exception cause) {
@@ -182,7 +179,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 
 	@Override
 	public final void connected(MqttClient client, ConnectReturnCode returnCode) {
-		logger.info("MQTT pub-sub connection is estabilished.");
+		logger.info("MQTT pub-sub connection estabilished.");
 		scheduler.schedule(this::connected, 100, TimeUnit.MILLISECONDS);
 	}
 
@@ -338,12 +335,12 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 
 	// --- GETTERS / SETTERS ---
 
-	public final String[] getUrls() {
-		return urls;
+	public final String getUrl() {
+		return url;
 	}
 
-	public final void setUrls(String[] urls) {
-		this.urls = urls;
+	public final void setUrl(String url) {
+		this.url = url;
 	}
 
 	public final String getUsername() {
