@@ -44,25 +44,40 @@ dependencies {
 		exclude group: 'log4j', module: 'log4j'
 	}
 	
-	// --- REDIS CLIENT ---
+	// --- DEPENDENCY OF THE REDIS TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/biz.paluch.redis/lettuce
 	compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.4.1.Final'
 
-	// --- NATS CLIENT ---
+	// --- DEPENDENCY OF THE NATS TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/io.nats/jnats
 	compile group: 'io.nats', name: 'jnats', version: '1.0'
 
-	// --- MQTT CLIENT ---
+	// --- DEPENDENCY OF THE MQTT TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/net.sf.xenqtt/xenqtt
 	compile group: 'net.sf.xenqtt', name: 'xenqtt', version: '0.9.7'
 
-	// --- SOCKETCLUSTER CLIENT ---
+	// --- DEPENDENCY OF THE SOCKETCLUSTER TRANSPORTER ---
 	
 	// https://bintray.com/sacoo7/Maven/socketcluster-client
 	compile group: 'io.github.sac', name: 'SocketclusterClientJava', version: '1.7.2'
+
+	// --- DEPENDENCY OF THE JMS TRANSPORTER ---
+
+	// https://mvnrepository.com/artifact/javax.jms/javax.jms-api
+	compile group: 'javax.jms', name: 'javax.jms-api', version: '2.0.1'
+
+	// --- ACTIVE QM CLIENT API FOR JMS TESTING ---
+
+	// https://mvnrepository.com/artifact/org.apache.activemq/activemq-client
+	compile group: 'org.apache.activemq', name: 'activemq-client', version: '5.15.2'
+
+	// --- DEPENDENCY OF THE AMQP/RABBITMQ TRANSPORTER ---
+	
+	// https://mvnrepository.com/artifact/com.rabbitmq/amqp-client
+	compile group: 'com.rabbitmq', name: 'amqp-client', version: '5.0.0'
 
 	// --- OFF-HEAP CACHE ---
 	

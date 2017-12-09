@@ -45,8 +45,8 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * MQTT Transporter (eg. for Mosquitto MQTT Server). MQTT is a
- * machine-to-machine (M2M)/"Internet of Things" connectivity protocol. It was
+ * MQTT Transporter (eg. for Mosquitto MQTT Server or ActiveMQ Server). MQTT is
+ * a machine-to-machine (M2M)/"Internet of Things" connectivity protocol. It was
  * designed as an extremely lightweight publish/subscribe messaging transport
  * (website: http://mqtt.org).
  */

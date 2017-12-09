@@ -33,6 +33,7 @@ import services.moleculer.service.Action;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Service;
 import services.moleculer.transporter.MqttTransporter;
+import services.moleculer.transporter.Transporter;
 
 public class Test {
 
@@ -41,11 +42,10 @@ public class Test {
 		// Test sigar
 		String nativeDir = "./native";
 		System.setProperty("java.library.path", nativeDir);
-		// System.setProperty("hawtdispatch.threads", "1");
-		
+			
 		// Define a service
-		MqttTransporter transporter = new MqttTransporter();
-		transporter.setDebug(false);
+		Transporter transporter = new MqttTransporter();
+		transporter.setDebug(true);
 		
 		ServiceBroker broker = ServiceBroker.builder().registry(new DefaultServiceRegistry(false))
 				.transporter(transporter).nodeID("server-2").build();

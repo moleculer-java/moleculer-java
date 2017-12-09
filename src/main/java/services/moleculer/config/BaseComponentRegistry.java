@@ -383,7 +383,21 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 					cfg.put(URL, value);
 				}
 				return cfg;
-			}			
+			}
+			if (test.startsWith("jms")) {
+				Tree cfg = newConfig("services.moleculer.transporter.JmsTransporter");
+				if (test.contains("://")) {
+					cfg.put(URL, value);
+				}
+				return cfg;
+			}
+			if (test.startsWith("amqp")) {
+				Tree cfg = newConfig("services.moleculer.transporter.RabbitMQTransporter");
+				if (test.contains("://")) {
+					cfg.put(URL, value);
+				}
+				return cfg;
+			}
 		} else if (CACHER_ID.equals(id)) {
 			if (test.startsWith("redis")) {
 				Tree cfg = newConfig("services.moleculer.cacher.RedisCacher");

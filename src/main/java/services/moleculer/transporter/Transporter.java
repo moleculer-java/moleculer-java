@@ -58,6 +58,9 @@ import services.moleculer.service.ServiceRegistry;
  * 
  * @see RedisTransporter
  * @see NatsTransporter
+ * @see MqttTransporter
+ * @see RabbitMQTransporter
+ * @see JmsTransporter
  */
 @Name("Transporter")
 public abstract class Transporter implements MoleculerComponent {
