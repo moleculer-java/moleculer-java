@@ -59,7 +59,7 @@ import services.moleculer.service.ServiceRegistry;
  * @see RedisTransporter
  * @see NatsTransporter
  * @see MqttTransporter
- * @see RabbitMQTransporter
+ * @see AmqpTransporter
  * @see JmsTransporter
  */
 @Name("Transporter")

@@ -48,18 +48,16 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * RabbitMQ AMQP Transporter (draft / unfinished)
+ * AMQP Transporter based on RabbitMQ's AMQP client API.
  */
-@Name("RabbitMQ AMQP Transporter")
-public class RabbitMQTransporter extends Transporter {
+@Name("AMQP Transporter")
+public class AmqpTransporter extends Transporter {
 
 	// --- PROPERTIES ---
 
 	private String username;
 	private String password;
 	private String url = "127.0.0.1";
-
-	private boolean secure;
 	private SslContextFactory sslContextFactory;
 
 	// --- OTHER AMQP PROPERTIES ---
@@ -84,24 +82,25 @@ public class RabbitMQTransporter extends Transporter {
 
 	// --- CONSTUCTORS ---
 
-	public RabbitMQTransporter() {
+	public AmqpTransporter() {
 		super();
 	}
 
-	public RabbitMQTransporter(String prefix) {
+	public AmqpTransporter(String prefix) {
 		super(prefix);
 	}
 
-	public RabbitMQTransporter(String prefix, String url) {
+	public AmqpTransporter(String prefix, String url) {
 		super(prefix);
 		this.url = url;
 	}
 
-	public RabbitMQTransporter(String prefix, String username, String password, boolean secure, String url) {
+	public AmqpTransporter(String prefix, String username, String password, SslContextFactory sslContextFactory,
+			String url) {
 		super(prefix);
 		this.username = username;
 		this.password = password;
-		this.secure = secure;
+		this.sslContextFactory = sslContextFactory;
 		this.url = url;
 	}
 
@@ -140,7 +139,6 @@ public class RabbitMQTransporter extends Transporter {
 		}
 		username = config.get("username", username);
 		password = config.get(PASSWORD, password);
-		secure = config.get(SECURE, secure);
 		mandatory = config.get("mandatory", mandatory);
 		immediate = config.get("immediate", immediate);
 		durable = config.get("durable", durable);
@@ -168,8 +166,8 @@ public class RabbitMQTransporter extends Transporter {
 			if (uri.indexOf(':') == -1) {
 				uri = uri + ":5672";
 			}
-			if (!uri.startsWith("amqp://") && !uri.startsWith("amqps://")) {
-				if (secure) {
+			if (url.indexOf("://") == -1) {
+				if (sslContextFactory != null) {
 					uri = "amqps://" + uri;
 				} else {
 					uri = "amqp://" + uri;
@@ -178,6 +176,9 @@ public class RabbitMQTransporter extends Transporter {
 			factory.setHeartbeatExecutor(scheduler);
 			factory.setSharedExecutor(executor);
 			factory.setSslContextFactory(sslContextFactory);
+
+			factory.setAutomaticRecoveryEnabled(false);
+			factory.setTopologyRecoveryEnabled(false);
 
 			// NioParams params = new NioParams();
 			// params.setNioExecutor(executor);
@@ -273,6 +274,18 @@ public class RabbitMQTransporter extends Transporter {
 							received(channel, body);
 						}
 
+						// --- CONNECTION LOST ---
+
+						@Override
+						public final void handleShutdownSignal(String consumerTag, ShutdownSignalException sig) {
+							synchronized (factory) {
+								if (client != null) {
+									logger.info("AMQP pub-sub connection aborted.");
+									reconnect();
+								}
+							}
+						}
+
 						// --- UNUSED METHODS ---
 
 						@Override
@@ -293,13 +306,6 @@ public class RabbitMQTransporter extends Transporter {
 						public final void handleCancel(String consumerTag) throws IOException {
 							if (debug) {
 								logger.info("Cancel packet received (consumerTag: " + consumerTag + ").");
-							}
-						}
-
-						@Override
-						public final void handleShutdownSignal(String consumerTag, ShutdownSignalException sig) {
-							if (debug) {
-								logger.info("ShutdownSignal packet received (consumerTag: " + consumerTag + ").");
 							}
 						}
 
@@ -326,6 +332,9 @@ public class RabbitMQTransporter extends Transporter {
 		Channel c = channels.get(channel);
 		if (c != null) {
 			try {
+				if (debug) {
+					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
+				}
 				c.basicPublish("", channel, mandatory, immediate, messageProperties, serializer.write(message));
 			} catch (Exception cause) {
 				logger.warn("Unable to send message to AMQP server!", cause);
@@ -421,14 +430,6 @@ public class RabbitMQTransporter extends Transporter {
 
 	public final void setChannelProperties(Map<String, Object> arguments) {
 		this.channelProperties = arguments;
-	}
-
-	public final boolean isSecure() {
-		return secure;
-	}
-
-	public final void setSecure(boolean secure) {
-		this.secure = secure;
 	}
 
 	public final SslContextFactory getSslContextFactory() {

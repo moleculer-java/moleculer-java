@@ -153,7 +153,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 				uri = uri + ":1883";
 			}
 			uri = uri.replace("mqtt://", "tcp://");
-			if (!uri.startsWith("tcp://")) {
+			if (url.indexOf("://") == -1) {
 				uri = "tcp://" + uri;
 			}
 
@@ -190,7 +190,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 		if (cause != null) {
 			String msg = String.valueOf(cause).toLowerCase();
 			if (!msg.contains("refused")) {
-				logger.info("Redis pub-sub connection aborted.");
+				logger.info("MQTT pub-sub connection aborted.");
 			}
 			reconnect(cause);
 		}

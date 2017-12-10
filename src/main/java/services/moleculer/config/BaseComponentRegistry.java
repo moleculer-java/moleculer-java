@@ -392,7 +392,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 				return cfg;
 			}
 			if (test.startsWith("amqp")) {
-				Tree cfg = newConfig("services.moleculer.transporter.RabbitMQTransporter");
+				Tree cfg = newConfig("services.moleculer.transporter.AmqpTransporter");
 				if (test.contains("://")) {
 					cfg.put(URL, value);
 				}

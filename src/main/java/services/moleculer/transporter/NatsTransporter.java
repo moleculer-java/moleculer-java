@@ -184,7 +184,7 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 				if (url.indexOf(':') == -1) {
 					url = url + ":4222";
 				}
-				if (!url.startsWith("nats://")) {
+				if (url.indexOf("://") == -1) {
 					url = "nats://" + url;
 				}
 				urlList.append(url);

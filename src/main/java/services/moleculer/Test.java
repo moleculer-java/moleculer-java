@@ -32,7 +32,7 @@ import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Service;
-import services.moleculer.transporter.MqttTransporter;
+import services.moleculer.transporter.AmqpTransporter;
 import services.moleculer.transporter.Transporter;
 
 public class Test {
@@ -44,7 +44,7 @@ public class Test {
 		System.setProperty("java.library.path", nativeDir);
 			
 		// Define a service
-		Transporter transporter = new MqttTransporter();
+		Transporter transporter = new AmqpTransporter();
 		transporter.setDebug(true);
 		
 		ServiceBroker broker = ServiceBroker.builder().registry(new DefaultServiceRegistry(false))
@@ -85,7 +85,7 @@ public class Test {
 		});
 		broker.start();
 		
-		Thread.sleep(20000);
+		Thread.sleep(200000);
 
 		// Emit local event
 		Tree payload = new Tree();

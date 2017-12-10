@@ -41,13 +41,13 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * Socketcluster Transporter. SocketCluster is an open source real-time
+ * Socketcluster Transporter. Socketcluster is an open source real-time
  * framework for Node.js. It supports both direct client-server communication
  * and group communication via pub/sub channels (website:
  * https://socketcluster.io).
  */
 @Name("Socketcluster Transporter")
-public final class SocketclusterTransporter extends Transporter implements Listener, BasicListener {
+public final class SocketClusterTransporter extends Transporter implements Listener, BasicListener {
 
 	// --- PROPERTIES ---
 
@@ -60,15 +60,15 @@ public final class SocketclusterTransporter extends Transporter implements Liste
 
 	// --- CONSTUCTORS ---
 
-	public SocketclusterTransporter() {
+	public SocketClusterTransporter() {
 		super();
 	}
 
-	public SocketclusterTransporter(String prefix) {
+	public SocketClusterTransporter(String prefix) {
 		super(prefix);
 	}
 
-	public SocketclusterTransporter(String prefix, String url) {
+	public SocketClusterTransporter(String prefix, String url) {
 		super(prefix);
 		this.url = url;
 	}
@@ -122,7 +122,7 @@ public final class SocketclusterTransporter extends Transporter implements Liste
 			if (uri.indexOf(':') == -1) {
 				uri = uri + ":80";
 			}
-			if (!uri.startsWith("ws://")) {
+			if (uri.indexOf("://") == -1) {
 				uri = "ws://" + uri;
 			}
 
