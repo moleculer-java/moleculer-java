@@ -42,7 +42,8 @@ import services.moleculer.service.Name;
 /**
  * On-heap memory cache. MemoryCacher is the fastest cache implementation in
  * Moleculer. This can be a "distributed" cache, the content of the other node's
- * cache is removable via events. Configuration properties:
+ * cache is removable via events. Supports global and entry-level TTL
+ * configuration. Configuration properties:
  * <ul>
  * <li>capacity: Maximum capacity per partition (must be a power of 2), defaults
  * to 2048
@@ -50,10 +51,12 @@ import services.moleculer.service.Name;
  * expires)
  * <li>cleanup: Cleanup period, in seconds
  * </ul>
- * Performance (small and large data): 5.5 million gets / second
+ * Performance (small and large data): 5.5 million gets / second (per thread /
+ * core)
  * 
- * @see OHCacher
  * @see RedisCacher
+ * @see OHCacher
+ * @see Cache2kCacher
  */
 @Name("On-heap Memory Cacher")
 public final class MemoryCacher extends Cacher implements Runnable {

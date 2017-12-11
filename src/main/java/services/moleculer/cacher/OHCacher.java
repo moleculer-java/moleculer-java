@@ -54,9 +54,8 @@ import services.moleculer.service.Name;
 
 /**
  * Off-heap cache implementation (it's similar to MemoryCacher, but stores
- * entries in the off-heap RAM). Requires "OHC" Windows/Linux/OSX off-heap
- * HashTable API (compile group: 'org.caffinitas.ohc', name: 'ohc-core-j8',
- * version: '0.6.1'). See this gitHub project for a more description:
+ * entries in the off-heap RAM). Supports global and entry-level TTL
+ * configuration. See this gitHub project for a more description:
  * https://github.com/snazy/ohc.<br>
  * Configuration properties:
  * <ul>
@@ -69,7 +68,7 @@ import services.moleculer.service.Name;
  * <li>compressAbove: compress key and/or value above this size (BYTES)
  * <li>format: serializator type ("json", "smile", etc.)
  * </ul>
- * Performance:<br>
+ * Performance (per thread / core):<br>
  * <br>
  * <b>Small uncompressed data</b><br>
  * In SMILE format: 392 000 gets / second<br>
@@ -83,9 +82,18 @@ import services.moleculer.service.Name;
  * compressed entries in the off-heap RAM. OHCacher is the solution to store
  * huge amount of data in memory; if you plan to store few thousands (or less)
  * entries in the cache, use the faster MemoryCacher, otherwise use OHCacher.
+ * <br>
+ * <br>
+ * <b>Required dependency:</b><br>
+ * <br>
+ * // https://mvnrepository.com/artifact/org.caffinitas.ohc/ohc-core-j8<br>
+ * compile group: 'org.caffinitas.ohc', name: 'ohc-core-j8', version: '0.6.1'
+ * <br>
+ * <br>
  * 
  * @see MemoryCacher
  * @see RedisCacher
+ * @see Cache2kCacher
  */
 @Name("Off-heap Memory Cacher")
 public final class OHCacher extends Cacher {

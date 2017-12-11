@@ -18,8 +18,10 @@ dependencies {
     compile 'org.slf4j:slf4j-api:1.7.21'
     testCompile 'junit:junit:4.12'
 
-    // --- LOGGER ---
-
+	
+	// =============== LOGGING ===============
+	
+	
 	// http://mvnrepository.com/artifact/org.slf4j/slf4j-api
 	compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
        
@@ -32,17 +34,57 @@ dependencies {
 	// https://mvnrepository.com/artifact/org.slf4j/jcl-over-slf4j
 	compile group: 'org.slf4j', name: 'jcl-over-slf4j', version: '1.7.25'
 
+
+	// =============== SERIALIZATION ===============
+
+
     // --- DATATREE ---
     	    
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-adapters
 	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.3'
 
+
+	// =============== MONITORING ===============
+	
+	
 	// --- SIGAR API TO QUERY THE CPU USAGE ---
 	
 	// https://mvnrepository.com/artifact/org.fusesource/sigar
 	compile (group: 'org.fusesource', name: 'sigar', version: '1.6.4') {
 		exclude group: 'log4j', module: 'log4j'
 	}
+	
+	
+	// =============== CDI FRAMEWORKS ===============
+	 
+	
+    // --- SPRING DEPENDENCY INJECTION FRAMEWORK ---
+
+	// https://mvnrepository.com/artifact/org.springframework/spring-core
+	compile group: 'org.springframework', name: 'spring-context', version: '5.0.0.RELEASE'
+
+    // --- GOOGLE GUICE DEPENDENCY INJECTION FRAMEWORK ---
+    
+	// https://mvnrepository.com/artifact/com.google.inject/guice
+	compile group: 'com.google.inject', name: 'guice', version: '4.1.0'
+	
+		
+	// =============== CACHES ===============
+	
+	
+	// --- OHC OFF-HEAP CACHE ---
+	
+	// https://mvnrepository.com/artifact/org.caffinitas.ohc/ohc-core-j8
+	compile group: 'org.caffinitas.ohc', name: 'ohc-core-j8', version: '0.6.1'
+	
+	// --- CACHE2K CACHE ---
+	
+	// https://mvnrepository.com/artifact/org.cache2k/cache2k-api
+	compile group: 'org.cache2k', name: 'cache2k-api', version: '1.0.1.Final'
+	
+	
+	// =============== TRANSPORTERS ===============
+	
 	
 	// --- DEPENDENCY OF THE REDIS TRANSPORTER ---
 	
@@ -84,19 +126,4 @@ dependencies {
 	// https://mvnrepository.com/artifact/com.google.cloud/google-cloud-pubsub
 	compile group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '0.30.0-beta'
 
-	// --- OFF-HEAP CACHE ---
-	
-	// https://mvnrepository.com/artifact/org.caffinitas.ohc/ohc-core-j8
-	compile group: 'org.caffinitas.ohc', name: 'ohc-core-j8', version: '0.6.1'
-
-    // --- SPRING DEPENDENCY INJECTION FRAMEWORK ---
-
-	// https://mvnrepository.com/artifact/org.springframework/spring-core
-	compile group: 'org.springframework', name: 'spring-context', version: '5.0.0.RELEASE'
-
-    // --- GOOGLE GUICE DEPENDENCY INJECTION FRAMEWORK ---
-    
-	// https://mvnrepository.com/artifact/com.google.inject/guice
-	compile group: 'com.google.inject', name: 'guice', version: '4.1.0'
-		
 }

@@ -39,6 +39,7 @@ import services.moleculer.service.Name;
  * @see MemoryCacher
  * @see OHCacher
  * @see RedisCacher
+ * @see Cache2kCacher
  */
 @Name("Cacher")
 public abstract class Cacher implements MoleculerComponent {
