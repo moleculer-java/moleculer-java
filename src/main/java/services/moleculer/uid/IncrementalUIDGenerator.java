@@ -59,7 +59,7 @@ public final class IncrementalUIDGenerator extends UIDGenerator {
 	 */
 	@Override
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
-		String id = config.get(PREFIX, broker.nodeID());
+		String id = config.get("prefix", broker.nodeID());
 		prefix = (id + ':').toCharArray();
 	}
 

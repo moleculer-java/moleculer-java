@@ -152,7 +152,7 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 	protected final void findServices(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		Tree packagesNode = config.get(PACKAGES_TO_SCAN);
+		Tree packagesNode = config.get("packagesToScan");
 		if (packagesNode != null) {
 			if (packagesNode.isPrimitive()) {
 
@@ -169,18 +169,22 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 				}
 			}
 		}
-		String s = config.get(STAGE, "").toUpperCase();
+
+		// The stage we're running in ("tool", "development" or "production")
+		String s = config.get("stage", "").toUpperCase();
 		if (!s.isEmpty()) {
 			stage = Stage.valueOf(s);
 		}
-		String m = config.get(MODULE, "");
+
+		// Optional Guice configurator module (class name)
+		String m = config.get("module", "");
 		if (!m.isEmpty()) {
 			module = (Module) Class.forName(m).newInstance();
 		}
 
 		// Check required "packagesToScan" parameter
 		if (packagesToScan == null || packagesToScan.length == 0) {
-			logger.warn("The \"" + PACKAGES_TO_SCAN + "\" parameter is required for the Dependency Injector!");
+			logger.warn("The \"packagesToScan\" parameter is required for the Dependency Injector!");
 			logger.warn("Please specify the proper Java package(s) where your Services are located.");
 			return;
 		}

@@ -53,7 +53,7 @@ import rx.Observable;
 import services.moleculer.Promise;
 
 /**
- * Promise-based get/set Redis client. 
+ * Promise-based get/set Redis client.
  */
 public final class RedisGetSetClient {
 

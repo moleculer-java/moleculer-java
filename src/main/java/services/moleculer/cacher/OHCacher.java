@@ -83,6 +83,9 @@ import services.moleculer.service.Name;
  * compressed entries in the off-heap RAM. OHCacher is the solution to store
  * huge amount of data in memory; if you plan to store few thousands (or less)
  * entries in the cache, use the faster MemoryCacher, otherwise use OHCacher.
+ * 
+ * @see MemoryCacher
+ * @see RedisCacher
  */
 @Name("Off-heap Memory Cacher")
 public final class OHCacher extends Cacher {
@@ -183,27 +186,36 @@ public final class OHCacher extends Cacher {
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		capacity = config.get(CAPACITY, capacity);
-		segmentCount = config.get(SEGMENT_COUNT, segmentCount);
-		hashTableSize = config.get(HASH_TABLE_SIZE, hashTableSize);
-		ttl = config.get(TTL, ttl);
-		compressAbove = config.get(COMPRESS_ABOVE, compressAbove);
+		capacity = config.get("capacity", capacity);
+
+		// Number of segments in a cache
+		segmentCount = config.get("segmentCount", segmentCount);
+
+		// Initial size of each segment's hash table
+		hashTableSize = config.get("hashTableSize", hashTableSize);
+
+		// Default TTL seconds
+		ttl = config.get("ttl", ttl);
+
+		// Cache or transporter compresses content above this size (specified in
+		// bytes).
+		compressAbove = config.get("compressAbove", compressAbove);
 
 		// Create serializer
-		Tree serializerNode = config.get(SERIALIZER);
+		Tree serializerNode = config.get("serializer");
 		if (serializerNode != null) {
 			String type;
 			if (serializerNode.isPrimitive()) {
 				type = serializerNode.asString();
 			} else {
-				type = serializerNode.get(TYPE, "json");
+				type = serializerNode.get("type", "json");
 			}
 
 			@SuppressWarnings("unchecked")
 			Class<? extends Serializer> c = (Class<? extends Serializer>) Class.forName(serializerTypeToClass(type));
 			serializer = c.newInstance();
 		} else {
-			serializerNode = config.putMap(SERIALIZER);
+			serializerNode = config.putMap("serializer");
 		}
 		if (serializer == null) {
 			try {

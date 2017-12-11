@@ -67,14 +67,14 @@ public abstract class Monitor implements MoleculerComponent {
 	@Override
 	public void stop() {
 	}
-	
+
 	// --- SYSTEM MONITORING METHODS ---
-	
+
 	/**
 	 * Returns the system CPU usage, in percents, between 0 and 100.
 	 * 
 	 * @return total CPU usage of the current OS
 	 */
 	public abstract int getTotalCpuPercent();
-	
+
 }

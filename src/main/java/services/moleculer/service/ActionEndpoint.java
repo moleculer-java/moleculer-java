@@ -88,18 +88,18 @@ public abstract class ActionEndpoint implements MoleculerComponent, Endpoint {
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Set name
-		name = config.get(NAME, (String) null);
+		name = config.get("name", (String) null);
 
 		// Set nodeID
-		nodeID = config.get(NODE_ID, (String) null);
+		nodeID = config.get("nodeID", (String) null);
 
 		// Set cache parameters
-		cached = config.get(CACHE, false);
-		cacheKeys = config.get(CACHE_KEYS, "").split(",");
-		ttl = config.get(TTL, 0);
+		cached = config.get("cache", false);
+		cacheKeys = config.get("cacheKeys", "").split(",");
+		ttl = config.get("ttl", 0);
 
 		// Set default invaocation timeout
-		defaultTimeout = config.get(DEFAULT_TIMEOUT, 0);
+		defaultTimeout = config.get("defaultTimeout", 0);
 
 		// Set components
 		this.broker = broker;
@@ -154,7 +154,7 @@ public abstract class ActionEndpoint implements MoleculerComponent, Endpoint {
 	// --- PROPERTY GETTERS ---
 
 	public abstract boolean local();
-	
+
 	public final String name() {
 		return name;
 	}

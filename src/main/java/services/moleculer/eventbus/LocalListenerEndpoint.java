@@ -42,13 +42,13 @@ public final class LocalListenerEndpoint extends ListenerEndpoint {
 	 */
 	@Override
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
-		
+
 		// Set base properties
 		super.start(broker, config);
 
 		// Process config
-		asyncLocalInvocation = config.get(ASYNC_LOCAL_INVOCATION, asyncLocalInvocation);
-	
+		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
+
 		// Set components
 		if (asyncLocalInvocation) {
 			executor = broker.components().executor();

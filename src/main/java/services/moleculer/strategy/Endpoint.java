@@ -27,7 +27,7 @@ package services.moleculer.strategy;
 public interface Endpoint {
 
 	public String nodeID();
-	
+
 	public boolean local();
-	
+
 }

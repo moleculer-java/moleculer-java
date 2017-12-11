@@ -68,7 +68,7 @@ public abstract class EventBus implements MoleculerComponent {
 	// --- RECEIVE EVENT FROM REMOTE SERVICE ---
 
 	public abstract void receiveEvent(Tree message);
-	
+
 	// --- ADD LISTENERS OF A LOCAL SERVICE ---
 
 	public abstract void addListeners(Service service, Tree config) throws Exception;
@@ -76,7 +76,7 @@ public abstract class EventBus implements MoleculerComponent {
 	// --- ADD LISTENERS OF A REMOTE SERVICE ---
 
 	public abstract void addListeners(Tree config) throws Exception;
-	
+
 	// --- REMOVE ALL LISTENERS OF A NODE ---
 
 	public abstract void removeListeners(String nodeID);
@@ -96,5 +96,5 @@ public abstract class EventBus implements MoleculerComponent {
 	// --- GENERATE LISTENER DESCRIPTOR ---
 
 	public abstract Tree generateListenerDescriptor(String service);
-	
+
 }

@@ -48,7 +48,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 /**
- * To set up, add the following line to the JVM properties:<br> 
+ * To set up, add the following line to the JVM properties:<br>
  * <br>
  * -Djava.util.logging.config.file=./config/logging.properties<br>
  * <br>

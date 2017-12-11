@@ -94,5 +94,5 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
 	public abstract Tree generateDescriptor();
-	
+
 }

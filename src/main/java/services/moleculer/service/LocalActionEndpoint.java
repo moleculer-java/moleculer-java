@@ -58,7 +58,7 @@ public final class LocalActionEndpoint extends ActionEndpoint {
 	 * Atomic counter for internal timout handling
 	 */
 	private final AtomicLong internalUID = new AtomicLong();
-	
+
 	// --- COMPONENTS ---
 
 	private final DefaultServiceRegistry registry;
@@ -88,8 +88,8 @@ public final class LocalActionEndpoint extends ActionEndpoint {
 		super.start(broker, config);
 
 		// Process config
-		asyncLocalInvocation = config.get(ASYNC_LOCAL_INVOCATION, asyncLocalInvocation);
-		
+		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
+
 		// Set name
 		if (name == null || name.isEmpty()) {
 			name = nameOf(action, false);
@@ -130,7 +130,7 @@ public final class LocalActionEndpoint extends ActionEndpoint {
 
 		// A.) Async invocation
 		if (asyncLocalInvocation || timeout > 0) {
-			
+
 			// Execute in thread pool
 			Promise promise = new Promise(CompletableFuture.supplyAsync(() -> {
 				try {
@@ -139,12 +139,12 @@ public final class LocalActionEndpoint extends ActionEndpoint {
 					return error;
 				}
 			}, executor));
-			
+
 			// No timeout / done
 			if (timeoutAt < 0 || promise.isDone()) {
 				return promise;
 			}
-			
+
 			// Register promise (timeout handling)
 			final String id = Long.toString(internalUID.incrementAndGet());
 			registry.register(id, promise, timeoutAt);

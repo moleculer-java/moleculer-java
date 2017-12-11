@@ -35,17 +35,17 @@ import services.moleculer.service.Name;
  */
 @Name("Nanosecond-based Pseudorandom Strategy Factory")
 public final class NanoSecRandomStrategyFactory extends ArrayBasedStrategyFactory {
-	
+
 	// --- CONSTRUCTORS ---
-	
+
 	public NanoSecRandomStrategyFactory() {
 		super();
 	}
-	
+
 	public NanoSecRandomStrategyFactory(boolean preferLocal) {
 		super(preferLocal);
 	}
-	
+
 	// --- FACTORY METHOD ---
 
 	@Override

@@ -40,7 +40,7 @@ public final class DefaultContextFactory extends ContextFactory {
 
 	private ServiceRegistry registry;
 	private UIDGenerator uid;
-	
+
 	// --- START CONTEXT FACTORY ---
 
 	/**
@@ -69,9 +69,9 @@ public final class DefaultContextFactory extends ContextFactory {
 		} else {
 			id = null;
 		}
-		
+
 		// TODO Merge meta, set parent context ID
-		
+
 		// Create context
 		return new Context(registry, id, name, params, opts);
 	}

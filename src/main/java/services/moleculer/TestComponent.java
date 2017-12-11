@@ -36,7 +36,7 @@ public class TestComponent implements MoleculerComponent {
 
 	@Autowired
 	public Transporter transporter;
-	
+
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 	}

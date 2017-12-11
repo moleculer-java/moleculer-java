@@ -55,12 +55,14 @@ import services.moleculer.service.ServiceRegistry;
 
 /**
  * Base superclass of all Transporter implementations.
- * 
+ *
  * @see RedisTransporter
  * @see NatsTransporter
  * @see MqttTransporter
  * @see AmqpTransporter
  * @see JmsTransporter
+ * @see SocketClusterTransporter
+ * @see GoogleCloudTransporter
  */
 @Name("Transporter")
 public abstract class Transporter implements MoleculerComponent {
@@ -153,34 +155,34 @@ public abstract class Transporter implements MoleculerComponent {
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		prefix = config.get(PREFIX, prefix);
+		prefix = config.get("prefix", prefix);
 
 		// Create serializer
-		Tree serializerNode = config.get(SERIALIZER);
+		Tree serializerNode = config.get("serializer");
 		if (serializerNode != null) {
 			String type;
 			if (serializerNode.isPrimitive()) {
 				type = serializerNode.asString();
 			} else {
-				type = serializerNode.get(TYPE, "json");
+				type = serializerNode.get("type", "json");
 			}
 
 			@SuppressWarnings("unchecked")
 			Class<? extends Serializer> c = (Class<? extends Serializer>) Class.forName(serializerTypeToClass(type));
 			serializer = c.newInstance();
 		} else {
-			serializerNode = config.putMap(SERIALIZER);
+			serializerNode = config.putMap("serializer");
 		}
 		if (serializer == null) {
 			serializer = new JsonSerializer();
 		}
 
 		// Heartbeat interval (find in Transporter config)
-		heartbeatInterval = config.get(HEARTBEAT_INTERVAL, heartbeatInterval);
+		heartbeatInterval = config.get("heartbeatInterval", heartbeatInterval);
 		if (heartbeatInterval < 1) {
 
 			// Find in broker config
-			heartbeatInterval = config.getParent().get(HEARTBEAT_INTERVAL, 0);
+			heartbeatInterval = config.getParent().get("heartbeatInterval", 0);
 			if (heartbeatInterval < 1) {
 				heartbeatInterval = 5;
 			}
@@ -188,11 +190,11 @@ public abstract class Transporter implements MoleculerComponent {
 		logger.info(nameOf(this, true) + " sends heartbeat signal every " + heartbeatInterval + " seconds.");
 
 		// Heartbeat timeout (find in Transporter config)
-		heartbeatTimeout = config.get(HEARTBEAT_TIMEOUT, heartbeatTimeout);
+		heartbeatTimeout = config.get("heartbeatTimeout", heartbeatTimeout);
 		if (heartbeatTimeout < 1) {
 
 			// Find in broker config
-			heartbeatTimeout = config.getParent().get(HEARTBEAT_TIMEOUT, 0);
+			heartbeatTimeout = config.getParent().get("heartbeatTimeout", 0);
 			if (heartbeatTimeout < 1) {
 				heartbeatTimeout = 30;
 			}
@@ -335,12 +337,12 @@ public abstract class Transporter implements MoleculerComponent {
 
 	public Tree createRequestPacket(Context ctx) {
 		Tree message = new Tree();
-		message.put(VER, ServiceBroker.MOLECULER_VERSION);
-		message.put(SENDER, nodeID);
+		message.put("ver", ServiceBroker.MOLECULER_VERSION);
+		message.put("sender", nodeID);
 		message.put("id", ctx.id());
 		message.put("action", ctx.name());
 
-		message.putObject(PARAMS, ctx.params());
+		message.putObject("params", ctx.params());
 		message.put("meta", (String) null);
 
 		CallingOptions opts = ctx.opts();
@@ -394,9 +396,9 @@ public abstract class Transporter implements MoleculerComponent {
 			try {
 
 				// Get "sender" property
-				String sender = data.get(SENDER, "");
+				String sender = data.get("sender", "");
 				if (sender == null || sender.isEmpty()) {
-					logger.warn("Missing \"" + SENDER + "\" property:\r\n" + data);
+					logger.warn("Missing \"sender\" property:\r\n" + data);
 					return;
 				}
 				if (sender.equals(nodeID)) {
@@ -435,7 +437,7 @@ public abstract class Transporter implements MoleculerComponent {
 				if (channel.equals(infoChannel) || channel.equals(infoBroadcastChannel)) {
 
 					// Register services in info block
-					Tree services = data.get(SERVICES);
+					Tree services = data.get("services");
 					if (services != null && services.isEnumeration()) {
 						for (Tree service : services) {
 
@@ -481,8 +483,8 @@ public abstract class Transporter implements MoleculerComponent {
 
 	private final void sendDiscoverPacket(String channel) {
 		Tree message = new Tree();
-		message.put(VER, MOLECULER_VERSION);
-		message.put(SENDER, nodeID);
+		message.put("ver", MOLECULER_VERSION);
+		message.put("sender", nodeID);
 		publish(channel, message);
 	}
 
@@ -492,15 +494,15 @@ public abstract class Transporter implements MoleculerComponent {
 
 	private final void sendHeartbeatPacket() {
 		Tree message = new Tree();
-		message.put(VER, MOLECULER_VERSION);
-		message.put(SENDER, nodeID);
-		message.put(CPU, monitor.getTotalCpuPercent());
+		message.put("ver", MOLECULER_VERSION);
+		message.put("sender", nodeID);
+		message.put("cpu", monitor.getTotalCpuPercent());
 		publish(heartbeatChannel, message);
 	}
 
 	private final void sendDisconnectPacket() {
 		Tree message = new Tree();
-		message.put(SENDER, nodeID);
+		message.put("sender", nodeID);
 		publish(disconnectChannel, message);
 	}
 

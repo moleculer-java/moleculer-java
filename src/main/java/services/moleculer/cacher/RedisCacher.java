@@ -51,8 +51,11 @@ import services.moleculer.service.Name;
 import services.moleculer.util.redis.RedisGetSetClient;
 
 /**
- * Redis-based cache implementation. Supports SSL, clustering and password
+ * Redis-based <b>distributed</b> cache. Supports SSL, clustering and password
  * authentication.
+ * 
+ * @see MemoryCacher
+ * @see OHCacher
  */
 @Name("Redis Cacher")
 public final class RedisCacher extends Cacher implements EventBus {
@@ -121,7 +124,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		Tree urlNode = config.get(URL);
+		Tree urlNode = config.get("url");
 		if (urlNode != null) {
 			List<String> urlList;
 			if (urlNode.isPrimitive()) {
@@ -138,9 +141,9 @@ public final class RedisCacher extends Cacher implements EventBus {
 				urlList.toArray(urls);
 			}
 		}
-		password = config.get(PASSWORD, password);
-		secure = config.get(SECURE, secure);
-		ttl = config.get(TTL, ttl);
+		password = config.get("password", password);
+		secure = config.get("secure", secure);
+		ttl = config.get("ttl", ttl);
 		if (ttl > 0) {
 
 			// Set the default expire time, in seconds.
@@ -150,20 +153,20 @@ public final class RedisCacher extends Cacher implements EventBus {
 		}
 
 		// Create serializer
-		Tree serializerNode = config.get(SERIALIZER);
+		Tree serializerNode = config.get("serializer");
 		if (serializerNode != null) {
 			String type;
 			if (serializerNode.isPrimitive()) {
 				type = serializerNode.asString();
 			} else {
-				type = serializerNode.get(TYPE, "json");
+				type = serializerNode.get("type", "json");
 			}
 
 			@SuppressWarnings("unchecked")
 			Class<? extends Serializer> c = (Class<? extends Serializer>) Class.forName(serializerTypeToClass(type));
 			serializer = c.newInstance();
 		} else {
-			serializerNode = config.putMap(SERIALIZER);
+			serializerNode = config.putMap("serializer");
 		}
 		if (serializer == null) {
 			serializer = new JsonSerializer();
@@ -272,11 +275,11 @@ public final class RedisCacher extends Cacher implements EventBus {
 			try {
 				SetArgs args;
 				if (ttl > 0) {
-					
+
 					// Entry-level TTL (in seconds)
 					args = SetArgs.Builder.ex(ttl);
 				} else {
-					
+
 					// Use the default TTL
 					args = expiration;
 				}

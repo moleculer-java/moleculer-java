@@ -34,6 +34,7 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
+
 /**
  * Spring-based Component Registry. The Spring Framework provides a
  * comprehensive programming and configuration model for modern Java-based
@@ -95,7 +96,8 @@ public final class SpringComponentRegistry extends BaseComponentRegistry impleme
 			logger.info("Spring Bean \"" + name + "\" registered as Moleculer Component.");
 		}
 
-		// Find Moleculer Components (eg. DAO classes) in Spring Application Context
+		// Find Moleculer Components (eg. DAO classes) in Spring Application
+		// Context
 		Map<String, Service> serviceMap = ctx.getBeansOfType(Service.class);
 		for (Map.Entry<String, Service> entry : serviceMap.entrySet()) {
 			Service service = entry.getValue();

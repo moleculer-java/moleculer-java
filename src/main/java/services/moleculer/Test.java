@@ -37,37 +37,36 @@ import services.moleculer.transporter.Transporter;
 
 public class Test {
 
-	public static void main(String[] args) throws Exception {		
-		
+	public static void main(String[] args) throws Exception {
+
 		// Test sigar
 		String nativeDir = "./native";
 		System.setProperty("java.library.path", nativeDir);
-			
+
 		// Define a service
 		Transporter transporter = new AmqpTransporter();
 		transporter.setDebug(true);
-		
+
 		ServiceBroker broker = ServiceBroker.builder().registry(new DefaultServiceRegistry(false))
 				.transporter(transporter).nodeID("server-2").build();
-		
+
 		broker.createService(new Service("math") {
 
-			@Cache(keys={"a", "b"})
+			@Cache(keys = { "a", "b" })
 			public Action add = (ctx) -> {
 				int a = ctx.params().get("a", 0);
 				int b = ctx.params().get("b", 0);
-				
-				/*return ctx.call("math2.mult", "a", a + b, "b", 2).then(in -> {
-					System.out.println("Res: " + in);
-					return new Promise(r -> {
-						broker.components().scheduler().schedule(() -> {
-							
-							r.resolve("Result: " + in.asString());
-							
-						}, 3, TimeUnit.SECONDS);
-					});
-				});	*/
-				
+
+				/*
+				 * return ctx.call("math2.mult", "a", a + b, "b", 2).then(in ->
+				 * { System.out.println("Res: " + in); return new Promise(r -> {
+				 * broker.components().scheduler().schedule(() -> {
+				 * 
+				 * r.resolve("Result: " + in.asString());
+				 * 
+				 * }, 3, TimeUnit.SECONDS); }); });
+				 */
+
 				return a + b;
 			};
 
@@ -81,10 +80,10 @@ public class Test {
 			public Listener evt2 = payload -> {
 				System.out.println("Event2: " + payload.get("a", -1));
 			};
-			
+
 		});
 		broker.start();
-		
+
 		Thread.sleep(200000);
 
 		// Emit local event
@@ -95,11 +94,12 @@ public class Test {
 		broker.broadcastLocal("user.foo", payload, new String[] { "special" });
 		broker.emit("test.foo", payload, null);
 		broker.broadcast("user.foo", payload, null);
-		
-		/*broker.call("math2.mult", "a", 5, "b", 2).then(in -> {
-			System.out.println("Result: " + in.asString());
-			//broker.emit("test.foo", payload, null);
-		});*/
+
+		/*
+		 * broker.call("math2.mult", "a", 5, "b", 2).then(in -> {
+		 * System.out.println("Result: " + in.asString());
+		 * //broker.emit("test.foo", payload, null); });
+		 */
 	}
 
 }

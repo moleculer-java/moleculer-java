@@ -43,11 +43,11 @@ public final class XORShiftRandomStrategy<T extends Endpoint> extends ArrayBased
 	private final AtomicLong rnd = new AtomicLong(System.nanoTime());
 
 	// --- CONSTRUCTOR ---
-	
+
 	public XORShiftRandomStrategy(boolean preferLocal) {
 		super(preferLocal);
 	}
-	
+
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
@@ -66,5 +66,5 @@ public final class XORShiftRandomStrategy<T extends Endpoint> extends ArrayBased
 		// Return ActionEndpoint
 		return endpoints[(int) Math.abs(next % endpoints.length)];
 	}
-	
+
 }

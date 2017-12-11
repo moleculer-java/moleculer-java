@@ -37,15 +37,15 @@ import services.moleculer.service.Name;
 public final class SecureRandomStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- CONSTRUCTORS ---
-	
+
 	public SecureRandomStrategyFactory() {
 		super();
 	}
-	
+
 	public SecureRandomStrategyFactory(boolean preferLocal) {
 		super(preferLocal);
 	}
-	
+
 	// --- FACTORY METHOD ---
 
 	@Override

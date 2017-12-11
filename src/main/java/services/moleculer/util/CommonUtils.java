@@ -35,13 +35,12 @@ import java.util.zip.Inflater;
 
 import io.datatree.Tree;
 import io.datatree.dom.TreeReaderRegistry;
-import services.moleculer.config.CommonNames;
 import services.moleculer.service.Name;
 
 /**
  * Common utilities.
  */
-public final class CommonUtils implements CommonNames {
+public final class CommonUtils {
 
 	public static final Tree parametersToTree(Object[] payload) {
 		Tree tree;
@@ -130,7 +129,7 @@ public final class CommonUtils implements CommonNames {
 	}
 
 	public static final String nameOf(Tree tree) {
-		String name = tree.get(NAME, "");
+		String name = tree.get("name", "");
 		if (name == null || name.isEmpty()) {
 			name = tree.getName();
 		}
@@ -141,7 +140,7 @@ public final class CommonUtils implements CommonNames {
 	}
 
 	public static final String typeOf(Tree tree) {
-		String type = tree.get(TYPE, "");
+		String type = tree.get("type", "");
 		if ((type == null || type.isEmpty()) && tree.isPrimitive()) {
 			type = tree.asString();
 		}

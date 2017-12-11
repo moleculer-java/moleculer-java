@@ -51,6 +51,9 @@ import services.moleculer.service.Name;
  * <li>cleanup: Cleanup period, in seconds
  * </ul>
  * Performance (small and large data): 5.5 million gets / second
+ * 
+ * @see OHCacher
+ * @see RedisCacher
  */
 @Name("On-heap Memory Cacher")
 public final class MemoryCacher extends Cacher implements Runnable {
@@ -128,9 +131,9 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		capacity = config.get(CAPACITY, capacity);
-		ttl = config.get(TTL, ttl);
-		cleanup = config.get(CLEANUP, cleanup);
+		capacity = config.get("capacity", capacity);
+		ttl = config.get("ttl", ttl);
+		cleanup = config.get("cleanup", cleanup);
 
 		// Start timer
 		if (cleanup > 0) {

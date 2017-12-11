@@ -71,7 +71,7 @@ import services.moleculer.uid.UIDGenerator;
  * settings.setCacher(cacher);<br>
  * ServiceBroker settings = new ServiceBroker(settings);
  */
-public final class ServiceBrokerSettings implements CommonNames {
+public final class ServiceBrokerSettings {
 
 	// --- LOGGER ---
 
@@ -140,7 +140,7 @@ public final class ServiceBrokerSettings implements CommonNames {
 			if (monitor == null) {
 				logger.info("JMX Monitoring API not available.");
 				monitor = new ConstantMonitor();
-			}			
+			}
 		}
 	}
 
@@ -204,29 +204,29 @@ public final class ServiceBrokerSettings implements CommonNames {
 		}
 
 		// Set base proeprties
-		setNamespace(config.get(NAMESPACE, namespace));
-		setNodeID(config.get(NODE_ID, nodeID));
+		setNamespace(config.get("namespace", namespace));
+		setNodeID(config.get("nodeID", nodeID));
 
 		// Create executor
-		String value = config.get(EXECUTOR_ID + '.' + TYPE, "");
+		String value = config.get(EXECUTOR_ID + '.' + "type", "");
 		if (!value.isEmpty()) {
 			setExecutor((ExecutorService) Class.forName(value).newInstance());
 		}
 
 		// Create scheduler
-		value = config.get(SCHEDULER_ID + '.' + TYPE, "");
+		value = config.get(SCHEDULER_ID + '.' + "type", "");
 		if (!value.isEmpty()) {
 			setScheduler((ScheduledExecutorService) Class.forName(value).newInstance());
 		}
 
-		// Should terminate thread pools on stop()?
-		value = config.get(SHUT_DOWN_THREAD_POOLS, "");
+		// Should terminate thread pools on stop?
+		value = config.get("shutDownThreadPools", "");
 		if (!value.isEmpty()) {
 			shutDownThreadPools = "true".equals(value);
 		}
 
 		// Create Component Registry
-		value = config.get(COMPONENTS_ID + '.' + TYPE, "");
+		value = config.get(COMPONENTS_ID + '.' + "type", "");
 		if (!value.isEmpty()) {
 			String test = value.toLowerCase();
 			if (test.equals("standalone")) {

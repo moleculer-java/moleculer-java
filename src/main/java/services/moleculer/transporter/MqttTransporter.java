@@ -48,7 +48,19 @@ import services.moleculer.service.Name;
  * MQTT Transporter (eg. for Mosquitto MQTT Server or ActiveMQ Server). MQTT is
  * a machine-to-machine (M2M)/"Internet of Things" connectivity protocol. It was
  * designed as an extremely lightweight publish/subscribe messaging transport
- * (website: http://mqtt.org).
+ * (website: http://mqtt.org).<br>
+ * <br>
+ * <b>Required dependency:</b><br>
+ * <br>
+ * // https://mvnrepository.com/artifact/net.sf.xenqtt/xenqtt<br>
+ * compile group: 'net.sf.xenqtt', name: 'xenqtt', version: '0.9.7'
+ * 
+ * @see RedisTransporter
+ * @see NatsTransporter
+ * @see AmqpTransporter
+ * @see JmsTransporter
+ * @see SocketClusterTransporter
+ * @see GoogleCloudTransporter
  */
 @Name("MQTT Transporter")
 public final class MqttTransporter extends Transporter implements AsyncClientListener {
@@ -112,7 +124,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 		super.start(broker, config);
 
 		// Process config
-		Tree urlNode = config.get(URL);
+		Tree urlNode = config.get("url");
 		if (urlNode != null) {
 			List<String> urlList;
 			if (urlNode.isPrimitive()) {
@@ -129,7 +141,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 			}
 		}
 		username = config.get("username", username);
-		password = config.get(PASSWORD, password);
+		password = config.get("password", password);
 		cleanSession = config.get("cleanSession", cleanSession);
 		keepAliveSeconds = config.get("keepAliveSeconds", keepAliveSeconds);
 		connectTimeoutSeconds = config.get("connectTimeoutSeconds", connectTimeoutSeconds);
@@ -302,14 +314,6 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 		}
 	}
 
-	@Override
-	public final void published(MqttClient client, PublishMessage message) {
-		if (debug) {
-			logger.info(
-					"Submitted message received by the server at " + new Date(message.getReceivedTimestamp()) + ".");
-		}
-	}
-
 	// --- PUBLISH ---
 
 	@Override
@@ -323,6 +327,14 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 			} catch (Exception cause) {
 				logger.warn("Unable to send message to MQTT server!", cause);
 			}
+		}
+	}
+
+	@Override
+	public final void published(MqttClient client, PublishMessage message) {
+		if (debug) {
+			logger.info(
+					"Submitted message received by the server at " + new Date(message.getReceivedTimestamp()) + ".");
 		}
 	}
 

@@ -46,7 +46,19 @@ import services.moleculer.util.redis.RedisPubSubClient;
 /**
  * Redis Transporter. Redis is an open source (BSD licensed), in-memory data
  * structure store, used as a database, cache and message broker (website:
- * https://redis.io).
+ * https://redis.io).<br>
+ * <br>
+ * <b>Required dependency:</b><br>
+ * <br>
+ * // https://mvnrepository.com/artifact/biz.paluch.redis/lettuce<br>
+ * compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.4.1.Final'
+ * 
+ * @see NatsTransporter
+ * @see MqttTransporter
+ * @see AmqpTransporter
+ * @see JmsTransporter
+ * @see SocketClusterTransporter
+ * @see GoogleCloudTransporter
  */
 @Name("Redis Transporter")
 public class RedisTransporter extends Transporter implements EventBus, RedisPubSubListener<byte[], byte[]> {
@@ -114,7 +126,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 		super.start(broker, config);
 
 		// Process config
-		Tree urlNode = config.get(URL);
+		Tree urlNode = config.get("url");
 		if (urlNode != null) {
 			List<String> urlList;
 			if (urlNode.isPrimitive()) {
@@ -131,8 +143,8 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 				urlList.toArray(urls);
 			}
 		}
-		password = config.get(PASSWORD, password);
-		secure = config.get(SECURE, secure);
+		password = config.get("password", password);
+		secure = config.get("secure", secure);
 
 		// Connect to Redis server
 		connect();

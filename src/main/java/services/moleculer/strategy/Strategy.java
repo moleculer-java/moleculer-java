@@ -84,11 +84,11 @@ public abstract class Strategy<T extends Endpoint> implements MoleculerComponent
 	public abstract T getEndpoint(String nodeID);
 
 	// --- GET LOCAL ENDPOINT ---
-	
+
 	public abstract T getLocalEndpoint();
-	
+
 	// --- GET ALL ENDPOINTS ---
-	
+
 	public abstract List<T> getAllEndpoints();
 
 }

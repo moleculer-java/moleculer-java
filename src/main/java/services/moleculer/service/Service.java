@@ -72,11 +72,11 @@ public abstract class Service implements MoleculerComponent {
 	}
 
 	// --- GET NAME OF SERVICE ---
-	
+
 	public final String name() {
 		return name;
 	}
-	
+
 	// --- START SERVICE ---
 
 	/**

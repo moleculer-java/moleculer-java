@@ -33,20 +33,33 @@ import com.neovisionaries.ws.client.WebSocketException;
 import com.neovisionaries.ws.client.WebSocketFrame;
 
 import io.datatree.Tree;
-import io.github.sac.Emitter.Listener;
 import io.github.sac.BasicListener;
+import io.github.sac.Emitter.Listener;
 import io.github.sac.Socket;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * Socketcluster Transporter. Socketcluster is an open source real-time
+ * SocketCluster Transporter. SocketCluster is an open source real-time
  * framework for Node.js. It supports both direct client-server communication
  * and group communication via pub/sub channels (website:
- * https://socketcluster.io).
+ * https://socketcluster.io).<br>
+ * <br>
+ * <b>Required dependency:</b><br>
+ * <br>
+ * // https://bintray.com/sacoo7/Maven/socketcluster-client<br>
+ * compile group: 'io.github.sac', name: 'SocketclusterClientJava', version:
+ * '1.7.2'
+ * 
+ * @see RedisTransporter
+ * @see NatsTransporter
+ * @see MqttTransporter
+ * @see AmqpTransporter
+ * @see JmsTransporter
+ * @see GoogleCloudTransporter
  */
-@Name("Socketcluster Transporter")
+@Name("SocketCluster Transporter")
 public final class SocketClusterTransporter extends Transporter implements Listener, BasicListener {
 
 	// --- PROPERTIES ---
@@ -90,7 +103,7 @@ public final class SocketClusterTransporter extends Transporter implements Liste
 		super.start(broker, config);
 
 		// Process config
-		Tree urlNode = config.get(URL);
+		Tree urlNode = config.get("url");
 		if (urlNode != null) {
 			List<String> urlList;
 			if (urlNode.isPrimitive()) {
@@ -129,6 +142,8 @@ public final class SocketClusterTransporter extends Transporter implements Liste
 			// Create Socketcluster client
 			disconnect();
 			client = new Socket(uri);
+
+			// TODO Test reconnection strategy
 			if (authToken != null) {
 				client.setAuthToken(authToken);
 			}

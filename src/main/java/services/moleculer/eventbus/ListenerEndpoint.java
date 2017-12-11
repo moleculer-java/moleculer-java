@@ -24,7 +24,7 @@ public abstract class ListenerEndpoint implements MoleculerComponent, Endpoint {
 	protected String subscribe;
 
 	private int hashCode = 1;
-	
+
 	// --- CONSTRUCTOR ---
 
 	ListenerEndpoint() {
@@ -44,7 +44,7 @@ public abstract class ListenerEndpoint implements MoleculerComponent, Endpoint {
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Set nodeID
-		nodeID = config.get(NODE_ID, (String) null);
+		nodeID = config.get("nodeID", (String) null);
 
 		// Set service name
 		service = config.get("service", (String) null);
@@ -54,14 +54,14 @@ public abstract class ListenerEndpoint implements MoleculerComponent, Endpoint {
 
 		// Set name
 		subscribe = config.get("subscribe", (String) null);
-		
+
 		// Generate hash code
 		final int prime = 31;
 		hashCode = prime * hashCode + ((group == null) ? 0 : group.hashCode());
 		hashCode = prime * hashCode + ((nodeID == null) ? 0 : nodeID.hashCode());
 		hashCode = prime * hashCode + ((service == null) ? 0 : service.hashCode());
 		hashCode = prime * hashCode + ((subscribe == null) ? 0 : subscribe.hashCode());
-		
+
 		// Verify values
 		Objects.requireNonNull(nodeID);
 		Objects.requireNonNull(service);

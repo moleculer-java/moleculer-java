@@ -29,24 +29,24 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * "Fake" system monitor, which returns constant values. 
+ * "Fake" system monitor, which returns constant values.
  */
 @Name("Constant-value System Monitor")
 public final class ConstantMonitor extends Monitor {
 
 	// --- PROPERTIES ---
-	
+
 	private int totalCpuPercent;
-	
+
 	// --- CONSTUCTORS ---
-	
+
 	public ConstantMonitor() {
 	}
-	
+
 	public ConstantMonitor(int totalCpuPercent) {
 		this.totalCpuPercent = totalCpuPercent;
 	}
-	
+
 	// --- START MONITOR ---
 
 	/**
@@ -63,9 +63,9 @@ public final class ConstantMonitor extends Monitor {
 		// Process config
 		totalCpuPercent = config.get("totalCpuPercent", totalCpuPercent);
 	}
-	
+
 	// --- SYSTEM MONITORING METHODS ---
-	
+
 	/**
 	 * Returns the system CPU usage, in percents, between 0 and 100.
 	 * 
@@ -75,9 +75,9 @@ public final class ConstantMonitor extends Monitor {
 	public final int getTotalCpuPercent() {
 		return totalCpuPercent;
 	}
-	
+
 	// --- GETTERS / SETTERS ---
-	
+
 	public final void setTotalCpuPercent(int value) {
 		this.totalCpuPercent = value;
 	}

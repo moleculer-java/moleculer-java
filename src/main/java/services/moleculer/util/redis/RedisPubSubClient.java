@@ -54,7 +54,7 @@ import rx.Observable;
 import services.moleculer.Promise;
 
 /**
- * Promise-based pub/sub Redis client. 
+ * Promise-based pub/sub Redis client.
  */
 public final class RedisPubSubClient {
 

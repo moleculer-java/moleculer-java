@@ -24,7 +24,7 @@
  */
 package services.moleculer.transporter;
 
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 
 import javax.jms.BytesMessage;
@@ -51,7 +51,21 @@ import services.moleculer.service.Name;
  * Java Enterprise Edition. Sample of usage with Active MQ:<br>
  * <br>
  * Transporter t = new JmsTransporter(new ActiveMQConnectionFactory());<br>
- * ServiceBroker broker = ServiceBroker.builder().transporter(t).build();
+ * ServiceBroker broker = ServiceBroker.builder().transporter(t).build();<br>
+ * <br>
+ * <b>Required dependency:</b><br>
+ * <br>
+ * // https://mvnrepository.com/artifact/javax.jms/javax.jms-api<br>
+ * compile group: 'javax.jms', name: 'javax.jms-api', version: '2.0.1'<br>
+ * <br>
+ * + dependencies of the JMS driver.
+ * 
+ * @see RedisTransporter
+ * @see NatsTransporter
+ * @see MqttTransporter
+ * @see AmqpTransporter
+ * @see SocketClusterTransporter
+ * @see GoogleCloudTransporter
  */
 @Name("JMS Transporter")
 public final class JmsTransporter extends Transporter {
@@ -79,7 +93,7 @@ public final class JmsTransporter extends Transporter {
 
 	// --- JMS CONNECTION ---
 
-	private TopicConnection connection;
+	private TopicConnection client;
 
 	// --- JMS SESSION ---
 
@@ -87,11 +101,11 @@ public final class JmsTransporter extends Transporter {
 
 	// --- CHANNEL NAME/PUBLISHER MAP ---
 
-	private final ConcurrentHashMap<String, TopicPublisher> publishers = new ConcurrentHashMap<>();
+	private final HashMap<String, TopicPublisher> publishers = new HashMap<>(64);
 
 	// --- CHANNEL NAME/SUBSCRIBER MAP ---
 
-	private final ConcurrentHashMap<String, TopicSubscriber> subscribers = new ConcurrentHashMap<>();
+	private final HashMap<String, TopicSubscriber> subscribers = new HashMap<>(64);
 
 	// --- CONSTUCTORS ---
 
@@ -146,7 +160,7 @@ public final class JmsTransporter extends Transporter {
 
 		// Process config
 		username = config.get("username", username);
-		password = config.get(PASSWORD, password);
+		password = config.get("password", password);
 		transacted = config.get("transacted", transacted);
 		acknowledgeMode = config.get("acknowledgeMode", acknowledgeMode);
 		deliveryMode = config.get("deliveryMode", deliveryMode);
@@ -163,7 +177,7 @@ public final class JmsTransporter extends Transporter {
 	private final void connect() {
 		try {
 
-			// Create JMS connection and session
+			// Create JMS client and session
 			disconnect();
 			if (factory == null) {
 				try {
@@ -177,13 +191,13 @@ public final class JmsTransporter extends Transporter {
 				}
 			}
 			if ((username == null || username.isEmpty()) && (password == null || password.isEmpty())) {
-				connection = factory.createTopicConnection();
+				client = factory.createTopicConnection();
 			} else {
-				connection = factory.createTopicConnection(username, password);
+				client = factory.createTopicConnection(username, password);
 			}
-			connection.setClientID(nodeID);
-			connection.start();
-			session = connection.createTopicSession(transacted, acknowledgeMode);
+			client.setClientID(nodeID);
+			client.start();
+			session = client.createTopicSession(transacted, acknowledgeMode);
 			connected();
 		} catch (Exception cause) {
 			reconnect(cause);
@@ -193,26 +207,30 @@ public final class JmsTransporter extends Transporter {
 	// --- DISCONNECT ---
 
 	private final void disconnect() {
-		if (connection != null) {
+		if (client != null) {
 			try {
-				connection.stop();
+				client.stop();
 			} catch (Exception ignored) {
 			}
 		}
-		for (TopicPublisher publisher : publishers.values()) {
-			try {
-				publisher.close();
-			} catch (Exception ignored) {
+		synchronized (publishers) {
+			for (TopicPublisher publisher : publishers.values()) {
+				try {
+					publisher.close();
+				} catch (Exception ignored) {
+				}
 			}
+			publishers.clear();
 		}
-		publishers.clear();
-		for (TopicSubscriber subscriber : subscribers.values()) {
-			try {
-				subscriber.close();
-			} catch (Exception ignored) {
+		synchronized (subscribers) {
+			for (TopicSubscriber subscriber : subscribers.values()) {
+				try {
+					subscriber.close();
+				} catch (Exception ignored) {
+				}
 			}
+			subscribers.clear();
 		}
-		subscribers.clear();
 		if (session != null) {
 			try {
 				session.close();
@@ -220,12 +238,12 @@ public final class JmsTransporter extends Transporter {
 			}
 			session = null;
 		}
-		if (connection != null) {
+		if (client != null) {
 			try {
-				connection.close();
+				client.close();
 			} catch (Exception ignored) {
 			}
-			connection = null;
+			client = null;
 		}
 	}
 
@@ -267,48 +285,59 @@ public final class JmsTransporter extends Transporter {
 
 	@Override
 	public final Promise subscribe(String channel) {
-		if (!publishers.containsKey(channel)) {
-			try {
+		try {
 
-				// Create topic
-				Topic topic = session.createTopic(channel);
+			// Create publisher
+			createOrGetPublisher(channel);
 
-				// Create publisher
-				TopicPublisher publisher = session.createPublisher(topic);
-				publisher.setDeliveryMode(deliveryMode);
-				publishers.put(channel, publisher);
-
-				// Create subscriber
-				TopicSubscriber subscriber = session.createSubscriber(topic);
-				subscribers.put(channel, subscriber);
-				subscriber.setMessageListener((message) -> {
-					try {
-						BytesMessage msg = (BytesMessage) message;
-						byte[] bytes = new byte[(int) msg.getBodyLength()];
-						msg.readBytes(bytes);
-						received(channel, bytes);
-					} catch (Exception cause) {
-						logger.error("Unable to deserialize message!", cause);
-					}
-				});
-
-			} catch (Exception cause) {
-				return Promise.reject(cause);
+			// Create subscriber
+			synchronized (subscribers) {
+				if (!subscribers.containsKey(channel)) {
+					TopicSubscriber subscriber = session.createSubscriber(session.createTopic(channel));
+					subscribers.put(channel, subscriber);
+					subscriber.setMessageListener((message) -> {
+						try {
+							BytesMessage msg = (BytesMessage) message;
+							byte[] bytes = new byte[(int) msg.getBodyLength()];
+							msg.readBytes(bytes);
+							received(channel, bytes);
+						} catch (Exception cause) {
+							logger.error("Unable to deserialize message!", cause);
+						}
+					});
+				}
 			}
+		} catch (Exception cause) {
+			return Promise.reject(cause);
 		}
 		return Promise.resolve();
+	}
+
+	private final TopicPublisher createOrGetPublisher(String channel) throws Exception {
+		TopicPublisher publisher;
+		synchronized (publishers) {
+			publisher = publishers.get(channel);
+			if (publisher != null) {
+				return publisher;
+			}
+			Topic topic = session.createTopic(channel);
+			publisher = session.createPublisher(topic);
+			publisher.setDeliveryMode(deliveryMode);
+			publishers.put(channel, publisher);
+		}
+		return publisher;
 	}
 
 	// --- PUBLISH ---
 
 	@Override
 	public final void publish(String channel, Tree message) {
-		TopicPublisher publisher = publishers.get(channel);
-		if (publisher != null) {
+		if (client != null) {
 			try {
 				if (debug) {
 					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
 				}
+				TopicPublisher publisher = createOrGetPublisher(channel);
 				BytesMessage msg = session.createBytesMessage();
 				msg.writeBytes(serializer.write(message));
 				if (transacted) {

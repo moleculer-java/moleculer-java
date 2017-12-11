@@ -53,7 +53,7 @@ import services.moleculer.uid.UIDGenerator;
  * @see SpringComponentRegistry
  * @see GuiceComponentRegistry
  */
-public abstract class ComponentRegistry implements CommonNames {
+public abstract class ComponentRegistry {
 
 	// --- PROTECTED / INTERNAL COMPONENT IDS ---
 
@@ -202,7 +202,7 @@ public abstract class ComponentRegistry implements CommonNames {
 	 * ID of SchedulerService definition in the configuration file.
 	 */
 	public static final String SCHEDULER_ID = "scheduler";
-	
+
 	// --- LOGGER ---
 
 	/**

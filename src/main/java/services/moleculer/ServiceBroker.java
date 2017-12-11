@@ -201,7 +201,7 @@ public final class ServiceBroker {
 				if (cfg == null) {
 					cfg = new Tree();
 				}
-				
+
 				// Register actions
 				registry.addActions(service, cfg);
 

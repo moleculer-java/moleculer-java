@@ -37,15 +37,15 @@ import services.moleculer.service.Name;
 public final class RoundRobinStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- CONSTRUCTORS ---
-	
+
 	public RoundRobinStrategyFactory() {
 		super();
 	}
-	
+
 	public RoundRobinStrategyFactory(boolean preferLocal) {
 		super(preferLocal);
 	}
-	
+
 	// --- FACTORY METHOD ---
 
 	@Override

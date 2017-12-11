@@ -169,7 +169,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 	public final List<T> getAllEndpoints() {
 		ArrayList<T> list = new ArrayList<>(endpoints.length);
 		for (int i = 0; i < endpoints.length; i++) {
-		  list.add((T) endpoints[i]);
+			list.add((T) endpoints[i]);
 		}
 		return list;
 	}

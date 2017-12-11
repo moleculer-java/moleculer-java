@@ -67,7 +67,7 @@ public final class SigarMonitor extends Monitor {
 	@Override
 	public final int getTotalCpuPercent() {
 		try {
-			return (int) Math.max(sigar.getCpuPerc().getCombined() * 100d, 0d);			
+			return (int) Math.max(sigar.getCpuPerc().getCombined() * 100d, 0d);
 		} catch (Exception cause) {
 			logger.warn("Unable to get CPU usage!", cause);
 		}

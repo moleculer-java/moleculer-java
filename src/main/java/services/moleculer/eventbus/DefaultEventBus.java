@@ -115,7 +115,7 @@ public final class DefaultEventBus extends EventBus {
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		asyncLocalInvocation = config.get(ASYNC_LOCAL_INVOCATION, asyncLocalInvocation);
+		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
 
 		// Set components
 		this.broker = broker;
@@ -152,25 +152,25 @@ public final class DefaultEventBus extends EventBus {
 	public final void receiveEvent(Tree message) {
 
 		// Verify Moleculer version
-		int ver = message.get(VER, -1);
+		int ver = message.get("ver", -1);
 		if (ver != ServiceBroker.MOLECULER_VERSION) {
 			logger.warn("Invalid message version (" + ver + ")!");
 			return;
 		}
-		
+
 		// Get event property
 		String event = message.get("event", (String) null);
 		if (event == null || event.isEmpty()) {
 			logger.warn("Missing \"event\" property!");
 			return;
 		}
-		
+
 		// Get groups
 		List<String> groups = message.get("groups").asList(String.class);
-		
+
 		// Get data
 		Tree data = message.get("data");
-		
+
 		// Send to local
 		// TODO Emit? Broadcast?
 	}
@@ -203,8 +203,8 @@ public final class DefaultEventBus extends EventBus {
 					// Name of the listener (eg. "v2.service.listener")
 					// It's the subscribed event name by default
 					listenerName = service.name() + '.' + listenerName;
-					listenerConfig.put(NAME, listenerName);
-					listenerConfig.put(NODE_ID, nodeID);
+					listenerConfig.put("name", listenerName);
+					listenerConfig.put("nodeID", nodeID);
 					listenerConfig.put("service", service.name());
 
 					// Process "Subscribe" annotation
@@ -275,14 +275,14 @@ public final class DefaultEventBus extends EventBus {
 	public final void addListeners(Tree config) throws Exception {
 		Tree events = config.get("events");
 		if (events != null && events.isMap()) {
-			String nodeID = Objects.requireNonNull(config.get(NODE_ID, (String) null));
-			String serviceName = Objects.requireNonNull(config.get(NAME, (String) null));
+			String nodeID = Objects.requireNonNull(config.get("nodeID", (String) null));
+			String serviceName = Objects.requireNonNull(config.get("name", (String) null));
 			writeLock.lock();
 			try {
 				for (Tree listenerConfig : events) {
-					String subscribe = listenerConfig.get(NAME, "");
+					String subscribe = listenerConfig.get("name", "");
 					String group = listenerConfig.get("group", serviceName);
-					listenerConfig.putObject(NODE_ID, nodeID, true);
+					listenerConfig.putObject("nodeID", nodeID, true);
 					listenerConfig.putObject("service", serviceName, true);
 					listenerConfig.putObject("group", group, true);
 					listenerConfig.putObject("subscribe", subscribe, true);
@@ -392,7 +392,7 @@ public final class DefaultEventBus extends EventBus {
 				strategies[0].getEndpoint(null).on(name, payload, groups);
 			} catch (Exception cause) {
 				logger.error("Unable to invoke event listener!", cause);
-			}			
+			}
 			return;
 		}
 		if (strategies.length > 0) {
@@ -515,7 +515,7 @@ public final class DefaultEventBus extends EventBus {
 						if (endpoint.local() && endpoint.service().endsWith(service)) {
 							LinkedHashMap<String, Object> map = new LinkedHashMap<>();
 							descriptor.put(endpoint.subscribe, map);
-							map.put(NAME, endpoint.subscribe);
+							map.put("name", endpoint.subscribe);
 						}
 					}
 				}

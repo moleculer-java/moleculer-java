@@ -32,7 +32,7 @@ import services.moleculer.ServiceBroker;
  * user-defined custom components, etc.) defining methods for start/stop
  * lifecycle control.
  */
-public interface MoleculerComponent extends CommonNames {
+public interface MoleculerComponent {
 
 	// --- START COMPONENT ---
 
@@ -53,7 +53,7 @@ public interface MoleculerComponent extends CommonNames {
 
 	/**
 	 * Stop this component (the component is fully stopped upon return of this
-	 * method). Should not throw an exception. 
+	 * method). Should not throw an exception.
 	 */
 	public void stop();
 

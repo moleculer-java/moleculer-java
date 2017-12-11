@@ -38,22 +38,22 @@ import services.moleculer.ServiceBroker;
 public abstract class ArrayBasedStrategyFactory extends StrategyFactory {
 
 	// --- PROPERTIES ---
-	
+
 	/**
 	 * Invoke local actions if possible
 	 */
 	protected boolean preferLocal;
-	
+
 	// --- CONSTRUCTORS ---
-		
+
 	public ArrayBasedStrategyFactory() {
 		this(true);
 	}
-	
+
 	public ArrayBasedStrategyFactory(boolean preferLocal) {
 		this.preferLocal = preferLocal;
 	}
-	
+
 	// --- START INVOCATION FACTORY ---
 
 	/**
@@ -66,13 +66,13 @@ public abstract class ArrayBasedStrategyFactory extends StrategyFactory {
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
-		
+
 		// Process config
-		preferLocal = config.get(PREFER_LOCAL, preferLocal);
+		preferLocal = config.get("preferLocal", preferLocal);
 	}
 
 	// --- GETTERS / SETTERS ---
-	
+
 	public final boolean isPreferLocal() {
 		return preferLocal;
 	}
@@ -80,5 +80,5 @@ public abstract class ArrayBasedStrategyFactory extends StrategyFactory {
 	public final void setPreferLocal(boolean preferLocal) {
 		this.preferLocal = preferLocal;
 	}
-	
+
 }

@@ -37,15 +37,15 @@ import services.moleculer.service.Name;
 public final class XORShiftRandomStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- CONSTRUCTORS ---
-	
+
 	public XORShiftRandomStrategyFactory() {
 		super();
 	}
-	
+
 	public XORShiftRandomStrategyFactory(boolean preferLocal) {
 		super(preferLocal);
 	}
-	
+
 	// --- FACTORY METHOD ---
 
 	@Override

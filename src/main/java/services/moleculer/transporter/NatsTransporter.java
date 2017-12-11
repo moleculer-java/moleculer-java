@@ -45,7 +45,19 @@ import services.moleculer.service.Name;
 /**
  * NATS Transporter. NATS Server is a simple, high performance open source
  * messaging system for cloud native applications, IoT messaging, and
- * microservices architectures (website: https://nats.io).
+ * microservices architectures (website: https://nats.io).<br>
+ * <br>
+ * <b>Required dependency:</b><br>
+ * <br>
+ * // https://mvnrepository.com/artifact/io.nats/jnats<br>
+ * compile group: 'io.nats', name: 'jnats', version: '1.0'
+ * 
+ * @see RedisTransporter
+ * @see MqttTransporter
+ * @see AmqpTransporter
+ * @see JmsTransporter
+ * @see SocketClusterTransporter
+ * @see GoogleCloudTransporter
  */
 @Name("NATS Transporter")
 public final class NatsTransporter extends Transporter implements MessageHandler, DisconnectedCallback {
@@ -111,7 +123,7 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 		super.start(broker, config);
 
 		// Process config
-		Tree urlNode = config.get(URL);
+		Tree urlNode = config.get("url");
 		if (urlNode != null) {
 			List<String> urlList;
 			if (urlNode.isPrimitive()) {
@@ -129,8 +141,8 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 			}
 		}
 		username = config.get("username", username);
-		password = config.get(PASSWORD, password);
-		secure = config.get(SECURE, secure);
+		password = config.get("password", password);
+		secure = config.get("secure", secure);
 		dontRandomize = config.get("dontRandomize", dontRandomize);
 		maxPingsOut = config.get("maxPingsOut", maxPingsOut);
 		pingInterval = config.get("pingInterval", pingInterval);

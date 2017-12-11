@@ -75,7 +75,7 @@ public final class ServiceBrokerBuilder {
 		settings.setNodeID(nodeID);
 		return this;
 	}
-	
+
 	public final ServiceBrokerBuilder scheduler(ScheduledExecutorService scheduler) {
 		settings.setScheduler(scheduler);
 		return this;
@@ -123,24 +123,24 @@ public final class ServiceBrokerBuilder {
 
 	public final ServiceBrokerBuilder components(ComponentRegistry componentRegistry) {
 		settings.setComponents(componentRegistry);
-		return this;		
+		return this;
 	}
-	
+
 	public final ServiceBrokerBuilder monitor(Monitor monitor) {
 		settings.setMonitor(Objects.requireNonNull(monitor));
 		return this;
 	}
-	
+
 	// --- ADD CUSTOM COMPONENT ---
-	
+
 	public final ServiceBrokerBuilder add(MoleculerComponent component) {
 		return add(component, new Tree());
 	}
-	
+
 	public final ServiceBrokerBuilder add(MoleculerComponent component, Tree config) {
 		return add(nameOf(component, false), component, config);
 	}
-	
+
 	public final ServiceBrokerBuilder add(String id, MoleculerComponent component, Tree config) {
 		Objects.requireNonNull(component);
 		id = Objects.requireNonNull(id).trim();

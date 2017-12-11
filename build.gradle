@@ -79,6 +79,11 @@ dependencies {
 	// https://mvnrepository.com/artifact/com.rabbitmq/amqp-client
 	compile group: 'com.rabbitmq', name: 'amqp-client', version: '5.0.0'
 
+	// --- DEPENDENCY OF THE GOOGLE CLOUD PUB/SUB TRANSPORTER ---
+	
+	// https://mvnrepository.com/artifact/com.google.cloud/google-cloud-pubsub
+	compile group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '0.30.0-beta'
+
 	// --- OFF-HEAP CACHE ---
 	
 	// https://mvnrepository.com/artifact/org.caffinitas.ohc/ohc-core-j8

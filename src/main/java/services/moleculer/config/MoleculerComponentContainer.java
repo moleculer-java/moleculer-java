@@ -30,17 +30,17 @@ import io.datatree.Tree;
  * Contains a component and its configuration.
  */
 final class MoleculerComponentContainer {
-	
+
 	// --- PROPERTIES ---
-	
+
 	final MoleculerComponent component;
 	final Tree config;
 
 	// --- CONSTRUCTOR ---
-	
+
 	MoleculerComponentContainer(MoleculerComponent component, Tree config) {
 		this.component = component;
 		this.config = config;
 	}
-	
+
 }
