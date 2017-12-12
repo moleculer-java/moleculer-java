@@ -39,7 +39,6 @@ import services.moleculer.service.Name;
  * @see MemoryCacher
  * @see OHCacher
  * @see RedisCacher
- * @see Cache2kCacher
  */
 @Name("Cacher")
 public abstract class Cacher implements MoleculerComponent {
@@ -152,14 +151,14 @@ public abstract class Cacher implements MoleculerComponent {
 	 * @param ttl
 	 *            optional TTL of entry (0 == use default TTL)
 	 */
-	public abstract void set(String key, Tree value, int ttl);
+	public abstract Promise set(String key, Tree value, int ttl);
 
 	/**
 	 * Deletes a content from this cache.
 	 * 
 	 * @param key
 	 */
-	public abstract void del(String key);
+	public abstract Promise del(String key);
 
 	/**
 	 * Cleans this cache. Removes every key by a match string. The default match
@@ -167,6 +166,6 @@ public abstract class Cacher implements MoleculerComponent {
 	 * 
 	 * @param match
 	 */
-	public abstract void clean(String match);
+	public abstract Promise clean(String match);
 
 }

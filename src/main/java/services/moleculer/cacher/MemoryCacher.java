@@ -56,7 +56,6 @@ import services.moleculer.service.Name;
  * 
  * @see RedisCacher
  * @see OHCacher
- * @see Cache2kCacher
  */
 @Name("On-heap Memory Cacher")
 public final class MemoryCacher extends Cacher implements Runnable {
@@ -197,22 +196,17 @@ public final class MemoryCacher extends Cacher implements Runnable {
 			} finally {
 				readLock.unlock();
 			}
-			if (partition == null) {
-				return null;
+			if (partition != null) {
+				return Promise.resolve(partition.get(key.substring(pos + 1)));
 			}
-			Tree value = partition.get(key.substring(pos + 1));
-			if (value == null) {
-				return null;
-			}
-			return Promise.resolve(value);
 		} catch (Throwable cause) {
 			logger.warn("Unable to get data from cache!", cause);
 		}
-		return null;
+		return Promise.resolve();
 	}
 
 	@Override
-	public final void set(String key, Tree value, int ttl) {
+	public final Promise set(String key, Tree value, int ttl) {
 		int pos = partitionPosition(key, true);
 		String prefix = key.substring(0, pos);
 		MemoryPartition partition;
@@ -237,10 +231,11 @@ public final class MemoryCacher extends Cacher implements Runnable {
 			entryTTL = this.ttl;
 		}
 		partition.set(key.substring(pos + 1), value, entryTTL);
+		return Promise.resolve();
 	}
 
 	@Override
-	public final void del(String key) {
+	public final Promise del(String key) {
 		int pos = partitionPosition(key, true);
 		String prefix = key.substring(0, pos);
 		MemoryPartition partition;
@@ -253,10 +248,11 @@ public final class MemoryCacher extends Cacher implements Runnable {
 		if (partition != null) {
 			partition.del(key.substring(pos + 1));
 		}
+		return Promise.resolve();
 	}
 
 	@Override
-	public final void clean(String match) {
+	public final Promise clean(String match) {
 		int pos = partitionPosition(match, false);
 		if (pos > 0) {
 
@@ -296,6 +292,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 				writeLock.unlock();
 			}
 		}
+		return Promise.resolve();
 	}
 
 	private static final int partitionPosition(String key, boolean throwErrorIfMissing) {

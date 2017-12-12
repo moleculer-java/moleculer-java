@@ -26,13 +26,14 @@ package services.moleculer;
 
 import io.datatree.Tree;
 import services.moleculer.cacher.Cache;
+import services.moleculer.cacher.Cacher;
+import services.moleculer.cacher.OHCacher;
 import services.moleculer.eventbus.Group;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
-import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Service;
-import services.moleculer.transporter.AmqpTransporter;
+import services.moleculer.transporter.RedisTransporter;
 import services.moleculer.transporter.Transporter;
 
 public class Test {
@@ -43,12 +44,16 @@ public class Test {
 		String nativeDir = "./native";
 		System.setProperty("java.library.path", nativeDir);
 
-		// Define a service
-		Transporter transporter = new AmqpTransporter();
-		transporter.setDebug(true);
+		// Define transporter
+		Transporter transporter = new RedisTransporter();
+		transporter.setDebug(false);
 
-		ServiceBroker broker = ServiceBroker.builder().registry(new DefaultServiceRegistry(false))
-				.transporter(transporter).nodeID("server-2").build();
+		// Define cacher
+		Cacher cacher = new OHCacher();
+
+		// Create broker
+		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).cacher(cacher).nodeID("server-2")
+				.build();
 
 		broker.createService(new Service("math") {
 
@@ -84,7 +89,7 @@ public class Test {
 		});
 		broker.start();
 
-		Thread.sleep(200000);
+		Thread.sleep(1000);
 
 		// Emit local event
 		Tree payload = new Tree();

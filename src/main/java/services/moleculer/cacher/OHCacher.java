@@ -35,6 +35,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Objects;
 
@@ -51,6 +52,7 @@ import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
 import services.moleculer.serializer.SmileSerializer;
 import services.moleculer.service.Name;
+import services.moleculer.util.CheckedTree;
 
 /**
  * Off-heap cache implementation (it's similar to MemoryCacher, but stores
@@ -93,11 +95,14 @@ import services.moleculer.service.Name;
  * 
  * @see MemoryCacher
  * @see RedisCacher
- * @see Cache2kCacher
  */
 @Name("Off-heap Memory Cacher")
 public final class OHCacher extends Cacher {
 
+	// --- CONTENT CONTAINER NAME ---
+
+	private static final String CONTENT = "_";
+	
 	// --- PROPERTIES ---
 
 	/**
@@ -292,18 +297,17 @@ public final class OHCacher extends Cacher {
 	public final Promise get(String key) {
 		try {
 			byte[] bytes = cache.get(keyToBytes(key));
-			if (bytes == null) {
-				return null;
+			if (bytes != null) {
+				return Promise.resolve(bytesToValue(bytes));
 			}
-			return Promise.resolve(bytesToValue(bytes));
 		} catch (Throwable cause) {
 			logger.warn("Unable to read data from off-heap cache!", cause);
 		}
-		return null;
+		return Promise.resolve();
 	}
 
 	@Override
-	public final void set(String key, Tree value, int ttl) {
+	public final Promise set(String key, Tree value, int ttl) {
 		try {
 			if (value == null) {
 				cache.remove(keyToBytes(key));
@@ -322,19 +326,21 @@ public final class OHCacher extends Cacher {
 		} catch (Throwable cause) {
 			logger.warn("Unable to write data to off-heap cache!", cause);
 		}
+		return Promise.resolve();
 	}
 
 	@Override
-	public final void del(String key) {
+	public final Promise del(String key) {
 		try {
 			cache.remove(keyToBytes(key));
 		} catch (Throwable cause) {
 			logger.warn("Unable to delete data from off-heap cache!", cause);
 		}
+		return Promise.resolve();
 	}
 
 	@Override
-	public final void clean(String match) {
+	public final Promise clean(String match) {
 		try {
 			if (match.isEmpty() || match.startsWith("*")) {
 				cache.clear();
@@ -353,6 +359,7 @@ public final class OHCacher extends Cacher {
 		} catch (Throwable cause) {
 			logger.warn("Unable to clean off-heap cache!", cause);
 		}
+		return Promise.resolve();
 	}
 
 	// --- CACHE SERIALIZER ---
@@ -411,7 +418,8 @@ public final class OHCacher extends Cacher {
 	private final byte[] valueToBytes(Tree tree) throws Exception {
 
 		// Compress content
-		byte[] bytes = serializer.write(tree);
+		Tree root = new CheckedTree(Collections.singletonMap(CONTENT, tree.asObject()));
+		byte[] bytes = serializer.write(root);
 		boolean compressed;
 		if (compressAbove > 0 && bytes.length > compressAbove) {
 			bytes = compress(bytes);
@@ -439,7 +447,12 @@ public final class OHCacher extends Cacher {
 			// First byte == 1 -> compressed
 			copy = decompress(copy);
 		}
-		return serializer.read(copy);
+		Tree root = serializer.read(copy);
+		Tree content = root.get(CONTENT);
+		if (content != null) {
+			return content;
+		}
+		return root;
 	}
 
 	private static final class ArraySerializer implements CacheSerializer<byte[]> {

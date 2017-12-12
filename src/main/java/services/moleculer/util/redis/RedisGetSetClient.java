@@ -28,12 +28,18 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import com.lambdaworks.redis.KeyScanCursor;
 import com.lambdaworks.redis.RedisClient;
+import com.lambdaworks.redis.RedisFuture;
 import com.lambdaworks.redis.RedisURI;
+import com.lambdaworks.redis.ScanArgs;
+import com.lambdaworks.redis.ScanCursor;
 import com.lambdaworks.redis.SetArgs;
 import com.lambdaworks.redis.api.async.RedisAsyncCommands;
 import com.lambdaworks.redis.cluster.RedisClusterClient;
@@ -146,7 +152,7 @@ public final class RedisGetSetClient {
 
 		} else {
 
-			// Single connection
+			// Single server connection
 			client = RedisClient.create(resources, redisURIs.get(0)).connect(codec).async();
 		}
 	}
@@ -176,14 +182,21 @@ public final class RedisGetSetClient {
 	 * @param value
 	 * @param args
 	 */
-	public final void set(String key, byte[] value, SetArgs args) {
+	public final Promise set(String key, byte[] value, SetArgs args) {
 		byte[] binaryKey = key.getBytes(StandardCharsets.UTF_8);
 		if (client != null) {
-			client.set(binaryKey, value, args);
+			if (args == null) {
+				return new Promise(client.set(binaryKey, value));
+			}
+			return new Promise(client.set(binaryKey, value, args));
 		}
 		if (clusteredClient != null) {
-			clusteredClient.set(binaryKey, value, args);
+			if (args == null) {
+				return new Promise(clusteredClient.set(binaryKey, value));
+			}
+			return new Promise(clusteredClient.set(binaryKey, value, args));
 		}
+		return Promise.resolve();
 	}
 
 	/**
@@ -191,14 +204,15 @@ public final class RedisGetSetClient {
 	 * 
 	 * @param key
 	 */
-	public final void del(String key) {
+	public final Promise del(String key) {
 		byte[] binaryKey = key.getBytes(StandardCharsets.UTF_8);
 		if (client != null) {
-			client.del(binaryKey);
+			return new Promise(client.del(binaryKey));
 		}
 		if (clusteredClient != null) {
-			clusteredClient.del(binaryKey);
+			return new Promise(clusteredClient.del(binaryKey));
 		}
+		return Promise.resolve();
 	}
 
 	/**
@@ -207,10 +221,46 @@ public final class RedisGetSetClient {
 	 * 
 	 * @param match
 	 */
-	public final void clean(String match) {
+	public final Promise clean(String match) {
+		ScanArgs args = new ScanArgs();
+		args.limit(100);
+		args.match(match.replace("**", "*"));
+		if (client != null) {
+			return new Promise(clean(client.scan(args), args));
+		}
+		if (clusteredClient != null) {
+			return new Promise(clean(clusteredClient.scan(args), args));
+		}
+		return Promise.resolve();
+	}
 
-		// TODO not imlemented!
+	private final CompletionStage<Void> clean(RedisFuture<KeyScanCursor<byte[]>> future, ScanArgs args) {
+		return future.thenCompose(keyScanCursor -> {
+			List<byte[]> keys = keyScanCursor.getKeys();
+			if (keys == null || keys.isEmpty()) {
+				return null;
+			}
+			byte[][] array = new byte[keys.size()][];
+			keys.toArray(array);
+			return client.del(array).thenApply(nul -> keyScanCursor);
+		}).thenApply(keyScanCursor -> {
+			if (keyScanCursor.isFinished()) {
+				return null;
+			}
+			return keyScanCursor.getCursor();
+		}).thenCompose(currentCursor -> {
+			if (currentCursor == null) {
+				return CompletableFuture.completedFuture(null);
+			}
+			return clean(new ScanCursor(currentCursor, false), args);
+		});
+	}
 
+	private final CompletionStage<Void> clean(ScanCursor cursor, ScanArgs args) {
+		if (client != null) {
+			return clean(client.scan(cursor, args), args);
+		}
+		return clean(clusteredClient.scan(cursor, args), args);
 	}
 
 	// --- DISCONNECT ---

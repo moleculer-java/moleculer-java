@@ -472,30 +472,31 @@ public class Promise {
 	// --- CONVERTERS ---
 
 	protected static final CompletableFuture<Tree> toCompletableFuture(Object object) {
-		if (object != null) {
-			if (object instanceof Promise) {
-				return ((Promise) object).future;
-			}
-			if (object instanceof CompletableFuture) {
-				return ((CompletableFuture<?>) object).thenCompose(Promise::toCompletableFuture);
-			}
-			if (object instanceof Throwable) {
-				CompletableFuture<Tree> future = new CompletableFuture<>();
-				future.completeExceptionally((Throwable) object);
-				return future;
-			}
-			if (object instanceof CompletionStage) {
-				CompletableFuture<Tree> future = new CompletableFuture<>();
-				((CompletionStage<?>) object).handle((value, error) -> {
-					if (error == null) {
-						future.complete(toTree(value));
-					} else {
-						future.completeExceptionally(error);
-					}
-					return null;
-				});
-				return future;
-			}
+		if (object == null) {
+			return CompletableFuture.completedFuture(null);
+		}
+		if (object instanceof Promise) {
+			return ((Promise) object).future;
+		}
+		if (object instanceof CompletableFuture) {
+			return ((CompletableFuture<?>) object).thenCompose(Promise::toCompletableFuture);
+		}
+		if (object instanceof Throwable) {
+			CompletableFuture<Tree> future = new CompletableFuture<>();
+			future.completeExceptionally((Throwable) object);
+			return future;
+		}
+		if (object instanceof CompletionStage) {
+			CompletableFuture<Tree> future = new CompletableFuture<>();
+			((CompletionStage<?>) object).handle((value, error) -> {
+				if (error == null) {
+					future.complete(toTree(value));
+				} else {
+					future.completeExceptionally(error);
+				}
+				return null;
+			});
+			return future;
 		}
 		return CompletableFuture.completedFuture(toTree(object));
 	}

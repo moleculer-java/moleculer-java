@@ -77,11 +77,6 @@ dependencies {
 	// https://mvnrepository.com/artifact/org.caffinitas.ohc/ohc-core-j8
 	compile group: 'org.caffinitas.ohc', name: 'ohc-core-j8', version: '0.6.1'
 	
-	// --- CACHE2K CACHE ---
-	
-	// https://mvnrepository.com/artifact/org.cache2k/cache2k-api
-	compile group: 'org.cache2k', name: 'cache2k-api', version: '1.0.1.Final'
-	
 	
 	// =============== TRANSPORTERS ===============
 	

@@ -27,6 +27,7 @@ package services.moleculer.cacher;
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -48,6 +49,7 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
 import services.moleculer.service.Name;
+import services.moleculer.util.CheckedTree;
 import services.moleculer.util.redis.RedisGetSetClient;
 
 /**
@@ -57,10 +59,13 @@ import services.moleculer.util.redis.RedisGetSetClient;
  * 
  * @see MemoryCacher
  * @see OHCacher
- * @see Cache2kCacher
  */
 @Name("Redis Cacher")
 public final class RedisCacher extends Cacher implements EventBus {
+
+	// --- CONTENT CONTAINER NAME ---
+
+	private static final String CONTENT = "_";
 
 	// --- LIST OF STATUS CODES ---
 
@@ -194,7 +199,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 		// Create redis client
 		client = new RedisGetSetClient(urls, password, secure, executor, this);
 
-		// Connect Redis
+		// Connecting to Redis...
 		try {
 			client.connect();
 		} catch (Exception cause) {
@@ -254,12 +259,19 @@ public final class RedisCacher extends Cacher implements EventBus {
 		if (status.get() == STATUS_CONNECTED) {
 			try {
 				return client.get(key).then(in -> {
-					byte[] source = in.asBytes();
-					if (source != null) {
-						try {
-							return serializer.read(source);
-						} catch (Exception cause) {
-							logger.warn("Unable to deserialize cached data!", cause);
+					if (in != null) {
+						byte[] source = in.asBytes();
+						if (source != null) {
+							try {
+								Tree root = serializer.read(source);
+								Tree content = root.get(CONTENT);
+								if (content != null) {
+									return content;
+								}
+								return root;
+							} catch (Exception cause) {
+								logger.warn("Unable to deserialize cached data!", cause);
+							}
 						}
 					}
 					return Promise.resolve();
@@ -272,7 +284,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 	}
 
 	@Override
-	public final void set(String key, Tree value, int ttl) {
+	public final Promise set(String key, Tree value, int ttl) {
 		if (status.get() == STATUS_CONNECTED) {
 			try {
 				SetArgs args;
@@ -285,33 +297,37 @@ public final class RedisCacher extends Cacher implements EventBus {
 					// Use the default TTL
 					args = expiration;
 				}
-				client.set(key, serializer.write(value), args);
+				Tree root = new CheckedTree(Collections.singletonMap(CONTENT, value.asObject()));
+				return client.set(key, serializer.write(root), args);
 			} catch (Exception cause) {
 				logger.warn("Unable to put data into Redis!", cause);
 			}
 		}
+		return Promise.resolve();
 	}
 
 	@Override
-	public final void del(String key) {
+	public final Promise del(String key) {
 		if (status.get() == STATUS_CONNECTED) {
 			try {
-				client.del(key);
+				return client.del(key);
 			} catch (Exception cause) {
 				logger.warn("Unable to delete data from Redis!", cause);
 			}
 		}
+		return Promise.resolve();
 	}
 
 	@Override
-	public final void clean(String match) {
+	public final Promise clean(String match) {
 		if (status.get() == STATUS_CONNECTED) {
 			try {
-				client.clean(match);
+				return client.clean(match);
 			} catch (Exception cause) {
 				logger.warn("Unable to delete data from Redis!", cause);
 			}
 		}
+		return Promise.resolve();
 	}
 
 	// --- REDIS EVENT LISTENER METHODS ---
