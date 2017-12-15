@@ -14,6 +14,7 @@ public class MatcherTest extends TestCase {
 		assertMatch("aa.bb.cc", "aa.bb.cc");
 		
 		assertMatch("aa.bb.cc", "aa.bb.*");
+		assertMatch("aa.bb.cc", "*.bb.*");
 		assertMatch("bb.cc", "bb.*");
 		assertMatch("dd", "*");
 
@@ -21,8 +22,9 @@ public class MatcherTest extends TestCase {
 		assertNotMatch("bb.cc", "*");
 
 		assertMatch("aa.bb.cc", "aa.**");
+		assertMatch("aa.bb.cc", "**.cc");
 		assertMatch("bb.cc", "**");
-
+		assertMatch("b", "**");
 	}
 
 	public void assertMatch(String text, String pattern) {
