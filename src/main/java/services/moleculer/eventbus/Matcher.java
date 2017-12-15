@@ -25,9 +25,9 @@
 package services.moleculer.eventbus;
 
 /**
- * Simple and fast glob matcher.
+ * Simple and fast matcher.
  */
-public final class GlobMatcher {
+public final class Matcher {
 
 	public static final boolean matches(String text, String pattern) {
 		String rest = null;

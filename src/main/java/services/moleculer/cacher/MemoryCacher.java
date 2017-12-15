@@ -36,7 +36,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
-import services.moleculer.eventbus.GlobMatcher;
+import services.moleculer.eventbus.Matcher;
 import services.moleculer.service.Name;
 
 /**
@@ -283,7 +283,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 					String key;
 					while (i.hasNext()) {
 						key = i.next();
-						if (GlobMatcher.matches(key, match)) {
+						if (Matcher.matches(key, match)) {
 							i.remove();
 						}
 					}
@@ -420,7 +420,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 					String key;
 					while (i.hasNext()) {
 						key = i.next();
-						if (GlobMatcher.matches(key, match)) {
+						if (Matcher.matches(key, match)) {
 							i.remove();
 						}
 					}

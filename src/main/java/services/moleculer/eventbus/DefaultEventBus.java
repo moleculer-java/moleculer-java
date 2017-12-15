@@ -362,7 +362,7 @@ public final class DefaultEventBus extends EventBus {
 			readLock.lock();
 			try {
 				for (Map.Entry<String, HashMap<String, Strategy<ListenerEndpoint>>> entry : listeners.entrySet()) {
-					if (GlobMatcher.matches(name, entry.getKey())) {
+					if (Matcher.matches(name, entry.getKey())) {
 						if (groups != null && groups.length > 0) {
 							for (Map.Entry<String, Strategy<ListenerEndpoint>> test : entry.getValue().entrySet()) {
 								final String testGroup = test.getKey();
@@ -429,7 +429,7 @@ public final class DefaultEventBus extends EventBus {
 			readLock.lock();
 			try {
 				for (Map.Entry<String, HashMap<String, Strategy<ListenerEndpoint>>> entry : listeners.entrySet()) {
-					if (GlobMatcher.matches(name, entry.getKey())) {
+					if (Matcher.matches(name, entry.getKey())) {
 						for (Map.Entry<String, Strategy<ListenerEndpoint>> test : entry.getValue().entrySet()) {
 							if (groups != null && groups.length > 0) {
 								final String testGroup = test.getKey();

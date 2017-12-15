@@ -47,7 +47,7 @@ import io.datatree.Tree;
 import io.datatree.dom.TreeWriterRegistry;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
-import services.moleculer.eventbus.GlobMatcher;
+import services.moleculer.eventbus.Matcher;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
 import services.moleculer.serializer.SmileSerializer;
@@ -351,7 +351,7 @@ public final class OHCacher extends Cacher {
 				String key;
 				while (i.hasNext()) {
 					key = bytesToKey(i.next());
-					if (GlobMatcher.matches(key, match)) {
+					if (Matcher.matches(key, match)) {
 						i.remove();
 					}
 				}
