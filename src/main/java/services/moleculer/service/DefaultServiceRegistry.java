@@ -369,7 +369,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		// String parentID = message.get("parentID", (String) null);
 		// String requestID = message.get("requestID", (String) null);
 
-		CallingOptions opts = new CallingOptions(nodeID, timeout, 0);
+		CallingOptions.Options opts = CallingOptions.nodeID(nodeID).timeout(timeout);
 
 		// Invoke action
 		try {

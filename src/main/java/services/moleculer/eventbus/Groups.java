@@ -22,58 +22,22 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.context;
+package services.moleculer.eventbus;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+public class Groups {
 
-import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
-import services.moleculer.service.Name;
-
-/**
- * Base superclass of all Context Factory implementations.
- * 
- * @see DefaultContextFactory
- */
-@Name("Context Factory")
-public abstract class ContextFactory implements MoleculerComponent {
-
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
-
-	// --- CONSTUCTOR ---
-
-	public ContextFactory() {
+	private final String[] groups;
+	
+	private Groups(String[] groups) {
+		this.groups = groups;
 	}
-
-	// --- START CONTEXT FACTORY ---
-
-	/**
-	 * Initializes Context Factory instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
+	
+	public static final Groups of(String... groups) {
+		return new Groups(groups);
 	}
-
-	// --- STOP CONTEXT FACTORY ---
-
-	/**
-	 * Closes Context Factory.
-	 */
-	@Override
-	public void stop() {
+	
+	public String[] groups() {
+		return groups;
 	}
-
-	// --- CREATE CONTEXT ---
-
-	public abstract Context create(String name, Tree params, CallingOptions.Options opts, Context parent, boolean generateID);
-
+	
 }

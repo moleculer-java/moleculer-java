@@ -25,6 +25,7 @@
 package services.moleculer;
 
 import static services.moleculer.util.CommonUtils.nameOf;
+import static services.moleculer.util.CommonUtils.parseParams;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -40,12 +41,13 @@ import services.moleculer.config.ServiceBrokerSettings;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
 import services.moleculer.eventbus.EventBus;
+import services.moleculer.eventbus.Groups;
 import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.transporter.Transporter;
-import services.moleculer.util.CheckedTree;
+import services.moleculer.util.ParseResult;
 
 /**
  * Service Broker.
@@ -331,78 +333,69 @@ public final class ServiceBroker {
 	 * broker.call("math.add", "a", 1, "b", 2, new CallingOptions("node2"));
 	 */
 	public Promise call(String name, Object... params) {
-		Tree tree = null;
-		Context parent = null;
-		CallingOptions opts = null;
-		if (params != null) {
-			if (params.length == 1) {
-				if (params[0] instanceof Tree) {
-					tree = (Tree) params[0];
-				} else {
-					tree = new CheckedTree(params[0]);
-				}
-			} else {
-				LinkedHashMap<String, Object> map = new LinkedHashMap<>();
-				String prev = null;
-				Object value;
-				for (int i = 0; i < params.length; i++) {
-					value = params[i];
-					if (prev == null) {
-						if (!(value instanceof String)) {
-							if (value instanceof CallingOptions) {
-								opts = (CallingOptions) value;
-								continue;
-							}
-							if (value instanceof Context) {
-								parent = (Context) value;
-								continue;
-							}
-							i++;
-							throw new IllegalArgumentException("Parameter #" + i + " (\"" + value
-									+ "\") must be String, Context, or CallingOptions!");
-						}
-						prev = (String) value;
-						continue;
-					}
-					map.put(prev, value);
-					prev = null;
-				}
-				tree = new Tree(map);
-			}
-		}
+		ParseResult res = parseParams(params);
+		CallingOptions.Options opts = res.opts();
 		String targetID = opts == null ? null : opts.nodeID();
-		return registry.getAction(name, targetID).call(tree, opts, parent);
+		return registry.getAction(name, targetID).call(res.data(), opts, res.parent());
 	}
 
 	public Promise call(String name, Tree params) {
-		return registry.getAction(name, null).call(params, (CallingOptions) null, (Context) null);
+		return registry.getAction(name, null).call(params, (CallingOptions.Options) null, (Context) null);
 	}
 
-	public Promise call(String name, Tree params, CallingOptions opts) {
+	public Promise call(String name, Tree params, CallingOptions.Options opts) {
 		String targetID = opts == null ? null : opts.nodeID();
 		return registry.getAction(name, targetID).call(params, opts, (Context) null);
 	}
 
-	// --- EMIT EVENTS VIA EVENT BUS ---
+	// --- EMIT EVENT TO EVENT GROUP ---
 
 	/**
 	 * Emits an event (grouped & balanced global event)
 	 */
-	public void emit(String name, Tree payload, String[] groups) {
+	public void emit(String name, Object... params) {
+		ParseResult res = parseParams(params);
+		eventbus.emit(name, res.data(), res.groups());
+	}
+	
+	/**
+	 * Emits an event (grouped & balanced global event)
+	 */
+	public void emit(String name, Tree payload, Groups groups) {
 		eventbus.emit(name, payload, groups);
 	}
 
+	// --- BROADCAST EVENT TO ALL LISTENERS ---
+	
 	/**
 	 * Emits an event for all local & remote services
 	 */
-	public void broadcast(String name, Tree payload, String[] groups) {
+	public void broadcast(String name, Object... params) {
+		ParseResult res = parseParams(params);
+		eventbus.broadcast(name, res.data(), res.groups());
+	}
+	
+	/**
+	 * Emits an event for all local & remote services
+	 */
+	public void broadcast(String name, Tree payload, Groups groups) {
 		eventbus.broadcast(name, payload, groups);
 	}
 
+	// --- BROADCAST EVENT TO LOCAL LISTENERS ---
+	
 	/**
 	 * Emits an event for all local services.
 	 */
-	public void broadcastLocal(String name, Tree payload, String[] groups) {
+	public void broadcastLocal(String name, Object... params) {
+		ParseResult res = parseParams(params);
+		eventbus.broadcastLocal(name, res.data(), res.groups());
+	}
+	
+	/**
+	 * Emits an event for all local services.
+	 */
+	public void broadcastLocal(String name, Tree payload, Groups groups) {
 		eventbus.broadcastLocal(name, payload, groups);
 	}
 

@@ -35,6 +35,9 @@ import java.util.zip.Inflater;
 
 import io.datatree.Tree;
 import io.datatree.dom.TreeReaderRegistry;
+import services.moleculer.context.CallingOptions;
+import services.moleculer.context.Context;
+import services.moleculer.eventbus.Groups;
 import services.moleculer.service.Name;
 
 /**
@@ -42,35 +45,52 @@ import services.moleculer.service.Name;
  */
 public final class CommonUtils {
 
-	public static final Tree parametersToTree(Object[] payload) {
-		Tree tree;
-		if (payload == null) {
-			tree = new CheckedTree(null);
-		} else if (payload.length == 1) {
-			if (payload[0] instanceof Tree) {
-				tree = (Tree) payload[0];
-			} else {
-				tree = new CheckedTree(payload[0]);
-			}
-		} else {
-			LinkedHashMap<String, Object> map = new LinkedHashMap<>();
-			String prev = null;
-			Object value;
-			for (int i = 0; i < payload.length; i++) {
-				value = payload[i];
-				if (prev == null) {
-					if (!(value instanceof String)) {
-						throw new IllegalArgumentException("Parameter #" + i + " (\"" + value + "\") must be String!");
-					}
-					prev = (String) value;
-					continue;
+	public static final ParseResult parseParams(Object[] params) {
+		Tree data = null;
+		Context parent = null;
+		CallingOptions.Options opts = null;
+		Groups groups = null;
+		if (params != null) {
+			if (params.length == 1) {
+				if (params[0] instanceof Tree) {
+					data = (Tree) params[0];
+				} else {
+					data = new CheckedTree(params[0]);
 				}
-				map.put(prev, value);
-				prev = null;
+			} else {
+				LinkedHashMap<String, Object> map = new LinkedHashMap<>();
+				String prev = null;
+				Object value;
+				for (int i = 0; i < params.length; i++) {
+					value = params[i];
+					if (prev == null) {
+						if (!(value instanceof String)) {
+							if (value instanceof CallingOptions.Options) {
+								opts = (CallingOptions.Options) value;
+								continue;
+							}
+							if (value instanceof Context) {
+								parent = (Context) value;
+								continue;
+							}
+							if (value instanceof Groups) {
+								groups = (Groups) value;
+								continue;
+							}
+							i++;
+							throw new IllegalArgumentException("Parameter #" + i + " (\"" + value
+									+ "\") must be String, Context, Groups, or CallingOptions!");
+						}
+						prev = (String) value;
+						continue;
+					}
+					map.put(prev, value);
+					prev = null;
+				}
+				data = new Tree(map);
 			}
-			tree = new Tree(map);
 		}
-		return tree;
+		return new ParseResult(data, parent, opts, groups);
 	}
 
 	public static final String serializerTypeToClass(String type) {

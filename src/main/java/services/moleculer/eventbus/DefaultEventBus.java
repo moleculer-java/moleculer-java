@@ -354,7 +354,7 @@ public final class DefaultEventBus extends EventBus {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public final void emit(String name, Tree payload, String[] groups) {
+	public final void emit(String name, Tree payload, Groups groups) {
 		String key = getCacheKey('#', name, groups);
 		Strategy<ListenerEndpoint>[] strategies = emitterCache.get(key);
 		if (strategies == null) {
@@ -363,10 +363,10 @@ public final class DefaultEventBus extends EventBus {
 			try {
 				for (Map.Entry<String, HashMap<String, Strategy<ListenerEndpoint>>> entry : listeners.entrySet()) {
 					if (Matcher.matches(name, entry.getKey())) {
-						if (groups != null && groups.length > 0) {
+						if (groups != null) {
 							for (Map.Entry<String, Strategy<ListenerEndpoint>> test : entry.getValue().entrySet()) {
 								final String testGroup = test.getKey();
-								for (String group : groups) {
+								for (String group : groups.groups()) {
 									if (group.equals(testGroup)) {
 										list.add(test.getValue());
 									}
@@ -409,18 +409,18 @@ public final class DefaultEventBus extends EventBus {
 	// --- EMIT EVENT TO LOCAL AND REMOTE LISTENERS ---
 
 	@Override
-	public final void broadcast(String name, Tree payload, String[] groups) {
+	public final void broadcast(String name, Tree payload, Groups groups) {
 		broadcast(name, payload, groups, false);
 	}
 
 	// --- EMIT EVENT TO LOCAL LISTENERS ONLY ---
 
 	@Override
-	public final void broadcastLocal(String name, Tree payload, String[] groups) {
+	public final void broadcastLocal(String name, Tree payload, Groups groups) {
 		broadcast(name, payload, groups, true);
 	}
 
-	private final void broadcast(String name, Tree payload, String[] groups, boolean local) {
+	private final void broadcast(String name, Tree payload, Groups groups, boolean local) {
 		char prefix = local ? '>' : '<';
 		String key = getCacheKey(prefix, name, groups);
 		ListenerEndpoint[] endpoints = broadcasterCache.get(key);
@@ -431,9 +431,9 @@ public final class DefaultEventBus extends EventBus {
 				for (Map.Entry<String, HashMap<String, Strategy<ListenerEndpoint>>> entry : listeners.entrySet()) {
 					if (Matcher.matches(name, entry.getKey())) {
 						for (Map.Entry<String, Strategy<ListenerEndpoint>> test : entry.getValue().entrySet()) {
-							if (groups != null && groups.length > 0) {
+							if (groups != null) {
 								final String testGroup = test.getKey();
-								for (String group : groups) {
+								for (String group : groups.groups()) {
 									if (group.equals(testGroup)) {
 										for (ListenerEndpoint endpoint : test.getValue().getAllEndpoints()) {
 											if (local) {
@@ -489,12 +489,12 @@ public final class DefaultEventBus extends EventBus {
 
 	// --- CREATE CACHE KEY ---
 
-	private static final String getCacheKey(char prefix, String name, String[] groups) {
+	private static final String getCacheKey(char prefix, String name, Groups groups) {
 		StringBuilder tmp = new StringBuilder(64);
 		tmp.append(prefix);
 		tmp.append(name);
-		if (groups != null && groups.length > 0) {
-			for (String group : groups) {
+		if (groups != null) {
+			for (String group : groups.groups()) {
 				tmp.append('|');
 				tmp.append(group);
 			}

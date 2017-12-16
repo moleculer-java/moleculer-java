@@ -345,7 +345,7 @@ public abstract class Transporter implements MoleculerComponent {
 		message.putObject("params", ctx.params());
 		message.put("meta", (String) null);
 
-		CallingOptions opts = ctx.opts();
+		CallingOptions.Options opts = ctx.opts();
 		if (opts != null) {
 			message.put("timeout", ctx.opts().timeout());
 		}

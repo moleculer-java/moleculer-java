@@ -35,12 +35,12 @@ public final class RemoteListenerEndpoint extends ListenerEndpoint {
 	// --- INVOKE REMOTE LISTENER ---
 
 	@Override
-	public final void on(String name, Tree payload, String[] groups) throws Exception {
+	public final void on(String name, Tree payload, Groups groups) throws Exception {
 		Tree packet = new Tree();
 		packet.put("ver", ServiceBroker.MOLECULER_VERSION);
 		packet.put("sender", nodeID);
 		packet.put("event", name);
-		packet.putObject("groups", groups);
+		packet.putObject("groups", groups == null ? null : groups.groups());
 		packet.putObject("data", payload);
 		transporter.publish(PACKET_EVENT, nodeID, packet);
 	}

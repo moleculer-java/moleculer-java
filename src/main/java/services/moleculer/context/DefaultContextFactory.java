@@ -26,6 +26,7 @@ package services.moleculer.context;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.eventbus.EventBus;
 import services.moleculer.service.Name;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.uid.UIDGenerator;
@@ -39,6 +40,7 @@ public final class DefaultContextFactory extends ContextFactory {
 	// --- COMPONENTS ---
 
 	private ServiceRegistry registry;
+	private EventBus eventbus;
 	private UIDGenerator uid;
 
 	// --- START CONTEXT FACTORY ---
@@ -54,13 +56,14 @@ public final class DefaultContextFactory extends ContextFactory {
 	@Override
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
 		registry = broker.components().registry();
-		uid = broker.components().uid();
+		eventbus = broker.components().eventbus();
+		uid = broker.components().uid();		
 	}
 
 	// --- CREATE CONTEXT ---
 
 	@Override
-	public final Context create(String name, Tree params, CallingOptions opts, Context parent, boolean generateID) {
+	public final Context create(String name, Tree params, CallingOptions.Options opts, Context parent, boolean generateID) {
 
 		// Generate ID
 		String id;
@@ -73,7 +76,7 @@ public final class DefaultContextFactory extends ContextFactory {
 		// TODO Merge meta, set parent context ID
 
 		// Create context
-		return new Context(registry, id, name, params, opts);
+		return new Context(registry, eventbus, id, name, params, opts);
 	}
 
 }

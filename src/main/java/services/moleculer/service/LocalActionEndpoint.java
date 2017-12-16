@@ -106,7 +106,7 @@ public final class LocalActionEndpoint extends ActionEndpoint {
 	// --- INVOKE LOCAL ACTION ---
 
 	@Override
-	protected final Promise callActionNoStore(Tree params, CallingOptions opts, Context parent) {
+	protected final Promise callActionNoStore(Tree params, CallingOptions.Options opts, Context parent) {
 
 		// Set timeout (limit timestamp in millis)
 		int timeout;

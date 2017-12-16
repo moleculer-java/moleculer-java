@@ -116,7 +116,7 @@ public abstract class ActionEndpoint implements MoleculerComponent, Endpoint {
 
 	// --- INVOKE LOCAL OR REMOTE ACTION + CACHING ---
 
-	public final Promise call(Tree params, CallingOptions opts, Context parent) {
+	public final Promise call(Tree params, CallingOptions.Options opts, Context parent) {
 
 		// Caching enabled
 		if (cached) {
@@ -140,7 +140,7 @@ public abstract class ActionEndpoint implements MoleculerComponent, Endpoint {
 		return callActionNoStore(params, opts, parent);
 	}
 
-	private final Promise callActionAndStore(Tree params, CallingOptions opts, Context parent, String cacheKey,
+	private final Promise callActionAndStore(Tree params, CallingOptions.Options opts, Context parent, String cacheKey,
 			int ttl) {
 		return callActionNoStore(params, opts, parent).then(result -> {
 			if (result != null) {
@@ -149,7 +149,7 @@ public abstract class ActionEndpoint implements MoleculerComponent, Endpoint {
 		});
 	}
 
-	protected abstract Promise callActionNoStore(Tree params, CallingOptions opts, Context parent);
+	protected abstract Promise callActionNoStore(Tree params, CallingOptions.Options opts, Context parent);
 
 	// --- PROPERTY GETTERS ---
 

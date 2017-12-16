@@ -22,58 +22,47 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.context;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+package services.moleculer.util;
 
 import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
-import services.moleculer.service.Name;
+import services.moleculer.context.CallingOptions;
+import services.moleculer.context.Context;
+import services.moleculer.eventbus.Groups;
 
-/**
- * Base superclass of all Context Factory implementations.
- * 
- * @see DefaultContextFactory
- */
-@Name("Context Factory")
-public abstract class ContextFactory implements MoleculerComponent {
+public final class ParseResult {
 
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
-
-	// --- CONSTUCTOR ---
-
-	public ContextFactory() {
+	// --- PROPERTIES ---
+	
+	private final Tree data;
+	private final Context parent;
+	private final CallingOptions.Options opts;
+	private final Groups groups;
+	
+	// --- CONSTRUCTOR ---
+	
+	ParseResult(Tree data, Context parent, CallingOptions.Options opts, Groups groups) {
+		this.data = data;
+		this.parent = parent;
+		this.opts = opts;
+		this.groups = groups;
 	}
 
-	// --- START CONTEXT FACTORY ---
+	// --- GETTERS ---
 
-	/**
-	 * Initializes Context Factory instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
+	public final Tree data() {
+		return data;
 	}
 
-	// --- STOP CONTEXT FACTORY ---
-
-	/**
-	 * Closes Context Factory.
-	 */
-	@Override
-	public void stop() {
+	public final Context parent() {
+		return parent;
 	}
 
-	// --- CREATE CONTEXT ---
+	public final CallingOptions.Options opts() {
+		return opts;
+	}
 
-	public abstract Context create(String name, Tree params, CallingOptions.Options opts, Context parent, boolean generateID);
-
+	public final Groups groups() {
+		return groups;
+	}
+	
 }

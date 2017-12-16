@@ -28,11 +28,13 @@ import io.datatree.Tree;
 import services.moleculer.cacher.Cache;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.cacher.OHCacher;
+import services.moleculer.context.CallingOptions;
 import services.moleculer.eventbus.Group;
+import services.moleculer.eventbus.Groups;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
-import services.moleculer.monitor.CommandMonitor;
 import services.moleculer.monitor.Monitor;
+import services.moleculer.monitor.SigarMonitor;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
 import services.moleculer.transporter.RedisTransporter;
@@ -54,7 +56,7 @@ public class Test {
 		Cacher cacher = new OHCacher();
 
 		// CPU monitor
-		Monitor monitor = new CommandMonitor();
+		Monitor monitor = new SigarMonitor();
 		
 		// Create broker
 		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).cacher(cacher).monitor(monitor).nodeID("server-2")
@@ -99,17 +101,13 @@ public class Test {
 		// Emit local event
 		Tree payload = new Tree();
 		payload.put("a", 5);
-		broker.broadcastLocal("user.foo", payload, null);
-		broker.broadcastLocal("user.foo", payload, new String[] { "math" });
-		broker.broadcastLocal("user.foo", payload, new String[] { "special" });
+		broker.broadcastLocal("user.foo", "a", 5, "b", 3);
+		broker.broadcastLocal("user.foo", payload, Groups.of("math"));
+		broker.broadcastLocal("user.foo", payload, Groups.of("special"));
 		broker.emit("test.foo", payload, null);
-		broker.broadcast("user.foo", payload, null);
+		broker.broadcast("user.foo", "a", 6, "b", 7, Groups.of("special"));
 
-		/*
-		 * broker.call("math2.mult", "a", 5, "b", 2).then(in -> {
-		 * System.out.println("Result: " + in.asString());
-		 * //broker.emit("test.foo", payload, null); });
-		 */
+		broker.call("math2.mult", "a", 5, "b", 2, CallingOptions.nodeID("node-1").retryCount(3));
 	}
 
 }

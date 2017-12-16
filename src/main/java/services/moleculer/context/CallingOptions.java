@@ -31,42 +31,62 @@ public final class CallingOptions {
 
 	// --- PROPERTIES ---
 
-	private final String nodeID;
-	private final int timeout;
-	private final int retryCount;
+	public static final class Options {
+	
+		private String nodeID;
+		private int timeout;
+		private int retryCount;
 
-	// --- CONSTRUTORS ---
+		// --- VARIABLE SETTERS ---
 
-	public CallingOptions(String nodeID) {
-		this(nodeID, 0, 0);
+		public final Options nodeID(String nodeID) {
+			this.nodeID = nodeID;
+			return this;
+		}
+
+		public final Options timeout(int timeout) {
+			this.timeout = timeout;
+			return this;
+		}
+
+		public final Options retryCount(int retryCount) {
+			this.retryCount = retryCount;
+			return this;
+		}
+		
+		// --- VARIABLE GETTERS ---
+
+		public final String nodeID() {
+			return nodeID;
+		}
+
+		public final int timeout() {
+			return timeout;
+		}
+
+		public final int retryCount() {
+			return retryCount;
+		}
+		
+	}
+	
+	// --- PRIVATE CONSTRUTOR ---
+
+	private CallingOptions() {
 	}
 
-	public CallingOptions(int timeout, int retryCount) {
-		this(null, timeout, retryCount);
+	// --- STATIC BUILDER-LIKE CONSTRUTOR ---
+	
+	public static final Options nodeID(String nodeID) {
+		return new Options().nodeID(nodeID);
 	}
 
-	public CallingOptions(int timeout) {
-		this(null, timeout, 0);
+	public static final Options timeout(int timeout) {
+		return new Options().timeout(timeout);
 	}
 
-	public CallingOptions(String nodeID, int timeout, int retryCount) {
-		this.nodeID = nodeID;
-		this.timeout = timeout;
-		this.retryCount = retryCount;
-	}
-
-	// --- VARIABLE GETTERS ---
-
-	public final String nodeID() {
-		return nodeID;
-	}
-
-	public final int timeout() {
-		return timeout;
-	}
-
-	public final int retryCount() {
-		return retryCount;
+	public static final Options retryCount(int retryCount) {
+		return new Options().retryCount(retryCount);
 	}
 
 }

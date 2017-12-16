@@ -76,6 +76,9 @@ public final class Matcher {
 		// Regex (eg. "prefix.ab?cd.*.foo")
 		Pattern regex = regexCache.get(pattern);
 		if (regex == null) {
+			if (pattern.startsWith("$")) {
+				pattern = '\\' + pattern;
+			}
 			pattern = pattern.replace("?", ".");
 			pattern = pattern.replace("**", ".+");
 			pattern = pattern.replace("*", "[^\\.]+");	

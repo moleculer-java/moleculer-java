@@ -77,7 +77,7 @@ public final class RemoteActionEndpoint extends ActionEndpoint {
 	// --- INVOKE REMOTE ACTION ---
 
 	@Override
-	protected final Promise callActionNoStore(Tree params, CallingOptions opts, Context parent) {
+	protected final Promise callActionNoStore(Tree params, CallingOptions.Options opts, Context parent) {
 
 		// Create new context (with ID)
 		Context ctx = context.create(name, params, opts, parent, true);
