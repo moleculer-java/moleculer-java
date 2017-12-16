@@ -56,7 +56,7 @@ import services.moleculer.util.redis.RedisGetSetClient;
  * Redis-based <b>distributed</b> cache. Supports SSL, clustering and password
  * authentication. It's the one of the fastest distributed cache. Supports
  * global and entry-level TTL configuration.
- * 
+ * <br>
  * @see MemoryCacher
  * @see OHCacher
  */

@@ -31,6 +31,8 @@ import services.moleculer.cacher.OHCacher;
 import services.moleculer.eventbus.Group;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
+import services.moleculer.monitor.CommandMonitor;
+import services.moleculer.monitor.Monitor;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
 import services.moleculer.transporter.RedisTransporter;
@@ -46,13 +48,16 @@ public class Test {
 
 		// Define transporter
 		Transporter transporter = new RedisTransporter();
-		transporter.setDebug(false);
+		transporter.setDebug(true);
 
 		// Define cacher
 		Cacher cacher = new OHCacher();
 
+		// CPU monitor
+		Monitor monitor = new CommandMonitor();
+		
 		// Create broker
-		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).cacher(cacher).nodeID("server-2")
+		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).cacher(cacher).monitor(monitor).nodeID("server-2")
 				.build();
 
 		broker.createService(new Service("math") {

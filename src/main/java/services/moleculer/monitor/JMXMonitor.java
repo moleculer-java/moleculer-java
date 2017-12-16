@@ -25,11 +25,7 @@
 package services.moleculer.monitor;
 
 import java.lang.management.ManagementFactory;
-
-import javax.management.Attribute;
-import javax.management.AttributeList;
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
+import java.lang.management.OperatingSystemMXBean;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
@@ -46,8 +42,7 @@ public final class JMXMonitor extends Monitor {
 
 	// --- PROPERTIES ---
 
-	private MBeanServer mbs;
-	private ObjectName os;
+	private OperatingSystemMXBean mxBean;
 
 	// --- START MONITOR ---
 
@@ -61,8 +56,7 @@ public final class JMXMonitor extends Monitor {
 	 */
 	@Override
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
-		mbs = ManagementFactory.getPlatformMBeanServer();
-		os = ObjectName.getInstance("java.lang:type=OperatingSystem");
+		mxBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
 	}
 
 	// --- SYSTEM MONITORING METHODS ---
@@ -75,12 +69,7 @@ public final class JMXMonitor extends Monitor {
 	@Override
 	public final int getTotalCpuPercent() {
 		try {
-			AttributeList list = mbs.getAttributes(os, new String[] { "ProcessCpuLoad" });
-			if (list.isEmpty()) {
-				return 0;
-			}
-			Attribute att = (Attribute) list.get(0);
-			Double value = (Double) att.getValue();
+			Double value = (Double) mxBean.getSystemLoadAverage();
 			return (int) Math.max(value * 100d, 0d);
 		} catch (Exception cause) {
 			logger.warn("Unable to get CPU usage!", cause);
