@@ -24,40 +24,65 @@
  */
 package services.moleculer.eventbus;
 
+import java.util.regex.Pattern;
+
+import io.datatree.dom.Cache;
+
 /**
- * Simple and fast matcher.
+ * Event mask matcher (eg. "service.event.*").
  */
 public final class Matcher {
 
+	private static final Cache<String, Pattern> regexCache = new Cache<>(128, true);
+	
 	public static final boolean matches(String text, String pattern) {
-		String rest = null;
-		int pos = pattern.indexOf('*');
-		if (pos != -1) {
-			rest = pattern.substring(pos + 1);
-			pattern = pattern.substring(0, pos);
-		}
-		if (pattern.length() > text.length()) {
-			return false;
-		}
+		
+		// Simple patterns
+		if (pattern.indexOf('?') == -1) {
 
-		// Handle the part up to the first *
-		for (int i = 0; i < pattern.length(); i++) {
-			if (pattern.charAt(i) != '?' && !pattern.substring(i, i + 1).equalsIgnoreCase(text.substring(i, i + 1))) {
+			// Exact match (eg. "prefix.event")
+			final int firstStarPosition = pattern.indexOf('*');
+			if (firstStarPosition == -1) {
+				return pattern.equals(text);
+			}
+			
+			// Eg. "prefix**"
+			final int len = pattern.length();
+			if (len > 2 && pattern.endsWith("**") && firstStarPosition > len - 3) {
+				pattern = pattern.substring(0, len - 2);				
+				return text.startsWith(pattern);
+			}
+			
+			// Eg. "prefix*"
+			if (len > 1 && pattern.endsWith("*") && firstStarPosition > len - 2) {
+				pattern = pattern.substring(0, len - 1);
+				if (text.startsWith(pattern)) {
+					return text.indexOf('.', len) == -1;
+				}
 				return false;
 			}
-		}
-
-		// Recurse for the part after the first *, if any
-		if (rest == null) {
-			return pattern.length() == text.length();
-		} else {
-			for (int i = pattern.length(); i <= text.length(); i++) {
-				if (matches(text.substring(i), rest)) {
-					return true;
-				}
+			
+			// Accept simple text, without point character (*)
+			if (len == 1 && firstStarPosition == 0) {
+				return text.indexOf('.') == -1;
 			}
-			return false;
+			
+			// Accept all inputs (**)
+			if (len == 2 && firstStarPosition == 0 && pattern.lastIndexOf('*') == 1) {
+				return true;
+			}
 		}
+		
+		// Regex (eg. "prefix.ab?cd.*.foo")
+		Pattern regex = regexCache.get(pattern);
+		if (regex == null) {
+			pattern = pattern.replace("?", ".");
+			pattern = pattern.replace("**", ".+");
+			pattern = pattern.replace("*", "[^\\.]+");	
+			regex = Pattern.compile(pattern);
+			regexCache.put(pattern, regex);
+		}
+		return regex.matcher(text).matches();
 	}
 
 }
