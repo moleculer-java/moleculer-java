@@ -89,13 +89,13 @@ public final class Context {
 		return registry.getAction(name, targetID).call(res.data(), opts, res.parent());
 	}
 
-	public Promise call(String name, Tree params) {
-		return registry.getAction(name, null).call(params, (CallingOptions.Options) null, this);
-	}
-
 	public Promise call(String name, Tree params, CallingOptions.Options opts) {
 		String targetID = opts == null ? null : opts.nodeID();
 		return registry.getAction(name, targetID).call(params, opts, this);
+	}
+
+	public Promise call(String name, Tree params) {
+		return registry.getAction(name, null).call(params, (CallingOptions.Options) null, this);
 	}
 
 	// --- EMIT EVENT TO EVENT GROUP ---
@@ -115,6 +115,13 @@ public final class Context {
 		eventbus.emit(name, payload, groups, false);
 	}
 
+	/**
+	 * Emits an event (grouped & balanced global event)
+	 */
+	public void emit(String name, Tree payload) {
+		eventbus.emit(name, payload, null, false);
+	}
+
 	// --- BROADCAST EVENT TO ALL LISTENERS ---
 
 	/**
@@ -132,6 +139,13 @@ public final class Context {
 		eventbus.broadcast(name, payload, groups, false);
 	}
 
+	/**
+	 * Emits an event for all local & remote services
+	 */
+	public void broadcast(String name, Tree payload) {
+		eventbus.broadcast(name, payload, null, false);
+	}
+
 	// --- BROADCAST EVENT TO LOCAL LISTENERS ---
 
 	/**
@@ -147,6 +161,14 @@ public final class Context {
 	 */
 	public void broadcastLocal(String name, Tree payload, Groups groups) {
 		eventbus.broadcast(name, payload, groups, true);
+	}
+
+
+	/**
+	 * Emits an event for all local services.
+	 */
+	public void broadcastLocal(String name, Tree payload) {
+		eventbus.broadcast(name, payload, null, true);
 	}
 
 }
