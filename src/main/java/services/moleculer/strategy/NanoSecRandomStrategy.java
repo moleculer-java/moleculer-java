@@ -45,8 +45,8 @@ public final class NanoSecRandomStrategy<T extends Endpoint> extends ArrayBasedS
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
-	public final Endpoint next() {
-		return endpoints[(int) (System.nanoTime() % endpoints.length)];
+	public final Endpoint next(Endpoint[] array) {
+		return array[(int) (System.nanoTime() % array.length)];
 	}
 
 }

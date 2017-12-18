@@ -51,7 +51,7 @@ public final class XORShiftRandomStrategy<T extends Endpoint> extends ArrayBased
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
-	public final Endpoint next() {
+	public final Endpoint next(Endpoint[] array) {
 
 		// Generate pseudo random long
 		long start, next;
@@ -64,7 +64,7 @@ public final class XORShiftRandomStrategy<T extends Endpoint> extends ArrayBased
 		} while (!rnd.compareAndSet(start, next));
 
 		// Return ActionEndpoint
-		return endpoints[(int) Math.abs(next % endpoints.length)];
+		return array[(int) Math.abs(next % array.length)];
 	}
 
 }

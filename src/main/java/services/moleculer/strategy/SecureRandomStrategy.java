@@ -51,8 +51,8 @@ public final class SecureRandomStrategy<T extends Endpoint> extends ArrayBasedSt
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
-	public final Endpoint next() {
-		return endpoints[rnd.nextInt(endpoints.length)];
+	public final Endpoint next(Endpoint[] array) {
+		return array[rnd.nextInt(array.length)];
 	}
 
 }

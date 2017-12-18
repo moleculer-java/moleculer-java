@@ -30,7 +30,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.locks.Lock;
@@ -66,6 +65,11 @@ public final class DefaultEventBus extends EventBus {
 	 * Invoke all local listeners via Thread pool (true) or directly (false)
 	 */
 	private boolean asyncLocalInvocation;
+
+	/**
+	 * Check Moleculer version
+	 */
+	private boolean checkVersion;
 
 	// --- LOCKS ---
 
@@ -116,6 +120,7 @@ public final class DefaultEventBus extends EventBus {
 
 		// Process config
 		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
+		checkVersion = config.get("checkVersion", checkVersion);
 
 		// Set components
 		this.broker = broker;
@@ -152,27 +157,41 @@ public final class DefaultEventBus extends EventBus {
 	public final void receiveEvent(Tree message) {
 
 		// Verify Moleculer version
-		int ver = message.get("ver", -1);
-		if (ver != ServiceBroker.MOLECULER_VERSION) {
-			logger.warn("Invalid message version (" + ver + ")!");
-			return;
+		if (checkVersion) {
+			int ver = message.get("ver", -1);
+			if (ver != ServiceBroker.MOLECULER_VERSION) {
+				logger.warn("Invalid message version (" + ver + ")!");
+				return;
+			}
 		}
 
 		// Get event property
-		String event = message.get("event", (String) null);
-		if (event == null || event.isEmpty()) {
+		String name = message.get("event", (String) null);
+		if (name == null || name.isEmpty()) {
 			logger.warn("Missing \"event\" property!");
 			return;
 		}
 
-		// Get groups
-		List<String> groups = message.get("groups").asList(String.class);
-
 		// Get data
-		Tree data = message.get("data");
+		Tree payload = message.get("data");
 
-		// Send to local
-		// TODO Emit? Broadcast?
+		// Process events in Moleculer V2 style
+		Tree groupArray = message.get("groups");
+		if (groupArray == null) {
+			
+			// Broadcast
+			broadcast(name, payload, null, true);
+			
+		} else {
+			
+			// Emit
+			String[] array = new String[groupArray.size()];
+			int i = 0;
+			for (Tree group: groupArray) {
+				array[i++] = group.asString();
+			}
+			emit(name, payload, Groups.of(array), true);			
+		}
 	}
 
 	// --- ADD LOCAL LISTENER ---
@@ -350,11 +369,11 @@ public final class DefaultEventBus extends EventBus {
 		}
 	}
 
-	// --- EMIT EVENT TO LOCAL AND REMOTE LISTENERS BY GROUPS ---
+	// --- SEND EVENT TO ONE LISTENER IN THE SPECIFIED GROUP ---
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public final void emit(String name, Tree payload, Groups groups) {
+	public final void emit(String name, Tree payload, Groups groups, boolean local) {
 		String key = getCacheKey('#', name, groups);
 		Strategy<ListenerEndpoint>[] strategies = emitterCache.get(key);
 		if (strategies == null) {
@@ -389,7 +408,7 @@ public final class DefaultEventBus extends EventBus {
 		}
 		if (strategies.length == 1) {
 			try {
-				strategies[0].getEndpoint(null).on(name, payload, groups);
+				strategies[0].getEndpoint(null).on(name, payload, groups, true);
 			} catch (Exception cause) {
 				logger.error("Unable to invoke event listener!", cause);
 			}
@@ -398,7 +417,7 @@ public final class DefaultEventBus extends EventBus {
 		if (strategies.length > 0) {
 			for (Strategy<ListenerEndpoint> strategy : strategies) {
 				try {
-					strategy.getEndpoint(null).on(name, payload, groups);
+					strategy.getEndpoint(null).on(name, payload, groups, true);
 				} catch (Exception cause) {
 					logger.error("Unable to invoke event listener!", cause);
 				}
@@ -406,21 +425,10 @@ public final class DefaultEventBus extends EventBus {
 		}
 	}
 
-	// --- EMIT EVENT TO LOCAL AND REMOTE LISTENERS ---
-
+	// --- SEND EVENT TO ALL LISTENERS IN THE SPECIFIED GROUP ---
+	
 	@Override
-	public final void broadcast(String name, Tree payload, Groups groups) {
-		broadcast(name, payload, groups, false);
-	}
-
-	// --- EMIT EVENT TO LOCAL LISTENERS ONLY ---
-
-	@Override
-	public final void broadcastLocal(String name, Tree payload, Groups groups) {
-		broadcast(name, payload, groups, true);
-	}
-
-	private final void broadcast(String name, Tree payload, Groups groups, boolean local) {
+	public final void broadcast(String name, Tree payload, Groups groups, boolean local) {
 		char prefix = local ? '>' : '<';
 		String key = getCacheKey(prefix, name, groups);
 		ListenerEndpoint[] endpoints = broadcasterCache.get(key);
@@ -472,7 +480,7 @@ public final class DefaultEventBus extends EventBus {
 		}
 		if (endpoints.length == 1) {
 			try {
-				endpoints[0].on(name, payload, groups);
+				endpoints[0].on(name, payload, groups, false);
 			} catch (Exception cause) {
 				logger.error("Unable to invoke event listener!", cause);
 			}
@@ -480,7 +488,7 @@ public final class DefaultEventBus extends EventBus {
 		}
 		for (ListenerEndpoint endpoint : endpoints) {
 			try {
-				endpoint.on(name, payload, groups);
+				endpoint.on(name, payload, groups, false);
 			} catch (Exception cause) {
 				logger.error("Unable to invoke event listener!", cause);
 			}
@@ -524,6 +532,24 @@ public final class DefaultEventBus extends EventBus {
 			readLock.unlock();
 		}
 		return new CheckedTree(descriptor);
+	}
+
+	// --- GETTERS / SETTERS ---
+
+	public final boolean isCheckVersion() {
+		return checkVersion;
+	}
+
+	public final void setCheckVersion(boolean checkVersion) {
+		this.checkVersion = checkVersion;
+	}
+
+	public final boolean isAsyncLocalInvocation() {
+		return asyncLocalInvocation;
+	}
+
+	public final void setAsyncLocalInvocation(boolean asyncLocalInvocation) {
+		this.asyncLocalInvocation = asyncLocalInvocation;
 	}
 
 }

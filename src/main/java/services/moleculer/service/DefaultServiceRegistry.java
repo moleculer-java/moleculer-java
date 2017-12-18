@@ -337,7 +337,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		}
 
 		// Get local action endpoint (with cache handling)
-		ActionEndpoint endpoint = strategy.getLocalEndpoint();
+		ActionEndpoint endpoint = strategy.getEndpoint(nodeID);
 		if (endpoint == null) {
 			logger.warn("Not a local action (" + action + ")!");
 			return;
@@ -690,7 +690,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 				String service = name.substring(0, i);
 
 				// Get endpoint
-				ActionEndpoint endpoint = entry.getValue().getLocalEndpoint();
+				ActionEndpoint endpoint = entry.getValue().getEndpoint(nodeID);
 				if (endpoint == null) {
 					continue;
 				}

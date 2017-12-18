@@ -79,13 +79,9 @@ public abstract class Strategy<T extends Endpoint> implements MoleculerComponent
 
 	public abstract boolean isEmpty();
 
-	// --- GET LOCAL OR REMOTE ENDPOINT ---
+	// --- GET THE NEXT LOCAL OR REMOTE ENDPOINT ---
 
 	public abstract T getEndpoint(String nodeID);
-
-	// --- GET LOCAL ENDPOINT ---
-
-	public abstract T getLocalEndpoint();
 
 	// --- GET ALL ENDPOINTS ---
 

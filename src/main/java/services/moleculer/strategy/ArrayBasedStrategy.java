@@ -25,9 +25,11 @@
 package services.moleculer.strategy;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import io.datatree.Tree;
+import io.datatree.dom.Cache;
 import services.moleculer.ServiceBroker;
 
 /**
@@ -42,15 +44,16 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 
 	// --- ARRAY OF ENDPOINTS ---
 
-	protected Endpoint[] endpoints = new Endpoint[0];
+	private Endpoint[] endpoints = new Endpoint[0];
 
-	// --- POINTER TO A LOCAL ACTION INSTANCE ---
+	// --- CACHE ---
 
-	private T localEndpoint;
+	private final Cache<String, Endpoint[]> endpointCache = new Cache<>(1024, true);
 
 	// --- PROPERTIES ---
 
 	private final boolean preferLocal;
+	private String nodeID;
 
 	// --- CONSTRUCTOR ---
 
@@ -70,6 +73,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 	 */
 	@Override
 	public final void start(ServiceBroker broker, Tree config) throws Exception {
+		nodeID = broker.nodeID();
 	}
 
 	// --- ADD A LOCAL OR REMOTE ENDPOINT ---
@@ -95,10 +99,8 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 			endpoints = copy;
 		}
 
-		// Store local action
-		if (endpoint.local()) {
-			localEndpoint = endpoint;
-		}
+		// Remove from cache
+		endpointCache.remove(endpoint.nodeID());
 	}
 
 	// --- REMOVE ALL ENDPOINTS OF THE SPECIFIED NODE ---
@@ -106,12 +108,11 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 	@Override
 	public final void remove(String nodeID) {
 		Endpoint endpoint;
+		boolean found = false;
 		for (int i = 0; i < endpoints.length; i++) {
 			endpoint = endpoints[i];
 			if (nodeID.equals(endpoint.nodeID())) {
-				if (endpoint.equals(localEndpoint)) {
-					localEndpoint = null;
-				}
+				found = true;
 				if (endpoints.length == 1) {
 					endpoints = new Endpoint[0];
 				} else {
@@ -122,6 +123,11 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 					i--;
 				}
 			}
+		}
+		
+		// Remove from cache
+		if (found) {
+			endpointCache.remove(nodeID);
 		}
 	}
 
@@ -137,30 +143,41 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 	@SuppressWarnings("unchecked")
 	@Override
 	public final T getEndpoint(String nodeID) {
-		if (nodeID == null) {
-			if (!preferLocal || localEndpoint == null) {
-				return (T) next();
-			}
-			return localEndpoint;
+		if (nodeID == null && preferLocal) {
+			nodeID = this.nodeID;
 		}
-		for (Endpoint endpoint : endpoints) {
-			if (endpoint.nodeID().equals(nodeID)) {
-				return (T) endpoint;
-			}
+		Endpoint[] array = getEndpointsByNodeID(nodeID);
+		if (array.length == 0) {
+			return null;
 		}
-		return null;
+		if (array.length == 1) {
+			return (T) array[0];
+		}
+		return (T) next(array);
 	}
 
+	private final Endpoint[] getEndpointsByNodeID(String nodeID) {
+		if (nodeID == null) {
+			return endpoints;
+		}
+		Endpoint[] array = endpointCache.get(nodeID);
+		if (array == null) {
+			LinkedList<Endpoint> list = new LinkedList<>();
+			for (Endpoint endpoint : endpoints) {
+				if (endpoint.nodeID().equals(nodeID)) {
+					list.addLast(endpoint);
+				}
+			}
+			array = new Endpoint[list.size()];
+			list.toArray(array);
+			endpointCache.put(nodeID, array);
+		}
+		return array;
+	}
+	
 	// --- GET NEXT ENDPOINT ---
 
-	public abstract Endpoint next();
-
-	// --- GET LOCAL ENDPOINT ---
-
-	@Override
-	public final T getLocalEndpoint() {
-		return localEndpoint;
-	}
+	public abstract Endpoint next(Endpoint[] array);
 
 	// --- GET ALL ENDPOINTS ---
 

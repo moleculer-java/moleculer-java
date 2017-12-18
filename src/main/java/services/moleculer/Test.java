@@ -24,11 +24,9 @@
  */
 package services.moleculer;
 
-import io.datatree.Tree;
 import services.moleculer.cacher.Cache;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.cacher.OHCacher;
-import services.moleculer.context.CallingOptions;
 import services.moleculer.eventbus.Group;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.eventbus.Listener;
@@ -37,7 +35,6 @@ import services.moleculer.monitor.Monitor;
 import services.moleculer.monitor.SigarMonitor;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
-import services.moleculer.transporter.RedisTransporter;
 import services.moleculer.transporter.Transporter;
 
 public class Test {
@@ -49,65 +46,142 @@ public class Test {
 		System.setProperty("java.library.path", nativeDir);
 
 		// Define transporter
-		Transporter transporter = new RedisTransporter();
-		transporter.setDebug(true);
-
+		// Transporter transporter = new RedisTransporter();
+		// transporter.setDebug(true);
+		Transporter transporter = null;
+		
 		// Define cacher
 		Cacher cacher = new OHCacher();
 
 		// CPU monitor
 		Monitor monitor = new SigarMonitor();
-		
-		// Create broker
-		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).cacher(cacher).monitor(monitor).nodeID("server-2")
-				.build();
 
+		// Create broker
+		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).cacher(cacher).monitor(monitor)
+				.nodeID("server-2").build();
+
+		// --- GROUP1 ---
+		
 		broker.createService(new Service("math") {
 
 			@Cache(keys = { "a", "b" })
-			public Action add = (ctx) -> {
+			public Action add = ctx -> {
 				int a = ctx.params().get("a", 0);
 				int b = ctx.params().get("b", 0);
-
-				/*
-				 * return ctx.call("math2.mult", "a", a + b, "b", 2).then(in ->
-				 * { System.out.println("Res: " + in); return new Promise(r -> {
-				 * broker.components().scheduler().schedule(() -> {
-				 * 
-				 * r.resolve("Result: " + in.asString());
-				 * 
-				 * }, 3, TimeUnit.SECONDS); }); });
-				 */
-
 				return a + b;
 			};
 
 			@Subscribe("user.*")
-			public Listener evt1 = payload -> {
-				System.out.println("Event1: " + payload.get("a", -1));
+			@Group("group1")
+			public Listener listener = payload -> {
+				System.out.println("group1,listener1: " + payload.get("a", -1));
 			};
-
+			
+		});				
+		broker.createService(new Service("test2") {
+			
 			@Subscribe("user.*")
-			@Group("special")
-			public Listener evt2 = payload -> {
-				System.out.println("Event2: " + payload.get("a", -1));
+			@Group("group1")
+			public Listener listener = payload -> {
+				System.out.println("group1,listener2: " + payload.get("a", -1));
 			};
+		});				
+		broker.createService(new Service("test3") {
+			
+			@Subscribe("user.*")
+			@Group("group1")
+			public Listener listener = payload -> {
+				System.out.println("group1,listener3: " + payload.get("a", -1));
+			};
+		});						
 
-		});
+		// --- GROUP2 ---
+
+		broker.createService(new Service("test4") {
+			
+			@Subscribe("user.*")
+			@Group("group2")
+			public Listener listener = payload -> {
+				System.out.println("group2,listener1: " + payload.get("a", -1));
+			};
+		});						
+		broker.createService(new Service("test5") {
+			
+			@Subscribe("user.*")
+			@Group("group2")
+			public Listener listener = payload -> {
+				System.out.println("group2,listener2: " + payload.get("a", -1));
+			};
+		});						
+		broker.createService(new Service("test6") {
+			
+			@Subscribe("user.*")
+			@Group("group2")
+			public Listener listener = payload -> {
+				System.out.println("group2,listener3: " + payload.get("a", -1));
+			};
+		});						
+
+		// --- START ---
+
 		broker.start();
 
-		Thread.sleep(1000);
+		// --- EMIT / BROADCAST ---
 
-		// Emit local event
-		Tree payload = new Tree();
-		payload.put("a", 5);
-		broker.broadcastLocal("user.foo", "a", 5, "b", 3);
-		broker.broadcastLocal("user.foo", payload, Groups.of("math"));
-		broker.broadcastLocal("user.foo", payload, Groups.of("special"));
-		broker.emit("test.foo", payload, null);
-		broker.broadcast("user.foo", "a", 6, "b", 7, Groups.of("special"));
+		System.out.println("EMIT TO GROUP1");
+		for (int i = 0; i < 3; i++) {
+			broker.emit("user.foo", "a", i, Groups.of("group1"));
+			System.out.println("--------------------");
+		}
 
-		broker.call("math2.mult", "a", 5, "b", 2, CallingOptions.nodeID("node-1").retryCount(3));
+		System.out.println();
+		System.out.println("EMIT TO GROUP2");
+		for (int i = 0; i < 3; i++) {
+			broker.emit("user.foo", "a", i, Groups.of("group2"));
+			System.out.println("--------------------");
+		}
+
+		System.out.println();
+		System.out.println("EMIT TO 2 GROUPS");
+		for (int i = 0; i < 3; i++) {
+			broker.emit("user.foo", "a", i, Groups.of("group1", "group2"));
+			System.out.println("--------------------");
+		}
+
+		System.out.println();
+		System.out.println("EMIT TO ALL LISTENERS");
+		for (int i = 0; i < 3; i++) {
+			broker.emit("user.foo", "a", i);
+			System.out.println("--------------------");
+		}
+
+		System.out.println();
+		System.out.println("BROADCAST TO GROUP1");
+		for (int i = 0; i < 3; i++) {
+			broker.broadcast("user.foo", "a", i, Groups.of("group1"));
+			System.out.println("--------------------");
+		}
+
+		System.out.println();
+		System.out.println("BROADCAST TO GROUP2");
+		for (int i = 0; i < 3; i++) {
+			broker.broadcast("user.foo", "a", i, Groups.of("group2"));
+			System.out.println("--------------------");
+		}
+		
+		System.out.println();
+		System.out.println("BROADCAST TO 2 GROUPS");
+		for (int i = 0; i < 3; i++) {
+			broker.broadcast("user.foo", "a", i, Groups.of("group1", "group2"));
+			System.out.println("--------------------");
+		}
+		
+		System.out.println();
+		System.out.println("BROADCAST TO ALL LISTENERS");
+		for (int i = 0; i < 3; i++) {
+			broker.broadcast("user.foo", "a", i);
+			System.out.println("--------------------");
+		}				
 	}
 
 }

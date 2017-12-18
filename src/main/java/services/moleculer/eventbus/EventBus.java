@@ -81,17 +81,13 @@ public abstract class EventBus implements MoleculerComponent {
 
 	public abstract void removeListeners(String nodeID);
 
-	// --- SEND EVENT TO ONE LISTENER IN GROUPS ---
+	// --- SEND EVENT TO ONE LISTENER IN THE SPECIFIED GROUP ---
 
-	public abstract void emit(String name, Tree payload, Groups groups);
+	public abstract void emit(String name, Tree payload, Groups groups, boolean local);
 
-	// --- SEND EVENT TO ALL LISTENERS IN GROUPS ---
+	// --- SEND EVENT TO ALL LISTENERS IN THE SPECIFIED GROUP ---
 
-	public abstract void broadcast(String name, Tree payload, Groups groups);
-
-	// --- SEND EVENT TO ALL LOCAL LISTENERS IN GROUPS ---
-
-	public abstract void broadcastLocal(String name, Tree payload, Groups groups);
+	public abstract void broadcast(String name, Tree payload, Groups groups, boolean local);
 
 	// --- GENERATE LISTENER DESCRIPTOR ---
 

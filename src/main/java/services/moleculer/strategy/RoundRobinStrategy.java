@@ -51,8 +51,8 @@ public final class RoundRobinStrategy<T extends Endpoint> extends ArrayBasedStra
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
-	public final Endpoint next() {
-		return endpoints[counter.incrementAndGet() % endpoints.length];
+	public final Endpoint next(Endpoint[] array) {
+		return array[counter.incrementAndGet() % array.length];
 	}
 
 }

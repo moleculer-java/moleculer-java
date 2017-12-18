@@ -355,16 +355,23 @@ public final class ServiceBroker {
 	 */
 	public void emit(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		eventbus.emit(name, res.data(), res.groups());
+		eventbus.emit(name, res.data(), res.groups(), false);
 	}
 	
 	/**
 	 * Emits an event (grouped & balanced global event)
 	 */
 	public void emit(String name, Tree payload, Groups groups) {
-		eventbus.emit(name, payload, groups);
+		eventbus.emit(name, payload, groups, false);
 	}
 
+	/**
+	 * Emits an event (grouped & balanced global event)
+	 */
+	public void emit(String name, Tree payload) {
+		eventbus.emit(name, payload, null, false);
+	}
+	
 	// --- BROADCAST EVENT TO ALL LISTENERS ---
 	
 	/**
@@ -372,16 +379,23 @@ public final class ServiceBroker {
 	 */
 	public void broadcast(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		eventbus.broadcast(name, res.data(), res.groups());
+		eventbus.broadcast(name, res.data(), res.groups(), false);
 	}
 	
 	/**
 	 * Emits an event for all local & remote services
 	 */
 	public void broadcast(String name, Tree payload, Groups groups) {
-		eventbus.broadcast(name, payload, groups);
+		eventbus.broadcast(name, payload, groups, false);
 	}
 
+	/**
+	 * Emits an event for all local & remote services
+	 */
+	public void broadcast(String name, Tree payload) {
+		eventbus.broadcast(name, payload, null, false);
+	}
+	
 	// --- BROADCAST EVENT TO LOCAL LISTENERS ---
 	
 	/**
@@ -389,14 +403,21 @@ public final class ServiceBroker {
 	 */
 	public void broadcastLocal(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		eventbus.broadcastLocal(name, res.data(), res.groups());
+		eventbus.broadcast(name, res.data(), res.groups(), true);
 	}
 	
 	/**
 	 * Emits an event for all local services.
 	 */
 	public void broadcastLocal(String name, Tree payload, Groups groups) {
-		eventbus.broadcastLocal(name, payload, groups);
+		eventbus.broadcast(name, payload, groups, true);
 	}
 
+	/**
+	 * Emits an event for all local services.
+	 */
+	public void broadcastLocal(String name, Tree payload) {
+		eventbus.broadcast(name, payload, null, true);
+	}
+	
 }
