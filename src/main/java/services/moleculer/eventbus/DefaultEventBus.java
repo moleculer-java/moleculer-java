@@ -144,9 +144,12 @@ public final class DefaultEventBus extends EventBus {
 				}
 			}
 			listeners.clear();
+		} finally {
+			
+			// Clear caches
 			emitterCache.clear();
 			broadcasterCache.clear();
-		} finally {
+			
 			writeLock.unlock();
 		}
 	}
@@ -365,6 +368,11 @@ public final class DefaultEventBus extends EventBus {
 				}
 			}
 		} finally {
+			
+			// Clear caches
+			emitterCache.clear();
+			broadcasterCache.clear();
+			
 			writeLock.unlock();
 		}
 	}
