@@ -36,7 +36,7 @@ public class TestService extends Service {
 
 	@Cache(keys = { "a", "b" }, ttl = 30)
 	public Action add = (ctx) -> {
-		return ctx.params().get("a", 0) + ctx.params().get("b", 0);
+		return ctx.params.get("a", 0) + ctx.params.get("b", 0);
 	};
 
 	@Subscribe("math.*")

@@ -26,43 +26,22 @@ package services.moleculer.util;
 
 import io.datatree.Tree;
 import services.moleculer.context.CallingOptions;
-import services.moleculer.context.Context;
 import services.moleculer.eventbus.Groups;
 
 public final class ParseResult {
 
 	// --- PROPERTIES ---
 	
-	private final Tree data;
-	private final Context parent;
-	private final CallingOptions.Options opts;
-	private final Groups groups;
+	public final Tree data;
+	public final CallingOptions.Options opts;
+	public final Groups groups;
 	
 	// --- CONSTRUCTOR ---
 	
-	ParseResult(Tree data, Context parent, CallingOptions.Options opts, Groups groups) {
+	ParseResult(Tree data, CallingOptions.Options opts, Groups groups) {
 		this.data = data;
-		this.parent = parent;
 		this.opts = opts;
 		this.groups = groups;
-	}
-
-	// --- GETTERS ---
-
-	public final Tree data() {
-		return data;
-	}
-
-	public final Context parent() {
-		return parent;
-	}
-
-	public final CallingOptions.Options opts() {
-		return opts;
-	}
-
-	public final Groups groups() {
-		return groups;
 	}
 	
 }

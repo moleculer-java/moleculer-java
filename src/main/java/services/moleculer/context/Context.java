@@ -36,16 +36,19 @@ import services.moleculer.util.ParseResult;
 /**
  * Invocation context of Actions.
  */
-public final class Context {
+public class Context {
 
 	// --- PROPERTIES ---
 
-	private final ServiceRegistry registry;
-	private final EventBus eventbus;
-	private final String id;
-	private final String name;
-	private final Tree params;
-	private final CallingOptions.Options opts;
+	public final String id;
+	public final String name;
+	public final Tree params;
+	public final CallingOptions.Options opts;
+
+	// --- COMPONENTS ---
+
+	protected final ServiceRegistry registry;
+	protected final EventBus eventbus;
 
 	// --- CONSTRUCTOR ---
 
@@ -59,24 +62,6 @@ public final class Context {
 		this.opts = opts;
 	}
 
-	// --- VARIABLE GETTERS ---
-
-	public final String id() {
-		return id;
-	}
-
-	public final String name() {
-		return name;
-	}
-
-	public final Tree params() {
-		return params;
-	}
-
-	public final CallingOptions.Options opts() {
-		return opts;
-	}
-
 	// --- INVOKE LOCAL OR REMOTE ACTION ---
 
 	/**
@@ -84,13 +69,12 @@ public final class Context {
 	 */
 	public Promise call(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		CallingOptions.Options opts = res.opts();
-		String targetID = opts == null ? null : opts.nodeID();
-		return registry.getAction(name, targetID).call(res.data(), opts, res.parent());
+		String targetID = opts == null ? null : opts.nodeID;
+		return registry.getAction(name, targetID).call(res.data, opts, this);
 	}
 
 	public Promise call(String name, Tree params, CallingOptions.Options opts) {
-		String targetID = opts == null ? null : opts.nodeID();
+		String targetID = opts == null ? null : opts.nodeID;
 		return registry.getAction(name, targetID).call(params, opts, this);
 	}
 
@@ -105,7 +89,7 @@ public final class Context {
 	 */
 	public void emit(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		eventbus.emit(name, res.data(), res.groups(), false);
+		eventbus.emit(name, res.data, res.groups, false);
 	}
 
 	/**
@@ -129,7 +113,7 @@ public final class Context {
 	 */
 	public void broadcast(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		eventbus.broadcast(name, res.data(), res.groups(), false);
+		eventbus.broadcast(name, res.data, res.groups, false);
 	}
 
 	/**
@@ -153,7 +137,7 @@ public final class Context {
 	 */
 	public void broadcastLocal(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		eventbus.broadcast(name, res.data(), res.groups(), true);
+		eventbus.broadcast(name, res.data, res.groups, true);
 	}
 
 	/**

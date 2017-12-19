@@ -48,7 +48,9 @@ public final class RemoteListenerEndpoint extends ListenerEndpoint {
 		} else if (groups != null) {
 			logger.warn("Moleculer V2 doesn't support grouped broadcast (message: " + payload.toString(false) + ")!");
 		}
-		map.put("data", payload);
+		if (payload != null) {
+			map.put("data", payload.asObject());
+		}
 		transporter.publish(PACKET_EVENT, nodeID, new CheckedTree(map));
 	}
 

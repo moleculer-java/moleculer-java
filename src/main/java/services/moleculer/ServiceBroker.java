@@ -334,9 +334,8 @@ public final class ServiceBroker {
 	 */
 	public Promise call(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		CallingOptions.Options opts = res.opts();
-		String targetID = opts == null ? null : opts.nodeID();
-		return registry.getAction(name, targetID).call(res.data(), opts, res.parent());
+		String targetID = res.opts == null ? null : res.opts.nodeID;
+		return registry.getAction(name, targetID).call(res.data, res.opts, (Context) null);
 	}
 
 	public Promise call(String name, Tree params) {
@@ -344,7 +343,7 @@ public final class ServiceBroker {
 	}
 
 	public Promise call(String name, Tree params, CallingOptions.Options opts) {
-		String targetID = opts == null ? null : opts.nodeID();
+		String targetID = opts == null ? null : opts.nodeID;
 		return registry.getAction(name, targetID).call(params, opts, (Context) null);
 	}
 
@@ -355,7 +354,7 @@ public final class ServiceBroker {
 	 */
 	public void emit(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		eventbus.emit(name, res.data(), res.groups(), false);
+		eventbus.emit(name, res.data, res.groups, false);
 	}
 	
 	/**
@@ -379,7 +378,7 @@ public final class ServiceBroker {
 	 */
 	public void broadcast(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		eventbus.broadcast(name, res.data(), res.groups(), false);
+		eventbus.broadcast(name, res.data, res.groups, false);
 	}
 	
 	/**
@@ -403,7 +402,7 @@ public final class ServiceBroker {
 	 */
 	public void broadcastLocal(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		eventbus.broadcast(name, res.data(), res.groups(), true);
+		eventbus.broadcast(name, res.data, res.groups, true);
 	}
 	
 	/**

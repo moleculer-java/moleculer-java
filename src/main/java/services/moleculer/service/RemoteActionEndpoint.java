@@ -90,9 +90,10 @@ public final class RemoteActionEndpoint extends ActionEndpoint {
 		if (opts == null) {
 			timeout = defaultTimeout;
 		} else {
-			timeout = opts.timeout();
-			if (timeout < 1) {
+			if (opts.timeout < 1) {
 				timeout = defaultTimeout;
+			} else {
+				timeout = opts.timeout;				
 			}
 		}
 		long timeoutAt;
@@ -103,7 +104,7 @@ public final class RemoteActionEndpoint extends ActionEndpoint {
 		}
 
 		// Register promise (timeout and response handling)
-		registry.register(ctx.id(), promise, timeoutAt);
+		registry.register(ctx.id, promise, timeoutAt);
 
 		// Send request via transporter
 		Tree message = transporter.createRequestPacket(ctx);

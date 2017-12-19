@@ -96,39 +96,39 @@ import services.moleculer.util.CheckedTree;
  * @see RedisCacher
  */
 @Name("Off-heap Memory Cacher")
-public final class OHCacher extends Cacher {
+public class OHCacher extends Cacher {
 
 	// --- CONTENT CONTAINER NAME ---
 
-	private static final String CONTENT = "_";
+	protected static final String CONTENT = "_";
 	
 	// --- PROPERTIES ---
 
 	/**
 	 * Maximum capacity of whole cache in MEGABYTES
 	 */
-	private long capacity;
+	protected long capacity;
 
 	/**
 	 * Number of segments (must be a power of 2), defaults to number-of-cores *
 	 * 2
 	 */
-	private int segmentCount;
+	protected int segmentCount;
 
 	/**
 	 * Hash table size (must be a power of 2), defaults to 8192
 	 */
-	private int hashTableSize;
+	protected int hashTableSize;
 
 	/**
 	 * Expire time, in seconds (0 = never expires)
 	 */
-	private int ttl;
+	protected int ttl;
 
 	/**
 	 * Compress key and/or value above this size (BYTES)
 	 */
-	private int compressAbove = 1024;
+	protected int compressAbove = 1024;
 
 	// --- SERIALIZER / DESERIALIZER ---
 
@@ -136,7 +136,7 @@ public final class OHCacher extends Cacher {
 
 	// --- OFF-HEAP CACHE INSTANCE ---
 
-	private OHCache<byte[], byte[]> cache;
+	protected OHCache<byte[], byte[]> cache;
 
 	// --- CONSTRUCTORS ---
 
@@ -195,7 +195,7 @@ public final class OHCacher extends Cacher {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
 		capacity = config.get("capacity", capacity);
@@ -280,7 +280,7 @@ public final class OHCacher extends Cacher {
 	// --- CLOSE CACHE INSTANCE ---
 
 	@Override
-	public final void stop() {
+	public void stop() {
 		if (cache != null) {
 			try {
 				cache.close();
@@ -293,7 +293,7 @@ public final class OHCacher extends Cacher {
 	// --- IMPLEMENTED CACHE METHODS ---
 
 	@Override
-	public final Promise get(String key) {
+	public Promise get(String key) {
 		try {
 			byte[] bytes = cache.get(keyToBytes(key));
 			if (bytes != null) {
@@ -306,7 +306,7 @@ public final class OHCacher extends Cacher {
 	}
 
 	@Override
-	public final Promise set(String key, Tree value, int ttl) {
+	public Promise set(String key, Tree value, int ttl) {
 		try {
 			if (value == null) {
 				cache.remove(keyToBytes(key));
@@ -329,7 +329,7 @@ public final class OHCacher extends Cacher {
 	}
 
 	@Override
-	public final Promise del(String key) {
+	public Promise del(String key) {
 		try {
 			cache.remove(keyToBytes(key));
 		} catch (Throwable cause) {
@@ -339,7 +339,7 @@ public final class OHCacher extends Cacher {
 	}
 
 	@Override
-	public final Promise clean(String match) {
+	public Promise clean(String match) {
 		try {
 			if (match.isEmpty() || match.startsWith("*")) {
 				cache.clear();
@@ -363,7 +363,7 @@ public final class OHCacher extends Cacher {
 
 	// --- CACHE SERIALIZER ---
 
-	private final byte[] keyToBytes(String key) throws Exception {
+	protected byte[] keyToBytes(String key) throws Exception {
 		int i = key.indexOf(':');
 
 		byte[] part1;
@@ -399,7 +399,7 @@ public final class OHCacher extends Cacher {
 		return out.toByteArray();
 	}
 
-	private final String bytesToKey(byte[] bytes) throws Exception {
+	protected String bytesToKey(byte[] bytes) throws Exception {
 
 		// Read key packet
 		ByteArrayInputStream in = new ByteArrayInputStream(bytes);
@@ -414,7 +414,7 @@ public final class OHCacher extends Cacher {
 		return new String(part1, StandardCharsets.UTF_8);
 	}
 
-	private final byte[] valueToBytes(Tree tree) throws Exception {
+	protected byte[] valueToBytes(Tree tree) throws Exception {
 
 		// Compress content
 		Tree root = new CheckedTree(Collections.singletonMap(CONTENT, tree.asObject()));
@@ -436,7 +436,7 @@ public final class OHCacher extends Cacher {
 		return copy;
 	}
 
-	private final Tree bytesToValue(byte[] bytes) throws Exception {
+	protected Tree bytesToValue(byte[] bytes) throws Exception {
 
 		// Decompress content
 		byte[] copy = new byte[bytes.length - 1];
@@ -454,20 +454,20 @@ public final class OHCacher extends Cacher {
 		return root;
 	}
 
-	private static final class ArraySerializer implements CacheSerializer<byte[]> {
+	protected static class ArraySerializer implements CacheSerializer<byte[]> {
 
 		@Override
-		public final int serializedSize(byte[] value) {
+		public int serializedSize(byte[] value) {
 			return value.length;
 		}
 
 		@Override
-		public final void serialize(byte[] value, ByteBuffer buf) {
+		public void serialize(byte[] value, ByteBuffer buf) {
 			buf.put(value);
 		}
 
 		@Override
-		public final byte[] deserialize(ByteBuffer buf) {
+		public byte[] deserialize(ByteBuffer buf) {
 			int len = buf.remaining();
 			byte[] bytes = new byte[len];
 			buf.get(bytes, 0, len);
@@ -478,51 +478,51 @@ public final class OHCacher extends Cacher {
 
 	// --- GETTERS / SETTERS ---
 
-	public final long getCapacity() {
+	public long getCapacity() {
 		return capacity;
 	}
 
-	public final void setCapacity(long capacity) {
+	public void setCapacity(long capacity) {
 		this.capacity = capacity;
 	}
 
-	public final int getSegmentCount() {
+	public int getSegmentCount() {
 		return segmentCount;
 	}
 
-	public final void setSegmentCount(int segmentCount) {
+	public void setSegmentCount(int segmentCount) {
 		this.segmentCount = segmentCount;
 	}
 
-	public final int getHashTableSize() {
+	public int getHashTableSize() {
 		return hashTableSize;
 	}
 
-	public final void setHashTableSize(int hashTableSize) {
+	public void setHashTableSize(int hashTableSize) {
 		this.hashTableSize = hashTableSize;
 	}
 
-	public final int getTtl() {
+	public int getTtl() {
 		return ttl;
 	}
 
-	public final void setTtl(int ttl) {
+	public void setTtl(int ttl) {
 		this.ttl = ttl;
 	}
 
-	public final int getCompressAbove() {
+	public int getCompressAbove() {
 		return compressAbove;
 	}
 
-	public final void setCompressAbove(int compressAbove) {
+	public void setCompressAbove(int compressAbove) {
 		this.compressAbove = compressAbove;
 	}
 
-	public final Serializer getSerializer() {
+	public Serializer getSerializer() {
 		return serializer;
 	}
 
-	public final void setSerializer(Serializer serializer) {
+	public void setSerializer(Serializer serializer) {
 		this.serializer = Objects.requireNonNull(serializer);
 	}
 

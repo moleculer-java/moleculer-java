@@ -35,13 +35,13 @@ import services.moleculer.uid.UIDGenerator;
  * Default implementation of Context Factory.
  */
 @Name("Default Context Factory")
-public final class DefaultContextFactory extends ContextFactory {
+public class DefaultContextFactory extends ContextFactory {
 
 	// --- COMPONENTS ---
 
-	private ServiceRegistry registry;
-	private EventBus eventbus;
-	private UIDGenerator uid;
+	protected ServiceRegistry registry;
+	protected EventBus eventbus;
+	protected UIDGenerator uid;
 
 	// --- START CONTEXT FACTORY ---
 
@@ -54,7 +54,7 @@ public final class DefaultContextFactory extends ContextFactory {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 		registry = broker.components().registry();
 		eventbus = broker.components().eventbus();
 		uid = broker.components().uid();		
@@ -63,7 +63,7 @@ public final class DefaultContextFactory extends ContextFactory {
 	// --- CREATE CONTEXT ---
 
 	@Override
-	public final Context create(String name, Tree params, CallingOptions.Options opts, Context parent, boolean generateID) {
+	public Context create(String name, Tree params, CallingOptions.Options opts, Context parent, boolean generateID) {
 
 		// Generate ID
 		String id;

@@ -66,8 +66,8 @@ public class Test {
 
 			@Cache(keys = { "a", "b" })
 			public Action add = ctx -> {
-				int a = ctx.params().get("a", 0);
-				int b = ctx.params().get("b", 0);
+				int a = ctx.params.get("a", 0);
+				int b = ctx.params.get("b", 0);
 				return a + b;
 			};
 

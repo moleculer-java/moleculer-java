@@ -27,66 +27,57 @@ package services.moleculer.context;
 /**
  * Calling options (timeout, target nodeID, number of retries).
  */
-public final class CallingOptions {
+public class CallingOptions {
 
 	// --- PROPERTIES ---
 
-	public static final class Options {
+	public static class Options {
 	
-		private String nodeID;
-		private int timeout;
-		private int retryCount;
+		public final String nodeID;
+		public final int timeout;
+		public final int retryCount;
 
-		// --- VARIABLE SETTERS ---
-
-		public final Options nodeID(String nodeID) {
+		// --- CONSTRUCTOR ---
+		
+		protected Options(String nodeID, int timeout, int retryCount) {
 			this.nodeID = nodeID;
-			return this;
-		}
-
-		public final Options timeout(int timeout) {
 			this.timeout = timeout;
-			return this;
-		}
-
-		public final Options retryCount(int retryCount) {
 			this.retryCount = retryCount;
-			return this;
 		}
 		
-		// --- VARIABLE GETTERS ---
+		// --- VARIABLE SETTERS ---
 
-		public final String nodeID() {
-			return nodeID;
+		public Options nodeID(String nodeID) {
+			return new Options(nodeID, timeout, retryCount);
 		}
 
-		public final int timeout() {
-			return timeout;
+		public Options timeout(int timeout) {
+			return new Options(nodeID, timeout, retryCount);
 		}
 
-		public final int retryCount() {
-			return retryCount;
+		public Options retryCount(int retryCount) {
+			return new Options(nodeID, timeout, retryCount);
 		}
 		
 	}
 	
-	// --- PRIVATE CONSTRUTOR ---
+	// --- HIDDEN CONSTRUTOR ---
 
-	private CallingOptions() {
+	protected CallingOptions() {
 	}
 
 	// --- STATIC BUILDER-LIKE CONSTRUTOR ---
 	
-	public static final Options nodeID(String nodeID) {
-		return new Options().nodeID(nodeID);
+	public static Options nodeID(String nodeID) {
+		return new Options(nodeID, 0, 0);
 	}
 
-	public static final Options timeout(int timeout) {
-		return new Options().timeout(timeout);
+	public static Options timeout(int timeout) {
+		return new Options(null, timeout, 0);
 	}
 
-	public static final Options retryCount(int retryCount) {
-		return new Options().retryCount(retryCount);
+	public static Options retryCount(int retryCount) {
+		return new Options(null, 0, retryCount);
 	}
 
 }

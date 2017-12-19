@@ -59,33 +59,33 @@ import services.moleculer.service.Name;
  * @see OHCacher
  */
 @Name("On-heap Memory Cacher")
-public final class MemoryCacher extends Cacher implements Runnable {
+public class MemoryCacher extends Cacher implements Runnable {
 
 	// --- PROPERTIES ---
 
 	/**
 	 * Maximum number of entries per partition
 	 */
-	private int capacity;
+	protected int capacity;
 
 	/**
 	 * Expire time, in seconds (0 = never expires)
 	 */
-	private int ttl;
+	protected int ttl;
 
 	/**
 	 * Cleanup period time, in seconds (0 = disable cleanup process)
 	 */
-	private int cleanup = 5;
+	protected int cleanup = 5;
 
 	// --- LOCKS ---
 
-	private final Lock readLock;
-	private final Lock writeLock;
+	protected final Lock readLock;
+	protected final Lock writeLock;
 
 	// --- PARTITIONS / CACHE REGIONS ---
 
-	private final HashMap<String, MemoryPartition> partitions = new HashMap<>();
+	protected final HashMap<String, MemoryPartition> partitions = new HashMap<>();
 
 	// --- CONSTUCTORS ---
 
@@ -120,7 +120,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	/**
 	 * Cancelable timer
 	 */
-	private volatile ScheduledFuture<?> timer;
+	protected volatile ScheduledFuture<?> timer;
 
 	/**
 	 * Initializes cacher instance.
@@ -131,7 +131,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
 		capacity = config.get("capacity", capacity);
@@ -151,7 +151,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	// --- REMOVE OLD ENTRIES ---
 
 	@Override
-	public final void run() {
+	public void run() {
 		long now = System.currentTimeMillis();
 		readLock.lock();
 		try {
@@ -166,7 +166,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	// --- STOP CACHER ---
 
 	@Override
-	public final void stop() {
+	public void stop() {
 
 		// Stop timer
 		if (timer != null) {
@@ -186,7 +186,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	// --- CACHE METHODS ---
 
 	@Override
-	public final Promise get(String key) {
+	public Promise get(String key) {
 		try {
 			int pos = partitionPosition(key, true);
 			String prefix = key.substring(0, pos);
@@ -207,7 +207,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	}
 
 	@Override
-	public final Promise set(String key, Tree value, int ttl) {
+	public Promise set(String key, Tree value, int ttl) {
 		int pos = partitionPosition(key, true);
 		String prefix = key.substring(0, pos);
 		MemoryPartition partition;
@@ -236,7 +236,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	}
 
 	@Override
-	public final Promise del(String key) {
+	public Promise del(String key) {
 		int pos = partitionPosition(key, true);
 		String prefix = key.substring(0, pos);
 		MemoryPartition partition;
@@ -253,7 +253,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 	}
 
 	@Override
-	public final Promise clean(String match) {
+	public Promise clean(String match) {
 		int pos = partitionPosition(match, false);
 		if (pos > 0) {
 
@@ -296,7 +296,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 		return Promise.resolve();
 	}
 
-	private static final int partitionPosition(String key, boolean throwErrorIfMissing) {
+	protected static final int partitionPosition(String key, boolean throwErrorIfMissing) {
 		int i = key.indexOf(':');
 		if (i == -1) {
 			i = key.lastIndexOf('.');
@@ -311,20 +311,20 @@ public final class MemoryCacher extends Cacher implements Runnable {
 
 	// --- MEMORY PARTITION ---
 
-	private static final class MemoryPartition {
+	protected static class MemoryPartition {
 
 		// --- LOCKS ---
 
-		private final Lock readerLock;
-		private final Lock writerLock;
+		protected final Lock readerLock;
+		protected final Lock writerLock;
 
 		// --- MEMORY CACHE PARTITION ---
 
-		private final LinkedHashMap<String, PartitionEntry> cache;
+		protected final LinkedHashMap<String, PartitionEntry> cache;
 
 		// --- CONSTUCTORS ---
 
-		private MemoryPartition(int capacity) {
+		protected MemoryPartition(int capacity) {
 
 			// Create lockers
 			ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);
@@ -347,7 +347,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 
 		// --- REMOVE OLD ENTRIES ---
 
-		private final void removeOldEntries(long now) {
+		protected void removeOldEntries(long now) {
 			writerLock.lock();
 			try {
 				Iterator<Map.Entry<String, PartitionEntry>> i = cache.entrySet().iterator();
@@ -367,7 +367,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 
 		// --- CACHE METHODS ---
 
-		private final Tree get(String key) throws Exception {
+		protected Tree get(String key) throws Exception {
 			PartitionEntry entry;
 			readerLock.lock();
 			try {
@@ -381,7 +381,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 			return entry.value;
 		}
 
-		private final void set(String key, Tree value, int ttl) {
+		protected void set(String key, Tree value, int ttl) {
 			writerLock.lock();
 			try {
 				if (value == null) {
@@ -400,7 +400,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 			}
 		}
 
-		private final void del(String key) {
+		protected void del(String key) {
 			writerLock.lock();
 			try {
 				cache.remove(key);
@@ -409,7 +409,7 @@ public final class MemoryCacher extends Cacher implements Runnable {
 			}
 		}
 
-		private final void clean(String match) {
+		protected void clean(String match) {
 			writerLock.lock();
 			try {
 				if (match.isEmpty() || match.startsWith("*")) {
@@ -435,12 +435,12 @@ public final class MemoryCacher extends Cacher implements Runnable {
 
 	// --- PARTITION ENTRY ---
 
-	private static final class PartitionEntry {
+	protected static class PartitionEntry {
 
-		private final Tree value;
-		private final long expireAt;
+		protected final Tree value;
+		protected final long expireAt;
 
-		private PartitionEntry(Tree value, long expireAt) {
+		protected PartitionEntry(Tree value, long expireAt) {
 			this.value = value;
 			this.expireAt = expireAt;
 		}
@@ -449,27 +449,27 @@ public final class MemoryCacher extends Cacher implements Runnable {
 
 	// --- GETTERS / SETTERS ---
 
-	public final int getCapacity() {
+	public int getCapacity() {
 		return capacity;
 	}
 
-	public final void setCapacity(int capacity) {
+	public void setCapacity(int capacity) {
 		this.capacity = capacity;
 	}
 
-	public final int getTtl() {
+	public int getTtl() {
 		return ttl;
 	}
 
-	public final void setTtl(int ttl) {
+	public void setTtl(int ttl) {
 		this.ttl = ttl;
 	}
 
-	public final int getCleanup() {
+	public int getCleanup() {
 		return cleanup;
 	}
 
-	public final void setCleanup(int cleanup) {
+	public void setCleanup(int cleanup) {
 		this.cleanup = cleanup;
 	}
 

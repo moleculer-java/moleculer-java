@@ -415,9 +415,32 @@ public final class DefaultEventBus extends EventBus {
 			return;
 		}
 		if (strategies.length > 0) {
-			for (Strategy<ListenerEndpoint> strategy : strategies) {
+			
+			// nodeID -> group set
+			int size = strategies.length * 2;			
+			HashMap<String, HashSet<String>> targets = new HashMap<>(size);
+			ListenerEndpoint[] endpoints = new ListenerEndpoint[strategies.length];
+			
+			// Group targets
+			for (int i = 0; i < strategies.length; i++) {
+				ListenerEndpoint endpoint = strategies[i].getEndpoint(null);
+				HashSet<String> groupSet = targets.get(endpoint.nodeID);
+				if (groupSet == null) {
+					groupSet = new HashSet<>(size);
+					targets.put(endpoint.nodeID, groupSet);
+				}
+				endpoints[i] = endpoint;
+			}
+			
+			// Invoke endpoints
+			for (ListenerEndpoint endpoint: endpoints) {
 				try {
-					strategy.getEndpoint(null).on(name, payload, groups, true);
+					HashSet<String> groupSet = targets.remove(endpoint.nodeID);
+					if (groupSet != null) {
+						String[] array = new String[groupSet.size()];
+						groupSet.toArray(array);
+						endpoint.on(name, payload, Groups.of(array), true);
+					}
 				} catch (Exception cause) {
 					logger.error("Unable to invoke event listener!", cause);
 				}

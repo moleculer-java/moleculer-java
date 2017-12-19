@@ -44,7 +44,6 @@ import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.MoleculerComponent;
-import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.monitor.Monitor;
@@ -336,18 +335,19 @@ public abstract class Transporter implements MoleculerComponent {
 	// --- REQUEST PACKET ---
 
 	public Tree createRequestPacket(Context ctx) {
+		
+		// TODO
 		Tree message = new Tree();
 		message.put("ver", ServiceBroker.MOLECULER_VERSION);
 		message.put("sender", nodeID);
-		message.put("id", ctx.id());
-		message.put("action", ctx.name());
+		message.put("id", ctx.id);
+		message.put("action", ctx.name);
 
-		message.putObject("params", ctx.params());
+		message.putObject("params", ctx.params);
 		message.put("meta", (String) null);
 
-		CallingOptions.Options opts = ctx.opts();
-		if (opts != null) {
-			message.put("timeout", ctx.opts().timeout());
+		if (ctx.opts != null) {
+			message.put("timeout", ctx.opts.timeout);
 		}
 
 		message.put("level", 1);

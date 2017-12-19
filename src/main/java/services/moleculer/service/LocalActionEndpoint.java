@@ -113,9 +113,10 @@ public final class LocalActionEndpoint extends ActionEndpoint {
 		if (opts == null) {
 			timeout = defaultTimeout;
 		} else {
-			timeout = opts.timeout();
-			if (timeout < 1) {
+			if (opts.timeout < 1) {
 				timeout = defaultTimeout;
+			} else {
+				timeout = opts.timeout;
 			}
 		}
 		long timeoutAt;

@@ -77,19 +77,19 @@ import services.moleculer.util.CheckedTree;
  * @see RedisCacher
  */
 @Name("JCache-based Cacher")
-public final class JCacheCacher extends Cacher {
+public class JCacheCacher extends Cacher {
 
 	// --- CONTENT CONTAINER NAME ---
 
-	private static final String CONTENT = "_";
+	protected static final String CONTENT = "_";
 
 	// --- PARTITIONS / CACHE REGIONS ---
 
-	private final HashMap<String, javax.cache.Cache<String, byte[]>> partitions = new HashMap<>();
+	protected final HashMap<String, javax.cache.Cache<String, byte[]>> partitions = new HashMap<>();
 
 	// --- CACHE MANAGER ---
 
-	private CacheManager cacheManager;
+	protected CacheManager cacheManager;
 
 	// --- SERIALIZER / DESERIALIZER ---
 
@@ -97,8 +97,8 @@ public final class JCacheCacher extends Cacher {
 
 	// --- LOCKS ---
 
-	private final Lock readLock;
-	private final Lock writeLock;
+	protected final Lock readLock;
+	protected final Lock writeLock;
 
 	// --- CONSTUCTORS ---
 
@@ -126,7 +126,7 @@ public final class JCacheCacher extends Cacher {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Create serializer
 		Tree serializerNode = config.get("serializer");
@@ -170,7 +170,7 @@ public final class JCacheCacher extends Cacher {
 	// --- STOP CACHER ---
 
 	@Override
-	public final void stop() {
+	public void stop() {
 
 		// Close the cache manager
 		if (cacheManager != null) {
@@ -193,7 +193,7 @@ public final class JCacheCacher extends Cacher {
 	// --- CACHE METHODS ---
 
 	@Override
-	public final Promise get(String key) {
+	public Promise get(String key) {
 		try {
 			int pos = partitionPosition(key, true);
 			String prefix = key.substring(0, pos);
@@ -222,7 +222,7 @@ public final class JCacheCacher extends Cacher {
 	}
 
 	@Override
-	public final Promise set(String key, Tree value, int ttl) {
+	public Promise set(String key, Tree value, int ttl) {
 		try {
 			int pos = partitionPosition(key, true);
 			String prefix = key.substring(0, pos);
@@ -251,7 +251,7 @@ public final class JCacheCacher extends Cacher {
 	}
 
 	@Override
-	public final Promise del(String key) {
+	public Promise del(String key) {
 		int pos = partitionPosition(key, true);
 		String prefix = key.substring(0, pos);
 		javax.cache.Cache<String, byte[]> partition;
@@ -268,7 +268,7 @@ public final class JCacheCacher extends Cacher {
 	}
 
 	@Override
-	public final Promise clean(String match) {
+	public Promise clean(String match) {
 		try {
 			int pos = partitionPosition(match, false);
 			if (pos > 0) {
@@ -326,7 +326,7 @@ public final class JCacheCacher extends Cacher {
 		return Promise.resolve();
 	}
 
-	private static final void clean(javax.cache.Cache<String, byte[]> partition, String match) throws Exception {
+	protected static final void clean(javax.cache.Cache<String, byte[]> partition, String match) throws Exception {
 		Iterator<Entry<String, byte[]>> i = partition.iterator();
 		Entry<String, byte[]> entry;
 		while (i.hasNext()) {
@@ -337,7 +337,7 @@ public final class JCacheCacher extends Cacher {
 		}
 	}
 
-	private static final int partitionPosition(String key, boolean throwErrorIfMissing) {
+	protected static final int partitionPosition(String key, boolean throwErrorIfMissing) {
 		int i = key.indexOf(':');
 		if (i == -1) {
 			i = key.lastIndexOf('.');
@@ -352,11 +352,11 @@ public final class JCacheCacher extends Cacher {
 
 	// --- GETTERS / SETTERS ---
 
-	public final CacheManager getCacheManager() {
+	public CacheManager getCacheManager() {
 		return cacheManager;
 	}
 
-	public final void setCacheManager(CacheManager cacheManager) {
+	public void setCacheManager(CacheManager cacheManager) {
 		this.cacheManager = cacheManager;
 	}
 

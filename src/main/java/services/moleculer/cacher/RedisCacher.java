@@ -61,34 +61,34 @@ import services.moleculer.util.redis.RedisGetSetClient;
  * @see OHCacher
  */
 @Name("Redis Cacher")
-public final class RedisCacher extends Cacher implements EventBus {
+public class RedisCacher extends Cacher implements EventBus {
 
 	// --- CONTENT CONTAINER NAME ---
 
-	private static final String CONTENT = "_";
+	protected static final String CONTENT = "_";
 
 	// --- LIST OF STATUS CODES ---
 
-	private static final int STATUS_DISCONNECTING = 1;
-	private static final int STATUS_DISCONNECTED = 2;
-	private static final int STATUS_CONNECTING = 3;
-	private static final int STATUS_CONNECTED = 4;
-	private static final int STATUS_STOPPED = 5;
+	protected static final int STATUS_DISCONNECTING = 1;
+	protected static final int STATUS_DISCONNECTED = 2;
+	protected static final int STATUS_CONNECTING = 3;
+	protected static final int STATUS_CONNECTED = 4;
+	protected static final int STATUS_STOPPED = 5;
 
 	// --- CONNECTION STATUS ---
 
-	private final AtomicInteger status = new AtomicInteger(STATUS_DISCONNECTED);
+	protected final AtomicInteger status = new AtomicInteger(STATUS_DISCONNECTED);
 
 	// --- PROPERTIES ---
 
-	private String password;
-	private int ttl;
-	private boolean secure;
-	private String[] urls = new String[] { "127.0.0.1" };
+	protected String password;
+	protected int ttl;
+	protected boolean secure;
+	protected String[] urls = new String[] { "127.0.0.1" };
 
 	// --- REDIS CLIENT ---
 
-	private RedisGetSetClient client;
+	protected RedisGetSetClient client;
 
 	// --- SERIALIZER / DESERIALIZER ---
 
@@ -117,7 +117,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 
 	// --- INIT CACHE INSTANCE ---
 
-	private SetArgs expiration;
+	protected SetArgs expiration;
 
 	/**
 	 * Initializes cacher instance.
@@ -128,7 +128,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
 		Tree urlNode = config.get("url");
@@ -193,7 +193,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 
 	// --- CONNECT ---
 
-	private final void connect() {
+	protected void connect() {
 		status.set(STATUS_CONNECTING);
 
 		// Create redis client
@@ -217,7 +217,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 
 	// --- DISCONNECT ---
 
-	private final Promise disconnect() {
+	protected Promise disconnect() {
 		if (client == null) {
 			status.set(STATUS_DISCONNECTED);
 			return Promise.resolve();
@@ -230,7 +230,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 
 	// --- RECONNECT ---
 
-	private final void reconnect() {
+	protected void reconnect() {
 		disconnect().then(ok -> {
 			logger.info("Trying to reconnect...");
 			scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
@@ -243,7 +243,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 	// --- CLOSE CACHE INSTANCE ---
 
 	@Override
-	public final void stop() {
+	public void stop() {
 		int s = status.getAndSet(STATUS_STOPPED);
 		if (s != STATUS_STOPPED) {
 			disconnect();
@@ -255,7 +255,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 	// --- CACHE METHODS ---
 
 	@Override
-	public final Promise get(String key) {
+	public Promise get(String key) {
 		if (status.get() == STATUS_CONNECTED) {
 			try {
 				return client.get(key).then(in -> {
@@ -284,7 +284,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 	}
 
 	@Override
-	public final Promise set(String key, Tree value, int ttl) {
+	public Promise set(String key, Tree value, int ttl) {
 		if (status.get() == STATUS_CONNECTED) {
 			try {
 				SetArgs args;
@@ -307,7 +307,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 	}
 
 	@Override
-	public final Promise del(String key) {
+	public Promise del(String key) {
 		if (status.get() == STATUS_CONNECTED) {
 			try {
 				return client.del(key);
@@ -319,7 +319,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 	}
 
 	@Override
-	public final Promise clean(String match) {
+	public Promise clean(String match) {
 		if (status.get() == STATUS_CONNECTED) {
 			try {
 				return client.clean(match);
@@ -333,7 +333,7 @@ public final class RedisCacher extends Cacher implements EventBus {
 	// --- REDIS EVENT LISTENER METHODS ---
 
 	@Override
-	public final void publish(Event event) {
+	public void publish(Event event) {
 
 		// Check state
 		if (status.get() == STATUS_STOPPED) {
@@ -362,49 +362,49 @@ public final class RedisCacher extends Cacher implements EventBus {
 	}
 
 	@Override
-	public final Observable<Event> get() {
+	public Observable<Event> get() {
 		return null;
 	}
 
 	// --- GETTERS / SETTERS ---
 
-	public final String[] getUrls() {
+	public String[] getUrls() {
 		return urls;
 	}
 
-	public final void setUrls(String[] urls) {
+	public void setUrls(String[] urls) {
 		this.urls = urls;
 	}
 
-	public final String getPassword() {
+	public String getPassword() {
 		return password;
 	}
 
-	public final void setPassword(String password) {
+	public void setPassword(String password) {
 		this.password = password;
 	}
 
-	public final boolean isSecure() {
+	public boolean isSecure() {
 		return secure;
 	}
 
-	public final void setSecure(boolean useSSL) {
+	public void setSecure(boolean useSSL) {
 		this.secure = useSSL;
 	}
 
-	public final int getTtl() {
+	public int getTtl() {
 		return ttl;
 	}
 
-	public final void setTtl(int ttl) {
+	public void setTtl(int ttl) {
 		this.ttl = ttl;
 	}
 
-	public final Serializer getSerializer() {
+	public Serializer getSerializer() {
 		return serializer;
 	}
 
-	public final void setSerializer(Serializer serializer) {
+	public void setSerializer(Serializer serializer) {
 		this.serializer = Objects.requireNonNull(serializer);
 	}
 

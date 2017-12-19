@@ -36,7 +36,6 @@ import java.util.zip.Inflater;
 import io.datatree.Tree;
 import io.datatree.dom.TreeReaderRegistry;
 import services.moleculer.context.CallingOptions;
-import services.moleculer.context.Context;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.service.Name;
 
@@ -47,7 +46,6 @@ public final class CommonUtils {
 
 	public static final ParseResult parseParams(Object[] params) {
 		Tree data = null;
-		Context parent = null;
 		CallingOptions.Options opts = null;
 		Groups groups = null;
 		if (params != null) {
@@ -69,10 +67,6 @@ public final class CommonUtils {
 								opts = (CallingOptions.Options) value;
 								continue;
 							}
-							if (value instanceof Context) {
-								parent = (Context) value;
-								continue;
-							}
 							if (value instanceof Groups) {
 								groups = (Groups) value;
 								continue;
@@ -90,7 +84,7 @@ public final class CommonUtils {
 				data = new Tree(map);
 			}
 		}
-		return new ParseResult(data, parent, opts, groups);
+		return new ParseResult(data, opts, groups);
 	}
 
 	public static final String serializerTypeToClass(String type) {
