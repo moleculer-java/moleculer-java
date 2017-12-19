@@ -93,7 +93,7 @@ public final class CommonUtils {
 			return "services.moleculer.serializer.JsonSerializer";
 		}
 		if ("msgpack".equals(test) || "messagepack".equals(test)) {
-			return "services.moleculer.serializer.MessagePackSerializer";
+			return "services.moleculer.serializer.MsgPackSerializer";
 		}
 		if ("smile".equals(test)) {
 			return "services.moleculer.serializer.SmileSerializer";
@@ -106,9 +106,6 @@ public final class CommonUtils {
 		}
 		if ("cbor".equals(test)) {
 			return "services.moleculer.serializer.CborSerializer";
-		}
-		if ("xml".equals(test)) {
-			return "services.moleculer.serializer.XmlSerializer";
 		}
 		if (test.indexOf('.') > -1) {
 			return type;

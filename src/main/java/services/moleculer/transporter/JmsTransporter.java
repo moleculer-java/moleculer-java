@@ -68,44 +68,44 @@ import services.moleculer.service.Name;
  * @see GoogleCloudTransporter
  */
 @Name("JMS Transporter")
-public final class JmsTransporter extends Transporter {
+public class JmsTransporter extends Transporter {
 
 	// --- PROPERTIES ---
 
-	private String username;
-	private String password;
+	protected String username;
+	protected String password;
 
 	// --- OTHER JMS PROPERTIES ---
 
-	private boolean transacted;
-	private int acknowledgeMode = JMSContext.AUTO_ACKNOWLEDGE;
-	private int deliveryMode = DeliveryMode.NON_PERSISTENT;
-	private int priority = 5;
-	private int ttl = 1;
+	protected boolean transacted;
+	protected int acknowledgeMode = JMSContext.AUTO_ACKNOWLEDGE;
+	protected int deliveryMode = DeliveryMode.NON_PERSISTENT;
+	protected int priority = 5;
+	protected int ttl = 1;
 
 	// --- CONNECTION FACTORY NAME IN JNDI ---
 
-	private String connectionFactoryJndiName = "moleculerConnectionFactory";
+	protected String connectionFactoryJndiName = "moleculerConnectionFactory";
 
 	// --- JMS CONNECTION FACTORY ---
 
-	private TopicConnectionFactory factory;
+	protected TopicConnectionFactory factory;
 
 	// --- JMS CONNECTION ---
 
-	private TopicConnection client;
+	protected TopicConnection client;
 
 	// --- JMS SESSION ---
 
-	private TopicSession session;
+	protected TopicSession session;
 
 	// --- CHANNEL NAME/PUBLISHER MAP ---
 
-	private final HashMap<String, TopicPublisher> publishers = new HashMap<>(64);
+	protected final HashMap<String, TopicPublisher> publishers = new HashMap<>(64);
 
 	// --- CHANNEL NAME/SUBSCRIBER MAP ---
 
-	private final HashMap<String, TopicSubscriber> subscribers = new HashMap<>(64);
+	protected final HashMap<String, TopicSubscriber> subscribers = new HashMap<>(64);
 
 	// --- CONSTUCTORS ---
 
@@ -153,7 +153,7 @@ public final class JmsTransporter extends Transporter {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process basic properties (eg. "prefix")
 		super.start(broker, config);
@@ -174,7 +174,7 @@ public final class JmsTransporter extends Transporter {
 
 	// --- CONNECT ---
 
-	private final void connect() {
+	protected void connect() {
 		try {
 
 			// Create JMS client and session
@@ -206,7 +206,7 @@ public final class JmsTransporter extends Transporter {
 
 	// --- DISCONNECT ---
 
-	private final void disconnect() {
+	protected void disconnect() {
 		if (client != null) {
 			try {
 				client.stop();
@@ -249,7 +249,7 @@ public final class JmsTransporter extends Transporter {
 
 	// --- RECONNECT ---
 
-	private final void reconnect(Throwable cause) {
+	protected void reconnect(Throwable cause) {
 		if (cause != null) {
 			String msg = cause.getMessage();
 			if (msg == null || msg.isEmpty()) {
@@ -267,7 +267,7 @@ public final class JmsTransporter extends Transporter {
 	// --- ANY I/O ERROR ---
 
 	@Override
-	protected final void error(Throwable cause) {
+	protected void error(Throwable cause) {
 		reconnect(cause);
 	}
 
@@ -277,14 +277,14 @@ public final class JmsTransporter extends Transporter {
 	 * Closes transporter.
 	 */
 	@Override
-	public final void stop() {
+	public void stop() {
 		disconnect();
 	}
 
 	// --- SUBSCRIBE ---
 
 	@Override
-	public final Promise subscribe(String channel) {
+	public Promise subscribe(String channel) {
 		try {
 
 			// Create publisher
@@ -313,7 +313,7 @@ public final class JmsTransporter extends Transporter {
 		return Promise.resolve();
 	}
 
-	private final TopicPublisher createOrGetPublisher(String channel) throws Exception {
+	protected TopicPublisher createOrGetPublisher(String channel) throws Exception {
 		TopicPublisher publisher;
 		synchronized (publishers) {
 			publisher = publishers.get(channel);
@@ -331,7 +331,7 @@ public final class JmsTransporter extends Transporter {
 	// --- PUBLISH ---
 
 	@Override
-	public final void publish(String channel, Tree message) {
+	public void publish(String channel, Tree message) {
 		if (client != null) {
 			try {
 				if (debug) {
@@ -364,75 +364,75 @@ public final class JmsTransporter extends Transporter {
 
 	// --- GETTERS / SETTERS ---
 
-	public final String getUsername() {
+	public String getUsername() {
 		return username;
 	}
 
-	public final void setUsername(String username) {
+	public void setUsername(String username) {
 		this.username = username;
 	}
 
-	public final String getPassword() {
+	public String getPassword() {
 		return password;
 	}
 
-	public final void setPassword(String password) {
+	public void setPassword(String password) {
 		this.password = password;
 	}
 
-	public final int getAcknowledgeMode() {
+	public int getAcknowledgeMode() {
 		return acknowledgeMode;
 	}
 
-	public final void setAcknowledgeMode(int acknowledgeMode) {
+	public void setAcknowledgeMode(int acknowledgeMode) {
 		this.acknowledgeMode = acknowledgeMode;
 	}
 
-	public final int getDeliveryMode() {
+	public int getDeliveryMode() {
 		return deliveryMode;
 	}
 
-	public final void setDeliveryMode(int deliveryMode) {
+	public void setDeliveryMode(int deliveryMode) {
 		this.deliveryMode = deliveryMode;
 	}
 
-	public final TopicConnectionFactory getTopicConnectionFactory() {
+	public TopicConnectionFactory getTopicConnectionFactory() {
 		return factory;
 	}
 
-	public final void setTopicConnectionFactory(TopicConnectionFactory factory) {
+	public void setTopicConnectionFactory(TopicConnectionFactory factory) {
 		this.factory = factory;
 	}
 
-	public final boolean isTransacted() {
+	public boolean isTransacted() {
 		return transacted;
 	}
 
-	public final void setTransacted(boolean transacted) {
+	public void setTransacted(boolean transacted) {
 		this.transacted = transacted;
 	}
 
-	public final int getPriority() {
+	public int getPriority() {
 		return priority;
 	}
 
-	public final void setPriority(int priority) {
+	public void setPriority(int priority) {
 		this.priority = priority;
 	}
 
-	public final int getTtl() {
+	public int getTtl() {
 		return ttl;
 	}
 
-	public final void setTtl(int ttl) {
+	public void setTtl(int ttl) {
 		this.ttl = ttl;
 	}
 
-	public final String getConnectionFactoryJndiName() {
+	public String getConnectionFactoryJndiName() {
 		return connectionFactoryJndiName;
 	}
 
-	public final void setConnectionFactoryJndiName(String connectionFactoryJndiName) {
+	public void setConnectionFactoryJndiName(String connectionFactoryJndiName) {
 		this.connectionFactoryJndiName = connectionFactoryJndiName;
 	}
 

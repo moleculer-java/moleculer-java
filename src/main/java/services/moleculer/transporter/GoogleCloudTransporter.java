@@ -70,27 +70,27 @@ import services.moleculer.service.Name;
  * @see SocketClusterTransporter
  */
 @Name("Google Cloud Pub/Sub Transporter")
-public final class GoogleCloudTransporter extends Transporter {
+public class GoogleCloudTransporter extends Transporter {
 
 	// --- PROPERTIES ---
 
-	private String projectID = ServiceOptions.getDefaultProjectId();
-	private BatchingSettings batchingSettings;
-	private TransportChannelProvider channelProvider;
-	private CredentialsProvider credentialsProvider;
-	private ExecutorProvider executorProvider;
-	private HeaderProvider headerProvider;
-	private RetrySettings retrySettings;
-	private Duration maxAckExtensionPeriod;
-	private int parallelPullCount;
+	protected String projectID = ServiceOptions.getDefaultProjectId();
+	protected BatchingSettings batchingSettings;
+	protected TransportChannelProvider channelProvider;
+	protected CredentialsProvider credentialsProvider;
+	protected ExecutorProvider executorProvider;
+	protected HeaderProvider headerProvider;
+	protected RetrySettings retrySettings;
+	protected Duration maxAckExtensionPeriod;
+	protected int parallelPullCount;
 
 	// --- CHANNEL NAME/PUBLISHER MAP ---
 
-	private final HashMap<String, Publisher> publishers = new HashMap<>(64);
+	protected final HashMap<String, Publisher> publishers = new HashMap<>(64);
 
 	// --- CHANNEL NAME/SUBSCRIBER MAP ---
 
-	private final HashMap<String, Subscriber> subscribers = new HashMap<>(64);
+	protected final HashMap<String, Subscriber> subscribers = new HashMap<>(64);
 
 	// --- CONSTUCTORS ---
 
@@ -113,7 +113,7 @@ public final class GoogleCloudTransporter extends Transporter {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process basic properties (eg. "prefix")
 		super.start(broker, config);
@@ -124,7 +124,7 @@ public final class GoogleCloudTransporter extends Transporter {
 
 	// --- CONNECT ---
 
-	private final void connect() {
+	protected void connect() {
 		try {
 
 			// Create Google Cloud client
@@ -141,7 +141,7 @@ public final class GoogleCloudTransporter extends Transporter {
 
 	// --- DISCONNECT ---
 
-	private final void disconnect() {
+	protected void disconnect() {
 		boolean connected;
 		synchronized (publishers) {
 			connected = !publishers.isEmpty();
@@ -181,7 +181,7 @@ public final class GoogleCloudTransporter extends Transporter {
 
 	// --- RECONNECT ---
 
-	private final void reconnect(Throwable cause) {
+	protected void reconnect(Throwable cause) {
 		if (cause != null) {
 			String msg = cause.getMessage();
 			if (msg == null || msg.isEmpty()) {
@@ -199,7 +199,7 @@ public final class GoogleCloudTransporter extends Transporter {
 	// --- ANY I/O ERROR ---
 
 	@Override
-	protected final void error(Throwable cause) {
+	protected void error(Throwable cause) {
 		reconnect(cause);
 	}
 
@@ -209,14 +209,14 @@ public final class GoogleCloudTransporter extends Transporter {
 	 * Closes transporter.
 	 */
 	@Override
-	public final void stop() {
+	public void stop() {
 		disconnect();
 	}
 
 	// --- SUBSCRIBE ---
 
 	@Override
-	public final Promise subscribe(String channel) {
+	public Promise subscribe(String channel) {
 		try {
 
 			// Create publisher
@@ -291,7 +291,7 @@ public final class GoogleCloudTransporter extends Transporter {
 		return Promise.resolve();
 	}
 
-	private final Publisher getOrCreatePublisher(String channel) throws Exception {
+	protected Publisher getOrCreatePublisher(String channel) throws Exception {
 		Publisher publisher;
 		synchronized (publishers) {
 			publisher = publishers.get(channel);
@@ -341,7 +341,7 @@ public final class GoogleCloudTransporter extends Transporter {
 	// --- PUBLISH ---
 
 	@Override
-	public final void publish(String channel, Tree message) {
+	public void publish(String channel, Tree message) {
 		try {
 			if (debug) {
 				logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
@@ -356,75 +356,75 @@ public final class GoogleCloudTransporter extends Transporter {
 
 	// --- GETTERS / SETTERS ---
 
-	public final String getProjectID() {
+	public String getProjectID() {
 		return projectID;
 	}
 
-	public final void setProjectID(String projectID) {
+	public void setProjectID(String projectID) {
 		this.projectID = projectID;
 	}
 
-	public final BatchingSettings getBatchingSettings() {
+	public BatchingSettings getBatchingSettings() {
 		return batchingSettings;
 	}
 
-	public final void setBatchingSettings(BatchingSettings batchingSettings) {
+	public void setBatchingSettings(BatchingSettings batchingSettings) {
 		this.batchingSettings = batchingSettings;
 	}
 
-	public final TransportChannelProvider getChannelProvider() {
+	public TransportChannelProvider getChannelProvider() {
 		return channelProvider;
 	}
 
-	public final void setChannelProvider(TransportChannelProvider channelProvider) {
+	public void setChannelProvider(TransportChannelProvider channelProvider) {
 		this.channelProvider = channelProvider;
 	}
 
-	public final CredentialsProvider getCredentialsProvider() {
+	public CredentialsProvider getCredentialsProvider() {
 		return credentialsProvider;
 	}
 
-	public final void setCredentialsProvider(CredentialsProvider credentialsProvider) {
+	public void setCredentialsProvider(CredentialsProvider credentialsProvider) {
 		this.credentialsProvider = credentialsProvider;
 	}
 
-	public final ExecutorProvider getExecutorProvider() {
+	public ExecutorProvider getExecutorProvider() {
 		return executorProvider;
 	}
 
-	public final void setExecutorProvider(ExecutorProvider executorProvider) {
+	public void setExecutorProvider(ExecutorProvider executorProvider) {
 		this.executorProvider = executorProvider;
 	}
 
-	public final HeaderProvider getHeaderProvider() {
+	public HeaderProvider getHeaderProvider() {
 		return headerProvider;
 	}
 
-	public final void setHeaderProvider(HeaderProvider headerProvider) {
+	public void setHeaderProvider(HeaderProvider headerProvider) {
 		this.headerProvider = headerProvider;
 	}
 
-	public final RetrySettings getRetrySettings() {
+	public RetrySettings getRetrySettings() {
 		return retrySettings;
 	}
 
-	public final void setRetrySettings(RetrySettings retrySettings) {
+	public void setRetrySettings(RetrySettings retrySettings) {
 		this.retrySettings = retrySettings;
 	}
 
-	public final Duration getMaxAckExtensionPeriod() {
+	public Duration getMaxAckExtensionPeriod() {
 		return maxAckExtensionPeriod;
 	}
 
-	public final void setMaxAckExtensionPeriod(Duration maxAckExtensionPeriod) {
+	public void setMaxAckExtensionPeriod(Duration maxAckExtensionPeriod) {
 		this.maxAckExtensionPeriod = maxAckExtensionPeriod;
 	}
 
-	public final int getParallelPullCount() {
+	public int getParallelPullCount() {
 		return parallelPullCount;
 	}
 
-	public final void setParallelPullCount(int parallelPullCount) {
+	public void setParallelPullCount(int parallelPullCount) {
 		this.parallelPullCount = parallelPullCount;
 	}
 

@@ -63,27 +63,27 @@ import services.moleculer.service.Name;
  * @see GoogleCloudTransporter
  */
 @Name("MQTT Transporter")
-public final class MqttTransporter extends Transporter implements AsyncClientListener {
+public class MqttTransporter extends Transporter implements AsyncClientListener {
 
 	// --- PROPERTIES ---
 
-	private String username;
-	private String password;
-	private String url = "127.0.0.1";
+	protected String username;
+	protected String password;
+	protected String url = "127.0.0.1";
 
 	// --- OTHER MQTT PROPERTIES ---
 
-	private boolean cleanSession = true;
-	private short keepAliveSeconds = 300;
-	private int connectTimeoutSeconds = 30;
-	private int messageResendIntervalSeconds = 30;
-	private int blockingTimeoutSeconds = 0;
-	private int maxInFlightMessages = 0xffff;
-	private QoS qos = QoS.AT_LEAST_ONCE;
+	protected boolean cleanSession = true;
+	protected short keepAliveSeconds = 300;
+	protected int connectTimeoutSeconds = 30;
+	protected int messageResendIntervalSeconds = 30;
+	protected int blockingTimeoutSeconds = 0;
+	protected int maxInFlightMessages = 0xffff;
+	protected QoS qos = QoS.AT_LEAST_ONCE;
 
 	// --- MQTT CONNECTION ---
 
-	private AsyncMqttClient client;
+	protected AsyncMqttClient client;
 
 	// --- CONSTUCTORS ---
 
@@ -118,7 +118,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process basic properties (eg. "prefix")
 		super.start(broker, config);
@@ -155,7 +155,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 
 	// --- CONNECT ---
 
-	private final void connect() {
+	protected void connect() {
 		try {
 
 			// Create MQTT client config
@@ -190,7 +190,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 	// --- CONNECTED ---
 
 	@Override
-	public final void connected(MqttClient client, ConnectReturnCode returnCode) {
+	public void connected(MqttClient client, ConnectReturnCode returnCode) {
 		logger.info("MQTT pub-sub connection estabilished.");
 		scheduler.schedule(this::connected, 100, TimeUnit.MILLISECONDS);
 	}
@@ -208,7 +208,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 		}
 	}
 
-	private final void disconnect() {
+	protected void disconnect() {
 		if (client != null) {
 			try {
 				if (!client.isClosed()) {
@@ -238,7 +238,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 
 	// --- RECONNECT ---
 
-	private final void reconnect(Throwable cause) {
+	protected void reconnect(Throwable cause) {
 		if (cause != null) {
 			String msg = cause.getMessage();
 			if (msg == null || msg.isEmpty()) {
@@ -256,7 +256,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 	// --- ANY I/O ERROR ---
 
 	@Override
-	protected final void error(Throwable cause) {
+	protected void error(Throwable cause) {
 		reconnect(cause);
 	}
 
@@ -266,16 +266,16 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 	 * Closes transporter.
 	 */
 	@Override
-	public final void stop() {
+	public void stop() {
 		disconnect();
 	}
 
 	// --- SUBSCRIBE ---
 
-	private final ConcurrentHashMap<String, Promise> subscriptions = new ConcurrentHashMap<>();
+	protected final ConcurrentHashMap<String, Promise> subscriptions = new ConcurrentHashMap<>();
 
 	@Override
-	public final Promise subscribe(String channel) {
+	public Promise subscribe(String channel) {
 		Promise promise = new Promise();
 		if (client != null) {
 			try {
@@ -291,7 +291,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 	}
 
 	@Override
-	public final void subscribed(MqttClient client, Subscription[] requestedSubscriptions,
+	public void subscribed(MqttClient client, Subscription[] requestedSubscriptions,
 			Subscription[] grantedSubscriptions, boolean requestsGranted) {
 		for (Subscription s : grantedSubscriptions) {
 			String channel = s.getTopic();
@@ -306,7 +306,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 	}
 
 	@Override
-	public final void unsubscribed(MqttClient client, String[] topics) {
+	public void unsubscribed(MqttClient client, String[] topics) {
 		if (debug) {
 			for (String s : topics) {
 				logger.info("Channel \"" + s + "\" unsubscribed successfully.");
@@ -317,7 +317,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 	// --- PUBLISH ---
 
 	@Override
-	public final void publish(String channel, Tree message) {
+	public void publish(String channel, Tree message) {
 		if (client != null) {
 			try {
 				if (debug) {
@@ -331,7 +331,7 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 	}
 
 	@Override
-	public final void published(MqttClient client, PublishMessage message) {
+	public void published(MqttClient client, PublishMessage message) {
 		if (debug) {
 			logger.info(
 					"Submitted message received by the server at " + new Date(message.getReceivedTimestamp()) + ".");
@@ -341,89 +341,89 @@ public final class MqttTransporter extends Transporter implements AsyncClientLis
 	// --- RECEIVE ---
 
 	@Override
-	public final void publishReceived(MqttClient client, PublishMessage message) {
+	public void publishReceived(MqttClient client, PublishMessage message) {
 		received(message.getTopic(), message.getPayload());
 	}
 
 	// --- GETTERS / SETTERS ---
 
-	public final String getUrl() {
+	public String getUrl() {
 		return url;
 	}
 
-	public final void setUrl(String url) {
+	public void setUrl(String url) {
 		this.url = url;
 	}
 
-	public final String getUsername() {
+	public String getUsername() {
 		return username;
 	}
 
-	public final void setUsername(String username) {
+	public void setUsername(String username) {
 		this.username = username;
 	}
 
-	public final String getPassword() {
+	public String getPassword() {
 		return password;
 	}
 
-	public final void setPassword(String password) {
+	public void setPassword(String password) {
 		this.password = password;
 	}
 
-	public final boolean isCleanSession() {
+	public boolean isCleanSession() {
 		return cleanSession;
 	}
 
-	public final void setCleanSession(boolean cleanSession) {
+	public void setCleanSession(boolean cleanSession) {
 		this.cleanSession = cleanSession;
 	}
 
-	public final short getKeepAliveSeconds() {
+	public short getKeepAliveSeconds() {
 		return keepAliveSeconds;
 	}
 
-	public final void setKeepAliveSeconds(short keepAliveInterval) {
+	public void setKeepAliveSeconds(short keepAliveInterval) {
 		this.keepAliveSeconds = keepAliveInterval;
 	}
 
-	public final int getConnectTimeoutSeconds() {
+	public int getConnectTimeoutSeconds() {
 		return connectTimeoutSeconds;
 	}
 
-	public final void setConnectTimeoutSeconds(int connectTimeoutSeconds) {
+	public void setConnectTimeoutSeconds(int connectTimeoutSeconds) {
 		this.connectTimeoutSeconds = connectTimeoutSeconds;
 	}
 
-	public final int getMessageResendIntervalSeconds() {
+	public int getMessageResendIntervalSeconds() {
 		return messageResendIntervalSeconds;
 	}
 
-	public final void setMessageResendIntervalSeconds(int messageResendIntervalSeconds) {
+	public void setMessageResendIntervalSeconds(int messageResendIntervalSeconds) {
 		this.messageResendIntervalSeconds = messageResendIntervalSeconds;
 	}
 
-	public final int getBlockingTimeoutSeconds() {
+	public int getBlockingTimeoutSeconds() {
 		return blockingTimeoutSeconds;
 	}
 
-	public final void setBlockingTimeoutSeconds(int blockingTimeoutSeconds) {
+	public void setBlockingTimeoutSeconds(int blockingTimeoutSeconds) {
 		this.blockingTimeoutSeconds = blockingTimeoutSeconds;
 	}
 
-	public final int getMaxInFlightMessages() {
+	public int getMaxInFlightMessages() {
 		return maxInFlightMessages;
 	}
 
-	public final void setMaxInFlightMessages(int maxInFlightMessages) {
+	public void setMaxInFlightMessages(int maxInFlightMessages) {
 		this.maxInFlightMessages = maxInFlightMessages;
 	}
 
-	public final QoS getQos() {
+	public QoS getQos() {
 		return qos;
 	}
 
-	public final void setQos(QoS qos) {
+	public void setQos(QoS qos) {
 		this.qos = qos;
 	}
 

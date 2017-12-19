@@ -28,6 +28,7 @@ import static services.moleculer.ServiceBroker.MOLECULER_VERSION;
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
@@ -123,7 +124,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- HEARTBEAT TIMES OF OTHER NODES ---
 
-	protected final ConcurrentHashMap<String, Long> lastNodeActivities = new ConcurrentHashMap<>(128);
+	protected final ConcurrentHashMap<String, Long[]> nodeActivities = new ConcurrentHashMap<>(128);
 
 	// --- CONSTUCTORS ---
 
@@ -155,6 +156,10 @@ public abstract class Transporter implements MoleculerComponent {
 
 		// Process config
 		prefix = config.get("prefix", prefix);
+		String namespace = config.get("namespace", "");
+		if (namespace != null && !namespace.isEmpty()) {
+			prefix = prefix + '-' + namespace;
+		}
 
 		// Create serializer
 		Tree serializerNode = config.get("serializer");
@@ -248,12 +253,12 @@ public abstract class Transporter implements MoleculerComponent {
 	/**
 	 * Cancelable "Heart Beat" timer
 	 */
-	private volatile ScheduledFuture<?> heartBeatTimer;
+	protected volatile ScheduledFuture<?> heartBeatTimer;
 
 	/**
 	 * Cancelable "Check Nodes" timer
 	 */
-	private volatile ScheduledFuture<?> checkNodesTimer;
+	protected volatile ScheduledFuture<?> checkNodesTimer;
 
 	protected void connected() {
 		executor.execute(() -> {
@@ -319,7 +324,7 @@ public abstract class Transporter implements MoleculerComponent {
 		}
 
 		// Clear timestamps
-		lastNodeActivities.clear();
+		nodeActivities.clear();
 	}
 
 	// --- STOP TRANSPORTER ---
@@ -335,8 +340,8 @@ public abstract class Transporter implements MoleculerComponent {
 	// --- REQUEST PACKET ---
 
 	public Tree createRequestPacket(Context ctx) {
-		
-		// TODO
+
+		// TODO Add more properties
 		Tree message = new Tree();
 		message.put("ver", ServiceBroker.MOLECULER_VERSION);
 		message.put("sender", nodeID);
@@ -429,7 +434,10 @@ public abstract class Transporter implements MoleculerComponent {
 				if (channel.endsWith(heartbeatChannel)) {
 
 					// Store timestamp of the sender's last activity
-					lastNodeActivities.put(sender, System.currentTimeMillis());
+					Long[] info = new Long[2];
+					info[0] = System.currentTimeMillis();
+					info[1] = data.get("cpu", 0L);
+					nodeActivities.put(sender, info);
 					return;
 				}
 
@@ -461,7 +469,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 				// Disconnect packet
 				if (channel.equals(disconnectChannel)) {
-					lastNodeActivities.remove(sender);
+					nodeActivities.remove(sender);
 
 					// Remove remote actions
 					registry.removeActions(sender);
@@ -481,18 +489,18 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- GENERIC MOLECULER PACKETS ---
 
-	private final void sendDiscoverPacket(String channel) {
+	protected void sendDiscoverPacket(String channel) {
 		Tree message = new Tree();
 		message.put("ver", MOLECULER_VERSION);
 		message.put("sender", nodeID);
 		publish(channel, message);
 	}
 
-	private final void sendInfoPacket(String channel) {
+	protected void sendInfoPacket(String channel) {
 		publish(channel, registry.generateDescriptor());
 	}
 
-	private final void sendHeartbeatPacket() {
+	protected void sendHeartbeatPacket() {
 		Tree message = new Tree();
 		message.put("ver", MOLECULER_VERSION);
 		message.put("sender", nodeID);
@@ -500,7 +508,7 @@ public abstract class Transporter implements MoleculerComponent {
 		publish(heartbeatChannel, message);
 	}
 
-	private final void sendDisconnectPacket() {
+	protected void sendDisconnectPacket() {
 		Tree message = new Tree();
 		message.put("sender", nodeID);
 		publish(disconnectChannel, message);
@@ -508,21 +516,21 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- "CHECK NODES" PROCESS ---
 
-	private volatile long lastCheck;
+	protected volatile long lastCheck;
 
-	private final void checkNodes() {
-		Iterator<Map.Entry<String, Long>> entries = lastNodeActivities.entrySet().iterator();
+	protected void checkNodes() {
+		Iterator<Map.Entry<String, Long[]>> entries = nodeActivities.entrySet().iterator();
 		long now = System.currentTimeMillis();
 		if (now < lastCheck) {
 			lastCheck = now;
 			return;
 		}
 		lastCheck = now;
-		Map.Entry<String, Long> entry;
+		Map.Entry<String, Long[]> entry;
 		long timeoutMillis = heartbeatTimeout * 1000L;
 		while (entries.hasNext()) {
 			entry = entries.next();
-			if (now - entry.getValue() > timeoutMillis) {
+			if (now - entry.getValue()[0] > timeoutMillis) {
 
 				// Get timeouted node's ID
 				String nodeID = entry.getKey();
@@ -544,6 +552,14 @@ public abstract class Transporter implements MoleculerComponent {
 		}
 	}
 
+	// --- GET NODE ACTIVITIES MAP ---
+	
+	public Map<String, Long[]> getNodeActivities() {
+		
+		// NodeID -> [timestamp, cpu usage]
+		return new HashMap<String, Long[]>(nodeActivities);
+	}
+	
 	// --- OPTIONAL ERROR HANDLER ---
 
 	/**
@@ -558,35 +574,35 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- GETTERS / SETTERS ---
 
-	public final Serializer getSerializer() {
+	public Serializer getSerializer() {
 		return serializer;
 	}
 
-	public final void setSerializer(Serializer serializer) {
+	public void setSerializer(Serializer serializer) {
 		this.serializer = Objects.requireNonNull(serializer);
 	}
 
-	public final int getHeartbeatInterval() {
+	public int getHeartbeatInterval() {
 		return heartbeatInterval;
 	}
 
-	public final void setHeartbeatInterval(int heartbeatInterval) {
+	public void setHeartbeatInterval(int heartbeatInterval) {
 		this.heartbeatInterval = heartbeatInterval;
 	}
 
-	public final int getHeartbeatTimeout() {
+	public int getHeartbeatTimeout() {
 		return heartbeatTimeout;
 	}
 
-	public final void setHeartbeatTimeout(int heartbeatTimeout) {
+	public void setHeartbeatTimeout(int heartbeatTimeout) {
 		this.heartbeatTimeout = heartbeatTimeout;
 	}
 
-	public final boolean isDebug() {
+	public boolean isDebug() {
 		return debug;
 	}
 
-	public final void setDebug(boolean debug) {
+	public void setDebug(boolean debug) {
 		this.debug = debug;
 	}
 

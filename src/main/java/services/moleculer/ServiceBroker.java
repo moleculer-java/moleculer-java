@@ -53,7 +53,7 @@ import services.moleculer.util.ParseResult;
  * Service Broker.
  */
 @Name("Service Broker")
-public final class ServiceBroker {
+public class ServiceBroker {
 
 	// --- VERSIONS ---
 
@@ -79,19 +79,19 @@ public final class ServiceBroker {
 	/**
 	 * Unique server ID (eg. "node1", "server-2", etc.)
 	 */
-	private final String nodeID;
+	protected final String nodeID;
 
 	// --- CONFIGURATIONS ---
 
 	/**
 	 * Configuration (created by the {@link ServiceBrokerBuilder}).
 	 */
-	private final ServiceBrokerSettings settings;
+	protected final ServiceBrokerSettings settings;
 
 	/**
-	 * Optional configuration (loaded from JSON/YAML/TOML/XML file).
+	 * Optional configuration (loaded from JSON/YAML/TOML/XML/JS file).
 	 */
-	private final Tree config;
+	protected final Tree config;
 
 	// --- INERNAL AND USER-DEFINED COMPONENTS ---
 
@@ -101,24 +101,24 @@ public final class ServiceBroker {
 	 * (MoleculerComponents), and by using the method "get(id)" you can retrieve
 	 * instances of your component.
 	 */
-	private final ComponentRegistry components;
+	protected final ComponentRegistry components;
 
 	/**
 	 * Registry of local and remote Moleculer Services.
 	 */
-	private ServiceRegistry registry;
+	protected ServiceRegistry registry;
 
 	/**
 	 * Local EventBus.
 	 */
-	private EventBus eventbus;
+	protected EventBus eventbus;
 
 	// --- SERVICES AND CONFIGURATIONS ---
 
 	/**
 	 * Services which defined and added to the Broker before the boot process.
 	 */
-	private final LinkedHashMap<Service, Tree> services = new LinkedHashMap<>();
+	protected final LinkedHashMap<Service, Tree> services = new LinkedHashMap<>();
 
 	// --- STATIC SERVICE BROKER BUILDER ---
 
@@ -127,7 +127,7 @@ public final class ServiceBroker {
 	 * 
 	 * @return builder instance
 	 */
-	public static final ServiceBrokerBuilder builder() {
+	public static ServiceBrokerBuilder builder() {
 		return new ServiceBrokerBuilder(new ServiceBrokerSettings());
 	}
 
@@ -168,7 +168,7 @@ public final class ServiceBroker {
 
 	// --- GET COMPONENT REGISTRY ---
 
-	public final ComponentRegistry components() {
+	public ComponentRegistry components() {
 		return components;
 	}
 
@@ -177,7 +177,7 @@ public final class ServiceBroker {
 	/**
 	 * Start broker. If has transporter, transporter.connect will be called.
 	 */
-	public final void start() {
+	public void start() {
 
 		// Check state
 		if (registry != null) {
@@ -226,7 +226,7 @@ public final class ServiceBroker {
 	 * Stop broker. If the Broker has a Transporter, transporter.disconnect will
 	 * be called.
 	 */
-	public final void stop() {
+	public void stop() {
 		if (registry != null) {
 
 			// Stop internal and custom components

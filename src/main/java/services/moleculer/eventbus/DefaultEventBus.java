@@ -48,45 +48,45 @@ import services.moleculer.util.CheckedTree;
  * Default EventBus implementation.
  */
 @Name("Default Event Bus")
-public final class DefaultEventBus extends EventBus {
+public class DefaultEventBus extends EventBus {
 
 	// --- REGISTERED EVENT LISTENERS ---
 
-	private final HashMap<String, HashMap<String, Strategy<ListenerEndpoint>>> listeners = new HashMap<>(256);
+	protected final HashMap<String, HashMap<String, Strategy<ListenerEndpoint>>> listeners = new HashMap<>(256);
 
 	// --- CACHES ---
 
-	private final Cache<String, Strategy<ListenerEndpoint>[]> emitterCache = new Cache<>(1024, true);
-	private final Cache<String, ListenerEndpoint[]> broadcasterCache = new Cache<>(1024, true);
+	protected final Cache<String, Strategy<ListenerEndpoint>[]> emitterCache = new Cache<>(1024, true);
+	protected final Cache<String, ListenerEndpoint[]> broadcasterCache = new Cache<>(1024, true);
 
 	// --- PROPERTIES ---
 
 	/**
 	 * Invoke all local listeners via Thread pool (true) or directly (false)
 	 */
-	private boolean asyncLocalInvocation;
+	protected boolean asyncLocalInvocation;
 
 	/**
 	 * Check Moleculer version
 	 */
-	private boolean checkVersion;
+	protected boolean checkVersion;
 
 	// --- LOCKS ---
 
 	/**
 	 * Reader lock of the Event Bus
 	 */
-	private final Lock readLock;
+	protected final Lock readLock;
 
 	/**
 	 * Writer lock of the Event Bus
 	 */
-	private final Lock writeLock;
+	protected final Lock writeLock;
 
 	// --- COMPONENTS ---
 
-	private ServiceBroker broker;
-	private StrategyFactory strategy;
+	protected ServiceBroker broker;
+	protected StrategyFactory strategy;
 
 	// --- CONSTRUCTORS ---
 
@@ -116,7 +116,7 @@ public final class DefaultEventBus extends EventBus {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
 		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
@@ -130,7 +130,7 @@ public final class DefaultEventBus extends EventBus {
 	// --- STOP EVENT BUS ---
 
 	@Override
-	public final void stop() {
+	public void stop() {
 
 		// Stop listener endpoints
 		writeLock.lock();
@@ -157,7 +157,7 @@ public final class DefaultEventBus extends EventBus {
 	// --- RECEIVE EVENT FROM REMOTE SERVICE ---
 
 	@Override
-	public final void receiveEvent(Tree message) {
+	public void receiveEvent(Tree message) {
 
 		// Verify Moleculer version
 		if (checkVersion) {
@@ -200,7 +200,7 @@ public final class DefaultEventBus extends EventBus {
 	// --- ADD LOCAL LISTENER ---
 
 	@Override
-	public final void addListeners(Service service, Tree config) throws Exception {
+	public void addListeners(Service service, Tree config) throws Exception {
 		String nodeID = broker.nodeID();
 		writeLock.lock();
 		try {
@@ -294,7 +294,7 @@ public final class DefaultEventBus extends EventBus {
 	// --- ADD REMOTE LISTENER ---
 
 	@Override
-	public final void addListeners(Tree config) throws Exception {
+	public void addListeners(Tree config) throws Exception {
 		Tree events = config.get("events");
 		if (events != null && events.isMap()) {
 			String nodeID = Objects.requireNonNull(config.get("nodeID", (String) null));
@@ -344,7 +344,7 @@ public final class DefaultEventBus extends EventBus {
 	// --- REMOVE ALL REMOTE SERVICES/ACTIONS OF A NODE ---
 
 	@Override
-	public final void removeListeners(String nodeID) {
+	public void removeListeners(String nodeID) {
 		writeLock.lock();
 		try {
 			Iterator<HashMap<String, Strategy<ListenerEndpoint>>> groupIterator = listeners.values().iterator();
@@ -381,7 +381,7 @@ public final class DefaultEventBus extends EventBus {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public final void emit(String name, Tree payload, Groups groups, boolean local) {
+	public void emit(String name, Tree payload, Groups groups, boolean local) {
 		String key = getCacheKey('#', name, groups);
 		Strategy<ListenerEndpoint>[] strategies = emitterCache.get(key);
 		if (strategies == null) {
@@ -460,7 +460,7 @@ public final class DefaultEventBus extends EventBus {
 	// --- SEND EVENT TO ALL LISTENERS IN THE SPECIFIED GROUP ---
 
 	@Override
-	public final void broadcast(String name, Tree payload, Groups groups, boolean local) {
+	public void broadcast(String name, Tree payload, Groups groups, boolean local) {
 		char prefix = local ? '>' : '<';
 		String key = getCacheKey(prefix, name, groups);
 		ListenerEndpoint[] endpoints = broadcasterCache.get(key);
@@ -532,7 +532,7 @@ public final class DefaultEventBus extends EventBus {
 
 	// --- CREATE CACHE KEY ---
 
-	private static final String getCacheKey(char prefix, String name, Groups groups) {
+	protected String getCacheKey(char prefix, String name, Groups groups) {
 		StringBuilder tmp = new StringBuilder(64);
 		tmp.append(prefix);
 		tmp.append(name);
@@ -548,14 +548,14 @@ public final class DefaultEventBus extends EventBus {
 	// --- GENERATE LISTENER DESCRIPTOR ---
 
 	@Override
-	public final Tree generateListenerDescriptor(String service) {
+	public Tree generateListenerDescriptor(String service) {
 		LinkedHashMap<String, Object> descriptor = new LinkedHashMap<>();
 		readLock.lock();
 		try {
 			for (HashMap<String, Strategy<ListenerEndpoint>> groups : listeners.values()) {
 				for (Strategy<ListenerEndpoint> strategy : groups.values()) {
 					for (ListenerEndpoint endpoint : strategy.getAllEndpoints()) {
-						if (endpoint.local() && endpoint.service().endsWith(service)) {
+						if (endpoint.local() && endpoint.service.endsWith(service)) {
 							LinkedHashMap<String, Object> map = new LinkedHashMap<>();
 							descriptor.put(endpoint.subscribe, map);
 							map.put("name", endpoint.subscribe);
@@ -571,19 +571,19 @@ public final class DefaultEventBus extends EventBus {
 
 	// --- GETTERS / SETTERS ---
 
-	public final boolean isCheckVersion() {
+	public boolean isCheckVersion() {
 		return checkVersion;
 	}
 
-	public final void setCheckVersion(boolean checkVersion) {
+	public void setCheckVersion(boolean checkVersion) {
 		this.checkVersion = checkVersion;
 	}
 
-	public final boolean isAsyncLocalInvocation() {
+	public boolean isAsyncLocalInvocation() {
 		return asyncLocalInvocation;
 	}
 
-	public final void setAsyncLocalInvocation(boolean asyncLocalInvocation) {
+	public void setAsyncLocalInvocation(boolean asyncLocalInvocation) {
 		this.asyncLocalInvocation = asyncLocalInvocation;
 	}
 

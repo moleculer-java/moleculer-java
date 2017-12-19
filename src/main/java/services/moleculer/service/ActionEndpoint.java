@@ -64,14 +64,16 @@ public abstract class ActionEndpoint implements MoleculerComponent, Endpoint {
 	protected int defaultTimeout;
 	protected int ttl;
 
+	protected int hashCode;
+	
 	// --- COMPONENTS ---
 
 	protected ServiceBroker broker;
-	private Cacher cacher;
+	protected Cacher cacher;
 
 	// --- CONSTRUCTOR ---
 
-	ActionEndpoint() {
+	protected ActionEndpoint() {
 	}
 
 	// --- START ENDPOINT ---
@@ -106,17 +108,23 @@ public abstract class ActionEndpoint implements MoleculerComponent, Endpoint {
 		if (cached) {
 			cacher = broker.components().cacher();
 		}
+		
+		// Set the hashCode
+		final int prime = 31;
+		hashCode = 1;
+		hashCode = prime * hashCode + ((name == null) ? 0 : name.hashCode());
+		hashCode = prime * hashCode + ((nodeID == null) ? 0 : nodeID.hashCode());
 	}
 
 	// --- STOP ENDPOINT ---
 
 	@Override
-	public final void stop() {
+	public void stop() {
 	}
 
 	// --- INVOKE LOCAL OR REMOTE ACTION + CACHING ---
 
-	public final Promise call(Tree params, CallingOptions.Options opts, Context parent) {
+	public Promise call(Tree params, CallingOptions.Options opts, Context parent) {
 
 		// Caching enabled
 		if (cached) {
@@ -140,7 +148,7 @@ public abstract class ActionEndpoint implements MoleculerComponent, Endpoint {
 		return callActionNoStore(params, opts, parent);
 	}
 
-	private final Promise callActionAndStore(Tree params, CallingOptions.Options opts, Context parent, String cacheKey,
+	protected Promise callActionAndStore(Tree params, CallingOptions.Options opts, Context parent, String cacheKey,
 			int ttl) {
 		return callActionNoStore(params, opts, parent).then(result -> {
 			if (result != null) {
@@ -155,60 +163,66 @@ public abstract class ActionEndpoint implements MoleculerComponent, Endpoint {
 
 	public abstract boolean local();
 
-	public final String name() {
+	public String name() {
 		return name;
 	}
 
-	public final String nodeID() {
+	public String nodeID() {
 		return nodeID;
 	}
 
-	public final boolean cached() {
+	public boolean cached() {
 		return cached;
 	}
 
-	public final String[] cacheKeys() {
+	public String[] cacheKeys() {
 		return cacheKeys;
 	}
 
-	public final int defaultTimeout() {
+	public int defaultTimeout() {
 		return defaultTimeout;
 	}
 
-	public final int ttl() {
+	public int ttl() {
 		return ttl;
 	}
 
 	// --- EQUALS / HASHCODE ---
 
 	@Override
-	public final int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + ((name == null) ? 0 : name.hashCode());
-		result = prime * result + ((nodeID == null) ? 0 : nodeID.hashCode());
-		return result;
+	public int hashCode() {
+		return hashCode;
 	}
 
 	@Override
-	public final boolean equals(Object obj) {
-		if (this == obj)
+	public boolean equals(Object obj) {
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		}
+		if (obj == null) {
 			return false;
-		if (getClass() != obj.getClass())
+		}
+		if (getClass() != obj.getClass()) {
 			return false;
+		}
 		ActionEndpoint other = (ActionEndpoint) obj;
+		if (hashCode != other.hashCode) {
+			return false;
+		}
 		if (name == null) {
-			if (other.name != null)
+			if (other.name != null) {
 				return false;
-		} else if (!name.equals(other.name))
+			}
+		} else if (!name.equals(other.name)) {
 			return false;
+		}
 		if (nodeID == null) {
-			if (other.nodeID != null)
+			if (other.nodeID != null) {
 				return false;
-		} else if (!nodeID.equals(other.nodeID))
+			}
+		} else if (!nodeID.equals(other.nodeID)) {
 			return false;
+		}
 		return true;
 	}
 

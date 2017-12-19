@@ -32,9 +32,10 @@ import services.moleculer.service.Name;
  * @see RoundRobinStrategyFactory
  * @see NanoSecRandomStrategyFactory
  * @see SecureRandomStrategyFactory
+ * @see CpuUsageStrategyFactory
  */
 @Name("XORSHIFT Pseudorandom Strategy Factory")
-public final class XORShiftRandomStrategyFactory extends ArrayBasedStrategyFactory {
+public class XORShiftRandomStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- CONSTRUCTORS ---
 
@@ -49,7 +50,7 @@ public final class XORShiftRandomStrategyFactory extends ArrayBasedStrategyFacto
 	// --- FACTORY METHOD ---
 
 	@Override
-	public final <T extends Endpoint> Strategy<T> create() {
+	public <T extends Endpoint> Strategy<T> create() {
 		return new XORShiftRandomStrategy<T>(preferLocal);
 	}
 

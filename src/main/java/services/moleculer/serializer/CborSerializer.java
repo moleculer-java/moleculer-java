@@ -45,7 +45,7 @@ import services.moleculer.service.Name;
  * 'jackson-dataformat-cbor', version: '2.9.0.pr3'
  */
 @Name("CBOR Serializer")
-public final class CborSerializer extends Serializer {
+public class CborSerializer extends Serializer {
 
 	// --- CONSTRUCTOR ---
 

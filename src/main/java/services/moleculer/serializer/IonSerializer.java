@@ -45,7 +45,7 @@ import services.moleculer.service.Name;
  * compile group: 'software.amazon.ion', name: 'ion-java', version: '1.0.2'
  */
 @Name("Amazon ION Serializer")
-public final class IonSerializer extends Serializer {
+public class IonSerializer extends Serializer {
 
 	// --- CONSTRUCTOR ---
 

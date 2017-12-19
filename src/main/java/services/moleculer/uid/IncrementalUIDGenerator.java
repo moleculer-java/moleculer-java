@@ -37,15 +37,15 @@ import services.moleculer.service.Name;
  * @see StandardUUIDGenerator
  */
 @Name("Incremental UID Generator")
-public final class IncrementalUIDGenerator extends UIDGenerator {
+public class IncrementalUIDGenerator extends UIDGenerator {
 
 	// --- HOST/NODE PREFIX ---
 
-	private char[] prefix;
+	protected char[] prefix;
 
 	// --- SEQUENCE ---
 
-	private final AtomicLong counter = new AtomicLong();
+	protected final AtomicLong counter = new AtomicLong();
 
 	// --- START GENERATOR ---
 
@@ -58,7 +58,7 @@ public final class IncrementalUIDGenerator extends UIDGenerator {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 		String id = config.get("prefix", broker.nodeID());
 		prefix = (id + ':').toCharArray();
 	}
@@ -66,7 +66,7 @@ public final class IncrementalUIDGenerator extends UIDGenerator {
 	// --- GENERATE UID ---
 
 	@Override
-	public final String nextUID() {
+	public String nextUID() {
 		StringBuilder tmp = new StringBuilder(prefix.length + 16);
 		tmp.append(prefix);
 		tmp.append(counter.incrementAndGet());
@@ -75,11 +75,11 @@ public final class IncrementalUIDGenerator extends UIDGenerator {
 
 	// --- GETTERS / SETTERS ---
 
-	public final String getPrefix() {
+	public String getPrefix() {
 		return new String(prefix);
 	}
 
-	public final void setPrefix(String prefix) {
+	public void setPrefix(String prefix) {
 		this.prefix = prefix.toCharArray();
 	}
 

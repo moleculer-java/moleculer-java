@@ -35,12 +35,12 @@ import services.moleculer.service.Name;
  * @see IncrementalUIDGenerator
  */
 @Name("Standard UUID Generator")
-public final class StandardUUIDGenerator extends UIDGenerator {
+public class StandardUUIDGenerator extends UIDGenerator {
 
 	// --- GENERATE UID ---
 
 	@Override
-	public final String nextUID() {
+	public String nextUID() {
 		return UUID.randomUUID().toString();
 	}
 

@@ -37,17 +37,17 @@ import services.moleculer.transporter.Transporter;
 /**
  * Container (action invoker) of remote actions.
  */
-public final class RemoteActionEndpoint extends ActionEndpoint {
+public class RemoteActionEndpoint extends ActionEndpoint {
 
 	// --- COMPONENTS ---
 
-	private final DefaultServiceRegistry registry;
-	private ContextFactory context;
-	private Transporter transporter;
+	protected final DefaultServiceRegistry registry;
+	protected ContextFactory context;
+	protected Transporter transporter;
 
 	// --- CONSTRUCTOR ---
 
-	RemoteActionEndpoint(DefaultServiceRegistry registry) {
+	protected RemoteActionEndpoint(DefaultServiceRegistry registry) {
 		this.registry = registry;
 	}
 
@@ -62,7 +62,7 @@ public final class RemoteActionEndpoint extends ActionEndpoint {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 		super.start(broker, config);
 
 		// Check parameters
@@ -77,7 +77,7 @@ public final class RemoteActionEndpoint extends ActionEndpoint {
 	// --- INVOKE REMOTE ACTION ---
 
 	@Override
-	protected final Promise callActionNoStore(Tree params, CallingOptions.Options opts, Context parent) {
+	protected Promise callActionNoStore(Tree params, CallingOptions.Options opts, Context parent) {
 
 		// Create new context (with ID)
 		Context ctx = context.create(name, params, opts, parent, true);
@@ -117,7 +117,7 @@ public final class RemoteActionEndpoint extends ActionEndpoint {
 	// --- PROPERTY GETTERS ---
 
 	@Override
-	public final boolean local() {
+	public boolean local() {
 		return false;
 	}
 

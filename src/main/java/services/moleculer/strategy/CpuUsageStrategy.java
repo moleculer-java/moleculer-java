@@ -24,37 +24,75 @@
  */
 package services.moleculer.strategy;
 
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import services.moleculer.service.Name;
+import services.moleculer.transporter.Transporter;
 
 /**
- * XORSHIFT-based pseudorandom invocation strategy.
+ * Lowest CPU usage invocation strategy.
  * 
  * @see RoundRobinStrategy
  * @see NanoSecRandomStrategy
+ * @see XORShiftRandomStrategy
  * @see SecureRandomStrategy
- * @see CpuUsageStrategy
  */
-@Name("XORSHIFT Pseudorandom Strategy")
-public class XORShiftRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
+@Name("Lowest CPU Usage Strategy")
+public class CpuUsageStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
 
 	// --- PROPERTIES ---
 
 	protected final AtomicLong rnd = new AtomicLong(System.nanoTime());
 
+	// --- COMPONENTS ---
+
+	protected final Transporter transporter;
+
 	// --- CONSTRUCTOR ---
 
-	public XORShiftRandomStrategy(boolean preferLocal) {
+	public CpuUsageStrategy(boolean preferLocal, Transporter transporter) {
 		super(preferLocal);
+		this.transporter = transporter;
 	}
 
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
 	public Endpoint next(Endpoint[] array) {
+		
+		// Get the CPU usage map from the transporter
+		Map<String, Long[]> activities = transporter.getNodeActivities();
 
-		// Generate pseudo random long
+		// List of the node indexes with the lowest CPU usage
+		final ArrayList<Integer> indexes = new ArrayList<>(array.length + 1);
+
+		// Find the list of nodes with the lowest CPU usage
+		long min = Long.MAX_VALUE;
+		Long[] values;
+		long cpu;
+		for (int i = 0; i < array.length; i++) {
+			values = activities.get(array[i].nodeID());
+			cpu = values == null ? 0 : values[1];
+			if (cpu < min) {
+				indexes.clear();
+				indexes.add(i);
+				min = cpu;
+				continue;
+			}
+			if (cpu == min) {
+				indexes.add(i);
+			}
+		}
+
+		// Single result?
+		if (indexes.size() == 1) {
+			return array[indexes.get(0)];
+		}
+
+		// Generate pseudo random long (this is the fastest way to choose a
+		// random endpoint index from the "indexes" array)
 		long start, next;
 		do {
 			start = rnd.get();
@@ -63,9 +101,12 @@ public class XORShiftRandomStrategy<T extends Endpoint> extends ArrayBasedStrate
 			next ^= (next >>> 35);
 			next ^= (next << 4);
 		} while (!rnd.compareAndSet(start, next));
+		
+		// Get a random index
+		int index = (int) Math.abs(next % indexes.size());
 
 		// Return ActionEndpoint
-		return array[(int) Math.abs(next % array.length)];
+		return array[indexes.get(index)];
 	}
 
 }

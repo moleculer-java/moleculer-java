@@ -22,12 +22,12 @@ public abstract class ListenerEndpoint implements MoleculerComponent, Endpoint {
 	protected String service;
 	protected String group;
 	protected String subscribe;
-
-	private int hashCode = 1;
+	
+	protected int hashCode = 1;
 
 	// --- CONSTRUCTOR ---
 
-	ListenerEndpoint() {
+	protected ListenerEndpoint() {
 	}
 
 	// --- START ENDPOINT ---
@@ -69,6 +69,12 @@ public abstract class ListenerEndpoint implements MoleculerComponent, Endpoint {
 		Objects.requireNonNull(subscribe);
 	}
 
+	// --- GET NODEID ---
+	
+	public String nodeID() {
+		return nodeID;
+	}
+	
 	// --- STOP ENDPOINT ---
 
 	@Override
@@ -79,35 +85,15 @@ public abstract class ListenerEndpoint implements MoleculerComponent, Endpoint {
 
 	public abstract void on(String name, Tree payload, Groups groups, boolean emit) throws Exception;
 
-	// --- PROPERTY GETTERS ---
-
-	public abstract boolean local();
-
-	public final String nodeID() {
-		return nodeID;
-	}
-
-	public final String service() {
-		return service;
-	}
-
-	public final String group() {
-		return group;
-	}
-
-	public final String subscribe() {
-		return subscribe;
-	}
-
 	// --- EQUALS / HASHCODE ---
 
 	@Override
-	public final int hashCode() {
+	public int hashCode() {
 		return hashCode;
 	}
 
 	@Override
-	public final boolean equals(Object obj) {
+	public boolean equals(Object obj) {
 		if (this == obj) {
 			return true;
 		}

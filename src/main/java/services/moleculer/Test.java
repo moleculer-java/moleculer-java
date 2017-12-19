@@ -26,7 +26,6 @@ package services.moleculer;
 
 import services.moleculer.cacher.Cacher;
 import services.moleculer.cacher.OHCacher;
-import services.moleculer.eventbus.Groups;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.monitor.SigarMonitor;
 import services.moleculer.transporter.NatsTransporter;

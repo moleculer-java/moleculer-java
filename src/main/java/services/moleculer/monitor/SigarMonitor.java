@@ -36,11 +36,11 @@ import services.moleculer.service.Name;
  * Property. This monitor is more accurate than the {@link JMXMonitor}.
  */
 @Name("Sigar System Monitor")
-public final class SigarMonitor extends Monitor {
+public class SigarMonitor extends Monitor {
 
 	// --- PROPERTIES ---
 
-	private Sigar sigar;
+	protected Sigar sigar;
 
 	// --- START MONITOR ---
 
@@ -53,7 +53,7 @@ public final class SigarMonitor extends Monitor {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 		sigar = new Sigar();
 	}
 
@@ -65,7 +65,7 @@ public final class SigarMonitor extends Monitor {
 	 * @return total CPU usage of the current OS
 	 */
 	@Override
-	public final int getTotalCpuPercent() {
+	public int getTotalCpuPercent() {
 		try {
 			return (int) Math.max(sigar.getCpuPerc().getCombined() * 100d, 0d);
 		} catch (Exception cause) {

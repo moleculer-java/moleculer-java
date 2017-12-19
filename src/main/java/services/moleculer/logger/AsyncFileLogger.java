@@ -64,34 +64,34 @@ import java.util.zip.ZipOutputStream;
  * services.moleculer.logger.AsyncFileLogger.level = INFO<br>
  * .level = INFO
  */
-public final class AsyncFileLogger extends Handler implements Runnable {
+public class AsyncFileLogger extends Handler implements Runnable {
 
 	// --- FILE NAME FORMATTER ---
 
-	private DateFormat FILE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
+	protected DateFormat FILE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
 
 	// --- PROPERTIES ---
 
-	private String prefix;
-	private String directory;
-	private int compressAfterDays;
-	private int deleteAfterDays;
-	private boolean logToConsole;
-	private String fileEncoding;
+	protected String prefix;
+	protected String directory;
+	protected int compressAfterDays;
+	protected int deleteAfterDays;
+	protected boolean logToConsole;
+	protected String fileEncoding;
 
-	private static final long DAY = 1000L * 60 * 60 * 24;
+	protected static final long DAY = 1000L * 60 * 60 * 24;
 
 	// --- LOG EVENT QUEUE ---
 
-	private final LinkedList<LogRecord> messages = new LinkedList<>();
+	protected final LinkedList<LogRecord> messages = new LinkedList<>();
 
 	// --- LOG DIRECTORY ---
 
-	private File logDirectory;
+	protected File logDirectory;
 
 	// --- CONSTRUCTOR ---
 
-	private ExecutorService executor;
+	protected ExecutorService executor;
 
 	public AsyncFileLogger() {
 		configure();
@@ -115,7 +115,7 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 	// --- ADD TO QUEUE ---
 
 	@Override
-	public final void publish(LogRecord record) {
+	public void publish(LogRecord record) {
 		if (!isLoggable(record)) {
 			return;
 		}
@@ -125,7 +125,7 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 		}
 	}
 
-	public final void run() {
+	public void run() {
 		LinkedList<LogRecord> records = new LinkedList<>();
 		try {
 
@@ -158,7 +158,7 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 		}
 	}
 
-	private final void writeLines(LinkedList<LogRecord> records, StringBuilder lines, Formatter formatter)
+	protected void writeLines(LinkedList<LogRecord> records, StringBuilder lines, Formatter formatter)
 			throws Exception {
 		lines.setLength(0);
 		for (LogRecord record : records) {
@@ -179,10 +179,10 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 		}
 	}
 
-	private String openedFile = "";
-	private FileOutputStream openedStream;
+	protected String openedFile = "";
+	protected FileOutputStream openedStream;
 
-	private final void appendToFile(String fileName, byte[] bytes) {
+	protected void appendToFile(String fileName, byte[] bytes) {
 		try {
 			if (!openedFile.equals(fileName)) {
 				closeStream();
@@ -202,7 +202,7 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 		}
 	}
 
-	private final void closeStream() {
+	protected void closeStream() {
 		if (openedStream != null) {
 			openedFile = "";
 			try {
@@ -212,7 +212,7 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 		}
 	}
 
-	private final void compressOrDeleteOldFiles() {
+	protected void compressOrDeleteOldFiles() {
 		File[] files = logDirectory.listFiles(new FilenameFilter() {
 
 			@Override
@@ -293,11 +293,11 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 	// --- FLUSH / CLOSE ---
 
 	@Override
-	public final void flush() {
+	public void flush() {
 	}
 
 	@Override
-	public final void close() throws SecurityException {
+	public void close() throws SecurityException {
 
 		// Stop executor
 		if (executor != null) {
@@ -326,7 +326,7 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 
 	// --- CONFIGURATION ---
 
-	private final void configure() {
+	protected void configure() {
 		String className = AsyncFileLogger.class.getName();
 		ClassLoader cl = Thread.currentThread().getContextClassLoader();
 
@@ -461,7 +461,7 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 		}
 	}
 
-	private static final String getProperty(String name, String defaultValue) {
+	protected String getProperty(String name, String defaultValue) {
 		String value = LogManager.getLogManager().getProperty(name);
 		if (value == null) {
 			value = defaultValue;
@@ -471,7 +471,7 @@ public final class AsyncFileLogger extends Handler implements Runnable {
 		return value;
 	}
 
-	private static final String findLogDirectory(File dir) {
+	protected String findLogDirectory(File dir) {
 		if (dir == null || !dir.exists()) {
 			return null;
 		}

@@ -34,13 +34,14 @@ import services.moleculer.service.Name;
  * @see NanoSecRandomStrategy
  * @see SecureRandomStrategy
  * @see XORShiftRandomStrategy
+ * @see CpuUsageStrategy
  */
 @Name("Round-Robin Strategy")
-public final class RoundRobinStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
+public class RoundRobinStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
 
 	// --- PROPERTIES ---
 
-	private final AtomicInteger counter = new AtomicInteger();
+	protected final AtomicInteger counter = new AtomicInteger();
 
 	// --- CONSTRUCTOR ---
 
@@ -51,7 +52,7 @@ public final class RoundRobinStrategy<T extends Endpoint> extends ArrayBasedStra
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
-	public final Endpoint next(Endpoint[] array) {
+	public Endpoint next(Endpoint[] array) {
 		return array[counter.incrementAndGet() % array.length];
 	}
 

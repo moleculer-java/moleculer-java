@@ -49,6 +49,7 @@ import services.moleculer.service.Name;
  * @see NanoSecRandomStrategyFactory
  * @see SecureRandomStrategyFactory
  * @see XORShiftRandomStrategyFactory
+ * @see CpuUsageStrategyFactory
  */
 @Name("Strategy Factory")
 public abstract class StrategyFactory implements MoleculerComponent {

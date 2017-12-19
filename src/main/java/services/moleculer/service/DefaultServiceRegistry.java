@@ -61,58 +61,58 @@ import services.moleculer.transporter.Transporter;
  * Default implementation of the Service Registry.
  */
 @Name("Default Service Registry")
-public final class DefaultServiceRegistry extends ServiceRegistry implements Runnable {
+public class DefaultServiceRegistry extends ServiceRegistry implements Runnable {
 
 	// --- REGISTERED LOCAL SERVICES ---
 
-	private final HashMap<String, Service> services = new HashMap<>(64);
+	protected final HashMap<String, Service> services = new HashMap<>(64);
 
 	// --- REGISTERED STRATEGIES PER ACTIONS ---
 
-	private final HashMap<String, Strategy<ActionEndpoint>> strategies = new HashMap<>(256);
+	protected final HashMap<String, Strategy<ActionEndpoint>> strategies = new HashMap<>(256);
 
 	// --- PENDING REMOTE INVOCATIONS ---
 
-	private final ConcurrentHashMap<String, PendingPromise> promises = new ConcurrentHashMap<>(8192);
+	protected final ConcurrentHashMap<String, PendingPromise> promises = new ConcurrentHashMap<>(8192);
 
 	// --- PROPERTIES ---
 
 	/**
 	 * Invoke all local services via Thread pool (true) or directly (false)
 	 */
-	private boolean asyncLocalInvocation;
+	protected boolean asyncLocalInvocation;
 
 	/**
 	 * Default action invocation timeout (seconds)
 	 */
-	private int defaultTimeout;
+	protected int defaultTimeout;
 
 	/**
 	 * Timeout-checker's period delay (seconds)
 	 */
-	private int cleanup = 1;
+	protected int cleanup = 1;
 
 	/**
 	 * Reader lock of configuration
 	 */
-	private final Lock readLock;
+	protected final Lock readLock;
 
 	/**
 	 * Writer lock of configuration
 	 */
-	private final Lock writeLock;
+	protected final Lock writeLock;
 
 	// --- LOCAL NODE ID ---
 
-	private String nodeID;
+	protected String nodeID;
 
 	// --- COMPONENTS ---
 
-	private ServiceBroker broker;
-	private StrategyFactory strategy;
-	private ScheduledExecutorService scheduler;
-	private Transporter transporter;
-	private EventBus eventbus;
+	protected ServiceBroker broker;
+	protected StrategyFactory strategy;
+	protected ScheduledExecutorService scheduler;
+	protected Transporter transporter;
+	protected EventBus eventbus;
 
 	// --- CONSTRUCTORS ---
 
@@ -142,7 +142,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
 		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
@@ -170,7 +170,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	// --- STOP SERVICE REGISTRY ---
 
 	@Override
-	public final void stop() {
+	public void stop() {
 
 		// Stop timer
 		ScheduledFuture<?> task = timer.get();
@@ -208,7 +208,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 	// --- CALL TIMEOUT CHECKER TASK ---
 
-	public final void run() {
+	public void run() {
 		long now = System.currentTimeMillis();
 		PendingPromise pending;
 		Iterator<PendingPromise> i = promises.values().iterator();
@@ -236,17 +236,17 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	/**
 	 * Cancelable timer
 	 */
-	private final AtomicReference<ScheduledFuture<?>> timer = new AtomicReference<>();
+	protected final AtomicReference<ScheduledFuture<?>> timer = new AtomicReference<>();
 
 	/**
 	 * Next scheduled time to check timeouts
 	 */
-	private final AtomicLong prevTimeoutAt = new AtomicLong();
+	protected final AtomicLong prevTimeoutAt = new AtomicLong();
 
 	/**
 	 * Recalculates the next timeout checking time
 	 */
-	private final void reschedule(long minTimeoutAt) {
+	protected void reschedule(long minTimeoutAt) {
 		if (minTimeoutAt == Long.MAX_VALUE) {
 			for (PendingPromise pending : promises.values()) {
 				if (pending.timeoutAt > 0 && pending.timeoutAt < minTimeoutAt) {
@@ -290,7 +290,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 	// --- REGISTER PROMISE ---
 
-	final void register(String id, Promise promise, long timeoutAt) {
+	protected void register(String id, Promise promise, long timeoutAt) {
 		promises.put(id, new PendingPromise(promise, timeoutAt));
 
 		long nextTimeoutAt = prevTimeoutAt.get();
@@ -301,13 +301,13 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		}
 	}
 
-	final void deregister(String id) {
+	protected void deregister(String id) {
 		promises.remove(id);
 	}
 
 	// --- RECEIVE REQUEST FROM REMOTE SERVICE ---
 
-	public final void receiveRequest(Tree message) {
+	public void receiveRequest(Tree message) {
 
 		// Verify Moleculer version
 		int ver = message.get("ver", -1);
@@ -397,7 +397,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		}
 	}
 
-	private final Tree throwableToTree(String id, Throwable error) {
+	protected Tree throwableToTree(String id, Throwable error) {
 		Tree response = new Tree();
 		response.put("id", id);
 		response.put("ver", ServiceBroker.MOLECULER_VERSION);
@@ -422,7 +422,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
 
 	@Override
-	public final void receiveResponse(Tree message) {
+	public void receiveResponse(Tree message) {
 
 		// Verify Moleculer version
 		int ver = message.get("ver", -1);
@@ -483,7 +483,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	// --- ADD A LOCAL SERVICE ---
 
 	@Override
-	public final void addActions(Service service, Tree config) throws Exception {
+	public void addActions(Service service, Tree config) throws Exception {
 		writeLock.lock();
 		try {
 
@@ -560,7 +560,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	// --- ADD A REMOTE SERVICE ---
 
 	@Override
-	public final void addActions(Tree config) throws Exception {
+	public void addActions(Tree config) throws Exception {
 		Tree actions = config.get("actions");
 		if (actions != null && actions.isMap()) {
 			String nodeID = Objects.requireNonNull(config.get("nodeID", (String) null));
@@ -590,7 +590,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	// --- REMOVE ALL REMOTE SERVICES/ACTIONS OF A NODE ---
 
 	@Override
-	public final void removeActions(String nodeID) {
+	public void removeActions(String nodeID) {
 		writeLock.lock();
 		try {
 			Iterator<Strategy<ActionEndpoint>> endpoints = strategies.values().iterator();
@@ -614,7 +614,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 		}
 	}
 
-	private final void stopAllLocalServices() {
+	protected void stopAllLocalServices() {
 		for (Service service : services.values()) {
 			try {
 				service.stop();
@@ -629,7 +629,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	// --- GET LOCAL SERVICE ---
 
 	@Override
-	public final Service getService(String name) {
+	public Service getService(String name) {
 		Service service;
 		readLock.lock();
 		try {
@@ -646,7 +646,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	// --- GET LOCAL OR REMOTE ACTION CONTAINER ---
 
 	@Override
-	public final ActionEndpoint getAction(String name, String nodeID) {
+	public ActionEndpoint getAction(String name, String nodeID) {
 		Strategy<ActionEndpoint> strategy;
 		readLock.lock();
 		try {
@@ -667,7 +667,7 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
 	@Override
-	public final Tree generateDescriptor() {
+	public Tree generateDescriptor() {
 		Tree root = new Tree();
 
 		// Protocol version
@@ -779,27 +779,27 @@ public final class DefaultServiceRegistry extends ServiceRegistry implements Run
 
 	// --- GETTERS / SETTERS ---
 
-	public final boolean isAsyncLocalInvocation() {
+	public boolean isAsyncLocalInvocation() {
 		return asyncLocalInvocation;
 	}
 
-	public final void setAsyncLocalInvocation(boolean asyncLocalInvocation) {
+	public void setAsyncLocalInvocation(boolean asyncLocalInvocation) {
 		this.asyncLocalInvocation = asyncLocalInvocation;
 	}
 
-	public final int getDefaultTimeout() {
+	public int getDefaultTimeout() {
 		return defaultTimeout;
 	}
 
-	public final void setDefaultTimeout(int defaultTimeoutSeconds) {
+	public void setDefaultTimeout(int defaultTimeoutSeconds) {
 		this.defaultTimeout = defaultTimeoutSeconds;
 	}
 
-	public final int getCleanup() {
+	public int getCleanup() {
 		return cleanup;
 	}
 
-	public final void setCleanup(int cleanupSeconds) {
+	public void setCleanup(int cleanupSeconds) {
 		this.cleanup = cleanupSeconds;
 	}
 

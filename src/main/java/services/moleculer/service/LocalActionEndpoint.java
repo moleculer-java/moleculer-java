@@ -40,34 +40,34 @@ import services.moleculer.context.ContextFactory;
 /**
  * Container (action invoker) of local actions.
  */
-public final class LocalActionEndpoint extends ActionEndpoint {
+public class LocalActionEndpoint extends ActionEndpoint {
 
 	// --- PROPERTIES ---
 
 	/**
 	 * Action instance (it's a field / inner class in Service object)
 	 */
-	private final Action action;
+	protected final Action action;
 
 	/**
 	 * Invoke all local actions via Thread pool (true) or directly (false)
 	 */
-	private boolean asyncLocalInvocation;
+	protected boolean asyncLocalInvocation;
 
 	/**
 	 * Atomic counter for internal timout handling
 	 */
-	private final AtomicLong internalUID = new AtomicLong();
+	protected final AtomicLong internalUID = new AtomicLong();
 
 	// --- COMPONENTS ---
 
-	private final DefaultServiceRegistry registry;
-	private ContextFactory context;
-	private ExecutorService executor;
+	protected final DefaultServiceRegistry registry;
+	protected ContextFactory context;
+	protected ExecutorService executor;
 
 	// --- CONSTRUCTOR ---
 
-	LocalActionEndpoint(DefaultServiceRegistry registry, Action action, boolean asyncLocalInvocation) {
+	protected LocalActionEndpoint(DefaultServiceRegistry registry, Action action, boolean asyncLocalInvocation) {
 		this.registry = registry;
 		this.action = action;
 		this.asyncLocalInvocation = asyncLocalInvocation;
@@ -84,7 +84,7 @@ public final class LocalActionEndpoint extends ActionEndpoint {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 		super.start(broker, config);
 
 		// Process config
@@ -106,7 +106,7 @@ public final class LocalActionEndpoint extends ActionEndpoint {
 	// --- INVOKE LOCAL ACTION ---
 
 	@Override
-	protected final Promise callActionNoStore(Tree params, CallingOptions.Options opts, Context parent) {
+	protected Promise callActionNoStore(Tree params, CallingOptions.Options opts, Context parent) {
 
 		// Set timeout (limit timestamp in millis)
 		int timeout;
@@ -164,7 +164,7 @@ public final class LocalActionEndpoint extends ActionEndpoint {
 	// --- PROPERTY GETTERS ---
 
 	@Override
-	public final boolean local() {
+	public boolean local() {
 		return true;
 	}
 

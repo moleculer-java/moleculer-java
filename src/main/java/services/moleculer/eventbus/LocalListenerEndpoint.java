@@ -5,23 +5,23 @@ import java.util.concurrent.ExecutorService;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 
-public final class LocalListenerEndpoint extends ListenerEndpoint {
+public class LocalListenerEndpoint extends ListenerEndpoint {
 
 	// --- PROPERTIES ---
 
 	/**
 	 * Listener instance (it's a field / inner class in Service object)
 	 */
-	private Listener listener;
+	protected Listener listener;
 
 	/**
 	 * Invoke all local listeners via Thread pool (true) or directly (false)
 	 */
-	private boolean asyncLocalInvocation;
+	protected boolean asyncLocalInvocation;
 
 	// --- COMPONENTS ---
 
-	private ExecutorService executor;
+	protected ExecutorService executor;
 
 	// --- CONSTRUCTOR ---
 
@@ -41,7 +41,7 @@ public final class LocalListenerEndpoint extends ListenerEndpoint {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Set base properties
 		super.start(broker, config);
@@ -58,7 +58,7 @@ public final class LocalListenerEndpoint extends ListenerEndpoint {
 	// --- INVOKE LOCAL LISTENER ---
 
 	@Override
-	public final void on(String name, Tree payload, Groups groups, boolean emit) throws Exception {
+	public void on(String name, Tree payload, Groups groups, boolean emit) throws Exception {
 
 		// A.) Async invocation
 		if (asyncLocalInvocation) {
@@ -77,7 +77,7 @@ public final class LocalListenerEndpoint extends ListenerEndpoint {
 	}
 
 	@Override
-	public final boolean local() {
+	public boolean local() {
 		return true;
 	}
 

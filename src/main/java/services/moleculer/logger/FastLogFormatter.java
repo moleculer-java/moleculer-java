@@ -34,28 +34,28 @@ import java.util.logging.LogRecord;
  * Fast log formatter for AsyncFileLogger. Generates nice, human-readable logs.
  * The lines of the generated log file are readable by humans and machines.
  */
-public final class FastLogFormatter extends Formatter {
+public class FastLogFormatter extends Formatter {
 
-	private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+	protected static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
-	private static final char[] SEVERE = " | SEVERE  | ".toCharArray();
-	private static final char[] WARNING = " | WARNING | ".toCharArray();
-	private static final char[] INFO = " | INFO    | ".toCharArray();
-	private static final char[] CONFIG = " | CONFIG  | ".toCharArray();
-	private static final char[] FINE = " | FINE    | ".toCharArray();
-	private static final char[] FINER = " | FINER   | ".toCharArray();
-	private static final char[] FINEST = " | FINEST  | ".toCharArray();
+	protected static final char[] SEVERE = " | SEVERE  | ".toCharArray();
+	protected static final char[] WARNING = " | WARNING | ".toCharArray();
+	protected static final char[] INFO = " | INFO    | ".toCharArray();
+	protected static final char[] CONFIG = " | CONFIG  | ".toCharArray();
+	protected static final char[] FINE = " | FINE    | ".toCharArray();
+	protected static final char[] FINER = " | FINER   | ".toCharArray();
+	protected static final char[] FINEST = " | FINEST  | ".toCharArray();
 
-	private static final char[] TUBE = " | ".toCharArray();
-	private static final char[] BREAK = System.getProperty("line.separator", "\r\n").toCharArray();
-	private static final char[] AT = " at ".toCharArray();
-	private static final char[] JAVA = ".java:".toCharArray();
+	protected static final char[] TUBE = " | ".toCharArray();
+	protected static final char[] BREAK = System.getProperty("line.separator", "\r\n").toCharArray();
+	protected static final char[] AT = " at ".toCharArray();
+	protected static final char[] JAVA = ".java:".toCharArray();
 
-	private final StringBuilder line = new StringBuilder(512);
+	protected final StringBuilder line = new StringBuilder(512);
 
-	private volatile int position = 83;
+	protected volatile int position = 83;
 
-	public final String format(LogRecord record) {
+	public String format(LogRecord record) {
 		line.setLength(0);
 		line.append(DATE_FORMAT.format(new Date(record.getMillis())));
 
@@ -111,7 +111,7 @@ public final class FastLogFormatter extends Formatter {
 		return line.toString();
 	}
 
-	private final void dump(Throwable cause, int level, int lineLength) {
+	protected void dump(Throwable cause, int level, int lineLength) {
 		if (level == 0) {
 			for (int i = 0; i < lineLength; i++) {
 				line.append('-');

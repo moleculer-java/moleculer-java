@@ -32,11 +32,11 @@ import services.moleculer.service.Name;
  * "Fake" system monitor, which returns constant values.
  */
 @Name("Constant-value System Monitor")
-public final class ConstantMonitor extends Monitor {
+public class ConstantMonitor extends Monitor {
 
 	// --- PROPERTIES ---
 
-	private int totalCpuPercent;
+	protected int totalCpuPercent;
 
 	// --- CONSTUCTORS ---
 
@@ -58,7 +58,7 @@ public final class ConstantMonitor extends Monitor {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
 		totalCpuPercent = config.get("totalCpuPercent", totalCpuPercent);
@@ -72,13 +72,13 @@ public final class ConstantMonitor extends Monitor {
 	 * @return total CPU usage of the current OS
 	 */
 	@Override
-	public final int getTotalCpuPercent() {
+	public int getTotalCpuPercent() {
 		return totalCpuPercent;
 	}
 
 	// --- GETTERS / SETTERS ---
 
-	public final void setTotalCpuPercent(int value) {
+	public void setTotalCpuPercent(int value) {
 		this.totalCpuPercent = value;
 	}
 

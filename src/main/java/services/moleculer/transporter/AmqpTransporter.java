@@ -69,30 +69,30 @@ public class AmqpTransporter extends Transporter {
 
 	// --- PROPERTIES ---
 
-	private String username;
-	private String password;
-	private String url = "127.0.0.1";
-	private SslContextFactory sslContextFactory;
+	protected String username;
+	protected String password;
+	protected String url = "127.0.0.1";
+	protected SslContextFactory sslContextFactory;
 
 	// --- OTHER AMQP PROPERTIES ---
 
-	private ConnectionFactory factory = new ConnectionFactory();
-	private boolean mandatory;
-	private boolean immediate;
-	private boolean durable;
-	private boolean exclusive;
-	private boolean autoDelete = true;
+	protected ConnectionFactory factory = new ConnectionFactory();
+	protected boolean mandatory;
+	protected boolean immediate;
+	protected boolean durable;
+	protected boolean exclusive;
+	protected boolean autoDelete = true;
 
-	private BasicProperties messageProperties;
-	private Map<String, Object> channelProperties = new HashMap<>();
+	protected BasicProperties messageProperties;
+	protected Map<String, Object> channelProperties = new HashMap<>();
 
 	// --- AMQP CONNECTION ---
 
-	private Connection client;
+	protected Connection client;
 
 	// --- CHANNEL NAME/CHANNEL MAP ---
 
-	private final HashMap<String, Channel> channels = new HashMap<>(64);
+	protected final HashMap<String, Channel> channels = new HashMap<>(64);
 
 	// --- CONSTUCTORS ---
 
@@ -129,7 +129,7 @@ public class AmqpTransporter extends Transporter {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process basic properties (eg. "prefix")
 		super.start(broker, config);
@@ -171,7 +171,7 @@ public class AmqpTransporter extends Transporter {
 
 	// --- CONNECT ---
 
-	private final void connect() {
+	protected void connect() {
 		try {
 
 			// Create client connection
@@ -223,7 +223,7 @@ public class AmqpTransporter extends Transporter {
 
 	// --- DISCONNECT ---
 
-	private final void disconnect() {
+	protected void disconnect() {
 		synchronized (channels) {
 			for (Channel channel : channels.values()) {
 				try {
@@ -246,7 +246,7 @@ public class AmqpTransporter extends Transporter {
 
 	// --- RECONNECT ---
 
-	private final void reconnect() {
+	protected void reconnect() {
 		disconnect();
 		logger.info("Trying to reconnect...");
 		scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
@@ -255,7 +255,7 @@ public class AmqpTransporter extends Transporter {
 	// --- ANY I/O ERROR ---
 
 	@Override
-	protected final void error(Throwable cause) {
+	protected void error(Throwable cause) {
 		logger.warn("Unexpected communication error occured!", cause);
 		reconnect();
 	}
@@ -266,14 +266,14 @@ public class AmqpTransporter extends Transporter {
 	 * Closes transporter.
 	 */
 	@Override
-	public final void stop() {
+	public void stop() {
 		disconnect();
 	}
 
 	// --- SUBSCRIBE ---
 
 	@Override
-	public final Promise subscribe(String channel) {
+	public Promise subscribe(String channel) {
 		if (client != null) {
 			try {
 				synchronized (channels) {
@@ -341,7 +341,7 @@ public class AmqpTransporter extends Transporter {
 		return Promise.resolve();
 	}
 
-	private final Channel createOrGetChannel(String channel) throws Exception {
+	protected Channel createOrGetChannel(String channel) throws Exception {
 		Channel c;
 		synchronized (channels) {
 			c = channels.get(channel);
@@ -358,7 +358,7 @@ public class AmqpTransporter extends Transporter {
 	// --- PUBLISH ---
 
 	@Override
-	public final void publish(String channel, Tree message) {
+	public void publish(String channel, Tree message) {
 		if (client != null) {
 			if (debug) {
 				logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
@@ -374,99 +374,99 @@ public class AmqpTransporter extends Transporter {
 
 	// --- GETTERS / SETTERS ---
 
-	public final String getUrl() {
+	public String getUrl() {
 		return url;
 	}
 
-	public final void setUrl(String url) {
+	public void setUrl(String url) {
 		this.url = url;
 	}
 
-	public final String getUsername() {
+	public String getUsername() {
 		return username;
 	}
 
-	public final void setUsername(String username) {
+	public void setUsername(String username) {
 		this.username = username;
 	}
 
-	public final String getPassword() {
+	public String getPassword() {
 		return password;
 	}
 
-	public final void setPassword(String password) {
+	public void setPassword(String password) {
 		this.password = password;
 	}
 
-	public final ConnectionFactory getFactory() {
+	public ConnectionFactory getFactory() {
 		return factory;
 	}
 
-	public final void setFactory(ConnectionFactory factory) {
+	public void setFactory(ConnectionFactory factory) {
 		this.factory = factory;
 	}
 
-	public final boolean isMandatory() {
+	public boolean isMandatory() {
 		return mandatory;
 	}
 
-	public final void setMandatory(boolean mandatory) {
+	public void setMandatory(boolean mandatory) {
 		this.mandatory = mandatory;
 	}
 
-	public final boolean isImmediate() {
+	public boolean isImmediate() {
 		return immediate;
 	}
 
-	public final void setImmediate(boolean immediate) {
+	public void setImmediate(boolean immediate) {
 		this.immediate = immediate;
 	}
 
-	public final BasicProperties getMessageProperties() {
+	public BasicProperties getMessageProperties() {
 		return messageProperties;
 	}
 
-	public final void setMessageProperties(BasicProperties messageProperties) {
+	public void setMessageProperties(BasicProperties messageProperties) {
 		this.messageProperties = messageProperties;
 	}
 
-	public final boolean isDurable() {
+	public boolean isDurable() {
 		return durable;
 	}
 
-	public final void setDurable(boolean durable) {
+	public void setDurable(boolean durable) {
 		this.durable = durable;
 	}
 
-	public final boolean isExclusive() {
+	public boolean isExclusive() {
 		return exclusive;
 	}
 
-	public final void setExclusive(boolean exclusive) {
+	public void setExclusive(boolean exclusive) {
 		this.exclusive = exclusive;
 	}
 
-	public final boolean isAutoDelete() {
+	public boolean isAutoDelete() {
 		return autoDelete;
 	}
 
-	public final void setAutoDelete(boolean autoDelete) {
+	public void setAutoDelete(boolean autoDelete) {
 		this.autoDelete = autoDelete;
 	}
 
-	public final Map<String, Object> getChannelProperties() {
+	public Map<String, Object> getChannelProperties() {
 		return channelProperties;
 	}
 
-	public final void setChannelProperties(Map<String, Object> arguments) {
+	public void setChannelProperties(Map<String, Object> arguments) {
 		this.channelProperties = arguments;
 	}
 
-	public final SslContextFactory getSslContextFactory() {
+	public SslContextFactory getSslContextFactory() {
 		return sslContextFactory;
 	}
 
-	public final void setSslContextFactory(SslContextFactory sslContextFactory) {
+	public void setSslContextFactory(SslContextFactory sslContextFactory) {
 		this.sslContextFactory = sslContextFactory;
 	}
 

@@ -38,11 +38,11 @@ import services.moleculer.service.Name;
  * @see SigarMonitor
  */
 @Name("JMX System Monitor")
-public final class JMXMonitor extends Monitor {
+public class JMXMonitor extends Monitor {
 
 	// --- PROPERTIES ---
 
-	private OperatingSystemMXBean mxBean;
+	protected OperatingSystemMXBean mxBean;
 
 	// --- START MONITOR ---
 
@@ -55,7 +55,7 @@ public final class JMXMonitor extends Monitor {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 		mxBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
 	}
 
@@ -67,7 +67,7 @@ public final class JMXMonitor extends Monitor {
 	 * @return total CPU usage of the current OS
 	 */
 	@Override
-	public final int getTotalCpuPercent() {
+	public int getTotalCpuPercent() {
 		try {
 			Double value = (Double) mxBean.getSystemLoadAverage();
 			return (int) Math.max(value * 100d, 0d);

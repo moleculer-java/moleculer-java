@@ -37,7 +37,7 @@ import services.moleculer.util.CheckedTree;
  * Base superclass of all data serializer implementations.
  *
  * @see JsonSerializer
- * @see MessagePackSerializer
+ * @see MsgPackSerializer
  */
 public abstract class Serializer implements MoleculerComponent {
 
@@ -93,7 +93,7 @@ public abstract class Serializer implements MoleculerComponent {
 
 	// --- GET FORMAT NAME ---
 
-	public final String format() {
+	public String format() {
 		return format;
 	}
 

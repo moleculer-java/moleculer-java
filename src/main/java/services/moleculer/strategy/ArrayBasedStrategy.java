@@ -39,21 +39,22 @@ import services.moleculer.ServiceBroker;
  * @see NanoSecRandomStrategy
  * @see SecureRandomStrategy
  * @see XORShiftRandomStrategy
+ * @see CpuUsageStrategy
  */
 public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T> {
 
 	// --- ARRAY OF ENDPOINTS ---
 
-	private Endpoint[] endpoints = new Endpoint[0];
+	protected Endpoint[] endpoints = new Endpoint[0];
 
 	// --- CACHE ---
 
-	private final Cache<String, Endpoint[]> endpointCache = new Cache<>(1024, true);
+	protected final Cache<String, Endpoint[]> endpointCache = new Cache<>(1024, true);
 
 	// --- PROPERTIES ---
 
-	private final boolean preferLocal;
-	private String nodeID;
+	protected final boolean preferLocal;
+	protected String nodeID;
 
 	// --- CONSTRUCTOR ---
 
@@ -72,14 +73,14 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 		nodeID = broker.nodeID();
 	}
 
 	// --- ADD A LOCAL OR REMOTE ENDPOINT ---
 
 	@Override
-	public final void addEndpoint(T endpoint) {
+	public void addEndpoint(T endpoint) {
 		if (endpoints.length == 0) {
 			endpoints = new Endpoint[1];
 			endpoints[0] = endpoint;
@@ -106,7 +107,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 	// --- REMOVE ALL ENDPOINTS OF THE SPECIFIED NODE ---
 
 	@Override
-	public final void remove(String nodeID) {
+	public void remove(String nodeID) {
 		Endpoint endpoint;
 		boolean found = false;
 		for (int i = 0; i < endpoints.length; i++) {
@@ -134,7 +135,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 	// --- HAS ENDPOINTS ---
 
 	@Override
-	public final boolean isEmpty() {
+	public boolean isEmpty() {
 		return endpoints.length == 0;
 	}
 
@@ -142,7 +143,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public final T getEndpoint(String nodeID) {
+	public T getEndpoint(String nodeID) {
 		Endpoint[] array;
 		if (nodeID == null && preferLocal) {
 			array = getEndpointsByNodeID(this.nodeID);
@@ -161,7 +162,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 		return (T) next(array);
 	}
 
-	private final Endpoint[] getEndpointsByNodeID(String nodeID) {
+	protected Endpoint[] getEndpointsByNodeID(String nodeID) {
 		if (nodeID == null) {
 			return endpoints;
 		}
@@ -188,7 +189,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public final List<T> getAllEndpoints() {
+	public List<T> getAllEndpoints() {
 		ArrayList<T> list = new ArrayList<>(endpoints.length);
 		for (int i = 0; i < endpoints.length; i++) {
 			list.add((T) endpoints[i]);

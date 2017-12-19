@@ -22,65 +22,43 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.service;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+package services.moleculer.strategy;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
+import services.moleculer.service.Name;
+import services.moleculer.transporter.Transporter;
+import services.moleculer.util.CommonUtils;
 
 /**
- * Abstract superclass of all Service implementations.
+ * Factory of lowest CPU usage strategy.
+ * 
+ * @see RoundRobinStrategyFactory
+ * @see SecureRandomStrategyFactory
+ * @see XORShiftRandomStrategyFactory
+ * @see NanoSecRandomStrategyFactory
  */
-public abstract class Service implements MoleculerComponent {
+@Name("Lowest CPU Usage Strategy Factory")
+public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {
 
-	// --- LOGGER ---
+	// --- COMPONENTS ---
 
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
-
-	// --- PROPERTIES ---
-
-	protected final String name;
+	protected Transporter transporter;
 
 	// --- CONSTRUCTORS ---
 
-	public Service() {
-		this(null);
+	public CpuUsageStrategyFactory() {
+		super(false);
 	}
 
-	public Service(String name) {
-		if (name == null || name.isEmpty()) {
-			Name n = getClass().getAnnotation(Name.class);
-			if (n != null) {
-				name = n.value();
-			}
-			if (name != null) {
-				name = name.trim();
-			}
-			if (name == null || name.isEmpty()) {
-				name = getClass().getName();
-				int i = Math.max(name.lastIndexOf('.'), name.lastIndexOf('$'));
-				if (i > -1) {
-					name = name.substring(i + 1);
-				}
-				name = Character.toLowerCase(name.charAt(0)) + name.substring(1);
-			}
-		}
-		this.name = name;
+	public CpuUsageStrategyFactory(boolean preferLocal) {
+		super(preferLocal);
 	}
 
-	// --- GET NAME OF SERVICE ---
-
-	public String name() {
-		return name;
-	}
-
-	// --- START SERVICE ---
+	// --- START INVOCATION STRATEGY ---
 
 	/**
-	 * Initializes service instance.
+	 * Initializes strategy instance.
 	 * 
 	 * @param broker
 	 *            parent ServiceBroker
@@ -89,22 +67,21 @@ public abstract class Service implements MoleculerComponent {
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
+		transporter = broker.components().transporter();
+		if (transporter == null) {
+			logger.warn(CommonUtils.nameOf(this, true)
+					+ " can't work without transporter. Strategy switched to Round-Robin mode.");
+		}
 	}
 
-	// --- SERVICE CREATED ---
-
-	public void created() throws Exception {
-	}
-
-	// --- SERVICE STARTED ---
-
-	public void started() throws Exception {
-	}
-
-	// --- STOP SERVICE ---
+	// --- FACTORY METHOD ---
 
 	@Override
-	public void stop() {
+	public <T extends Endpoint> Strategy<T> create() {
+		if (transporter == null) {
+			return new RoundRobinStrategy<T>(preferLocal);
+		}
+		return new CpuUsageStrategy<T>(preferLocal, transporter);
 	}
 
 }

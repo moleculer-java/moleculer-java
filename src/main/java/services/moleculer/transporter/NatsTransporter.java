@@ -60,28 +60,28 @@ import services.moleculer.service.Name;
  * @see GoogleCloudTransporter
  */
 @Name("NATS Transporter")
-public final class NatsTransporter extends Transporter implements MessageHandler, DisconnectedCallback {
+public class NatsTransporter extends Transporter implements MessageHandler, DisconnectedCallback {
 
 	// --- PROPERTIES ---
 
-	private String username;
-	private String password;
-	private boolean secure;
-	private String[] urls = new String[] { "127.0.0.1" };
+	protected String username;
+	protected String password;
+	protected boolean secure;
+	protected String[] urls = new String[] { "127.0.0.1" };
 
 	// --- OTHER NATS PROPERTIES ---
 
-	private SSLContext sslContext;
-	private boolean dontRandomize;
-	private int maxPingsOut = Nats.DEFAULT_MAX_PINGS_OUT;
-	private long pingInterval = Nats.DEFAULT_PING_INTERVAL;
-	private int timeout = Nats.DEFAULT_TIMEOUT;
-	private boolean tlsDebug;
-	private boolean verbose;
+	protected SSLContext sslContext;
+	protected boolean dontRandomize;
+	protected int maxPingsOut = Nats.DEFAULT_MAX_PINGS_OUT;
+	protected long pingInterval = Nats.DEFAULT_PING_INTERVAL;
+	protected int timeout = Nats.DEFAULT_TIMEOUT;
+	protected boolean tlsDebug;
+	protected boolean verbose;
 
 	// --- NATS CONNECTION ---
 
-	private Connection client;
+	protected Connection client;
 
 	// --- CONSTUCTORS ---
 
@@ -117,7 +117,7 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process basic properties (eg. "prefix")
 		super.start(broker, config);
@@ -156,7 +156,7 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 
 	// --- CONNECT ---
 
-	private final void connect() {
+	protected void connect() {
 		try {
 
 			// Create NATS client options
@@ -219,12 +219,12 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 	// --- DISCONNECT ---
 
 	@Override
-	public final void onDisconnect(ConnectionEvent event) {
+	public void onDisconnect(ConnectionEvent event) {
 		logger.info("NATS pub-sub connection disconnected.");
 		reconnect();
 	}
 
-	private final void disconnect() {
+	protected void disconnect() {
 		if (client != null) {
 			try {
 				client.close();
@@ -238,7 +238,7 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 
 	// --- RECONNECT ---
 
-	private final void reconnect() {
+	protected void reconnect() {
 		disconnect();
 		logger.info("Trying to reconnect...");
 		scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
@@ -247,7 +247,7 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 	// --- ANY I/O ERROR ---
 
 	@Override
-	protected final void error(Throwable cause) {
+	protected void error(Throwable cause) {
 		logger.warn("Unexpected communication error occured!", cause);
 		reconnect();
 	}
@@ -258,14 +258,14 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 	 * Closes transporter.
 	 */
 	@Override
-	public final void stop() {
+	public void stop() {
 		disconnect();
 	}
 
 	// --- SUBSCRIBE ---
 
 	@Override
-	public final Promise subscribe(String channel) {
+	public Promise subscribe(String channel) {
 		if (client != null) {
 			try {
 				client.subscribe(channel, this);
@@ -279,14 +279,14 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 	// --- MESSAGE RECEIVED ---
 
 	@Override
-	public final void onMessage(Message msg) {
+	public void onMessage(Message msg) {
 		received(msg.getSubject(), msg.getData());
 	}
 
 	// --- PUBLISH ---
 
 	@Override
-	public final void publish(String channel, Tree message) {
+	public void publish(String channel, Tree message) {
 		if (client != null) {
 			try {
 				if (debug) {
@@ -302,91 +302,91 @@ public final class NatsTransporter extends Transporter implements MessageHandler
 
 	// --- GETTERS / SETTERS ---
 
-	public final String[] getUrls() {
+	public String[] getUrls() {
 		return urls;
 	}
 
-	public final void setUrls(String[] urls) {
+	public void setUrls(String[] urls) {
 		this.urls = urls;
 	}
 
-	public final String getUsername() {
+	public String getUsername() {
 		return username;
 	}
 
-	public final void setUsername(String username) {
+	public void setUsername(String username) {
 		this.username = username;
 	}
 
-	public final String getPassword() {
+	public String getPassword() {
 		return password;
 	}
 
-	public final void setPassword(String password) {
+	public void setPassword(String password) {
 		this.password = password;
 	}
 
-	public final SSLContext getSslContext() {
+	public SSLContext getSslContext() {
 		return sslContext;
 	}
 
-	public final void setSslContext(SSLContext sslContext) {
+	public void setSslContext(SSLContext sslContext) {
 		this.sslContext = sslContext;
 	}
 
-	public final boolean isSecure() {
+	public boolean isSecure() {
 		return secure;
 	}
 
-	public final void setSecure(boolean secure) {
+	public void setSecure(boolean secure) {
 		this.secure = secure;
 	}
 
-	public final boolean isDontRandomize() {
+	public boolean isDontRandomize() {
 		return dontRandomize;
 	}
 
-	public final void setDontRandomize(boolean dontRandomize) {
+	public void setDontRandomize(boolean dontRandomize) {
 		this.dontRandomize = dontRandomize;
 	}
 
-	public final int getMaxPingsOut() {
+	public int getMaxPingsOut() {
 		return maxPingsOut;
 	}
 
-	public final void setMaxPingsOut(int maxPingsOut) {
+	public void setMaxPingsOut(int maxPingsOut) {
 		this.maxPingsOut = maxPingsOut;
 	}
 
-	public final long getPingInterval() {
+	public long getPingInterval() {
 		return pingInterval;
 	}
 
-	public final void setPingInterval(long pingInterval) {
+	public void setPingInterval(long pingInterval) {
 		this.pingInterval = pingInterval;
 	}
 
-	public final int getTimeout() {
+	public int getTimeout() {
 		return timeout;
 	}
 
-	public final void setTimeout(int timeout) {
+	public void setTimeout(int timeout) {
 		this.timeout = timeout;
 	}
 
-	public final boolean isTlsDebug() {
+	public boolean isTlsDebug() {
 		return tlsDebug;
 	}
 
-	public final void setTlsDebug(boolean tlsDebug) {
+	public void setTlsDebug(boolean tlsDebug) {
 		this.tlsDebug = tlsDebug;
 	}
 
-	public final boolean isVerbose() {
+	public boolean isVerbose() {
 		return verbose;
 	}
 
-	public final void setVerbose(boolean verbose) {
+	public void setVerbose(boolean verbose) {
 		this.verbose = verbose;
 	}
 

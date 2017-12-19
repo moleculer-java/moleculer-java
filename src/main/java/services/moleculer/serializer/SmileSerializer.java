@@ -45,10 +45,10 @@ import services.moleculer.service.Name;
  * 'jackson-dataformat-smile', version: '2.9.0.pr3'
  * 
  * @see JsonSerializer
- * @see MessagePackSerializer
+ * @see MsgPackSerializer
  */
 @Name("SMILE Serializer")
-public final class SmileSerializer extends Serializer {
+public class SmileSerializer extends Serializer {
 
 	// --- CONSTRUCTOR ---
 

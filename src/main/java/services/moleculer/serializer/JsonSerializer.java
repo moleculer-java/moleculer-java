@@ -36,10 +36,10 @@ import services.moleculer.service.Name;
  * <b>Required dependency:</b> none / optional (eg. if you add Jackson API to
  * the classpath, JsonSerializer will user Jackson parser)
  * 
- * @see MessagePackSerializer
+ * @see MsgPackSerializer
  */
 @Name("JSON Serializer")
-public final class JsonSerializer extends Serializer {
+public class JsonSerializer extends Serializer {
 
 	// --- CONSTRUCTOR ---
 

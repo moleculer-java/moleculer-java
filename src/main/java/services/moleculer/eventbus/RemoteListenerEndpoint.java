@@ -9,11 +9,11 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.transporter.Transporter;
 import services.moleculer.util.CheckedTree;
 
-public final class RemoteListenerEndpoint extends ListenerEndpoint {
+public class RemoteListenerEndpoint extends ListenerEndpoint {
 
 	// --- COMPONENTS ---
 
-	private Transporter transporter;
+	protected Transporter transporter;
 
 	// --- START ENDPOINT ---
 
@@ -26,7 +26,7 @@ public final class RemoteListenerEndpoint extends ListenerEndpoint {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Set base properties
 		super.start(broker, config);
@@ -38,7 +38,7 @@ public final class RemoteListenerEndpoint extends ListenerEndpoint {
 	// --- INVOKE REMOTE LISTENER ---
 
 	@Override
-	public final void on(String name, Tree payload, Groups groups, boolean emit) throws Exception {
+	public void on(String name, Tree payload, Groups groups, boolean emit) throws Exception {
 		LinkedHashMap<String, Object> map = new LinkedHashMap<String, Object>();
 		map.put("ver", ServiceBroker.MOLECULER_VERSION);
 		map.put("sender", nodeID);
@@ -55,7 +55,7 @@ public final class RemoteListenerEndpoint extends ListenerEndpoint {
 	}
 
 	@Override
-	public final boolean local() {
+	public boolean local() {
 		return false;
 	}
 

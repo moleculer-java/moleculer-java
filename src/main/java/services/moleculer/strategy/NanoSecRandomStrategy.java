@@ -32,9 +32,10 @@ import services.moleculer.service.Name;
  * @see RoundRobinStrategy
  * @see SecureRandomStrategy
  * @see XORShiftRandomStrategy
+ * @see CpuUsageStrategy
  */
 @Name("Nanosecond-based Pseudorandom Strategy")
-public final class NanoSecRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
+public class NanoSecRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
 
 	// --- CONSTRUCTOR ---
 
@@ -45,7 +46,7 @@ public final class NanoSecRandomStrategy<T extends Endpoint> extends ArrayBasedS
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
-	public final Endpoint next(Endpoint[] array) {
+	public Endpoint next(Endpoint[] array) {
 		return array[(int) (System.nanoTime() % array.length)];
 	}
 

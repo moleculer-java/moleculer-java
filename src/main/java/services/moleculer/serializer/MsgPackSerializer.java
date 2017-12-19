@@ -43,11 +43,11 @@ import services.moleculer.service.Name;
  * @see JsonSerializer
  */
 @Name("MessagePack Serializer")
-public final class MessagePackSerializer extends Serializer {
+public class MsgPackSerializer extends Serializer {
 
 	// --- CONSTRUCTOR ---
 
-	public MessagePackSerializer() {
+	public MsgPackSerializer() {
 		super("msgpack");
 	}
 

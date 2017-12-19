@@ -34,13 +34,14 @@ import services.moleculer.service.Name;
  * @see RoundRobinStrategy
  * @see NanoSecRandomStrategy
  * @see XORShiftRandomStrategy
+ * @see CpuUsageStrategy
  */
 @Name("Secure Random Strategy")
-public final class SecureRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
+public class SecureRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
 
 	// --- PROPERTIES ---
 
-	private final SecureRandom rnd = new SecureRandom();
+	protected SecureRandom rnd = new SecureRandom();
 
 	// --- CONSTRUCTOR ---
 
@@ -51,7 +52,7 @@ public final class SecureRandomStrategy<T extends Endpoint> extends ArrayBasedSt
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
-	public final Endpoint next(Endpoint[] array) {
+	public Endpoint next(Endpoint[] array) {
 		return array[rnd.nextInt(array.length)];
 	}
 

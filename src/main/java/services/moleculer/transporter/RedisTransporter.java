@@ -65,27 +65,27 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 
 	// --- LIST OF STATUS CODES ---
 
-	private static final int STATUS_DISCONNECTING = 1;
-	private static final int STATUS_DISCONNECTED = 2;
-	private static final int STATUS_CONNECTING_1 = 3;
-	private static final int STATUS_CONNECTING_2 = 4;
-	private static final int STATUS_CONNECTED = 5;
-	private static final int STATUS_STOPPED = 6;
+	protected static final int STATUS_DISCONNECTING = 1;
+	protected static final int STATUS_DISCONNECTED = 2;
+	protected static final int STATUS_CONNECTING_1 = 3;
+	protected static final int STATUS_CONNECTING_2 = 4;
+	protected static final int STATUS_CONNECTED = 5;
+	protected static final int STATUS_STOPPED = 6;
 
 	// --- CONNECTION STATUS ---
 
-	private final AtomicInteger status = new AtomicInteger(STATUS_DISCONNECTED);
+	protected final AtomicInteger status = new AtomicInteger(STATUS_DISCONNECTED);
 
 	// --- PROPERTIES ---
 
-	private String password;
-	private boolean secure;
-	private String[] urls = new String[] { "127.0.0.1" };
+	protected String password;
+	protected boolean secure;
+	protected String[] urls = new String[] { "127.0.0.1" };
 
 	// --- REDIS CLIENTS ---
 
-	private RedisPubSubClient clientSub;
-	private RedisPubSubClient clientPub;
+	protected RedisPubSubClient clientSub;
+	protected RedisPubSubClient clientPub;
 
 	// --- CONSTUCTORS ---
 
@@ -120,7 +120,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process basic properties (eg. "prefix")
 		super.start(broker, config);
@@ -152,7 +152,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 
 	// --- CONNECT ---
 
-	private final void connect() {
+	protected void connect() {
 		if (clientSub != null || clientPub != null) {
 			disconnect();
 		}
@@ -178,7 +178,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 		}
 	}
 
-	private final void unableToConnect(Exception cause) {
+	protected void unableToConnect(Exception cause) {
 		String msg = cause.getMessage();
 		if (msg == null || msg.isEmpty()) {
 			msg = "Unable to connect to Redis server!";
@@ -191,7 +191,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 
 	// --- DISCONNECT ---
 
-	private final Promise disconnect() {
+	protected Promise disconnect() {
 		int s = status.get();
 		if (s != STATUS_DISCONNECTED || s != STATUS_STOPPED) {
 			status.set(STATUS_DISCONNECTING);
@@ -211,7 +211,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 
 	// --- RECONNECT ---
 
-	private final void reconnect() {
+	protected void reconnect() {
 		disconnect().then(ok -> {
 			logger.info("Trying to reconnect...");
 			scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
@@ -224,7 +224,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	// --- ANY I/O ERROR ---
 
 	@Override
-	protected final void error(Throwable cause) {
+	protected void error(Throwable cause) {
 		logger.warn("Unexpected communication error occured!", cause);
 		reconnect();
 	}
@@ -235,7 +235,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	 * Closes transporter.
 	 */
 	@Override
-	public final void stop() {
+	public void stop() {
 		int s = status.getAndSet(STATUS_STOPPED);
 		if (s != STATUS_STOPPED) {
 			disconnect();
@@ -247,7 +247,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	// --- SUBSCRIBE ---
 
 	@Override
-	public final Promise subscribe(String channel) {
+	public Promise subscribe(String channel) {
 		if (status.get() == STATUS_CONNECTED) {
 			return clientSub.subscribe(channel);
 		}
@@ -257,7 +257,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	// --- PUBLISH ---
 
 	@Override
-	public final void publish(String channel, Tree message) {
+	public void publish(String channel, Tree message) {
 		if (status.get() == STATUS_CONNECTED) {
 			try {
 				if (debug) {
@@ -274,35 +274,35 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	// --- REDIS MESSAGE LISTENER METHODS ---
 
 	@Override
-	public final void message(byte[] channel, byte[] message) {
+	public void message(byte[] channel, byte[] message) {
 		received(new String(channel, StandardCharsets.UTF_8), message);
 	}
 
 	@Override
-	public final void message(byte[] pattern, byte[] channel, byte[] message) {
+	public void message(byte[] pattern, byte[] channel, byte[] message) {
 		received(new String(channel, StandardCharsets.UTF_8), message);
 	}
 
 	@Override
-	public final void subscribed(byte[] channel, long count) {
+	public void subscribed(byte[] channel, long count) {
 	}
 
 	@Override
-	public final void psubscribed(byte[] pattern, long count) {
+	public void psubscribed(byte[] pattern, long count) {
 	}
 
 	@Override
-	public final void unsubscribed(byte[] channel, long count) {
+	public void unsubscribed(byte[] channel, long count) {
 	}
 
 	@Override
-	public final void punsubscribed(byte[] pattern, long count) {
+	public void punsubscribed(byte[] pattern, long count) {
 	}
 
 	// --- REDIS EVENT LISTENER METHODS ---
 
 	@Override
-	public final void publish(Event event) {
+	public void publish(Event event) {
 
 		// Check state
 		if (status.get() == STATUS_STOPPED) {
@@ -337,33 +337,33 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	}
 
 	@Override
-	public final Observable<Event> get() {
+	public Observable<Event> get() {
 		return null;
 	}
 
 	// --- GETTERS / SETTERS ---
 
-	public final String[] getUrls() {
+	public String[] getUrls() {
 		return urls;
 	}
 
-	public final void setUrls(String[] urls) {
+	public void setUrls(String[] urls) {
 		this.urls = urls;
 	}
 
-	public final String getPassword() {
+	public String getPassword() {
 		return password;
 	}
 
-	public final void setPassword(String password) {
+	public void setPassword(String password) {
 		this.password = password;
 	}
 
-	public final boolean isSecure() {
+	public boolean isSecure() {
 		return secure;
 	}
 
-	public final void setSecure(boolean secure) {
+	public void setSecure(boolean secure) {
 		this.secure = secure;
 	}
 

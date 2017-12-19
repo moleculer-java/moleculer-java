@@ -212,19 +212,22 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		// Find services in Spring Context / Classpath / etc.
 		findServices(broker, configOf(COMPONENTS_ID, config));
 
+		// Get namespace
+		String ns = settings.getNamespace();
+
 		// Start internal components
-		start(broker, context, configOf(CONTEXT_ID, config));
-		start(broker, uid, configOf(UID_ID, config));
-		start(broker, eventbus, configOf(EVENTBUS_ID, config));
-		start(broker, cacher, configOf(CACHER_ID, config));
-		start(broker, strategy, configOf(STRATEGY_ID, config));
-		start(broker, registry, configOf(REGISTRY_ID, config));
-		start(broker, monitor, configOf(MONITOR_ID, config));
-		start(broker, transporter, configOf(TRANSPORTER_ID, config));
+		start(broker, context, configOf(CONTEXT_ID, config), ns);
+		start(broker, uid, configOf(UID_ID, config), ns);
+		start(broker, eventbus, configOf(EVENTBUS_ID, config), ns);
+		start(broker, cacher, configOf(CACHER_ID, config), ns);
+		start(broker, strategy, configOf(STRATEGY_ID, config), ns);
+		start(broker, registry, configOf(REGISTRY_ID, config), ns);
+		start(broker, monitor, configOf(MONITOR_ID, config), ns);
+		start(broker, transporter, configOf(TRANSPORTER_ID, config), ns);
 
 		// Start custom components
 		for (MoleculerComponentContainer container : componentMap.values()) {
-			start(broker, container.component, container.config);
+			start(broker, container.component, container.config, ns);
 		}
 	}
 
@@ -313,7 +316,8 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 
 	// --- START MOLECULER COMPONENT ---
 
-	private final void start(ServiceBroker broker, MoleculerComponent component, Tree config) throws Exception {
+	private final void start(ServiceBroker broker, MoleculerComponent component, Tree config, String namespace)
+			throws Exception {
 		if (component != null) {
 			String name = nameOf(component, true);
 			try {
@@ -323,6 +327,12 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 						opts = config.putMap("opts");
 					} else {
 						opts = new Tree();
+					}
+				}
+				if (namespace != null && !namespace.isEmpty()) {
+					String ns = opts.get("namespace", "");
+					if (ns == null || ns.isEmpty()) {
+						opts.put("namespace", namespace);
 					}
 				}
 				component.start(broker, opts);
@@ -420,10 +430,10 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 				}
 				return cfg;
 			}
-			if (test.equals("memory") || test.equals("on-heap")) {
+			if (test.equals("memory")) {
 				return newConfig("services.moleculer.cacher.MemoryCacher");
 			}
-			if (test.equals("offheap") || test.equals("off-heap")) {
+			if (test.equals("offheap")) {
 				return newConfig("services.moleculer.cacher.OHCacher");
 			}
 		} else if (CONTEXT_ID.equals(id)) {
@@ -444,6 +454,9 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			if (test.equals("random")) {
 				return newConfig("services.moleculer.strategy.XORShiftRandomStrategyFactory");
 			}
+			if (test.equals("cpu")) {
+				return newConfig("services.moleculer.strategy.CpuUsageStrategyFactory");
+			}			
 		} else if (REGISTRY_ID.equals(id)) {
 			if (test.equals("default")) {
 				return newConfig("services.moleculer.service.DefaultServiceRegistry");

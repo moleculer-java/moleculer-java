@@ -38,7 +38,7 @@ import services.moleculer.service.Name;
  * compile group: 'de.undercouch', name: 'bson4jackson', version: '2.7.0'
  */
 @Name("BSON Serializer")
-public final class BsonSerializer extends Serializer {
+public class BsonSerializer extends Serializer {
 
 	// --- CONSTRUCTOR ---
 

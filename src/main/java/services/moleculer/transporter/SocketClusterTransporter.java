@@ -60,16 +60,16 @@ import services.moleculer.service.Name;
  * @see GoogleCloudTransporter
  */
 @Name("SocketCluster Transporter")
-public final class SocketClusterTransporter extends Transporter implements Listener, BasicListener {
+public class SocketClusterTransporter extends Transporter implements Listener, BasicListener {
 
 	// --- PROPERTIES ---
 
-	private String url = "127.0.0.1";
-	private String authToken;
+	protected String url = "127.0.0.1";
+	protected String authToken;
 
 	// --- SOCKETCLUSTER CONNECTION ---
 
-	private Socket client;
+	protected Socket client;
 
 	// --- CONSTUCTORS ---
 
@@ -97,7 +97,7 @@ public final class SocketClusterTransporter extends Transporter implements Liste
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process basic properties (eg. "prefix")
 		super.start(broker, config);
@@ -127,7 +127,7 @@ public final class SocketClusterTransporter extends Transporter implements Liste
 
 	// --- CONNECT ---
 
-	private final void connect() {
+	protected void connect() {
 		try {
 
 			// Format Socketcluster server URL
@@ -159,25 +159,25 @@ public final class SocketClusterTransporter extends Transporter implements Liste
 	}
 
 	@Override
-	public final void onConnected(Socket socket, Map<String, List<String>> headers) {
+	public void onConnected(Socket socket, Map<String, List<String>> headers) {
 		logger.info("Socketcluster pub-sub connection estabilished.");
 		connected();
 	}
 
 	@Override
-	public final void onConnectError(Socket socket, WebSocketException exception) {
+	public void onConnectError(Socket socket, WebSocketException exception) {
 		reconnect(exception);
 	}
 
 	// --- DISCONNECT ---
 
 	@Override
-	public final void onDisconnected(Socket socket, WebSocketFrame serverCloseFrame, WebSocketFrame clientCloseFrame,
+	public void onDisconnected(Socket socket, WebSocketFrame serverCloseFrame, WebSocketFrame clientCloseFrame,
 			boolean closedByServer) {
 		logger.info("Socketcluster pub-sub connection aborted.");
 	}
 
-	private final void disconnect() {
+	protected void disconnect() {
 		if (client != null) {
 			try {
 				client.disconnect();
@@ -192,7 +192,7 @@ public final class SocketClusterTransporter extends Transporter implements Liste
 
 	// --- RECONNECT ---
 
-	private final void reconnect(Throwable cause) {
+	protected void reconnect(Throwable cause) {
 		if (cause != null) {
 			String msg = cause.getMessage();
 			if (msg == null || msg.isEmpty()) {
@@ -210,17 +210,17 @@ public final class SocketClusterTransporter extends Transporter implements Liste
 	// --- UNUSED CALLBACKS ---
 
 	@Override
-	public final void onAuthentication(Socket socket, Boolean status) {
+	public void onAuthentication(Socket socket, Boolean status) {
 	}
 
 	@Override
-	public final void onSetAuthToken(String token, Socket socket) {
+	public void onSetAuthToken(String token, Socket socket) {
 	}
 
 	// --- ANY I/O ERROR ---
 
 	@Override
-	protected final void error(Throwable cause) {
+	protected void error(Throwable cause) {
 		reconnect(cause);
 	}
 
@@ -230,14 +230,14 @@ public final class SocketClusterTransporter extends Transporter implements Liste
 	 * Closes transporter.
 	 */
 	@Override
-	public final void stop() {
+	public void stop() {
 		disconnect();
 	}
 
 	// --- SUBSCRIBE ---
 
 	@Override
-	public final Promise subscribe(String channel) {
+	public Promise subscribe(String channel) {
 		Promise promise = new Promise();
 		if (client != null) {
 			try {
@@ -254,7 +254,7 @@ public final class SocketClusterTransporter extends Transporter implements Liste
 	// --- PUBLISH ---
 
 	@Override
-	public final void publish(String channel, Tree message) {
+	public void publish(String channel, Tree message) {
 		if (client != null) {
 			try {
 				if (debug) {
@@ -270,17 +270,17 @@ public final class SocketClusterTransporter extends Transporter implements Liste
 	// --- RECEIVE ---
 
 	@Override
-	public final void call(String name, Object data) {
+	public void call(String name, Object data) {
 		received(name, (byte[]) data);
 	}
 
 	// --- GETTERS / SETTERS ---
 
-	public final String getUrl() {
+	public String getUrl() {
 		return url;
 	}
 
-	public final void setUrl(String url) {
+	public void setUrl(String url) {
 		this.url = url;
 	}
 

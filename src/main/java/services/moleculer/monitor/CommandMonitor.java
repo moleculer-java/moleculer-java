@@ -35,11 +35,11 @@ import services.moleculer.service.Name;
  * CPU monitor, which detects the current CPU usage via command line.
  */
 @Name("OS Command-based System Monitor")
-public final class CommandMonitor extends Monitor {
+public class CommandMonitor extends Monitor {
 
 	// --- PROPERTIES ---
 
-	private String command;
+	protected String command;
 
 	// --- CONSTUCTORS ---
 
@@ -53,7 +53,7 @@ public final class CommandMonitor extends Monitor {
 	// --- START MONITOR ---
 
 	@Override
-	public final void start(ServiceBroker broker, Tree config) throws Exception {
+	public void start(ServiceBroker broker, Tree config) throws Exception {
 		if (command == null) {
 			String os = System.getProperty("os.name").toLowerCase();
 			if (os.indexOf("win") >= 0) {
@@ -81,7 +81,7 @@ public final class CommandMonitor extends Monitor {
 	 * @return total CPU usage of the current OS
 	 */
 	@Override
-	public final int getTotalCpuPercent() {
+	public int getTotalCpuPercent() {
 		Process process = null;
 		try {
 			
@@ -123,11 +123,11 @@ public final class CommandMonitor extends Monitor {
 
 	// --- GETTERS / SETTERS ---
 
-	public final String getCommand() {
+	public String getCommand() {
 		return command;
 	}
 
-	public final void setCommand(String command) {
+	public void setCommand(String command) {
 		this.command = command;
 	}
 

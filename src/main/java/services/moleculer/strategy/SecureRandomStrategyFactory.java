@@ -32,9 +32,10 @@ import services.moleculer.service.Name;
  * @see RoundRobinStrategyFactory
  * @see NanoSecRandomStrategyFactory
  * @see XORShiftRandomStrategyFactory
+ * @see CpuUsageStrategyFactory
  */
 @Name("Secure Random Strategy Factory")
-public final class SecureRandomStrategyFactory extends ArrayBasedStrategyFactory {
+public class SecureRandomStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- CONSTRUCTORS ---
 
@@ -49,7 +50,7 @@ public final class SecureRandomStrategyFactory extends ArrayBasedStrategyFactory
 	// --- FACTORY METHOD ---
 
 	@Override
-	public final <T extends Endpoint> Strategy<T> create() {
+	public <T extends Endpoint> Strategy<T> create() {
 		return new SecureRandomStrategy<T>(preferLocal);
 	}
 

@@ -34,6 +34,7 @@ import services.moleculer.ServiceBroker;
  * @see NanoSecRandomStrategyFactory
  * @see SecureRandomStrategyFactory
  * @see XORShiftRandomStrategyFactory
+ * @see CpuUsageStrategyFactory
  */
 public abstract class ArrayBasedStrategyFactory extends StrategyFactory {
 
@@ -73,11 +74,11 @@ public abstract class ArrayBasedStrategyFactory extends StrategyFactory {
 
 	// --- GETTERS / SETTERS ---
 
-	public final boolean isPreferLocal() {
+	public boolean isPreferLocal() {
 		return preferLocal;
 	}
 
-	public final void setPreferLocal(boolean preferLocal) {
+	public void setPreferLocal(boolean preferLocal) {
 		this.preferLocal = preferLocal;
 	}
 
