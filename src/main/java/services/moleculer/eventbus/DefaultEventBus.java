@@ -178,19 +178,19 @@ public final class DefaultEventBus extends EventBus {
 		// Process events in Moleculer V2 style
 		Tree groupArray = message.get("groups");
 		if (groupArray == null) {
-			
+
 			// Broadcast
 			broadcast(name, payload, null, true);
-			
+
 		} else {
-			
+
 			// Emit
 			String[] array = new String[groupArray.size()];
 			int i = 0;
-			for (Tree group: groupArray) {
+			for (Tree group : groupArray) {
 				array[i++] = group.asString();
 			}
-			emit(name, payload, Groups.of(array), true);			
+			emit(name, payload, Groups.of(array), true);
 		}
 	}
 
@@ -415,27 +415,28 @@ public final class DefaultEventBus extends EventBus {
 			return;
 		}
 		if (strategies.length > 0) {
-			
+
 			// nodeID -> group set
-			int size = strategies.length * 2;			
-			HashMap<String, HashSet<String>> targets = new HashMap<>(size);
+			int size = strategies.length * 2;
+			HashMap<String, HashSet<String>> groupsByNodeID = new HashMap<>(size);
 			ListenerEndpoint[] endpoints = new ListenerEndpoint[strategies.length];
-			
+
 			// Group targets
 			for (int i = 0; i < strategies.length; i++) {
 				ListenerEndpoint endpoint = strategies[i].getEndpoint(null);
-				HashSet<String> groupSet = targets.get(endpoint.nodeID);
+				HashSet<String> groupSet = groupsByNodeID.get(endpoint.nodeID);
 				if (groupSet == null) {
 					groupSet = new HashSet<>(size);
-					targets.put(endpoint.nodeID, groupSet);
+					groupsByNodeID.put(endpoint.nodeID, groupSet);
 				}
+				groupSet.add(endpoint.group);
 				endpoints[i] = endpoint;
 			}
-			
+
 			// Invoke endpoints
-			for (ListenerEndpoint endpoint: endpoints) {
+			for (ListenerEndpoint endpoint : endpoints) {
 				try {
-					HashSet<String> groupSet = targets.remove(endpoint.nodeID);
+					HashSet<String> groupSet = groupsByNodeID.remove(endpoint.nodeID);
 					if (groupSet != null) {
 						String[] array = new String[groupSet.size()];
 						groupSet.toArray(array);
@@ -449,7 +450,7 @@ public final class DefaultEventBus extends EventBus {
 	}
 
 	// --- SEND EVENT TO ALL LISTENERS IN THE SPECIFIED GROUP ---
-	
+
 	@Override
 	public final void broadcast(String name, Tree payload, Groups groups, boolean local) {
 		char prefix = local ? '>' : '<';
@@ -478,14 +479,14 @@ public final class DefaultEventBus extends EventBus {
 									}
 								}
 							} else {
-								for (ListenerEndpoint endpoint : test.getValue().getAllEndpoints()) {
-									if (local) {
-										if (endpoint.local()) {
+								if (local) {
+									for (ListenerEndpoint endpoint : test.getValue().getAllEndpoints()) {
+										if (local) {
 											list.add(endpoint);
 										}
-									} else {
-										list.add(endpoint);
 									}
+								} else {
+									list.addAll(test.getValue().getAllEndpoints());
 								}
 							}
 						}
@@ -509,11 +510,14 @@ public final class DefaultEventBus extends EventBus {
 			}
 			return;
 		}
+		HashSet<String> nodeSet = new HashSet<>(endpoints.length * 2);
 		for (ListenerEndpoint endpoint : endpoints) {
-			try {
-				endpoint.on(name, payload, groups, false);
-			} catch (Exception cause) {
-				logger.error("Unable to invoke event listener!", cause);
+			if (nodeSet.add(endpoint.nodeID)) {
+				try {
+					endpoint.on(name, payload, groups, false);
+				} catch (Exception cause) {
+					logger.error("Unable to invoke event listener!", cause);
+				}
 			}
 		}
 	}

@@ -24,17 +24,12 @@
  */
 package services.moleculer;
 
-import services.moleculer.cacher.Cache;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.cacher.OHCacher;
-import services.moleculer.eventbus.Group;
 import services.moleculer.eventbus.Groups;
-import services.moleculer.eventbus.Listener;
-import services.moleculer.eventbus.Subscribe;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.monitor.SigarMonitor;
-import services.moleculer.service.Action;
-import services.moleculer.service.Service;
+import services.moleculer.transporter.NatsTransporter;
 import services.moleculer.transporter.Transporter;
 
 public class Test {
@@ -46,9 +41,9 @@ public class Test {
 		System.setProperty("java.library.path", nativeDir);
 
 		// Define transporter
-		// Transporter transporter = new RedisTransporter();
-		// transporter.setDebug(true);
-		Transporter transporter = null;
+		Transporter transporter = new NatsTransporter();
+		transporter.setDebug(true);
+		// Transporter transporter = null;
 		
 		// Define cacher
 		Cacher cacher = new OHCacher();
@@ -61,13 +56,13 @@ public class Test {
 				.nodeID("server-2").build();
 
 		// --- GROUP1 ---
-		
+		/*
 		broker.createService(new Service("math") {
 
 			@Cache(keys = { "a", "b" })
 			public Action add = ctx -> {
-				int a = ctx.params.get("a", 0);
-				int b = ctx.params.get("b", 0);
+				int a = ctx.params().get("a", 0);
+				int b = ctx.params().get("b", 0);
 				return a + b;
 			};
 
@@ -122,6 +117,33 @@ public class Test {
 			};
 		});						
 
+		// --- GROUP3 ---
+
+		broker.createService(new Service("test7") {
+			
+			@Subscribe("user.*")
+			@Group("group3")
+			public Listener listener = payload -> {
+				System.out.println("group3,listener1: " + payload.get("a", -1));
+			};
+		});						
+		broker.createService(new Service("test8") {
+			
+			@Subscribe("user.*")
+			@Group("group3")
+			public Listener listener = payload -> {
+				System.out.println("group3,listener2: " + payload.get("a", -1));
+			};
+		});						
+		broker.createService(new Service("test9") {
+			
+			@Subscribe("user.*")
+			@Group("group3")
+			public Listener listener = payload -> {
+				System.out.println("group3,listener3: " + payload.get("a", -1));
+			};
+		});			
+		
 		// --- START ---
 
 		broker.start();
@@ -181,7 +203,24 @@ public class Test {
 		for (int i = 0; i < 3; i++) {
 			broker.broadcast("user.foo", "a", i);
 			System.out.println("--------------------");
-		}				
+		}	
+		
+		*/
+
+		broker.start();
+		
+		Thread.sleep(2000);
+
+		int c = 1;
+		while (true) {
+			Thread.sleep(1000);
+			
+			System.out.println("Send 'user.created' event. ID: " + c);
+			
+			// broker.emit("user.created", "id", c++); // Balanced
+			// broker.emit("user.created", "id", c++, Groups.of("payment")); // Balanced but only for 'payment' group
+			broker.broadcast("user.created", "id", c++); // Broadcasted to all services
+		}
 	}
 
 }

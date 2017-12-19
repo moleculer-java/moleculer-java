@@ -143,10 +143,15 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 	@SuppressWarnings("unchecked")
 	@Override
 	public final T getEndpoint(String nodeID) {
+		Endpoint[] array;
 		if (nodeID == null && preferLocal) {
-			nodeID = this.nodeID;
+			array = getEndpointsByNodeID(this.nodeID);
+			if (array.length == 0) {
+				array = endpoints;	
+			}
+		} else {
+			array = getEndpointsByNodeID(nodeID);
 		}
-		Endpoint[] array = getEndpointsByNodeID(nodeID);
 		if (array.length == 0) {
 			return null;
 		}
