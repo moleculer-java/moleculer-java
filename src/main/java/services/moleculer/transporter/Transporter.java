@@ -28,7 +28,7 @@ import static services.moleculer.ServiceBroker.MOLECULER_VERSION;
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
@@ -126,6 +126,8 @@ public abstract class Transporter implements MoleculerComponent {
 
 	protected final ConcurrentHashMap<String, Long[]> nodeActivities = new ConcurrentHashMap<>(128);
 
+	protected final Map<String, Long[]> publicNodeActivities = Collections.unmodifiableMap(nodeActivities);
+	
 	// --- CONSTUCTORS ---
 
 	public Transporter() {
@@ -557,7 +559,7 @@ public abstract class Transporter implements MoleculerComponent {
 	public Map<String, Long[]> getNodeActivities() {
 		
 		// NodeID -> [timestamp, cpu usage]
-		return new HashMap<String, Long[]>(nodeActivities);
+		return publicNodeActivities;
 	}
 	
 	// --- OPTIONAL ERROR HANDLER ---

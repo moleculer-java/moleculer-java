@@ -41,6 +41,11 @@ import services.moleculer.util.CommonUtils;
 @Name("Lowest CPU Usage Strategy Factory")
 public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {
 
+	// --- PROPERTIES ---
+
+	protected int maxTries = 3;
+	protected int lowCpuUsage = 10;
+
 	// --- COMPONENTS ---
 
 	protected Transporter transporter;
@@ -55,6 +60,12 @@ public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {
 		super(preferLocal);
 	}
 
+	public CpuUsageStrategyFactory(boolean preferLocal, int maxTries, int lowCpuUsage) {
+		super(preferLocal);
+		this.maxTries = maxTries;
+		this.lowCpuUsage = lowCpuUsage;
+	}
+
 	// --- START INVOCATION STRATEGY ---
 
 	/**
@@ -67,6 +78,12 @@ public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
+		
+		// Process config
+		maxTries = config.get("maxTries", maxTries);
+		lowCpuUsage = config.get("lowCpuUsage", lowCpuUsage);
+		
+		// Get components
 		transporter = broker.components().transporter();
 		if (transporter == null) {
 			logger.warn(CommonUtils.nameOf(this, true)
@@ -81,7 +98,25 @@ public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {
 		if (transporter == null) {
 			return new RoundRobinStrategy<T>(preferLocal);
 		}
-		return new CpuUsageStrategy<T>(preferLocal, transporter);
+		return new CpuUsageStrategy<T>(preferLocal, maxTries, lowCpuUsage, transporter);
 	}
 
+	// --- GETTERS / SETTERS ---
+	
+	public int getMaxTries() {
+		return maxTries;
+	}
+
+	public void setMaxTries(int maxTries) {
+		this.maxTries = maxTries;
+	}
+
+	public int getLowCpuUsage() {
+		return lowCpuUsage;
+	}
+
+	public void setLowCpuUsage(int lowCpuUsage) {
+		this.lowCpuUsage = lowCpuUsage;
+	}
+	
 }

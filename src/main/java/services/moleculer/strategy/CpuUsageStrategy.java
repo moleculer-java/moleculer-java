@@ -24,9 +24,7 @@
  */
 package services.moleculer.strategy;
 
-import java.util.ArrayList;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
 
 import services.moleculer.service.Name;
 import services.moleculer.transporter.Transporter;
@@ -40,21 +38,24 @@ import services.moleculer.transporter.Transporter;
  * @see SecureRandomStrategy
  */
 @Name("Lowest CPU Usage Strategy")
-public class CpuUsageStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
+public class CpuUsageStrategy<T extends Endpoint> extends XORShiftRandomStrategy<T> {
 
 	// --- PROPERTIES ---
-
-	protected final AtomicLong rnd = new AtomicLong(System.nanoTime());
-
+	
+	protected final int maxTries;	
+	protected final int lowCpuUsage;
+	
 	// --- COMPONENTS ---
 
 	protected final Transporter transporter;
 
 	// --- CONSTRUCTOR ---
 
-	public CpuUsageStrategy(boolean preferLocal, Transporter transporter) {
+	public CpuUsageStrategy(boolean preferLocal, int maxTries, int lowCpuUsage, Transporter transporter) {
 		super(preferLocal);
 		this.transporter = transporter;
+		this.maxTries = maxTries;
+		this.lowCpuUsage = lowCpuUsage;
 	}
 
 	// --- GET NEXT ENDPOINT ---
@@ -65,48 +66,39 @@ public class CpuUsageStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> 
 		// Get the CPU usage map from the transporter
 		Map<String, Long[]> activities = transporter.getNodeActivities();
 
-		// List of the node indexes with the lowest CPU usage
-		final ArrayList<Integer> indexes = new ArrayList<>(array.length + 1);
-
-		// Find the list of nodes with the lowest CPU usage
-		long min = Long.MAX_VALUE;
+		// Minimum values
+		long minCPU = Long.MAX_VALUE;
+		Endpoint minEndpoint = null;
+		
+		// Processing variables
+		Endpoint endpoint;
 		Long[] values;
-		long cpu;
-		for (int i = 0; i < array.length; i++) {
-			values = activities.get(array[i].nodeID());
-			cpu = values == null ? 0 : values[1];
-			if (cpu < min) {
-				indexes.clear();
-				indexes.add(i);
-				min = cpu;
+		long cpuUsage;
+		
+		// Find the lower CPU usage in sample
+		for (int i = 0; i < maxTries; i++) {
+			
+			// Get random endpoint
+			endpoint = super.next(array);
+			
+			// Check CPU usage
+			values = activities.get(endpoint.nodeID());
+			if (values == null) {
+				if (minEndpoint == null) {
+					minEndpoint = endpoint;
+				}
 				continue;
 			}
-			if (cpu == min) {
-				indexes.add(i);
+			cpuUsage = values[1];
+			if (cpuUsage < lowCpuUsage) {
+				return endpoint;
 			}
+			if (cpuUsage < minCPU) {
+				minCPU = cpuUsage;
+				minEndpoint = endpoint;
+			}			
 		}
-
-		// Single result?
-		if (indexes.size() == 1) {
-			return array[indexes.get(0)];
-		}
-
-		// Generate pseudo random long (this is the fastest way to choose a
-		// random endpoint index from the "indexes" array)
-		long start, next;
-		do {
-			start = rnd.get();
-			next = start + 1;
-			next ^= (next << 21);
-			next ^= (next >>> 35);
-			next ^= (next << 4);
-		} while (!rnd.compareAndSet(start, next));
-		
-		// Get a random index
-		int index = (int) Math.abs(next % indexes.size());
-
-		// Return ActionEndpoint
-		return array[indexes.get(index)];
+		return minEndpoint;
 	}
 
 }
