@@ -58,7 +58,7 @@ import services.moleculer.util.redis.RedisPubSubClient;
  * @see AmqpTransporter
  * @see JmsTransporter
  * @see SocketClusterTransporter
- * @see GoogleCloudTransporter
+ * @see GoogleTransporter
  */
 @Name("Redis Transporter")
 public class RedisTransporter extends Transporter implements EventBus, RedisPubSubListener<byte[], byte[]> {

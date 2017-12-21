@@ -62,7 +62,7 @@ import services.moleculer.service.ServiceRegistry;
  * @see AmqpTransporter
  * @see JmsTransporter
  * @see SocketClusterTransporter
- * @see GoogleCloudTransporter
+ * @see GoogleTransporter
  */
 @Name("Transporter")
 public abstract class Transporter implements MoleculerComponent {

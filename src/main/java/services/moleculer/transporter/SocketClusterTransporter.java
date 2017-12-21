@@ -57,7 +57,7 @@ import services.moleculer.service.Name;
  * @see MqttTransporter
  * @see AmqpTransporter
  * @see JmsTransporter
- * @see GoogleCloudTransporter
+ * @see GoogleTransporter
  */
 @Name("SocketCluster Transporter")
 public class SocketClusterTransporter extends Transporter implements Listener, BasicListener {

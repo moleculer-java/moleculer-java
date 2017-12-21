@@ -73,7 +73,7 @@ public abstract class Strategy<T extends Endpoint> implements MoleculerComponent
 
 	// --- REMOVE ALL ENDPOINTS OF THE SPECIFIED NODE ---
 
-	public abstract void remove(String nodeID);
+	public abstract boolean remove(String nodeID);
 
 	// --- HAS ENDPOINTS ---
 

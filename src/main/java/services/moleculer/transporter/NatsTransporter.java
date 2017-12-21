@@ -57,7 +57,7 @@ import services.moleculer.service.Name;
  * @see AmqpTransporter
  * @see JmsTransporter
  * @see SocketClusterTransporter
- * @see GoogleCloudTransporter
+ * @see GoogleTransporter
  */
 @Name("NATS Transporter")
 public class NatsTransporter extends Transporter implements MessageHandler, DisconnectedCallback {

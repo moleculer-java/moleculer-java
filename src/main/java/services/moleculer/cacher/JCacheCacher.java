@@ -77,11 +77,7 @@ import services.moleculer.util.CheckedTree;
  * @see RedisCacher
  */
 @Name("JCache-based Cacher")
-public class JCacheCacher extends Cacher {
-
-	// --- CONTENT CONTAINER NAME ---
-
-	protected static final String CONTENT = "_";
+public class JCacheCacher extends DistributedCacher {
 
 	// --- PARTITIONS / CACHE REGIONS ---
 
@@ -127,6 +123,9 @@ public class JCacheCacher extends Cacher {
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
+
+		// Process distributed properties
+		super.start(broker, config);
 
 		// Create serializer
 		Tree serializerNode = config.get("serializer");

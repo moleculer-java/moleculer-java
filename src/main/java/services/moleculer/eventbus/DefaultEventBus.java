@@ -58,6 +58,7 @@ public class DefaultEventBus extends EventBus {
 
 	protected final Cache<String, Strategy<ListenerEndpoint>[]> emitterCache = new Cache<>(1024, true);
 	protected final Cache<String, ListenerEndpoint[]> broadcasterCache = new Cache<>(1024, true);
+	protected final Cache<String, ListenerEndpoint[]> localBroadcasterCache = new Cache<>(1024, true);
 
 	// --- PROPERTIES ---
 
@@ -145,11 +146,12 @@ public class DefaultEventBus extends EventBus {
 			}
 			listeners.clear();
 		} finally {
-			
+
 			// Clear caches
 			emitterCache.clear();
 			broadcasterCache.clear();
-			
+			localBroadcasterCache.clear();
+
 			writeLock.unlock();
 		}
 	}
@@ -285,6 +287,7 @@ public class DefaultEventBus extends EventBus {
 			// Clear caches
 			emitterCache.clear();
 			broadcasterCache.clear();
+			localBroadcasterCache.clear();
 
 			// Unlock reader threads
 			writeLock.unlock();
@@ -334,6 +337,7 @@ public class DefaultEventBus extends EventBus {
 				// Clear caches
 				emitterCache.clear();
 				broadcasterCache.clear();
+				localBroadcasterCache.clear();
 
 				// Unlock reader threads
 				writeLock.unlock();
@@ -345,6 +349,7 @@ public class DefaultEventBus extends EventBus {
 
 	@Override
 	public void removeListeners(String nodeID) {
+		boolean found = false;
 		writeLock.lock();
 		try {
 			Iterator<HashMap<String, Strategy<ListenerEndpoint>>> groupIterator = listeners.values().iterator();
@@ -353,14 +358,16 @@ public class DefaultEventBus extends EventBus {
 				Iterator<Strategy<ListenerEndpoint>> strategyIterator = groups.values().iterator();
 				while (strategyIterator.hasNext()) {
 					Strategy<ListenerEndpoint> strategy = strategyIterator.next();
-					strategy.remove(nodeID);
-					if (strategy.isEmpty()) {
-						try {
-							strategy.stop();
-						} catch (Throwable cause) {
-							logger.warn("Unable to stop strategy!", cause);
+					if (strategy.remove(nodeID)) {
+						found = true;
+						if (strategy.isEmpty()) {
+							try {
+								strategy.stop();
+							} catch (Throwable cause) {
+								logger.warn("Unable to stop strategy!", cause);
+							}
+							strategyIterator.remove();
 						}
-						strategyIterator.remove();
 					}
 				}
 				if (groups.isEmpty()) {
@@ -368,11 +375,14 @@ public class DefaultEventBus extends EventBus {
 				}
 			}
 		} finally {
-			
+
 			// Clear caches
-			emitterCache.clear();
-			broadcasterCache.clear();
-			
+			if (found) {
+				emitterCache.clear();
+				broadcasterCache.clear();
+				localBroadcasterCache.clear();
+			}
+
 			writeLock.unlock();
 		}
 	}
@@ -382,7 +392,7 @@ public class DefaultEventBus extends EventBus {
 	@Override
 	@SuppressWarnings("unchecked")
 	public void emit(String name, Tree payload, Groups groups, boolean local) {
-		String key = getCacheKey('#', name, groups);
+		String key = getCacheKey(name, groups);
 		Strategy<ListenerEndpoint>[] strategies = emitterCache.get(key);
 		if (strategies == null) {
 			LinkedList<Strategy<ListenerEndpoint>> list = new LinkedList<>();
@@ -461,9 +471,13 @@ public class DefaultEventBus extends EventBus {
 
 	@Override
 	public void broadcast(String name, Tree payload, Groups groups, boolean local) {
-		char prefix = local ? '>' : '<';
-		String key = getCacheKey(prefix, name, groups);
-		ListenerEndpoint[] endpoints = broadcasterCache.get(key);
+		String key = getCacheKey(name, groups);
+		ListenerEndpoint[] endpoints;
+		if (local) {
+			endpoints = localBroadcasterCache.get(key);
+		} else {
+			endpoints = broadcasterCache.get(key);
+		}
 		if (endpoints == null) {
 			HashSet<ListenerEndpoint> list = new HashSet<>();
 			readLock.lock();
@@ -505,7 +519,11 @@ public class DefaultEventBus extends EventBus {
 			}
 			endpoints = new ListenerEndpoint[list.size()];
 			list.toArray(endpoints);
-			broadcasterCache.put(key, endpoints);
+			if (local) {
+				localBroadcasterCache.put(key, endpoints);
+			} else {
+				broadcasterCache.put(key, endpoints);
+			}
 		}
 		if (endpoints.length == 0) {
 			return;
@@ -532,15 +550,15 @@ public class DefaultEventBus extends EventBus {
 
 	// --- CREATE CACHE KEY ---
 
-	protected String getCacheKey(char prefix, String name, Groups groups) {
+	protected String getCacheKey(String name, Groups groups) {
+		if (groups == null) {
+			return name;
+		}
 		StringBuilder tmp = new StringBuilder(64);
-		tmp.append(prefix);
 		tmp.append(name);
-		if (groups != null) {
-			for (String group : groups.groups()) {
-				tmp.append('|');
-				tmp.append(group);
-			}
+		for (String group : groups.groups()) {
+			tmp.append('|');
+			tmp.append(group);
 		}
 		return tmp.toString();
 	}

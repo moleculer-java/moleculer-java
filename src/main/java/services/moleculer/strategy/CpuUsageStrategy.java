@@ -90,7 +90,7 @@ public class CpuUsageStrategy<T extends Endpoint> extends XORShiftRandomStrategy
 				continue;
 			}
 			cpuUsage = values[1];
-			if (cpuUsage < lowCpuUsage) {
+			if (cpuUsage <= lowCpuUsage) {
 				return endpoint;
 			}
 			if (cpuUsage < minCPU) {

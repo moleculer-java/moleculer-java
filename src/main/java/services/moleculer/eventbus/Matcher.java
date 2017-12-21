@@ -29,11 +29,15 @@ import java.util.regex.Pattern;
 import io.datatree.dom.Cache;
 
 /**
- * Event mask matcher (eg. "service.event.*").
+ * Event mask matcher (eg. "service.event.**").
  */
 public final class Matcher {
 
+	// --- CACHE OF COMPILED PATTERNS ---
+	
 	private static final Cache<String, Pattern> regexCache = new Cache<>(128, true);
+	
+	// --- MATCHER ---
 	
 	public static final boolean matches(String text, String pattern) {
 		
