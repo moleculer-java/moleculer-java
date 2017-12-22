@@ -84,14 +84,19 @@ public final class ServiceBrokerSettings {
 
 	private boolean shutDownThreadPools = true;
 
-	// --- PROPERTIES AND COMPONENTS ---
+	// --- PROPERTIES ---
 
 	private String namespace = "";
 	private String nodeID;
-
+	private boolean internalServices = true;
+	
+	// --- COMPONENT REGISTRY (STANDALONE/SPRING/GUICE) ---
+	
 	private ComponentRegistry components = new StandaloneComponentRegistry();
 	private Tree config = new Tree();
 
+	// --- INTERNAL COMPONENTS ---
+	
 	private ContextFactory context = new DefaultContextFactory();
 	private ServiceRegistry registry = new DefaultServiceRegistry();
 	private EventBus eventbus = new DefaultEventBus();
@@ -203,9 +208,11 @@ public final class ServiceBrokerSettings {
 			logger.debug("Apply configuration:\r\n" + config);
 		}
 
-		// Set base proeprties
+		// TODO Set base proeprties
 		setNamespace(config.get("namespace", namespace));
 		setNodeID(config.get("nodeID", nodeID));
+		
+		internalServices = config.get("internalServices" , internalServices);
 
 		// Create executor
 		String value = config.get(EXECUTOR_ID + '.' + "type", "");
@@ -382,6 +389,14 @@ public final class ServiceBrokerSettings {
 
 	public final void setMonitor(Monitor monitor) {
 		this.monitor = monitor;
+	}
+
+	public final boolean isInternalServices() {
+		return internalServices;
+	}
+
+	public final void setInternalServices(boolean internalServices) {
+		this.internalServices = internalServices;
 	}
 
 }

@@ -76,6 +76,11 @@ public final class ServiceBrokerBuilder {
 		return this;
 	}
 
+	public final ServiceBrokerBuilder internalServices(boolean internalServices) {
+		settings.setInternalServices(internalServices);
+		return this;
+	}
+	
 	public final ServiceBrokerBuilder scheduler(ScheduledExecutorService scheduler) {
 		settings.setScheduler(scheduler);
 		return this;

@@ -24,11 +24,9 @@
  */
 package services.moleculer;
 
-import io.datatree.Tree;
 import services.moleculer.cacher.Cache;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.cacher.OHCacher;
-import services.moleculer.cacher.RedisCacher;
 import services.moleculer.eventbus.Group;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
@@ -79,19 +77,7 @@ public class Test {
 
 		});
 
-		// broker.start();
-
-		// 44 karakter!
-		RedisCacher c = new RedisCacher();
-		for (int i = 44; i < 100; i++) {
-			c.setMaxKeyLength(i);
-			String name = "foo234238423742384273847238423rzwerwerwerwerwerwerwrwerw";
-			Tree params = new Tree();
-			params.put("a.b.c.d.e", 1234567);
-			String[] keys = null;
-			String res = c.getCacheKey(name, params, keys);
-			System.out.println(res.length() + "\t" + res);
-		}
+		broker.start();
 	}
 
 }
