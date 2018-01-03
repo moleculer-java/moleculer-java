@@ -126,7 +126,7 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 	 *            located
 	 */
 	public GuiceComponentRegistry(String... packagesToScan) {
-
+		this.packagesToScan = packagesToScan;
 	}
 
 	/**
