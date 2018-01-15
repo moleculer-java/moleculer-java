@@ -42,7 +42,7 @@ import services.moleculer.service.Name;
  * <b>Required dependency:</b><br>
  * <br>
  * https://mvnrepository.com/artifact/software.amazon.ion/ion-java<br>
- * compile group: 'software.amazon.ion', name: 'ion-java', version: '1.0.2'
+ * compile group: 'software.amazon.ion', name: 'ion-java', version: '1.0.3'
  */
 @Name("Amazon ION Serializer")
 public class IonSerializer extends Serializer {

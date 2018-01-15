@@ -9,9 +9,14 @@ buildscript {
     }
 }
 
+configurations.all {
+    // resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+}
+
 repositories {
     mavenCentral()
     jcenter()
+    // maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
 }
 
 dependencies {
@@ -41,8 +46,7 @@ dependencies {
     // --- DATATREE ---
     	    
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-adapters
-	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.3'
-
+	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.4'
 
 	// =============== MONITORING ===============
 	

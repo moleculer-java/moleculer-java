@@ -109,9 +109,10 @@ public final class ServiceBrokerSettings {
 
 	static {
 		try {
-			TreeReaderRegistry.getReader("js");
-		} catch (Exception notInstaller) {
-			TreeReaderRegistry.setReader("js", new JSReader());
+			if (!TreeReaderRegistry.isAvailable("js")) {
+				TreeReaderRegistry.setReader("js", new JSReader());				
+			}
+		} catch (Exception ignored) {
 		}
 	}
 

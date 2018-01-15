@@ -146,8 +146,9 @@ public class JCacheCacher extends Cacher {
 		}
 		if (serializer == null) {
 			try {
-				TreeWriterRegistry.getWriter("smile");
-				serializer = new SmileSerializer();
+				if (TreeWriterRegistry.isAvailable("smile")) {
+					serializer = new SmileSerializer();
+				}
 			} catch (Throwable notSupported) {
 			} finally {
 				if (serializer == null) {
