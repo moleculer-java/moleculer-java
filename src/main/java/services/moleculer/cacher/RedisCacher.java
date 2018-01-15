@@ -61,11 +61,7 @@ import services.moleculer.util.redis.RedisGetSetClient;
  * @see OHCacher
  */
 @Name("Redis Cacher")
-public class RedisCacher extends Cacher implements EventBus {
-
-	// --- CONTENT CONTAINER NAME ---
-
-	protected static final String CONTENT = "_";
+public class RedisCacher extends DistributedCacher implements EventBus {
 
 	// --- LIST OF STATUS CODES ---
 
@@ -115,7 +111,7 @@ public class RedisCacher extends Cacher implements EventBus {
 		this.urls = urls;
 	}
 
-	// --- INIT CACHE INSTANCE ---
+	// --- START CACHER ---
 
 	protected SetArgs expiration;
 
@@ -130,6 +126,9 @@ public class RedisCacher extends Cacher implements EventBus {
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
+		// Process distributed properties
+		super.start(broker, config);
+		
 		// Process config
 		Tree urlNode = config.get("url");
 		if (urlNode != null) {
@@ -329,7 +328,7 @@ public class RedisCacher extends Cacher implements EventBus {
 		}
 		return Promise.resolve();
 	}
-
+	
 	// --- REDIS EVENT LISTENER METHODS ---
 
 	@Override

@@ -409,7 +409,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 				return cfg;
 			}
 			if (test.startsWith("google")) {
-				Tree cfg = newConfig("services.moleculer.transporter.GoogleCloudTransporter");
+				Tree cfg = newConfig("services.moleculer.transporter.GoogleTransporter");
 				if (test.contains("://")) {
 					cfg.put("url", value);
 				}

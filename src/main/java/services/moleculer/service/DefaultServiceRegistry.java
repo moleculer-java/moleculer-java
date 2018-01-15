@@ -74,7 +74,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 	// --- PENDING REMOTE INVOCATIONS ---
 
 	protected final ConcurrentHashMap<String, PendingPromise> promises = new ConcurrentHashMap<>(8192);
-
+	
 	// --- PROPERTIES ---
 
 	/**
@@ -552,9 +552,18 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			service.start(broker, config);
 			services.put(service.name, service);
 
+			// Notify local listeners about the new LOCAL service
+			broadcastServicesChanged(true);
+
 		} finally {
 			writeLock.unlock();
 		}
+	}
+
+	protected void broadcastServicesChanged(boolean local) {
+		Tree message = new Tree();
+		message.put("localService", true);
+		eventbus.broadcast("$services.changed", message, null, true);
 	}
 
 	// --- ADD A REMOTE SERVICE ---
@@ -584,6 +593,9 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			} finally {
 				writeLock.unlock();
 			}
+
+			// Notify local listeners about the new REMOTE service
+			broadcastServicesChanged(false);
 		}
 	}
 
@@ -608,6 +620,14 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			}
 			if (broker.nodeID().equals(nodeID)) {
 				stopAllLocalServices();
+
+				// Notify local listeners (LOCAL services changed)
+				broadcastServicesChanged(true);
+
+			} else {
+
+				// Notify local listeners (REMOTE services changed)
+				broadcastServicesChanged(false);
 			}
 		} finally {
 			writeLock.unlock();

@@ -60,7 +60,7 @@ import services.moleculer.service.Name;
  * @see AmqpTransporter
  * @see JmsTransporter
  * @see SocketClusterTransporter
- * @see GoogleCloudTransporter
+ * @see GoogleTransporter
  */
 @Name("MQTT Transporter")
 public class MqttTransporter extends Transporter implements AsyncClientListener {

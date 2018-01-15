@@ -117,20 +117,13 @@ public abstract class Cacher implements MoleculerComponent {
 				if (tree.isPrimitive()) {
 					key.append(tree.asObject());
 				} else {
-					String json = tree.toString(null, false, true);
-
-					// Create cross-platform, simplified JSON without
-					// formatting characters and quotation marks
-					for (char c : json.toCharArray()) {
-						if (c < 33 || c == '\"' || c == '\'') {
-							continue;
-						}
-						key.append(c);
-					}
+					key.append(tree.toString(null, false, true));
 				}
 			} else {
 				key.append(object);
 			}
+		} else {
+			key.append("null");
 		}
 	}
 

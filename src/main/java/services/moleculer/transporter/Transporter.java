@@ -62,7 +62,7 @@ import services.moleculer.service.ServiceRegistry;
  * @see AmqpTransporter
  * @see JmsTransporter
  * @see SocketClusterTransporter
- * @see GoogleCloudTransporter
+ * @see GoogleTransporter
  */
 @Name("Transporter")
 public abstract class Transporter implements MoleculerComponent {
@@ -127,7 +127,11 @@ public abstract class Transporter implements MoleculerComponent {
 	protected final ConcurrentHashMap<String, Long[]> nodeActivities = new ConcurrentHashMap<>(128);
 
 	protected final Map<String, Long[]> publicNodeActivities = Collections.unmodifiableMap(nodeActivities);
-	
+
+	// --- NODE INFO MAP ---
+
+	protected final ConcurrentHashMap<String, Tree> nodeInfos = new ConcurrentHashMap<>(32);
+
 	// --- CONSTUCTORS ---
 
 	public Transporter() {
@@ -135,12 +139,14 @@ public abstract class Transporter implements MoleculerComponent {
 	}
 
 	public Transporter(String prefix) {
-		this.prefix = prefix;
+		this(prefix, null);
 	}
 
 	public Transporter(String prefix, Serializer serializer) {
 		this.prefix = prefix;
 		this.serializer = serializer;
+		
+		// TODO Need a r/w lock to synchronize removes / updates
 	}
 
 	// --- START TRANSPORTER ---
@@ -458,6 +464,21 @@ public abstract class Transporter implements MoleculerComponent {
 							eventbus.addListeners(service);
 						}
 						logger.info("Node \"" + sender + "\" connected.");
+
+						// Store node info
+						Tree previousInfo = nodeInfos.put(sender, data);
+						
+						// Notify local listeners
+						// TODO: What does "reconnection" mean in this situation?
+						if (previousInfo == null) {
+							
+							// Node is not registered
+							broadcastNodeConnected(data, false);
+						} else {
+							
+							// Node is registered
+							broadcastNodeUpdated(data);
+						}
 					}
 					return;
 				}
@@ -471,6 +492,8 @@ public abstract class Transporter implements MoleculerComponent {
 
 				// Disconnect packet
 				if (channel.equals(disconnectChannel)) {
+
+					// Remove CPU usage and last heartbeat time
 					nodeActivities.remove(sender);
 
 					// Remove remote actions
@@ -479,8 +502,14 @@ public abstract class Transporter implements MoleculerComponent {
 					// Remove remote event listeners
 					eventbus.removeListeners(sender);
 
+					// Get node info
+					Tree info = nodeInfos.remove(sender);
+
 					// Ok, all actions and listeners removed
 					logger.info("Node \"" + sender + "\" disconnected.");
+					
+					// Notify listeners
+					broadcastNodeDisconnected(info, false);
 				}
 
 			} catch (Exception cause) {
@@ -489,6 +518,32 @@ public abstract class Transporter implements MoleculerComponent {
 		});
 	}
 
+	protected void broadcastNodeConnected(Tree info, boolean reconnected) {
+		if (info != null) {
+			Tree message = new Tree();
+			message.putObject("node", info);
+			message.put("reconnected", reconnected);
+			eventbus.broadcast("$node.connected", message, null, true);
+		}
+	}
+
+	protected void broadcastNodeUpdated(Tree info) {
+		if (info != null) {
+			Tree message = new Tree();
+			message.putObject("node", info);
+			eventbus.broadcast("$node.updated", message, null, true);
+		}
+	}
+
+	protected void broadcastNodeDisconnected(Tree info, boolean unexpected) {
+		if (info != null) {
+			Tree message = new Tree();
+			message.putObject("node", info);
+			message.put("unexpected", unexpected);
+			eventbus.broadcast("$node.disconnected", message, null, true);
+		}
+	}
+	
 	// --- GENERIC MOLECULER PACKETS ---
 
 	protected void sendDiscoverPacket(String channel) {
@@ -546,22 +601,28 @@ public abstract class Transporter implements MoleculerComponent {
 				// Remove local timestamp entry
 				entries.remove();
 
+				// Get node info
+				Tree info = nodeInfos.remove(nodeID);
+				
 				// Ok, all actions and listeners removed
 				logger.info("Node \"" + nodeID
 						+ "\" is no longer available because it hasn't submitted heartbeat signal for "
 						+ heartbeatTimeout + " seconds.");
+				
+				// Notify listeners
+				broadcastNodeDisconnected(info, true);
 			}
 		}
 	}
 
 	// --- GET NODE ACTIVITIES MAP ---
-	
+
 	public Map<String, Long[]> getNodeActivities() {
-		
+
 		// NodeID -> [timestamp, cpu usage]
 		return publicNodeActivities;
 	}
-	
+
 	// --- OPTIONAL ERROR HANDLER ---
 
 	/**

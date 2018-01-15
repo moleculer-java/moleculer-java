@@ -62,7 +62,7 @@ import services.moleculer.service.Name;
  * @see MqttTransporter
  * @see JmsTransporter
  * @see SocketClusterTransporter
- * @see GoogleCloudTransporter
+ * @see GoogleTransporter
  */
 @Name("AMQP Transporter")
 public class AmqpTransporter extends Transporter {

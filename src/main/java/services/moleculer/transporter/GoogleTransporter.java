@@ -70,7 +70,7 @@ import services.moleculer.service.Name;
  * @see SocketClusterTransporter
  */
 @Name("Google Cloud Pub/Sub Transporter")
-public class GoogleCloudTransporter extends Transporter {
+public class GoogleTransporter extends Transporter {
 
 	// --- PROPERTIES ---
 
@@ -94,11 +94,11 @@ public class GoogleCloudTransporter extends Transporter {
 
 	// --- CONSTUCTORS ---
 
-	public GoogleCloudTransporter() {
+	public GoogleTransporter() {
 		super();
 	}
 
-	public GoogleCloudTransporter(String prefix) {
+	public GoogleTransporter(String prefix) {
 		super(prefix);
 	}
 

@@ -42,6 +42,7 @@ import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.eventbus.Groups;
+import services.moleculer.internal.InternalService;
 import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
@@ -158,6 +159,15 @@ public class ServiceBroker {
 
 		// Set the component registry
 		components = settings.getComponents();
+		
+		// Install internal services
+		if (settings.isInternalServices()) {
+			try {
+				createService(new InternalService());				
+			} catch (Exception cause) {
+				logger.error("Unable to install \"$node\" service!", cause);
+			}
+		}
 	}
 
 	// --- GET NODE ID ---
@@ -195,7 +205,7 @@ public class ServiceBroker {
 			// Set the pointers of frequently used components
 			registry = components.registry();
 			eventbus = components.eventbus();
-
+			
 			// Register and start pending services
 			for (Map.Entry<Service, Tree> entry : services.entrySet()) {
 				Service service = entry.getKey();

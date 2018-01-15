@@ -22,69 +22,76 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.strategy;
-
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+package services.moleculer.internal;
 
 import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
+import services.moleculer.service.Action;
 import services.moleculer.service.Name;
+import services.moleculer.service.Service;
 
 /**
- * Base superclass of all Strategy implementations.
+ * The broker contains some internal services to check the health of node or get
+ * broker statistics. You can disable it with the internalServices: false broker
+ * option within the constructor.
  */
-@Name("Strategy")
-public abstract class Strategy<T extends Endpoint> implements MoleculerComponent {
+@Name("$node")
+public class InternalService extends Service {
 
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
-
-	// --- START INVOCATION STRATEGY ---
+	// --- ACTIONS ---
 
 	/**
-	 * Initializes strategy instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
+	 * This actions lists all connected nodes.
 	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-	}
+	public Action list = (ctx) -> {
+		Tree message = new Tree();
 
-	// --- STOP INVOCATION STRATEGY ---
+		return message;
+	};
 
 	/**
-	 * Closes instance.
+	 * This action lists all registered services (local & remote).
 	 */
-	@Override
-	public void stop() {
-	}
+	public Action services = (ctx) -> {
+		Tree message = new Tree();
 
-	// --- ADD A LOCAL OR REMOTE ENDPOINT ---
+		return message;
+	};
 
-	public abstract void addEndpoint(T endpoint);
+	/**
+	 * This action lists all registered actions.
+	 */
+	public Action actions = (ctx) -> {
+		Tree message = new Tree();
 
-	// --- REMOVE ALL ENDPOINTS OF THE SPECIFIED NODE ---
+		return message;
+	};
 
-	public abstract boolean remove(String nodeID);
+	/**
+	 * This action lists all event subscriptions.
+	 */
+	public Action events = (ctx) -> {
+		Tree message = new Tree();
 
-	// --- HAS ENDPOINTS ---
+		return message;
+	};
 
-	public abstract boolean isEmpty();
+	/**
+	 * This action returns the health info of process & OS.
+	 */
+	public Action health = (ctx) -> {
+		Tree message = new Tree();
 
-	// --- GET THE NEXT LOCAL OR REMOTE ENDPOINT ---
+		return message;
+	};
 
-	public abstract T getEndpoint(String nodeID);
+	/**
+	 * This action returns the request statistics if the statistics is enabled
+	 * in options.
+	 */
+	public Action stats = (ctx) -> {
+		Tree message = new Tree();
 
-	// --- GET ALL ENDPOINTS ---
-
-	public abstract List<T> getAllEndpoints();
+		return message;
+	};
 
 }

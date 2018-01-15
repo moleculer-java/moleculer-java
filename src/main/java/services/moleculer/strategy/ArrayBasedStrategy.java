@@ -107,7 +107,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 	// --- REMOVE ALL ENDPOINTS OF THE SPECIFIED NODE ---
 
 	@Override
-	public void remove(String nodeID) {
+	public boolean remove(String nodeID) {
 		Endpoint endpoint;
 		boolean found = false;
 		for (int i = 0; i < endpoints.length; i++) {
@@ -130,6 +130,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 		if (found) {
 			endpointCache.remove(nodeID);
 		}
+		return found;
 	}
 
 	// --- HAS ENDPOINTS ---
