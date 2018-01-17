@@ -34,20 +34,12 @@ package services.moleculer.config;
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.typeOf;
 
-import java.io.File;
-import java.net.URI;
-import java.net.URL;
-import java.net.URLDecoder;
 import java.util.Arrays;
-import java.util.Enumeration;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
@@ -55,6 +47,7 @@ import services.moleculer.cacher.Cacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.monitor.Monitor;
+import services.moleculer.repl.Repl;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
@@ -90,7 +83,8 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	private ServiceRegistry registry;
 	private Transporter transporter;
 	private Monitor monitor;
-
+	private Repl repl;
+	
 	// --- CUSTOM COMPONENTS ---
 
 	protected Map<String, MoleculerComponentContainer> componentMap;
@@ -127,6 +121,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		transporter = settings.getTransporter();
 		monitor = settings.getMonitor();
 		componentMap = settings.getComponentMap();
+		repl = settings.getRepl();
 
 		// Create components by config file
 		for (Tree subConfig : config) {
@@ -211,6 +206,10 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 				monitor = (Monitor) component;
 				continue;
 			}
+			if (REPL_ID.equals(id) && checkType(Repl.class, implClass)) {
+				repl = (Repl) component;
+				continue;
+			}
 
 			// Store as custom component
 			componentMap.put(id, new MoleculerComponentContainer(component, subConfig));
@@ -231,7 +230,8 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		start(broker, registry, configOf(REGISTRY_ID, config), ns);
 		start(broker, monitor, configOf(MONITOR_ID, config), ns);
 		start(broker, transporter, configOf(TRANSPORTER_ID, config), ns);
-
+		start(broker, repl, configOf(REPL_ID, config), ns);
+		
 		// Start custom components
 		for (MoleculerComponentContainer container : componentMap.values()) {
 			start(broker, container.component, container.config, ns);
@@ -269,56 +269,6 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			}
 		}
 		return false;
-	}
-
-	// --- PACKAGE SCANNER ---
-
-	protected static final LinkedList<String> scan(String packageName) throws Exception {
-		ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-		LinkedList<String> names = new LinkedList<>();
-		packageName = packageName.replace('.', '/');
-		URL packageURL = classLoader.getResource(packageName);
-		if (packageURL == null) {
-			return names;
-		}
-		if (packageURL.getProtocol().equals("jar")) {
-
-			String jarFileName = URLDecoder.decode(packageURL.getFile(), "UTF-8");
-			jarFileName = jarFileName.substring(5, jarFileName.indexOf("!"));
-
-			JarFile jar = null;
-			try {
-				jar = new JarFile(jarFileName);
-				Enumeration<JarEntry> jarEntries = jar.entries();
-				while (jarEntries.hasMoreElements()) {
-					String entryName = jarEntries.nextElement().getName();
-					if (entryName.startsWith(packageName) && entryName.endsWith(".class")) {
-						entryName = entryName.substring(packageName.length() + 1, entryName.lastIndexOf('.'));
-						names.add(entryName);
-					}
-				}
-			} finally {
-				if (jar != null) {
-					jar.close();
-				}
-			}
-
-		} else {
-
-			URI uri = new URI(packageURL.toString());
-			File folder = new File(uri.getPath());
-			File[] files = folder.listFiles();
-			String entryName;
-			for (File actual : files) {
-				entryName = actual.getName();
-				if (entryName.endsWith(".class")) {
-					entryName = entryName.substring(0, entryName.lastIndexOf('.'));
-					names.add(entryName);
-				}
-			}
-
-		}
-		return names;
 	}
 
 	// --- START MOLECULER COMPONENT ---
@@ -482,6 +432,10 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			if (test.equals("constant")) {
 				return newConfig("services.moleculer.monitor.ConstantMonitor");
 			}
+		} else if (REPL_ID.equals(id)) {
+			if (test.equals("simple")) {
+				return newConfig("services.moleculer.repl.SimpleRepl");
+			}			
 		}
 		return null;
 	}
@@ -598,6 +552,11 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		return monitor;
 	}
 
+	@Override
+	public final Repl repl() {
+		return repl;
+	}
+	
 	// --- GET IDS OF CUSTOM COMPONENTS ---
 
 	private final AtomicReference<String[]> cachedNames = new AtomicReference<>();
@@ -631,6 +590,9 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			if (monitor != null) {
 				set.add(MONITOR_ID);
 			}
+			if (repl != null) {
+				set.add(REPL_ID);
+			}
 			set.addAll(componentMap.keySet());
 			array = new String[set.size()];
 			set.toArray(array);
@@ -663,6 +625,8 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			return transporter;
 		case MONITOR_ID:
 			return monitor;
+		case REPL_ID:
+			return repl;
 		default:
 			MoleculerComponentContainer container = componentMap.get(id);
 			if (container == null) {

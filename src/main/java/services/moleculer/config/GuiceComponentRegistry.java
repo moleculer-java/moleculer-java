@@ -32,6 +32,7 @@
 package services.moleculer.config;
 
 import static services.moleculer.util.CommonUtils.nameOf;
+import static services.moleculer.util.CommonUtils.scan;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
@@ -52,6 +53,7 @@ import services.moleculer.cacher.Cacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.monitor.Monitor;
+import services.moleculer.repl.Repl;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
@@ -320,6 +322,10 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 			Monitor monitor = monitor();
 			if (monitor != null) {
 				bind(Monitor.class).toInstance(monitor);
+			}
+			Repl repl = repl();
+			if (repl != null) {
+				bind(Repl.class).toInstance(repl);
 			}
 		}
 

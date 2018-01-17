@@ -39,9 +39,8 @@ public class SystemInReader extends Thread {
 
 	// --- CONSTRUCTOR ---
 
-	public SystemInReader() {
+	protected SystemInReader() {
 		setDaemon(true);
-		start();
 	}
 
 	// --- READER LOOP ---
@@ -65,7 +64,7 @@ public class SystemInReader extends Thread {
 
 	// --- GET THE ENTERED LINE ---
 
-	public String getLine() {
+	protected String getLine() {
 		return line.toString().trim();
 	}
 

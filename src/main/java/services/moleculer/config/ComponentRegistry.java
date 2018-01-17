@@ -43,6 +43,7 @@ import services.moleculer.cacher.Cacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.monitor.Monitor;
+import services.moleculer.repl.Repl;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
@@ -75,7 +76,7 @@ public abstract class ComponentRegistry {
 	 * }<br>
 	 * }<br>
 	 * <br>
-	 * Yo can access this component via {@code ServiceBroker}'s
+	 * You can access this component via {@code ServiceBroker}'s
 	 * {@code components()} method:<br>
 	 * borker.components();
 	 */
@@ -90,7 +91,7 @@ public abstract class ComponentRegistry {
 	 * "opts": {}<br>
 	 * }<br>
 	 * <br>
-	 * Yo can access this component via {@code ServiceBroker}'s
+	 * You can access this component via {@code ServiceBroker}'s
 	 * {@code components()} method:<br>
 	 * borker.components().context();
 	 */
@@ -104,7 +105,7 @@ public abstract class ComponentRegistry {
 	 * "opts": {}<br>
 	 * }<br>
 	 * <br>
-	 * Yo can access this component via {@code ServiceBroker}'s
+	 * You can access this component via {@code ServiceBroker}'s
 	 * {@code components()} method:<br>
 	 * borker.components().uid();
 	 */
@@ -120,7 +121,7 @@ public abstract class ComponentRegistry {
 	 * "preferLocal":true }<br>
 	 * }<br>
 	 * <br>
-	 * Yo can access this component via {@code ServiceBroker}'s
+	 * You can access this component via {@code ServiceBroker}'s
 	 * {@code components()} method:<br>
 	 * borker.components().strategy();
 	 */
@@ -134,7 +135,7 @@ public abstract class ComponentRegistry {
 	 * "type": "default",<br>
 	 * "opts": {}<br>
 	 * <br>
-	 * Yo can access this component via {@code ServiceBroker}'s
+	 * You can access this component via {@code ServiceBroker}'s
 	 * {@code components()} method:<br>
 	 * borker.components().eventbus();
 	 */
@@ -150,7 +151,7 @@ public abstract class ComponentRegistry {
 	 * "capacity": 2048<br>
 	 * }<br>
 	 * <br>
-	 * Yo can access this component via {@code ServiceBroker}'s
+	 * You can access this component via {@code ServiceBroker}'s
 	 * {@code components()} method:<br>
 	 * borker.components().cacher();
 	 */
@@ -164,7 +165,7 @@ public abstract class ComponentRegistry {
 	 * "type": "default",<br>
 	 * "opts": {}<br>
 	 * <br>
-	 * Yo can access this component via {@code ServiceBroker}'s
+	 * You can access this component via {@code ServiceBroker}'s
 	 * {@code components()} method:<br>
 	 * borker.components().registry();
 	 */
@@ -180,7 +181,7 @@ public abstract class ComponentRegistry {
 	 * "url":"redis://host:port"<br>
 	 * }<br>
 	 * <br>
-	 * Yo can access this component via {@code ServiceBroker}'s
+	 * You can access this component via {@code ServiceBroker}'s
 	 * {@code components()} method:<br>
 	 * borker.components().transporter();
 	 */
@@ -194,7 +195,7 @@ public abstract class ComponentRegistry {
 	 * "type": "sigar"<br>
 	 * }<br>
 	 * <br>
-	 * Yo can access this component via {@code ServiceBroker}'s
+	 * You can access this component via {@code ServiceBroker}'s
 	 * {@code components()} method:<br>
 	 * borker.components().monitor();
 	 */
@@ -209,6 +210,21 @@ public abstract class ComponentRegistry {
 	 * ID of SchedulerService definition in the configuration file.
 	 */
 	public static final String SCHEDULER_ID = "scheduler";
+
+	/**
+	 * ID of REPL (interactive console) definition in the configuration file.
+	 * Sample configuration entry in JSON format:<br>
+	 * <br>
+	 * "repl": {<br>
+	 * "type": "simple"<br>
+	 * "enabled": true<br>
+	 * }<br>
+	 * <br>
+	 * You can access this component via {@code ServiceBroker}'s
+	 * {@code components()} method:<br>
+	 * borker.components().repl();
+	 */
+	public static final String REPL_ID = "repl";
 
 	// --- LOGGER ---
 
@@ -322,6 +338,14 @@ public abstract class ComponentRegistry {
 	 * @return ServiceBroker's System Monitor
 	 */
 	public abstract Monitor monitor();
+
+	/**
+	 * Returns the ServiceBroker's REPL (interactive console - which is defined
+	 * in the configuration file's "repl" block).
+	 * 
+	 * @return ServiceBroker's REPL implementation
+	 */
+	public abstract Repl repl();
 
 	// --- GET IDS OF ALL COMPONENTS ---
 

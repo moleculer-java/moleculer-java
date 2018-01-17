@@ -32,10 +32,18 @@
 package services.moleculer.util;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URL;
+import java.net.URLDecoder;
+import java.util.Enumeration;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.Objects;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
@@ -50,6 +58,58 @@ import services.moleculer.service.Name;
  * Common utilities.
  */
 public final class CommonUtils {
+
+	// --- PACKAGE SCANNER ---
+
+	public static final LinkedList<String> scan(String packageName) throws Exception {
+		ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+		LinkedList<String> names = new LinkedList<>();
+		packageName = packageName.replace('.', '/');
+		URL packageURL = classLoader.getResource(packageName);
+		if (packageURL == null) {
+			return names;
+		}
+		if (packageURL.getProtocol().equals("jar")) {
+
+			String jarFileName = URLDecoder.decode(packageURL.getFile(), "UTF-8");
+			jarFileName = jarFileName.substring(5, jarFileName.indexOf("!"));
+
+			JarFile jar = null;
+			try {
+				jar = new JarFile(jarFileName);
+				Enumeration<JarEntry> jarEntries = jar.entries();
+				while (jarEntries.hasMoreElements()) {
+					String entryName = jarEntries.nextElement().getName();
+					if (entryName.startsWith(packageName) && entryName.endsWith(".class")) {
+						entryName = entryName.substring(packageName.length() + 1, entryName.lastIndexOf('.'));
+						names.add(entryName);
+					}
+				}
+			} finally {
+				if (jar != null) {
+					jar.close();
+				}
+			}
+
+		} else {
+
+			URI uri = new URI(packageURL.toString());
+			File folder = new File(uri.getPath());
+			File[] files = folder.listFiles();
+			String entryName;
+			for (File actual : files) {
+				entryName = actual.getName();
+				if (entryName.endsWith(".class")) {
+					entryName = entryName.substring(0, entryName.lastIndexOf('.'));
+					names.add(entryName);
+				}
+			}
+
+		}
+		return names;
+	}
+
+	// --- PARSE CALL / BROADCAST PARAMS ---
 
 	public static final ParseResult parseParams(Object[] params) {
 		Tree data = null;

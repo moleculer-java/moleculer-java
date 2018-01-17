@@ -62,6 +62,8 @@ import services.moleculer.eventbus.DefaultEventBus;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.monitor.Monitor;
+import services.moleculer.repl.Repl;
+import services.moleculer.repl.SimpleRepl;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.RoundRobinStrategyFactory;
@@ -112,6 +114,7 @@ public final class ServiceBrokerSettings {
 	private Transporter transporter;
 	private Cacher cacher = new MemoryCacher();
 	private Monitor monitor;
+	private Repl repl = new SimpleRepl();
 
 	// --- CUSTOM COMPONENTS ---
 
@@ -399,6 +402,14 @@ public final class ServiceBrokerSettings {
 		this.monitor = monitor;
 	}
 
+	public final Repl getRepl() {
+		return repl;
+	}
+
+	public final void setRepl(Repl repl) {
+		this.repl = repl;
+	}
+	
 	public final boolean isInternalServices() {
 		return internalServices;
 	}

@@ -50,6 +50,7 @@ import services.moleculer.context.Context;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.internal.InternalService;
+import services.moleculer.repl.Repl;
 import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
@@ -263,6 +264,10 @@ public class ServiceBroker {
 	 * Switch the console to REPL mode
 	 */
 	public void repl() {
+		Repl repl = components.repl();
+		if (repl != null) {
+			repl.setEnabled(true);
+		}
 	}
 
 	/**

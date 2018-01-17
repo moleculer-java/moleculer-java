@@ -85,6 +85,7 @@ public class Test {
 		});
 
 		broker.start();
+		broker.repl();
 	}
 
 }

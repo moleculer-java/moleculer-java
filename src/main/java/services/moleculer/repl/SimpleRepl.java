@@ -31,25 +31,33 @@
  */
 package services.moleculer.repl;
 
+import static services.moleculer.util.CommonUtils.nameOf;
+import static services.moleculer.util.CommonUtils.scan;
+
 import java.io.PrintStream;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
+import services.moleculer.service.Name;
 
-public class ReplService implements MoleculerComponent, Runnable {
+/**
+ * Simple interactive console (uses System.in and System.out).
+ */
+@Name("Simple REPL Console")
+public class SimpleRepl extends Repl {
 
 	// --- PROPERTIES ---
 
 	/**
 	 * Java package(s) where your Commands are located.
 	 */
-	private String[] packagesToScan = new String[] { "services.moleculer.repl" };
+	private String[] packagesToScan = new String[] { "services.moleculer.repl.commands" };
 
 	// --- COMPONENTS ---
 
@@ -57,23 +65,22 @@ public class ReplService implements MoleculerComponent, Runnable {
 
 	// --- MAP OF THE REGISTERED COMMANDS ---
 
-	protected HashMap<String, Command> commands = new HashMap<>(64);
+	protected ConcurrentHashMap<String, Command> commands = new ConcurrentHashMap<>(64);
 
 	// --- CONSTRUCTORS ---
 
-	public ReplService() {
+	public SimpleRepl() {
 	}
 
-	public ReplService(String... packagesToScan) {
+	public SimpleRepl(String... packagesToScan) {
 		this.packagesToScan = packagesToScan;
 	}
 
 	// --- START ---
 
-	protected ExecutorService executor;
-
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
+		super.start(broker, config);
 		this.broker = broker;
 
 		// Process config
@@ -94,50 +101,78 @@ public class ReplService implements MoleculerComponent, Runnable {
 				}
 			}
 		}
-		
-		// Check required "packagesToScan" parameter
-		if (packagesToScan == null || packagesToScan.length == 0) {
-			//logger.warn("The \"packagesToScan\" parameter is required for the Dependency Injector!");
-			//logger.warn("Please specify the proper Java package(s) where your Services are located.");
-			return;
-		}
-		
-		// Add commands
-		
-		// Start standard input reader
-		executor = Executors.newSingleThreadExecutor();
-		executor.execute(this);
 	}
 
-	// --- COMMAND PROCESSOR LOOP ---
+	// --- START READING INPUT ---
+
+	protected ExecutorService executor;
 
 	protected String lastCommand = "help";
 
+	protected SystemInReader reader;
+
 	@Override
-	public void run() {
-		try {
-			Thread.sleep(3000);
-			while (!Thread.currentThread().isInterrupted()) {
-				SystemInReader reader = new SystemInReader();
-				reader.start();
-				reader.join();
-				String command = reader.getLine();
-				if (command.length() > 0) {
-					if ("r".equalsIgnoreCase(command) || "repeat".equalsIgnoreCase(command)) {
-						command = lastCommand;
+	protected void startReading() {
+
+		// Find commands
+		commands.clear();
+		for (String packageName : packagesToScan) {
+			if (!packageName.isEmpty()) {
+				try {
+					LinkedList<String> classNames = scan(packageName);
+					for (String className : classNames) {
+						if (className.indexOf('$') > -1) {
+							continue;
+						}
+						className = packageName + '.' + className;
+						Class<?> type = Class.forName(className);
+						if (Command.class.isAssignableFrom(type)) {
+							Command command = (Command) type.newInstance();
+							String name = nameOf(command, false).toLowerCase();
+							commands.put(name, command);
+						}
 					}
-					onCommand(System.out, command);
-					lastCommand = command;
+				} catch (Throwable cause) {
+					logger.warn("Unable to scan Java package!", cause);
 				}
 			}
-		} catch (InterruptedException i) {
-
-			// Interrupt
-		} catch (Throwable cause) {
-
-			// Never happens
-			cause.printStackTrace();
 		}
+
+		// Start standard input reader
+		if (executor != null) {
+			try {
+				executor.shutdownNow();
+			} catch (Exception ignored) {
+			}
+		}
+		executor = Executors.newSingleThreadExecutor();
+		executor.execute(() -> {
+			try {
+				Thread.sleep(1000);
+				while (!Thread.currentThread().isInterrupted()) {
+					reader = new SystemInReader();
+					reader.start();
+					reader.join();
+					String command = reader.getLine();
+					reader = null;
+					if (command.length() > 0) {
+						if ("r".equalsIgnoreCase(command) || "repeat".equalsIgnoreCase(command)) {
+							command = lastCommand;
+						}
+						onCommand(System.out, command);
+						lastCommand = command;
+					}
+				}
+			} catch (InterruptedException i) {
+
+				// Interrupt
+
+			} catch (Throwable cause) {
+
+				// Never happens
+				cause.printStackTrace();
+			}
+		});
 	}
 
 	// --- COMMAND PROCESSOR ---
@@ -154,30 +189,17 @@ public class ReplService implements MoleculerComponent, Runnable {
 			String[] tokens = command.split(" ");
 			String cmd = tokens[0].toLowerCase();
 			if ("help".equals(cmd) || "h".equals(cmd)) {
-				if (tokens.length > 1) {
-					String name = tokens[1].toLowerCase();
-					Command impl = commands.get(name);
-					if (impl == null) {
-						out.println("The \"" + name + "\" command is unknown!");
-						out.println("Type \"help\" or \"h\" for more information.");
-						return;
-					}
-					out.println("Sample of the usage:");
-					out.println(impl.getSample());
-					return;
-				}
 				String[] names = new String[commands.size()];
 				commands.keySet().toArray(names);
 				Arrays.sort(names, String.CASE_INSENSITIVE_ORDER);
 				StringTable table = new StringTable("List of commands", "Command", "Description");
 				for (String name : names) {
 					Command impl = commands.get(name);
-					table.addRow(name, impl.getDescription());
+					table.addRow(impl.getSample(), impl.getDescription());
 				}
 				table.printTable(out);
 				out.println();
 				out.println("  Type \"repeat\" or \"r\"  to repeat the execution of the last command.");
-				out.println("  Type \"help <command>\" to display the usage of a specified command.");
 				out.println();
 				return;
 			}
@@ -193,7 +215,6 @@ public class ReplService implements MoleculerComponent, Runnable {
 				out.println("Unable to call \"" + cmd + "\" command!");
 				out.println("Too few command parameters (" + args.length + " < " + impl.getNumberOfRequiredParameters()
 						+ ")!");
-				out.println("Type \"help " + cmd + "\" for more information.");
 				return;
 			}
 			impl.onCommand(broker, out, args);
@@ -203,18 +224,23 @@ public class ReplService implements MoleculerComponent, Runnable {
 		}
 	}
 
-	// --- STOP ---
+	// --- STOP READING INPUT ---
 
 	@Override
-	public void stop() {
+	protected void stopReading() {
 		if (executor != null) {
 			try {
 				executor.shutdownNow();
 			} catch (Exception ignored) {
-
-				// Do nothing
 			}
 			executor = null;
+		}
+		if (reader != null) {
+			try {
+				reader.interrupt();
+			} catch (Exception ignored) {
+			}
+			reader = null;
 		}
 		commands.clear();
 	}

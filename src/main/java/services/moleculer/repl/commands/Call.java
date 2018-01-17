@@ -29,21 +29,24 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.repl;
+package services.moleculer.repl.commands;
 
 import java.io.PrintStream;
 
 import services.moleculer.ServiceBroker;
+import services.moleculer.repl.Command;
+import services.moleculer.service.Name;
 
-public class CallCommand implements Command {
+@Name("call")
+public class Call implements Command {
 
 	public String getDescription() {
-		return null;
+		return "Call an action";
 	}
 	
 	@Override
 	public String getSample() {
-		return null;
+		return "call <actionName> [jsonParams]";
 	}
 
 	@Override

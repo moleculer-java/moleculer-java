@@ -32,6 +32,7 @@
 package services.moleculer.config;
 
 import static services.moleculer.util.CommonUtils.nameOf;
+import static services.moleculer.util.CommonUtils.scan;
 
 import java.util.LinkedList;
 import java.util.List;
