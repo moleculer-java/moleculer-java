@@ -1,5 +1,12 @@
 /**
- * This software is licensed under MIT license.<br>
+ * MOLECULER MICROSERVICES FRAMEWORK<br>
+ * <br>
+ * This project is based on the idea of Moleculer Microservices
+ * Framework for NodeJS (https://moleculer.services). Special thanks to
+ * the Moleculer's project owner (https://github.com/icebob) for the
+ * consultations.<br>
+ * <br>
+ * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
  * <br>
@@ -92,6 +99,7 @@ import services.moleculer.util.CheckedTree;
  * compile group: 'org.caffinitas.ohc', name: 'ohc-core-j8', version: '0.6.1'
  * <br>
  * <br>
+ * 
  * @see MemoryCacher
  * @see RedisCacher
  */
@@ -101,7 +109,7 @@ public class OHCacher extends Cacher {
 	// --- CONTENT CONTAINER NAME ---
 
 	protected static final String CONTENT = "_";
-	
+
 	// --- PROPERTIES ---
 
 	/**
