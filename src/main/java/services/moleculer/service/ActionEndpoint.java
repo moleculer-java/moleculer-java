@@ -107,7 +107,7 @@ public abstract class ActionEndpoint implements MoleculerComponent, Endpoint {
 		cacheKeys = config.get("cacheKeys", "").split(",");
 		ttl = config.get("ttl", 0);
 
-		// Set default invaocation timeout
+		// Set default invaocation socketTimeout
 		defaultTimeout = config.get("defaultTimeout", 0);
 
 		// Set components

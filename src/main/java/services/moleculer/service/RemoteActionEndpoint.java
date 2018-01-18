@@ -92,7 +92,7 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 		// Create new promise
 		Promise promise = new Promise();
 
-		// Set timeout (limit timestamp in millis)
+		// Set socketTimeout (limit timestamp in millis)
 		int timeout;
 		if (opts == null) {
 			timeout = defaultTimeout;
@@ -110,7 +110,7 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 			timeoutAt = 0;
 		}
 
-		// Register promise (timeout and response handling)
+		// Register promise (socketTimeout and response handling)
 		registry.register(ctx.id, promise, timeoutAt);
 
 		// Send request via transporter

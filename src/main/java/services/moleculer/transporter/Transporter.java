@@ -208,7 +208,7 @@ public abstract class Transporter implements MoleculerComponent {
 		}
 		logger.info(nameOf(this, true) + " sends heartbeat signal every " + heartbeatInterval + " seconds.");
 
-		// Heartbeat timeout (find in Transporter config)
+		// Heartbeat socketTimeout (find in Transporter config)
 		heartbeatTimeout = config.get("heartbeatTimeout", heartbeatTimeout);
 		if (heartbeatTimeout < 1) {
 
@@ -218,7 +218,7 @@ public abstract class Transporter implements MoleculerComponent {
 				heartbeatTimeout = 30;
 			}
 		}
-		logger.info("Heartbeat timeout of " + nameOf(this, true) + " is " + heartbeatTimeout + " seconds.");
+		logger.info("Heartbeat socketTimeout of " + nameOf(this, true) + " is " + heartbeatTimeout + " seconds.");
 		debug = config.get("debug", debug);
 
 		// Start serializer
@@ -367,7 +367,7 @@ public abstract class Transporter implements MoleculerComponent {
 		message.put("meta", (String) null);
 
 		if (ctx.opts != null) {
-			message.put("timeout", ctx.opts.timeout);
+			message.put("socketTimeout", ctx.opts.timeout);
 		}
 
 		message.put("level", 1);

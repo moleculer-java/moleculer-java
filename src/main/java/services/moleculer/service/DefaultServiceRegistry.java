@@ -90,7 +90,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 	protected boolean asyncLocalInvocation;
 
 	/**
-	 * Default action invocation timeout (seconds)
+	 * Default action invocation socketTimeout (seconds)
 	 */
 	protected int defaultTimeout;
 
@@ -251,7 +251,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 	protected final AtomicLong prevTimeoutAt = new AtomicLong();
 
 	/**
-	 * Recalculates the next timeout checking time
+	 * Recalculates the next socketTimeout checking time
 	 */
 	protected void reschedule(long minTimeoutAt) {
 		if (minTimeoutAt == Long.MAX_VALUE) {
@@ -289,7 +289,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 				t.cancel(false);
 			}
 
-			// Schedule next timeout timer
+			// Schedule next socketTimeout timer
 			long delay = Math.max(1000, minTimeoutAt - now);
 			timer.set(scheduler.schedule(this, delay, TimeUnit.MILLISECONDS));
 		}
@@ -365,7 +365,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		}
 
 		// Create CallingOptions
-		int timeout = message.get("timeout", 0);
+		int timeout = message.get("socketTimeout", 0);
 		Tree params = message.get("params");
 
 		// TODO Process other properties:

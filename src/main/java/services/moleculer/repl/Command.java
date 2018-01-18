@@ -32,20 +32,99 @@
 package services.moleculer.repl;
 
 import java.io.PrintStream;
+import java.util.LinkedList;
 
+import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 
 /**
  * Interface of all interactive console command implementations.
  */
-public interface Command {
+public abstract class Command {
 
-	public String getDescription();
-	
-	public String getSample();
-	
-	public int getNumberOfRequiredParameters();
+	// --- CONSTRUCTOR ---
 
-	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception;
-	
+	public Command() {
+		option("help", "output usage information");
+	}
+
+	// --- BASIC METHODS ---
+
+	public abstract String getDescription();
+
+	public abstract String getUsage();
+
+	public abstract int getNumberOfRequiredParameters();
+
+	public abstract void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception;
+
+	// --- OPTION HANDLING ---
+
+	protected LinkedList<String[]> options = new LinkedList<>();
+
+	protected void option(String option, String description) {
+		options.add(new String[] { option, description });
+	}
+
+	// --- CONCATENATE ARGUMENTS ---
+
+	protected Tree getPayload(String[] parameters) throws Exception {
+		return getPayload(1, parameters);
+	}
+
+	protected Tree getPayload(int from, String[] parameters) throws Exception {
+		if (parameters.length > from) {
+			if (parameters[from].startsWith("'") || parameters[from].startsWith("{")
+					|| parameters[from].startsWith("[")) {
+
+				// JSON format
+				StringBuilder tmp = new StringBuilder();
+				for (int i = from; i < parameters.length; i++) {
+					if (tmp.length() != 0) {
+						tmp.append(' ');
+					}
+					tmp.append(parameters[i]);
+				}
+				String json = tmp.toString();
+				if (json.startsWith("'")) {
+					json = json.substring(1);
+				}
+				if (json.endsWith("'")) {
+					json = json.substring(0, json.length() - 1);
+				}
+				return new Tree(json.trim());
+			}
+			Tree payload = new Tree();
+			String name = null;
+			for (int i = from; i < parameters.length; i++) {
+				String p = parameters[i];
+				if (name == null) {
+					if (p.startsWith("--")) {
+						p = p.substring(2);
+					}
+					name = p;
+				} else {
+					if ("true".equals(p)) {
+						payload.put(name, true);
+					} else if ("false".equals(p)) {
+						payload.put(name, false);
+					} else {
+						try {
+							if (p.contains(".")) {
+								payload.put(name, Double.parseDouble(p));
+							} else {
+								payload.put(name, Integer.parseInt(p));
+							}
+						} catch (Exception notNumeric) {
+							payload.put(name, p);
+						}
+					}
+					name = null;
+				}
+			}
+			return payload;
+		}
+		return new Tree();
+	}
+
 }

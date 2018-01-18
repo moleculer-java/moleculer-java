@@ -47,10 +47,17 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * Simple interactive console (uses System.in and System.out).
+ * Local interactive console (uses System.in and System.out). To start console,
+ * type<br>
+ * <br>
+ * ServiceBroker broker = ServiceBroker.builder().build();<br>
+ * broker.start();<br>
+ * broker.repl();
+ * 
+ * @see RemoteRepl
  */
-@Name("Simple REPL Console")
-public class SimpleRepl extends Repl {
+@Name("Local REPL Console")
+public class LocalRepl extends Repl implements Runnable {
 
 	// --- PROPERTIES ---
 
@@ -69,10 +76,10 @@ public class SimpleRepl extends Repl {
 
 	// --- CONSTRUCTORS ---
 
-	public SimpleRepl() {
+	public LocalRepl() {
 	}
 
-	public SimpleRepl(String... packagesToScan) {
+	public LocalRepl(String... packagesToScan) {
 		this.packagesToScan = packagesToScan;
 	}
 
@@ -109,7 +116,7 @@ public class SimpleRepl extends Repl {
 
 	protected String lastCommand = "help";
 
-	protected SystemInReader reader;
+	protected LocalReader reader;
 
 	@Override
 	protected void startReading() {
@@ -146,33 +153,38 @@ public class SimpleRepl extends Repl {
 			}
 		}
 		executor = Executors.newSingleThreadExecutor();
-		executor.execute(() -> {
-			try {
-				Thread.sleep(1000);
-				while (!Thread.currentThread().isInterrupted()) {
-					reader = new SystemInReader();
-					reader.start();
-					reader.join();
-					String command = reader.getLine();
-					reader = null;
-					if (command.length() > 0) {
-						if ("r".equalsIgnoreCase(command) || "repeat".equalsIgnoreCase(command)) {
-							command = lastCommand;
-						}
-						onCommand(System.out, command);
-						lastCommand = command;
+		executor.execute(this);
+	}
+
+	// --- COMMAND READER LOOP ---
+
+	@Override
+	public void run() {
+		try {
+			Thread.sleep(1000);
+			while (!Thread.currentThread().isInterrupted()) {
+				reader = new LocalReader();
+				reader.start();
+				reader.join();
+				String command = reader.getLine();
+				reader = null;
+				if (command.length() > 0) {
+					if ("r".equalsIgnoreCase(command) || "repeat".equalsIgnoreCase(command)) {
+						command = lastCommand;
 					}
+					onCommand(System.out, command);
+					lastCommand = command;
 				}
-			} catch (InterruptedException i) {
-
-				// Interrupt
-
-			} catch (Throwable cause) {
-
-				// Never happens
-				cause.printStackTrace();
 			}
-		});
+		} catch (InterruptedException i) {
+
+			// Interrupt
+
+		} catch (Throwable cause) {
+
+			// Never happens
+			cause.printStackTrace();
+		}
 	}
 
 	// --- COMMAND PROCESSOR ---
@@ -188,14 +200,31 @@ public class SimpleRepl extends Repl {
 			}
 			String[] tokens = command.split(" ");
 			String cmd = tokens[0].toLowerCase();
-			if ("help".equals(cmd) || "h".equals(cmd)) {
+			out.println();
+			if (tokens.length > 1 && tokens[1].equals("--help")) {
+				printCommandHelp(out, tokens[0]);
+				return;
+			}
+			if ("help".equals(cmd) || "?".equals(cmd)) {
+				boolean telnet = false;
+				if (tokens.length > 1) {
+					if (tokens[1].equals("telnet")) {
+						telnet = true;
+					} else {
+						printCommandHelp(out, tokens[1]);
+						return;
+					}
+				}
 				String[] names = new String[commands.size()];
 				commands.keySet().toArray(names);
 				Arrays.sort(names, String.CASE_INSENSITIVE_ORDER);
-				StringTable table = new StringTable("List of commands", "Command", "Description");
+				StringTable table = new StringTable("Commands", "Command", "Description");
 				for (String name : names) {
+					if (!telnet && name.equals("close")) {
+						continue;
+					}
 					Command impl = commands.get(name);
-					table.addRow(impl.getSample(), impl.getDescription());
+					table.addRow(impl.getUsage(), impl.getDescription());
 				}
 				table.printTable(out);
 				out.println();
@@ -206,7 +235,8 @@ public class SimpleRepl extends Repl {
 			Command impl = commands.get(cmd);
 			if (impl == null) {
 				out.println("The \"" + cmd + "\" command is unknown!");
-				out.println("Type \"help\" or \"h\" for more information.");
+				out.println("Type \"help\" for more information.");
+				out.println();
 				return;
 			}
 			String[] args = new String[tokens.length - 1];
@@ -215,13 +245,36 @@ public class SimpleRepl extends Repl {
 				out.println("Unable to call \"" + cmd + "\" command!");
 				out.println("Too few command parameters (" + args.length + " < " + impl.getNumberOfRequiredParameters()
 						+ ")!");
+				out.println();
+				printCommandHelp(out, cmd);
 				return;
 			}
 			impl.onCommand(broker, out, args);
+			out.println();
 		} catch (Exception cause) {
 			out.println("Command execution failed!");
 			cause.printStackTrace(out);
+			out.println();
 		}
+	}
+
+	protected void printCommandHelp(PrintStream out, String name) {
+		Command impl = commands.get(name);
+		if (impl == null) {
+			out.println("The \"" + name + "\" command is unknown!");
+			out.println("Type \"help\" for more information.");
+			return;
+		}
+		out.println("  Usage: " + impl.getUsage());
+		out.println();
+		out.println("  " + impl.getDescription());
+		out.println();
+		out.println("  Options:");
+		out.println();
+		for (String[] option : impl.options) {
+			out.println("    --" + option[0] + "  " + option[1]);
+		}
+		out.println();
 	}
 
 	// --- STOP READING INPUT ---

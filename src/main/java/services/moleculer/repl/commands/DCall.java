@@ -35,42 +35,44 @@ import java.io.PrintStream;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.context.CallingOptions;
 import services.moleculer.repl.Command;
 import services.moleculer.service.Name;
 
 /**
-* Call an action.
+* Direct call an action.
 */
-@Name("call")
-public class Call extends Command {
+@Name("dcall")
+public class DCall extends Command {
 
 	@Override
 	public String getDescription() {
-		return "Call an action";
+		return "Direct call an action";
 	}
 	
 	@Override
 	public String getUsage() {
-		return "call <actionName> [jsonParams]";
+		return "dcall <nodeID> <actionName> [jsonParams]";
 	}
 
 	@Override
 	public int getNumberOfRequiredParameters() {
-		return 1;
+		return 2;
 	}
 
 	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
-		String name = parameters[0];
-		Tree params = getPayload(parameters);
-		out.println(">> Call '" + name + "' with params: " + params.toString(false));
-		Tree rsp = broker.call(name, params).toCompletableFuture().get();
+		String nodeID = parameters[0];
+		String name = parameters[1];
+		Tree params = getPayload(2, parameters);
+		out.println(">> Call '" + name + "' on '" + nodeID + "' with params: " + params.toString(false));
+		Tree rsp = broker.call(name, params, CallingOptions.nodeID(nodeID)).toCompletableFuture().get();
 		out.println("Response:");
 		if (rsp == null) {
 			out.println("'null' response");	
 		} else {
 			out.println(rsp.toString());
-		}
+		}		
 	}
 
 }

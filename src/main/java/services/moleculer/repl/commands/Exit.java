@@ -29,43 +29,43 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.repl;
+package services.moleculer.repl.commands;
 
-public class SystemInReader extends Thread {
+import java.io.PrintStream;
 
-	// --- LINE ---
+import services.moleculer.ServiceBroker;
+import services.moleculer.repl.Command;
+import services.moleculer.service.Name;
 
-	protected StringBuilder line = new StringBuilder(80);
+/**
+* "Exit application" command. Shuts down ServiceBroker then the virtual machine.
+*/
+@Name("exit")
+public class Exit extends Command {
 
-	// --- CONSTRUCTOR ---
-
-	protected SystemInReader() {
-		setDaemon(true);
+	@Override
+	public String getDescription() {
+		return "Exit application";
+	}
+	
+	@Override
+	public String getUsage() {
+		return "exit";
 	}
 
-	// --- READER LOOP ---
+	@Override
+	public int getNumberOfRequiredParameters() {
+		return 0;
+	}
 
-	public void run() {
+	@Override
+	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
+		broker.stop();
 		try {
-			int c = ' ';
-			for (;;) {
-				c = System.in.read();
-				if (c == '\n') {
-					return;
-				}
-				if (c == '\r') {
-					continue;
-				}
-				line.append((char) c);
-			}
-		} catch (Throwable ignored) {
+			Thread.sleep(500);
+		} catch (Exception ignored) {
 		}
-	}
-
-	// --- GET THE ENTERED LINE ---
-
-	protected String getLine() {
-		return line.toString().trim();
+		System.exit(0);
 	}
 
 }

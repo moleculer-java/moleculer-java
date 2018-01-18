@@ -39,19 +39,27 @@ import services.moleculer.repl.Command;
 import services.moleculer.service.Name;
 
 /**
-* Call an action.
-*/
-@Name("call")
-public class Call extends Command {
+ * Broadcast an event to local services. Sample of usage:<br>
+ * <br>
+ * broadcastLocal eventName {"a":3,"b":false} <b>(recommended)</b><br>
+ * or<br>
+ * broadcastLocal eventName '{"a":3,"b":false}'<br>
+ * or<br>
+ * broadcastLocal eventName --a 3 --b false<br>
+ * or<br>
+ * broadcastLocal eventName a 3 b false
+ */
+@Name("broadcastLocal")
+public class BroadcastLocal extends Command {
 
 	@Override
 	public String getDescription() {
-		return "Call an action";
+		return "Broadcast an event locally";
 	}
-	
+
 	@Override
 	public String getUsage() {
-		return "call <actionName> [jsonParams]";
+		return "broadcastLocal <eventName>";
 	}
 
 	@Override
@@ -62,15 +70,9 @@ public class Call extends Command {
 	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
 		String name = parameters[0];
-		Tree params = getPayload(parameters);
-		out.println(">> Call '" + name + "' with params: " + params.toString(false));
-		Tree rsp = broker.call(name, params).toCompletableFuture().get();
-		out.println("Response:");
-		if (rsp == null) {
-			out.println("'null' response");	
-		} else {
-			out.println(rsp.toString());
-		}
+		Tree payload = getPayload(parameters);
+		out.println(">> Broadcast '" + name + "' locally with payload: " + payload.toString(false));
+		broker.broadcastLocal(name, payload);
 	}
 
 }

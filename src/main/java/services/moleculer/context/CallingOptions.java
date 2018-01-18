@@ -32,7 +32,7 @@
 package services.moleculer.context;
 
 /**
- * Calling options (timeout, target nodeID, number of retries).
+ * Calling options (socketTimeout, target nodeID, number of retries).
  */
 public class CallingOptions {
 

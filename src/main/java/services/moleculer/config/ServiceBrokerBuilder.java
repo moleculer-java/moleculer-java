@@ -145,7 +145,7 @@ public final class ServiceBrokerBuilder {
 	}
 
 	public final ServiceBrokerBuilder repl(Repl repl) {
-		settings.setRepl(Objects.requireNonNull(repl));
+		settings.setRepl(repl);
 		return this;
 	}
 

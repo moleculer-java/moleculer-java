@@ -39,19 +39,27 @@ import services.moleculer.repl.Command;
 import services.moleculer.service.Name;
 
 /**
-* Call an action.
+* Emit an event. Sample of usage:<br>
+* <br>
+* emit eventName {"a":3,"b":false} <b>(recommended)</b><br>
+* or<br>
+* emit eventName '{"a":3,"b":false}'<br>
+* or<br>
+* emit eventName --a 3 --b false<br>
+* or<br>
+* emit eventName a 3 b false
 */
-@Name("call")
-public class Call extends Command {
+@Name("emit")
+public class Emit extends Command {
 
 	@Override
 	public String getDescription() {
-		return "Call an action";
+		return "Emit an event";
 	}
 	
 	@Override
 	public String getUsage() {
-		return "call <actionName> [jsonParams]";
+		return "emit <eventName>";
 	}
 
 	@Override
@@ -62,15 +70,9 @@ public class Call extends Command {
 	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
 		String name = parameters[0];
-		Tree params = getPayload(parameters);
-		out.println(">> Call '" + name + "' with params: " + params.toString(false));
-		Tree rsp = broker.call(name, params).toCompletableFuture().get();
-		out.println("Response:");
-		if (rsp == null) {
-			out.println("'null' response");	
-		} else {
-			out.println(rsp.toString());
-		}
+		Tree payload = getPayload(parameters);
+		out.println(">> Emit '" + name + "' with payload: " + payload.toString(false));
+		broker.emit(name, payload);
 	}
 
 }

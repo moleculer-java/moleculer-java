@@ -44,7 +44,7 @@ import static services.moleculer.util.CommonUtils.nameOf;
 /**
  * Base superclass of all REPL (interactive console) implementations.
  * 
- * @see SimpleRepl
+ * @see LocalRepl
  */
 @Name("REPL Console")
 public abstract class Repl implements MoleculerComponent {

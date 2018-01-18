@@ -433,9 +433,12 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 				return newConfig("services.moleculer.monitor.ConstantMonitor");
 			}
 		} else if (REPL_ID.equals(id)) {
-			if (test.equals("simple")) {
-				return newConfig("services.moleculer.repl.SimpleRepl");
-			}			
+			if (test.equals("local")) {
+				return newConfig("services.moleculer.repl.LocalRepl");
+			}
+			if (test.equals("remote")) {
+				return newConfig("services.moleculer.repl.RemoteRepl");
+			}
 		}
 		return null;
 	}

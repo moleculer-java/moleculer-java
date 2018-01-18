@@ -29,48 +29,44 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.repl.commands;
+package services.moleculer.repl;
 
-import java.io.PrintStream;
+public class LocalReader extends Thread {
 
-import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-import services.moleculer.repl.Command;
-import services.moleculer.service.Name;
+	// --- LINE ---
 
-/**
-* Call an action.
-*/
-@Name("call")
-public class Call extends Command {
+	protected StringBuilder line = new StringBuilder(80);
 
-	@Override
-	public String getDescription() {
-		return "Call an action";
-	}
-	
-	@Override
-	public String getUsage() {
-		return "call <actionName> [jsonParams]";
+	// --- CONSTRUCTOR ---
+
+	protected LocalReader() {
+		setDaemon(true);
 	}
 
-	@Override
-	public int getNumberOfRequiredParameters() {
-		return 1;
-	}
+	// --- READER LOOP ---
 
-	@Override
-	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
-		String name = parameters[0];
-		Tree params = getPayload(parameters);
-		out.println(">> Call '" + name + "' with params: " + params.toString(false));
-		Tree rsp = broker.call(name, params).toCompletableFuture().get();
-		out.println("Response:");
-		if (rsp == null) {
-			out.println("'null' response");	
-		} else {
-			out.println(rsp.toString());
+	public void run() {
+		try {
+			int c = ' ';
+			System.out.print("mol $ ");
+			for (;;) {
+				c = System.in.read();
+				if (c == '\n') {
+					return;
+				}
+				if (c == '\r') {
+					continue;
+				}
+				line.append((char) c);
+			}
+		} catch (Throwable ignored) {
 		}
+	}
+
+	// --- GET THE ENTERED LINE ---
+
+	protected String getLine() {
+		return line.toString().trim();
 	}
 
 }

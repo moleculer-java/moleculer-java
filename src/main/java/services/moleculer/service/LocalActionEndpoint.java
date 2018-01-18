@@ -115,7 +115,7 @@ public class LocalActionEndpoint extends ActionEndpoint {
 	@Override
 	protected Promise callActionNoStore(Tree params, CallingOptions.Options opts, Context parent) {
 
-		// Set timeout (limit timestamp in millis)
+		// Set socketTimeout (limit timestamp in millis)
 		int timeout;
 		if (opts == null) {
 			timeout = defaultTimeout;
@@ -148,12 +148,12 @@ public class LocalActionEndpoint extends ActionEndpoint {
 				}
 			}, executor));
 
-			// No timeout / done
+			// No socketTimeout / done
 			if (timeoutAt < 0 || promise.isDone()) {
 				return promise;
 			}
 
-			// Register promise (timeout handling)
+			// Register promise (socketTimeout handling)
 			final String id = Long.toString(internalUID.incrementAndGet());
 			registry.register(id, promise, timeoutAt);
 			return promise;

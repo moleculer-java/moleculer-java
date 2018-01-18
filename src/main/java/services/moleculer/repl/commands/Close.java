@@ -33,44 +33,35 @@ package services.moleculer.repl.commands;
 
 import java.io.PrintStream;
 
-import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.repl.Command;
 import services.moleculer.service.Name;
 
 /**
-* Call an action.
+* Close telnet session.
 */
-@Name("call")
-public class Call extends Command {
+@Name("close")
+public class Close extends Command {
 
 	@Override
 	public String getDescription() {
-		return "Call an action";
+		return "Close telnet session";
 	}
 	
 	@Override
 	public String getUsage() {
-		return "call <actionName> [jsonParams]";
+		return "close";
 	}
 
 	@Override
 	public int getNumberOfRequiredParameters() {
-		return 1;
+		return 0;
 	}
 
 	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
-		String name = parameters[0];
-		Tree params = getPayload(parameters);
-		out.println(">> Call '" + name + "' with params: " + params.toString(false));
-		Tree rsp = broker.call(name, params).toCompletableFuture().get();
-		out.println("Response:");
-		if (rsp == null) {
-			out.println("'null' response");	
-		} else {
-			out.println(rsp.toString());
-		}
+		
+		// Do nothing
 	}
 
 }

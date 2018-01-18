@@ -153,7 +153,7 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 		dontRandomize = config.get("dontRandomize", dontRandomize);
 		maxPingsOut = config.get("maxPingsOut", maxPingsOut);
 		pingInterval = config.get("pingInterval", pingInterval);
-		timeout = config.get("timeout", timeout);
+		timeout = config.get("socketTimeout", timeout);
 		tlsDebug = config.get("tlsDebug", tlsDebug);
 		verbose = config.get("verbose", verbose);
 
