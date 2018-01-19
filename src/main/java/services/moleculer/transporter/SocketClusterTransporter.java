@@ -127,14 +127,12 @@ public class SocketClusterTransporter extends Transporter implements Listener, B
 			}
 		}
 		authToken = config.get("authToken", authToken);
-
-		// Connect to Socketcluster server
-		connect();
 	}
 
 	// --- CONNECT ---
 
-	protected void connect() {
+	@Override
+	public void connect() {
 		try {
 
 			// Format Socketcluster server URL

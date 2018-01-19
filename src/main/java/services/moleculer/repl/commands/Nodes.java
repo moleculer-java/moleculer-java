@@ -32,14 +32,22 @@
 package services.moleculer.repl.commands;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
+import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.repl.Command;
+import services.moleculer.repl.TextTable;
 import services.moleculer.service.Name;
+import services.moleculer.transporter.Transporter;
 
 /**
-* List of nodes.
-*/
+ * List of nodes.
+ */
 @Name("nodes")
 public class Nodes extends Command {
 
@@ -47,12 +55,12 @@ public class Nodes extends Command {
 		option("details, -d", "detailed list");
 		option("all, -a", "list all (offline) nodes");
 	}
-	
+
 	@Override
 	public String getDescription() {
 		return "List of nodes";
 	}
-	
+
 	@Override
 	public String getUsage() {
 		return "nodes [options]";
@@ -65,6 +73,96 @@ public class Nodes extends Command {
 
 	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
+		List<String> params = Arrays.asList(parameters);
+		boolean all = params.contains("--all") || params.contains("-a");
+		boolean details = params.contains("--details") || params.contains("-d");
+
+		// Create table
+		TextTable table = new TextTable("Node ID", "Services", "Version", "Client", "IP", "State", "CPU");
+		Transporter transporter = broker.components().transporter();
+		Tree infos = new Tree();
+		if (transporter != null) {
+			Set<String> nodeIDset = transporter.getAllNodeIDs();
+			String[] nodeIDarray = new String[nodeIDset.size()];
+			nodeIDset.toArray(nodeIDarray);
+			Arrays.sort(nodeIDarray, String.CASE_INSENSITIVE_ORDER);
+			for (String nodeID : nodeIDarray) {
+				Tree info = transporter.getNodeInfo(nodeID);
+				if (info == null) {
+					continue;
+				}
+				infos.putObject(info.get("sender", "unknown"), info);
+			}
+		}
+		if (infos.isEmpty()) {
+			infos.putObject(broker.nodeID(), broker.components().registry().generateDescriptor());
+		}
+		String localNodeID = broker.nodeID();
+		for (Tree info : infos) {
+			ArrayList<String> row = new ArrayList<>(7);
+
+			// Add Node ID cell
+			String nodeID = info.getName();
+			if (localNodeID.equals(nodeID)) {
+				row.add(nodeID + " (*)");
+			} else {
+				row.add(nodeID);
+			}
+
+			// Add Services cell
+			Tree services = info.get("services");
+			row.add(services == null ? "0" : Integer.toString(services.size()));
+
+			// Add Version cell
+			row.add(info.get("client.version", "unknown"));
+
+			// Add Client cell
+			row.add(info.get("client.type", "unknown"));
+
+			// Add IP cell
+			Tree ipList = info.get("ipList");
+			int ipCount = ipList == null ? 0 : ipList.size();
+			String firstIP = ipCount < 1 ? "unknown" : ipList.get(0).asString();
+			if (ipCount > 1) {
+				firstIP += " (+" + (ipCount - 1) + ')';
+			}
+			row.add(firstIP);
+
+			// TODO Add State cell
+			boolean online = localNodeID.equals(nodeID) ? true : info.get("online", true);
+			if (!all && !online) {
+				continue;
+			}
+			row.add(online ? "ONLINE" : "OFFLINE");
+
+			// Add CPU cell
+			if (transporter == null) {
+				row.add(broker.components().monitor().getTotalCpuPercent() + "%");
+			} else {
+				Map<String, Long[]> activities = transporter.getNodeActivities();
+				Long[] timestampCpu = activities.get(nodeID);
+				if (timestampCpu == null) {
+					if (localNodeID.equals(nodeID)) {
+						row.add(broker.components().monitor().getTotalCpuPercent() + "%");
+					} else {
+						row.add("0%");
+					}
+				} else {
+					row.add(timestampCpu[1] + "%");
+				}
+			}
+
+			// Add row
+			table.addRow(row);
+			
+			// Service details
+			if (details && services != null) {
+				for (Tree service: services) {
+					table.addRow("", service.get("name", "unknown"), "-", "", "", "", "");
+				}
+			}
+		}
+		out.println(table);
 	}
 
 }

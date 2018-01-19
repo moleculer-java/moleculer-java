@@ -32,25 +32,34 @@
 package services.moleculer.repl.commands;
 
 import java.io.PrintStream;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.Map;
 
 import services.moleculer.ServiceBroker;
 import services.moleculer.repl.Command;
+import services.moleculer.repl.TextTable;
 import services.moleculer.service.Name;
 
 /**
-* "Exit application" command. Shuts down ServiceBroker then the virtual machine.
-*/
-@Name("exit")
-public class Exit extends Command {
+ * Lists OS Environment Properties.
+ */
+@Name("env")
+public class Env extends Command {
+
+	public Env() {
+		option("full", "show full-length keys");
+	}
 
 	@Override
 	public String getDescription() {
-		return "Exit application";
+		return "Lists of environment properties";
 	}
-	
+
 	@Override
 	public String getUsage() {
-		return "exit, q";
+		return "env [options]";
 	}
 
 	@Override
@@ -60,12 +69,37 @@ public class Exit extends Command {
 
 	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
-		broker.stop();
-		try {
-			Thread.sleep(500);
-		} catch (Exception ignored) {
+		TextTable table = new TextTable("Key", "Value");
+
+		// Print long keys
+		boolean full = false;
+		if (parameters.length > 0) {
+			full = "--full".equals(parameters[0]);
 		}
-		System.exit(0);
+
+		// Query and formatting
+		Map<String, String> properties = System.getenv();
+		LinkedList<Object> list = new LinkedList<Object>();
+		Iterator<String> keys = properties.keySet().iterator();
+		while (keys.hasNext()) {
+			list.addLast(keys.next());
+		}
+		String[] names = new String[list.size()];
+		list.toArray(names);
+		Arrays.sort(names, String.CASE_INSENSITIVE_ORDER);
+		String key, value;
+		for (int n = 0; n < names.length; n++) {
+			key = names[n];
+			value = properties.get(key);
+			if (value == null || value.length() == 0) {
+				value = "[undefined]";
+			}
+			if (!full && key.length() > 23) {
+				key = key.substring(0, 10) + "..." + key.substring(key.length() - 10, key.length());
+			}
+			table.addRow(true, key, value);
+		}
+		out.println(table);
 	}
 
 }

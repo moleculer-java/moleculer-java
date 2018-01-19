@@ -127,4 +127,12 @@ public abstract class Command {
 		return new Tree();
 	}
 
+	// --- FORMATTERS ---
+	
+	protected void printChars(StringBuilder out, char c, int repeats) {
+		for (int i = 0; i < repeats; i++) {
+			out.append(c);
+		}
+	}
+		
 }

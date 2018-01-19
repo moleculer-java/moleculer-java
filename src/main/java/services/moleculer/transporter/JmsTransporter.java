@@ -174,14 +174,12 @@ public class JmsTransporter extends Transporter {
 		priority = config.get("priority", priority);
 		ttl = config.get("ttl", ttl);
 		connectionFactoryJndiName = config.get("connectionFactoryJndiName", connectionFactoryJndiName);
-
-		// Connect to JMS server
-		connect();
 	}
 
 	// --- CONNECT ---
 
-	protected void connect() {
+	@Override
+	public void connect() {
 		try {
 
 			// Create JMS client and session

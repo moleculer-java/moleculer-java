@@ -125,13 +125,12 @@ public class GoogleTransporter extends Transporter {
 		// Process basic properties (eg. "prefix")
 		super.start(broker, config);
 
-		// Connect to Google Cloud server
-		connect();
 	}
 
 	// --- CONNECT ---
 
-	protected void connect() {
+	@Override
+	public void connect() {
 		try {
 
 			// Create Google Cloud client

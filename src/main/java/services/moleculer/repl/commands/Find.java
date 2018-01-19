@@ -32,40 +32,55 @@
 package services.moleculer.repl.commands;
 
 import java.io.PrintStream;
+import java.net.URL;
+import java.net.URLDecoder;
 
 import services.moleculer.ServiceBroker;
 import services.moleculer.repl.Command;
 import services.moleculer.service.Name;
 
 /**
-* "Exit application" command. Shuts down ServiceBroker then the virtual machine.
-*/
-@Name("exit")
-public class Exit extends Command {
+ * Finds the specified class or resource. Sample:<br>
+ * <br>
+ * find java.lang.String
+ */
+@Name("find")
+public class Find extends Command {
 
 	@Override
 	public String getDescription() {
-		return "Exit application";
+		return "Find a class or resource";
 	}
-	
+
 	@Override
 	public String getUsage() {
-		return "exit, q";
+		return "find <fullClassName>";
 	}
 
 	@Override
 	public int getNumberOfRequiredParameters() {
-		return 0;
+		return 1;
 	}
 
 	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
-		broker.stop();
-		try {
-			Thread.sleep(500);
-		} catch (Exception ignored) {
+		String name = parameters[0];
+		int index = name.indexOf('.');
+		if (index != -1) {
+			name = name.replace('.', '/') + ".class";
 		}
-		System.exit(0);
+		URL url = getClass().getClassLoader().getResource(name);
+		if (url == null) {
+			url = getClass().getClassLoader().getResource(parameters[0]);
+		}
+		out.println("Location of resource:");
+		out.println();
+		out.print("  ");
+		if (url == null) {
+			out.println("Resource '" + parameters[0] + "' not found.");
+		} else {
+			out.println(URLDecoder.decode(url.toString(), "UTF8"));
+		}		
 	}
 
 }

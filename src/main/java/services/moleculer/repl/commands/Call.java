@@ -39,7 +39,7 @@ import services.moleculer.repl.Command;
 import services.moleculer.service.Name;
 
 /**
-* Call an action.
+* Calls the specified action.
 */
 @Name("call")
 public class Call extends Command {

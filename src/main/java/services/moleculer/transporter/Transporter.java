@@ -36,9 +36,11 @@ import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -137,7 +139,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- NODE INFO MAP ---
 
-	protected final ConcurrentHashMap<String, Tree> nodeInfos = new ConcurrentHashMap<>(32);
+	protected final ConcurrentHashMap<String, Tree> nodeInfos = new ConcurrentHashMap<>(64);
 
 	// --- CONSTUCTORS ---
 
@@ -263,6 +265,8 @@ public abstract class Transporter implements MoleculerComponent {
 		return name.toString();
 	}
 
+	public abstract void connect();
+	
 	// --- SERVER CONNECTED ---
 
 	/**
@@ -622,14 +626,35 @@ public abstract class Transporter implements MoleculerComponent {
 		}
 	}
 
-	// --- GET NODE ACTIVITIES MAP ---
+	// --- GET NODE ACTIVITIES MAP (REMOTE NODES ONLY) ---
 
 	public Map<String, Long[]> getNodeActivities() {
 
 		// NodeID -> [timestamp, cpu usage]
-		return publicNodeActivities;
+		return Collections.unmodifiableMap(publicNodeActivities);
 	}
 
+	// --- GET NODEIDS OF ALL NODES (LOCAL AND REMOTE) ---
+	
+	public Set<String> getAllNodeIDs() {
+		HashSet<String> nodeIDs = new HashSet<>(nodeInfos.keySet());
+		nodeIDs.add(nodeID);
+		return nodeIDs;
+	}
+	
+	// --- GET REMOTE NODE INFO (LOCAL AND REMOTE) ---
+	
+	public Tree getNodeInfo(String nodeID) {
+		if (this.nodeID.equals(nodeID)) {
+			return registry.generateDescriptor();
+		}
+		Tree info = nodeInfos.get(nodeID);
+		if (info == null) {
+			return null;
+		}
+		return info.clone();
+	}
+	
 	// --- OPTIONAL ERROR HANDLER ---
 
 	/**

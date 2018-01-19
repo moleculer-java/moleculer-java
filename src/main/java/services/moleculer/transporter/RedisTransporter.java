@@ -152,14 +152,12 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 		}
 		password = config.get("password", password);
 		secure = config.get("secure", secure);
-
-		// Connect to Redis server
-		connect();
 	}
 
 	// --- CONNECT ---
 
-	protected void connect() {
+	@Override
+	public void connect() {
 		if (clientSub != null || clientPub != null) {
 			disconnect();
 		}

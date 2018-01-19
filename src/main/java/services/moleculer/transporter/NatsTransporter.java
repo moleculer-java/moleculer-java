@@ -156,14 +156,12 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 		timeout = config.get("socketTimeout", timeout);
 		tlsDebug = config.get("tlsDebug", tlsDebug);
 		verbose = config.get("verbose", verbose);
-
-		// Connect to NATS server
-		connect();
 	}
 
 	// --- CONNECT ---
 
-	protected void connect() {
+	@Override
+	public void connect() {
 		try {
 
 			// Create NATS client options

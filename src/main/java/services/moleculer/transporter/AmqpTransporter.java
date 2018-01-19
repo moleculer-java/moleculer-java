@@ -171,14 +171,12 @@ public class AmqpTransporter extends Transporter {
 				channelProperties.put(prop.getName(), prop.asObject());
 			}
 		}
-
-		// Connect to AMQP server
-		connect();
 	}
 
 	// --- CONNECT ---
 
-	protected void connect() {
+	@Override
+	public void connect() {
 		try {
 
 			// Create client connection

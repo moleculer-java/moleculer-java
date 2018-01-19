@@ -34,38 +34,35 @@ package services.moleculer.repl.commands;
 import java.io.PrintStream;
 
 import services.moleculer.ServiceBroker;
-import services.moleculer.repl.Command;
 import services.moleculer.service.Name;
 
 /**
-* "Exit application" command. Shuts down ServiceBroker then the virtual machine.
-*/
-@Name("exit")
-public class Exit extends Command {
+ * Displays memory usage.
+ */
+@Name("memory")
+public class Memory extends Gc {
 
 	@Override
 	public String getDescription() {
-		return "Exit application";
-	}
-	
-	@Override
-	public String getUsage() {
-		return "exit, q";
+		return "Show memory usage";
 	}
 
 	@Override
-	public int getNumberOfRequiredParameters() {
-		return 0;
+	public String getUsage() {
+		return "memory";
 	}
 
 	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
-		broker.stop();
-		try {
-			Thread.sleep(500);
-		} catch (Exception ignored) {
-		}
-		System.exit(0);
+		Runtime runtime = Runtime.getRuntime();
+		long free = runtime.freeMemory();
+		long total = runtime.totalMemory();
+		long used = total - free;
+		out.println("Memory usage:");
+		out.println();
+		printMemory(out, "  total - ", total, total, 25);
+		printMemory(out, "  used  - ", used, total, 25);
+		printMemory(out, "  free  - ", free, total, 25);
 	}
 
 }

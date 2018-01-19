@@ -62,7 +62,7 @@ public class LocalRepl extends Repl implements Runnable {
 	// --- PROPERTIES ---
 
 	/**
-	 * Java package(s) where your Commands are located.
+	 * Java package(s) where the Command classes are located.
 	 */
 	private String[] packagesToScan = new String[] { "services.moleculer.repl.commands" };
 
@@ -171,6 +171,8 @@ public class LocalRepl extends Repl implements Runnable {
 				if (command.length() > 0) {
 					if ("r".equalsIgnoreCase(command) || "repeat".equalsIgnoreCase(command)) {
 						command = lastCommand;
+					} else if ("q".equalsIgnoreCase(command)) {
+						command = "exit";
 					}
 					onCommand(System.out, command);
 					lastCommand = command;
@@ -218,7 +220,7 @@ public class LocalRepl extends Repl implements Runnable {
 				String[] names = new String[commands.size()];
 				commands.keySet().toArray(names);
 				Arrays.sort(names, String.CASE_INSENSITIVE_ORDER);
-				StringTable table = new StringTable("Commands", "Command", "Description");
+				TextTable table = new TextTable(false, "Command", "Description");
 				for (String name : names) {
 					if (!telnet && name.equals("close")) {
 						continue;
@@ -226,8 +228,9 @@ public class LocalRepl extends Repl implements Runnable {
 					Command impl = commands.get(name);
 					table.addRow(impl.getUsage(), impl.getDescription());
 				}
-				table.printTable(out);
+				out.println("Commands:");
 				out.println();
+				out.println(table);
 				out.println("  Type \"repeat\" or \"r\"  to repeat the execution of the last command.");
 				out.println();
 				return;

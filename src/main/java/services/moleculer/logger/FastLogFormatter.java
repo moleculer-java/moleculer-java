@@ -31,8 +31,7 @@
  */
 package services.moleculer.logger;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.Instant;
 import java.util.logging.Formatter;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -43,17 +42,14 @@ import java.util.logging.LogRecord;
  */
 public class FastLogFormatter extends Formatter {
 
-	protected static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+	protected static final char[] SEVERE =  "] SEVERE  ".toCharArray();
+	protected static final char[] WARNING = "] WARNING ".toCharArray();
+	protected static final char[] INFO =    "] INFO    ".toCharArray();
+	protected static final char[] CONFIG =  "] CONFIG  ".toCharArray();
+	protected static final char[] FINE =    "] FINE    ".toCharArray();
+	protected static final char[] FINER =   "] FINER   ".toCharArray();
+	protected static final char[] FINEST =  "] FINEST  ".toCharArray();
 
-	protected static final char[] SEVERE = " | SEVERE  | ".toCharArray();
-	protected static final char[] WARNING = " | WARNING | ".toCharArray();
-	protected static final char[] INFO = " | INFO    | ".toCharArray();
-	protected static final char[] CONFIG = " | CONFIG  | ".toCharArray();
-	protected static final char[] FINE = " | FINE    | ".toCharArray();
-	protected static final char[] FINER = " | FINER   | ".toCharArray();
-	protected static final char[] FINEST = " | FINEST  | ".toCharArray();
-
-	protected static final char[] TUBE = " | ".toCharArray();
 	protected static final char[] BREAK = System.getProperty("line.separator", "\r\n").toCharArray();
 	protected static final char[] AT = " at ".toCharArray();
 	protected static final char[] JAVA = ".java:".toCharArray();
@@ -64,7 +60,8 @@ public class FastLogFormatter extends Formatter {
 
 	public String format(LogRecord record) {
 		line.setLength(0);
-		line.append(DATE_FORMAT.format(new Date(record.getMillis())));
+		line.append('[');
+		line.append(Instant.ofEpochMilli(record.getMillis()).toString());
 
 		final Level l = record.getLevel();
 		if (l == Level.SEVERE) {
@@ -98,13 +95,12 @@ public class FastLogFormatter extends Formatter {
 		if (n > position || position - n > 30) {
 			position = n;
 		}
-		n = position - n;
+		n = 1 + position - n;
 		if (n > 0) {
 			for (int i = 0; i < n; i++) {
 				line.append(' ');
 			}
 		}
-		line.append(TUBE);
 		line.append(formatMessage(record));
 
 		final Throwable cause = record.getThrown();

@@ -32,25 +32,32 @@
 package services.moleculer.repl.commands;
 
 import java.io.PrintStream;
+import java.text.DecimalFormat;
 
 import services.moleculer.ServiceBroker;
 import services.moleculer.repl.Command;
 import services.moleculer.service.Name;
 
 /**
-* "Exit application" command. Shuts down ServiceBroker then the virtual machine.
-*/
-@Name("exit")
-public class Exit extends Command {
+ * Invokes the garbage collector.
+ */
+@Name("gc")
+public class Gc extends Command {
+
+	// --- NUMBER FORMATTER ---
+
+	protected DecimalFormat formatter = new DecimalFormat("#.##");
+
+	// --- METHODS ---
 
 	@Override
 	public String getDescription() {
-		return "Exit application";
+		return "Invoke garbage collector";
 	}
-	
+
 	@Override
 	public String getUsage() {
-		return "exit, q";
+		return "gc";
 	}
 
 	@Override
@@ -60,12 +67,40 @@ public class Exit extends Command {
 
 	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
-		broker.stop();
-		try {
-			Thread.sleep(500);
-		} catch (Exception ignored) {
+		Runtime runtime = Runtime.getRuntime();
+		long before = runtime.totalMemory() - runtime.freeMemory();
+		System.runFinalization();
+		System.gc();
+		long after = runtime.totalMemory() - runtime.freeMemory();
+		long freed = before - after;
+		if (freed < 0) {
+			freed = 0;
 		}
-		System.exit(0);
+		int percent = (int) (100 * freed / before);
+		out.println("Garbage collection report:");
+		out.println();
+		long max = before;
+		if (after > max) {
+			max = after;
+		}
+		printMemory(out, "  before  - ", before, max, 27);
+		printMemory(out, "  after   - ", after, max, 27);
+		printMemory(out, "  freed   - ", freed, max, 27);
+		out.print("  percent - ");
+		out.print(Integer.toString(percent));
+		out.println("%");
+	}
+
+	protected void printMemory(PrintStream out, String title, long value, long max, int offset) throws Exception {
+		StringBuilder tmp = new StringBuilder();
+		tmp.append(title);
+		synchronized (formatter) {
+			tmp.append(formatter.format((double) (value / (double) 1024) / (double) 1024));
+		}
+		tmp.append(" Mbytes");
+		printChars(tmp, ' ', offset - tmp.length());
+		printChars(tmp, '#', (int) ((77 - offset) * value / max));
+		out.println(tmp.toString());
 	}
 
 }

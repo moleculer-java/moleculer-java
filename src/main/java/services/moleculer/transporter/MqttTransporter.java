@@ -155,14 +155,12 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 		messageResendIntervalSeconds = config.get("messageResendIntervalSeconds", messageResendIntervalSeconds);
 		blockingTimeoutSeconds = config.get("blockingTimeoutSeconds", blockingTimeoutSeconds);
 		maxInFlightMessages = config.get("maxInFlightMessages", maxInFlightMessages);
-
-		// Connect to MQTT server
-		connect();
 	}
 
 	// --- CONNECT ---
 
-	protected void connect() {
+	@Override
+	public void connect() {
 		try {
 
 			// Create MQTT client config

@@ -32,25 +32,34 @@
 package services.moleculer.repl.commands;
 
 import java.io.PrintStream;
+import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.LinkedList;
+import java.util.Properties;
 
 import services.moleculer.ServiceBroker;
 import services.moleculer.repl.Command;
+import services.moleculer.repl.TextTable;
 import services.moleculer.service.Name;
 
 /**
-* "Exit application" command. Shuts down ServiceBroker then the virtual machine.
-*/
-@Name("exit")
-public class Exit extends Command {
+ * Lists Java System Properties.
+ */
+@Name("props")
+public class Props extends Command {
+
+	public Props() {
+		option("full", "show full-length keys");
+	}
 
 	@Override
 	public String getDescription() {
-		return "Exit application";
+		return "List of Java properties";
 	}
-	
+
 	@Override
 	public String getUsage() {
-		return "exit, q";
+		return "props [options]";
 	}
 
 	@Override
@@ -60,12 +69,45 @@ public class Exit extends Command {
 
 	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
-		broker.stop();
-		try {
-			Thread.sleep(500);
-		} catch (Exception ignored) {
-		}
-		System.exit(0);
-	}
+		TextTable table = new TextTable("Key", "Value");
 
+		// Print long keys
+		boolean full = false;
+		if (parameters.length > 0) {
+			full = "--full".equals(parameters[0]);
+		}
+		
+		// Query and formatting
+		Properties properties = System.getProperties();
+		LinkedList<Object> list = new LinkedList<Object>();
+		Enumeration<Object> keys = properties.keys();
+		while (keys.hasMoreElements()) {
+			list.addLast(keys.nextElement());
+		}
+		String[] names = new String[list.size()];
+		list.toArray(names);
+		Arrays.sort(names, String.CASE_INSENSITIVE_ORDER);
+		String key, value;
+		for (int n = 0; n < names.length; n++) {
+			key = names[n];
+			if (key.equals("line.separator")) {
+				String sep = properties.getProperty(key);
+				value = "";
+				for (int i = 0; i < sep.length(); i++) {
+					value = value + (int) sep.charAt(i) + " ";
+				}
+			} else {
+				value = properties.getProperty(key);
+				if (value == null || value.length() == 0) {
+					value = "[undefined]";
+				}
+			}
+			if (!full && key.length() > 23) {
+				key = key.substring(0, 10) + "..." + key.substring(key.length() - 10, key.length());
+			}
+			table.addRow(true, key, value);
+		}
+		out.println(table);
+	}
+	
 }

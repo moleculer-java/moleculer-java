@@ -41,6 +41,7 @@ import services.moleculer.monitor.Monitor;
 import services.moleculer.monitor.SigarMonitor;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
+import services.moleculer.transporter.NatsTransporter;
 import services.moleculer.transporter.Transporter;
 
 public class Test {
@@ -52,9 +53,9 @@ public class Test {
 		System.setProperty("java.library.path", nativeDir);
 
 		// Define transporter
-		// Transporter transporter = new NatsTransporter();
+		Transporter transporter = new NatsTransporter();
 		// transporter.setDebug(true);
-		Transporter transporter = null;
+		// Transporter transporter = null;
 
 		// Define cacher
 		Cacher cacher = new OHCacher();

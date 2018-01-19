@@ -231,6 +231,12 @@ public class ServiceBroker {
 
 			// All components and services started successfully
 			services.clear();
+			
+			// Start transporter's connection loop
+			Transporter transporter = components.transporter();
+			if (transporter != null) {
+				transporter.connect();
+			}
 
 		} catch (Throwable cause) {
 			logger.error("Moleculer Service Broker could not be started!", cause);

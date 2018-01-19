@@ -31,6 +31,8 @@
  */
 package services.moleculer.repl;
 
+import static services.moleculer.util.CommonUtils.nameOf;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,12 +41,11 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.config.MoleculerComponent;
 import services.moleculer.service.Name;
 
-import static services.moleculer.util.CommonUtils.nameOf;
-
 /**
  * Base superclass of all REPL (interactive console) implementations.
  * 
  * @see LocalRepl
+ * @see RemoteRepl
  */
 @Name("REPL Console")
 public abstract class Repl implements MoleculerComponent {
