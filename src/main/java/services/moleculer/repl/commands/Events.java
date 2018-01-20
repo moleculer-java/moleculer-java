@@ -32,40 +32,133 @@
 package services.moleculer.repl.commands;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 
+import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.repl.Command;
+import services.moleculer.repl.TextTable;
 import services.moleculer.service.Name;
+import services.moleculer.transporter.Transporter;
 
 /**
-* List of events.
-*/
+ * List of event listeners.
+ */
 @Name("events")
-public class Events extends Command {
+public class Events extends Nodes {
 
 	public Events() {
-		option("local, -l", "only local events");
-		option("skipinternal, -i", "skip internal events");
+		options.clear();
+		option("local, -l", "only local event listeners");
+		option("skipinternal, -i", "skip internal event listeners");
 		option("details, -d", "print endpoints");
+		option("all, -a", "list all (offline) event listeners");
 	}
-	
+
 	@Override
 	public String getDescription() {
-		return "List of events";
+		return "List of event listeners";
 	}
-	
+
 	@Override
 	public String getUsage() {
 		return "events [options]";
 	}
 
 	@Override
-	public int getNumberOfRequiredParameters() {
-		return 0;
-	}
-
-	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
+
+		// Parse parameters
+		List<String> params = Arrays.asList(parameters);
+		boolean local = params.contains("--local") || params.contains("-l");
+		boolean skipinternal = params.contains("--skipinternal") || params.contains("-i");
+		boolean details = params.contains("--details") || params.contains("-d");
+		boolean all = params.contains("--all") || params.contains("-a");
+		
+		// Collect data
+		Transporter transporter = broker.components().transporter();
+		Tree infos = getNodeInfos(broker, transporter);
+		String localNodeID = broker.nodeID();
+
+		HashMap<String, HashSet<String>> eventMap = new HashMap<>();
+		for (Tree info : infos) {
+			Tree services = info.get("services");
+			if (services == null || services.isNull()) {
+				continue;
+			}
+			for (Tree service : services) {
+				Tree events = service.get("events");
+				if (events == null || events.isNull()) {
+					continue;
+				}
+				String nodeID = info.get("sender", "unknown");
+				for (Tree event : events) {
+					String eventName = event.get("name", "unknown");
+					HashSet<String> nodeSet = eventMap.get(eventName);
+					if (nodeSet == null) {
+						nodeSet = new HashSet<String>();
+						eventMap.put(eventName, nodeSet);
+					}
+					nodeSet.add(nodeID);
+				}
+			}
+		}
+
+		// Sort names
+		String[] eventNames = new String[eventMap.size()];
+		eventMap.keySet().toArray(eventNames);
+		Arrays.sort(eventNames, String.CASE_INSENSITIVE_ORDER);
+
+		// Create table
+		TextTable table = new TextTable("Event", "Nodes");
+		for (String eventName : eventNames) {
+			if (skipinternal && eventName.startsWith("$")) {
+
+				// Skip internal events
+				continue;
+			}
+
+			// Create row
+			ArrayList<String> row = new ArrayList<>(2);
+			HashSet<String> nodeSet = eventMap.get(eventName);
+			if (nodeSet == null) {
+				continue;
+			}
+
+			// Add "Event" cell
+			row.add(eventName);
+
+			// Add "Nodes" cell
+			String nodes = Integer.toString(nodeSet.size());
+			if (nodeSet.contains(localNodeID)) {
+				nodes = "(*) " + nodes;
+			} else if (local) {
+
+				// Skip non-local actions
+				continue;
+			}
+			row.add(nodes);
+
+			// Add row
+			table.addRow(row);
+
+			if (details) {
+				String[] nodeIDArray = new String[nodeSet.size()];
+				nodeSet.toArray(nodeIDArray);
+				Arrays.sort(nodeIDArray, String.CASE_INSENSITIVE_ORDER);
+				for (String nodeID : nodeIDArray) {
+					if (localNodeID.equals(nodeID)) {
+						table.addRow("", "<local>");
+					} else {
+						table.addRow("", nodeID);
+					}
+				}
+			}
+		}
+		out.println(table);
 	}
 
 }

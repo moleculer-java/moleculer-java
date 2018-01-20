@@ -32,40 +32,188 @@
 package services.moleculer.repl.commands;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 
+import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.repl.Command;
+import services.moleculer.repl.TextTable;
 import services.moleculer.service.Name;
+import services.moleculer.transporter.Transporter;
 
 /**
  * List of actions.
  */
 @Name("actions")
-public class Actions extends Command {
+public class Actions extends Nodes {
 
 	public Actions() {
+		options.clear();
 		option("local, -l", "only local actions");
 		option("skipinternal, -i", "skip internal actions");
 		option("details, -d", "print endpoints");
+		option("all, -a", "list all (offline) actions");
 	}
-	
+
 	@Override
 	public String getDescription() {
 		return "List of actions";
 	}
-	
+
 	@Override
 	public String getUsage() {
 		return "actions [options]";
 	}
 
 	@Override
-	public int getNumberOfRequiredParameters() {
-		return 0;
-	}
-
-	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
+
+		// Parse parameters
+		List<String> params = Arrays.asList(parameters);
+		boolean local = params.contains("--local") || params.contains("-l");
+		boolean skipinternal = params.contains("--skipinternal") || params.contains("-i");
+		boolean details = params.contains("--details") || params.contains("-d");
+		boolean all = params.contains("--all") || params.contains("-a");
+		
+		// Collect data
+		Transporter transporter = broker.components().transporter();
+		Tree infos = getNodeInfos(broker, transporter);
+		String localNodeID = broker.nodeID();
+
+		HashMap<String, HashMap<String, Tree>> actionMap = new HashMap<>();
+		for (Tree info : infos) {
+			Tree services = info.get("services");
+			if (services == null || services.isNull()) {
+				continue;
+			}
+			for (Tree service : services) {
+				Tree actions = service.get("actions");
+				if (actions == null || actions.isNull()) {
+					continue;
+				}
+				String nodeID = info.get("sender", "unknown");
+				for (Tree action : actions) {
+					String actionName = action.get("name", "unknown");
+					HashMap<String, Tree> configs = actionMap.get(actionName);
+					if (configs == null) {
+						configs = new HashMap<String, Tree>();
+						actionMap.put(actionName, configs);
+					}
+					configs.put(nodeID, action);
+				}
+			}
+		}
+
+		// Sort names
+		String[] actionNames = new String[actionMap.size()];
+		actionMap.keySet().toArray(actionNames);
+		Arrays.sort(actionNames, String.CASE_INSENSITIVE_ORDER);
+
+		// Create table
+		TextTable table = new TextTable("Action", "Nodes", "State", "Cached", "Params");
+		for (String actionName : actionNames) {
+			if (skipinternal && actionName.startsWith("$")) {
+				
+				// Skip internal actions
+				continue;
+			}
+			
+			// Create row
+			ArrayList<String> row = new ArrayList<>(5);
+			HashMap<String, Tree> configs = actionMap.get(actionName);
+			if (configs == null) {
+				continue;
+			}
+
+			// Add "Action" cell
+			row.add(actionName);
+
+			// Add "Nodes" cell
+			String nodes = Integer.toString(configs.size());
+			if (configs.containsKey(localNodeID)) {
+				nodes = "(*) " + nodes;
+			} else if (local) {
+				
+				// Skip non-local actions
+				continue;
+			}
+			row.add(nodes);
+
+			// TODO Add "State" cell
+			boolean available = false;
+			for (Tree config : configs.values()) {
+				String nodeID = config.get("sender", "unknown");
+				
+				// TODO config has no "online" property! 
+				boolean online = localNodeID.equals(nodeID) ? true : config.get("online", true);
+				if (online) {
+					available = true;
+					break;
+				}
+			}
+			if (!available && !all) {
+				
+				// Skip offline action handlers
+				continue;
+			}
+			row.add(available ? "OK" : "FAILED");
+
+			// Add "Cached" cell
+			boolean cache = false;
+			for (Tree config : configs.values()) {
+				if (config.get("cache", false)) {
+					cache = true;
+					break;
+				}
+			}
+			row.add(cache ? "Yes" : "No");
+
+			// Add "Params" cell
+			HashSet<String> paramSet = new HashSet<>();
+			for (Tree config : configs.values()) {
+				Tree paramsBlock = config.get("params");
+				if (paramsBlock == null || paramsBlock.isNull()) {
+					continue;
+				}
+				for (Tree param : paramsBlock) {
+					paramSet.add(param.getName());
+				}
+			}
+			String[] paramArray = new String[paramSet.size()];
+			paramSet.toArray(paramArray);
+			Arrays.sort(paramArray, String.CASE_INSENSITIVE_ORDER);
+			StringBuilder paramList = new StringBuilder(64);
+			for (String param : paramArray) {
+				if (paramList.length() > 0) {
+					paramList.append(", ");
+				}
+				paramList.append(param);
+			}
+			row.add(paramList.toString());
+
+			// Add row
+			table.addRow(row);
+
+			if (details) {
+				String[] nodeIDArray = new String[configs.size()];
+				configs.keySet().toArray(nodeIDArray);
+				Arrays.sort(nodeIDArray, String.CASE_INSENSITIVE_ORDER);
+				for (String nodeID: nodeIDArray) {
+					if (localNodeID.equals(nodeID)) {
+						table.addRow("", "<local>", "OK", "", "");
+					} else {
+						Tree config = configs.get(nodeID);
+						boolean online = config == null ? false : config.get("online", true);
+						String state = online ?  "OK" : "FAILED";
+						table.addRow("", nodeID, state, "", "");
+					}
+				}
+			}
+		}
+		out.println(table);
 	}
 
 }

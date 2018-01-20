@@ -41,7 +41,7 @@ import services.moleculer.monitor.Monitor;
 import services.moleculer.monitor.SigarMonitor;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
-import services.moleculer.transporter.NatsTransporter;
+import services.moleculer.transporter.RedisTransporter;
 import services.moleculer.transporter.Transporter;
 
 public class Test {
@@ -53,7 +53,7 @@ public class Test {
 		System.setProperty("java.library.path", nativeDir);
 
 		// Define transporter
-		Transporter transporter = new NatsTransporter();
+		Transporter transporter = new RedisTransporter();
 		// transporter.setDebug(true);
 		// Transporter transporter = null;
 
@@ -85,6 +85,17 @@ public class Test {
 
 		});
 
+		broker.createService(new Service("test") {
+
+			@Cache(keys = { "a", "b" })
+			public Action add = ctx -> {
+				int a = ctx.params.get("a", 0);
+				int b = ctx.params.get("b", 0);
+				return a + b;
+			};
+
+		});
+		
 		broker.start();
 		broker.repl();
 	}

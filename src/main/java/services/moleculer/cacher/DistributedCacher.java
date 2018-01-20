@@ -40,6 +40,14 @@ import io.datatree.Tree;
 import io.datatree.dom.BASE64;
 import services.moleculer.ServiceBroker;
 
+/**
+ * Abstract class of distributed cachers. Currently the {@link RedisCacher} and
+ * the certain types of the {@link JCacheCacher} can be distributed (without
+ * special development).
+ *
+ * @see RedisCacher
+ * @see JCacheCacher
+ */
 public abstract class DistributedCacher extends Cacher {
 
 	// --- CONTENT CONTAINER NAME ---
@@ -91,6 +99,7 @@ public abstract class DistributedCacher extends Cacher {
 	 * @param keys
 	 * @return
 	 */
+	@Override
 	public String getCacheKey(String name, Tree params, String... keys) {
 		String key = super.getCacheKey(name, params, keys);
 		int keyLength = key.length();
