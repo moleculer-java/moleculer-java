@@ -115,7 +115,7 @@ public class LocalActionEndpoint extends ActionEndpoint {
 	@Override
 	protected Promise callActionNoStore(Tree params, CallingOptions.Options opts, Context parent) {
 
-		// Set socketTimeout (limit timestamp in millis)
+		// Set socketTimeout (limit when in millis)
 		int timeout;
 		if (opts == null) {
 			timeout = defaultTimeout;

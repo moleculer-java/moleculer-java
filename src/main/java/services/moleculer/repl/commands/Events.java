@@ -77,7 +77,7 @@ public class Events extends Nodes {
 		boolean skipinternal = params.contains("--skipinternal") || params.contains("-i");
 		boolean details = params.contains("--details") || params.contains("-d");
 		boolean all = params.contains("--all") || params.contains("-a");
-		
+
 		// Collect data
 		Transporter transporter = broker.components().transporter();
 		Tree infos = getNodeInfos(broker, transporter);
@@ -126,6 +126,24 @@ public class Events extends Nodes {
 			HashSet<String> nodeSet = eventMap.get(eventName);
 			if (nodeSet == null) {
 				continue;
+			}
+			if (!all) {
+				boolean online = false;
+				for (String nodeID : nodeSet) {
+					if (transporter == null) {
+						online = true;
+					} else {
+						online = transporter.isOnline(nodeID);
+					}
+					if (online) {
+						break;
+					}
+				}
+				if (!online) {
+					
+					// Not live
+					continue;
+				}
 			}
 
 			// Add "Event" cell

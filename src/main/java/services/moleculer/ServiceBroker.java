@@ -67,14 +67,14 @@ public class ServiceBroker {
 	// --- VERSIONS ---
 
 	/**
-	 * Version of ServiceBroker.
+	 * Version of the Java ServiceBroker API.
 	 */
-	public static final double IMPLEMENTATION_VERSION = 1.2;
+	public static final double SOFTWARE_VERSION = 1.3;
 
 	/**
-	 * Version of the implemented Moleculer API.
+	 * Version of the implemented Moleculer Protocol.
 	 */
-	public static final int MOLECULER_VERSION = 2;
+	public static final int PROTOCOL_VERSION = 3;
 
 	// --- LOGGER ---
 
@@ -204,7 +204,7 @@ public class ServiceBroker {
 		try {
 
 			// Start internal and custom components
-			logger.info("Starting Moleculer Service Broker (version " + IMPLEMENTATION_VERSION + ")...");
+			logger.info("Starting Moleculer Service Broker (version " + SOFTWARE_VERSION + ")...");
 			String name = nameOf(components, true);
 			logger.info("Using " + name + " to load service classes.");
 			components.start(this, settings, config);

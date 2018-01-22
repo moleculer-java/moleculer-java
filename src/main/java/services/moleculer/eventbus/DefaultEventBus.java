@@ -79,6 +79,11 @@ public class DefaultEventBus extends EventBus {
 	 */
 	protected boolean checkVersion;
 
+	/**
+	 * Local Node ID
+	 */
+	protected String nodeID;
+
 	// --- LOCKS ---
 
 	/**
@@ -130,6 +135,9 @@ public class DefaultEventBus extends EventBus {
 		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
 		checkVersion = config.get("checkVersion", checkVersion);
 
+		// Set nodeID
+		nodeID = broker.nodeID();
+
 		// Set components
 		this.broker = broker;
 		this.strategy = broker.components().strategy();
@@ -171,7 +179,7 @@ public class DefaultEventBus extends EventBus {
 		// Verify Moleculer version
 		if (checkVersion) {
 			int ver = message.get("ver", -1);
-			if (ver != ServiceBroker.MOLECULER_VERSION) {
+			if (ver != ServiceBroker.PROTOCOL_VERSION) {
 				logger.warn("Invalid message version (" + ver + ")!");
 				return;
 			}
@@ -189,20 +197,29 @@ public class DefaultEventBus extends EventBus {
 
 		// Process events in Moleculer V2 style
 		Tree groupArray = message.get("groups");
-		if (groupArray == null) {
+		Groups groups = null;
+		if (groupArray != null) {
+			int size = groupArray.size();
+			if (size > 0) {
+				String[] array = new String[groupArray.size()];
+				int i = 0;
+				for (Tree group : groupArray) {
+					array[i++] = group.asString();
+				}
+				groups = Groups.of(array);
+			}
+		}
+
+		// Emit or broadcast?
+		if (message.get("broadcast", true)) {
 
 			// Broadcast
-			broadcast(name, payload, null, true);
+			broadcast(name, payload, groups, true);
 
 		} else {
 
 			// Emit
-			String[] array = new String[groupArray.size()];
-			int i = 0;
-			for (Tree group : groupArray) {
-				array[i++] = group.asString();
-			}
-			emit(name, payload, Groups.of(array), true);
+			emit(name, payload, groups, true);
 		}
 	}
 
@@ -210,7 +227,6 @@ public class DefaultEventBus extends EventBus {
 
 	@Override
 	public void addListeners(Service service, Tree config) throws Exception {
-		String nodeID = broker.nodeID();
 		writeLock.lock();
 		try {
 
@@ -433,14 +449,36 @@ public class DefaultEventBus extends EventBus {
 		}
 		if (strategies.length == 1) {
 			try {
-				strategies[0].getEndpoint(null).on(name, payload, groups, true);
+
+				// Invoke local or remote listener
+				ListenerEndpoint endpoint = strategies[0].getEndpoint(local ? nodeID : null);
+				if (endpoint != null) {
+					endpoint.on(name, payload, groups, false);
+				}
 			} catch (Exception cause) {
 				logger.error("Unable to invoke event listener!", cause);
 			}
 			return;
 		}
 		if (strategies.length > 0) {
+			if (local) {
 
+				// Invoke local listeners
+				for (int i = 0; i < strategies.length; i++) {
+					try {
+						ListenerEndpoint endpoint = strategies[i].getEndpoint(nodeID);
+						if (endpoint != null) {
+							endpoint.on(name, payload, groups, false);
+						}
+					} catch (Exception cause) {
+						logger.error("Unable to invoke event listener!", cause);
+					}
+				}
+				return;
+
+			}
+
+			// Invoke local and/or remote listeners
 			// nodeID -> group set
 			int size = strategies.length * 2;
 			HashMap<String, HashSet<String>> groupsByNodeID = new HashMap<>(size);
@@ -449,26 +487,30 @@ public class DefaultEventBus extends EventBus {
 			// Group targets
 			for (int i = 0; i < strategies.length; i++) {
 				ListenerEndpoint endpoint = strategies[i].getEndpoint(null);
-				HashSet<String> groupSet = groupsByNodeID.get(endpoint.nodeID);
-				if (groupSet == null) {
-					groupSet = new HashSet<>(size);
-					groupsByNodeID.put(endpoint.nodeID, groupSet);
+				if (endpoint != null) {
+					HashSet<String> groupSet = groupsByNodeID.get(endpoint.nodeID);
+					if (groupSet == null) {
+						groupSet = new HashSet<>(size);
+						groupsByNodeID.put(endpoint.nodeID, groupSet);
+					}
+					groupSet.add(endpoint.group);
+					endpoints[i] = endpoint;
 				}
-				groupSet.add(endpoint.group);
-				endpoints[i] = endpoint;
 			}
 
 			// Invoke endpoints
 			for (ListenerEndpoint endpoint : endpoints) {
-				try {
-					HashSet<String> groupSet = groupsByNodeID.remove(endpoint.nodeID);
-					if (groupSet != null) {
-						String[] array = new String[groupSet.size()];
-						groupSet.toArray(array);
-						endpoint.on(name, payload, Groups.of(array), true);
+				if (endpoint != null) {
+					try {
+						HashSet<String> groupSet = groupsByNodeID.remove(endpoint.nodeID);
+						if (groupSet != null) {
+							String[] array = new String[groupSet.size()];
+							groupSet.toArray(array);
+							endpoint.on(name, payload, Groups.of(array), false);
+						}
+					} catch (Exception cause) {
+						logger.error("Unable to invoke event listener!", cause);
 					}
-				} catch (Exception cause) {
-					logger.error("Unable to invoke event listener!", cause);
 				}
 			}
 		}
@@ -537,7 +579,7 @@ public class DefaultEventBus extends EventBus {
 		}
 		if (endpoints.length == 1) {
 			try {
-				endpoints[0].on(name, payload, groups, false);
+				endpoints[0].on(name, payload, groups, true);
 			} catch (Exception cause) {
 				logger.error("Unable to invoke event listener!", cause);
 			}
@@ -547,7 +589,7 @@ public class DefaultEventBus extends EventBus {
 		for (ListenerEndpoint endpoint : endpoints) {
 			if (nodeSet.add(endpoint.nodeID)) {
 				try {
-					endpoint.on(name, payload, groups, false);
+					endpoint.on(name, payload, groups, true);
 				} catch (Exception cause) {
 					logger.error("Unable to invoke event listener!", cause);
 				}

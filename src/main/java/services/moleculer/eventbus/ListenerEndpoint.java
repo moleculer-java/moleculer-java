@@ -114,7 +114,7 @@ public abstract class ListenerEndpoint implements MoleculerComponent, Endpoint {
 
 	// --- SEND EVENT TO ENDPOINT ---
 
-	public abstract void on(String name, Tree payload, Groups groups, boolean emit) throws Exception;
+	public abstract void on(String name, Tree payload, Groups groups, boolean broadcast) throws Exception;
 
 	// --- EQUALS / HASHCODE ---
 

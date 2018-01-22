@@ -182,7 +182,11 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 					list.addLast(endpoint);
 				}
 			}
-			array = new Endpoint[list.size()];
+			int size = list.size();
+			if (size == 0) {
+				return new Endpoint[0];
+			}
+			array = new Endpoint[size];
 			list.toArray(array);
 			endpointCache.put(nodeID, array);
 		}

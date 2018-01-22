@@ -116,8 +116,13 @@ public class Nodes extends Command {
 			}
 			row.add(firstIP);
 
-			// TODO Add "State" cell
-			boolean online = localNodeID.equals(nodeID) ? true : info.get("online", true);
+			// Add "State" cell (ONLINE / OFFLINE)
+			boolean online;
+			if (transporter == null) {
+				online = true;
+			} else {
+				online = transporter.isOnline(nodeID);
+			}
 			if (!all && !online) {
 				continue;
 			}
@@ -127,16 +132,16 @@ public class Nodes extends Command {
 			if (transporter == null) {
 				row.add(broker.components().monitor().getTotalCpuPercent() + "%");
 			} else {
-				Map<String, Long[]> activities = transporter.getNodeActivities();
-				Long[] timestampCpu = activities.get(nodeID);
-				if (timestampCpu == null) {
+				Map<String, Transporter.NodeActivity> activities = transporter.getNodeActivities();
+				Transporter.NodeActivity activity = activities.get(nodeID);
+				if (activity == null) {
 					if (localNodeID.equals(nodeID)) {
 						row.add(broker.components().monitor().getTotalCpuPercent() + "%");
 					} else {
 						row.add("0%");
 					}
 				} else {
-					row.add(timestampCpu[1] + "%");
+					row.add(activity.cpu + "%");
 				}
 			}
 

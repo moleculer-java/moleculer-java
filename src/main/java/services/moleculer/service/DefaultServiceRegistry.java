@@ -279,7 +279,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			long prev = prevTimeoutAt.getAndSet(minTimeoutAt);
 			if (prev == minTimeoutAt) {
 
-				// Next timestamp not changed
+				// Next when not changed
 				return;
 			}
 
@@ -318,7 +318,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 		// Verify Moleculer version
 		int ver = message.get("ver", -1);
-		if (ver != ServiceBroker.MOLECULER_VERSION) {
+		if (ver != ServiceBroker.PROTOCOL_VERSION) {
 			logger.warn("Invalid message version (" + ver + ")!");
 			return;
 		}
@@ -385,7 +385,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 				// Send response
 				Tree response = new Tree();
 				response.put("id", id);
-				response.put("ver", ServiceBroker.MOLECULER_VERSION);
+				response.put("ver", ServiceBroker.PROTOCOL_VERSION);
 				response.put("success", true);
 				response.putObject("data", data);
 				transporter.publish(Transporter.PACKET_RESPONSE, sender, response);
@@ -407,7 +407,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 	protected Tree throwableToTree(String id, Throwable error) {
 		Tree response = new Tree();
 		response.put("id", id);
-		response.put("ver", ServiceBroker.MOLECULER_VERSION);
+		response.put("ver", ServiceBroker.PROTOCOL_VERSION);
 		response.put("success", false);
 		response.put("data", (String) null);
 		if (error != null) {
@@ -433,7 +433,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 		// Verify Moleculer version
 		int ver = message.get("ver", -1);
-		if (ver != ServiceBroker.MOLECULER_VERSION) {
+		if (ver != ServiceBroker.PROTOCOL_VERSION) {
 			logger.warn("Invalid version:\r\n" + message);
 			return;
 		}
@@ -698,7 +698,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		Tree root = new Tree();
 
 		// Protocol version
-		root.put("ver", ServiceBroker.MOLECULER_VERSION);
+		root.put("ver", ServiceBroker.PROTOCOL_VERSION);
 
 		// NodeID
 		String nodeID = broker.nodeID();
@@ -792,11 +792,8 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		// Client descriptor
 		Tree client = root.putMap("client");
 		client.put("type", "java");
-		client.put("version", ServiceBroker.IMPLEMENTATION_VERSION);
+		client.put("version", ServiceBroker.SOFTWARE_VERSION);
 		client.put("langVersion", System.getProperty("java.version", "1.8"));
-
-		// Port (reserved)
-		root.put("port", (String) null);
 
 		// Config (not used in this version)
 		root.putMap("config");

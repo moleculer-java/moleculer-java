@@ -92,7 +92,7 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 		// Create new promise
 		Promise promise = new Promise();
 
-		// Set socketTimeout (limit timestamp in millis)
+		// Set socketTimeout (limit when in millis)
 		int timeout;
 		if (opts == null) {
 			timeout = defaultTimeout;

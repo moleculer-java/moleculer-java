@@ -89,7 +89,7 @@ public class LocalListenerEndpoint extends ListenerEndpoint {
 	// --- INVOKE LOCAL LISTENER ---
 
 	@Override
-	public void on(String name, Tree payload, Groups groups, boolean emit) throws Exception {
+	public void on(String name, Tree payload, Groups groups, boolean broadcast) throws Exception {
 
 		// A.) Async invocation
 		if (asyncLocalInvocation) {

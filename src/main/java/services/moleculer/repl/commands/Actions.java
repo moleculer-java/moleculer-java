@@ -147,8 +147,8 @@ public class Actions extends Nodes {
 			for (Tree config : configs.values()) {
 				String nodeID = config.get("sender", "unknown");
 				
-				// TODO config has no "online" property! 
-				boolean online = localNodeID.equals(nodeID) ? true : config.get("online", true);
+				// TODO config has no "live" property! 
+				boolean online = localNodeID.equals(nodeID) ? true : config.get("live", true);
 				if (online) {
 					available = true;
 					break;
@@ -206,7 +206,7 @@ public class Actions extends Nodes {
 						table.addRow("", "<local>", "OK", "", "");
 					} else {
 						Tree config = configs.get(nodeID);
-						boolean online = config == null ? false : config.get("online", true);
+						boolean online = config == null ? false : config.get("live", true);
 						String state = online ?  "OK" : "FAILED";
 						table.addRow("", nodeID, state, "", "");
 					}
