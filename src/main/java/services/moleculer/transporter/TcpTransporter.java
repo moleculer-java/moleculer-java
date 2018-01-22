@@ -141,9 +141,15 @@ public class TcpTransporter extends Transporter {
 			// TODO Create server socket
 
 			// Send discover
-			synchronized (endpoints) {
-				sendDiscover = true;
-			}
+			executor.execute(() -> {
+
+				// Do the discovery process
+				sendDiscoverPacket(discoverBroadcastChannel);
+				sendInfoPacket(infoBroadcastChannel);
+
+				// Ok, peer(s) connected
+				logger.info("TCP pub-sub connection estabilished.");
+			});
 
 		} catch (Exception cause) {
 			String msg = cause.getMessage();
@@ -344,35 +350,7 @@ public class TcpTransporter extends Transporter {
 
 	// --- GOSSIPING ---
 
-	protected volatile boolean sendDiscover;
-
 	protected void doGossiping() {
-		if (selector == null) {
-			return;
-		}
-
-		// First usage
-		boolean send = false;
-		synchronized (endpoints) {
-			if (sendDiscover) {
-				send = !endpoints.isEmpty();
-				if (send) {
-					sendDiscover = false;
-				}
-			}
-		}
-		if (send) {
-			executor.execute(() -> {
-
-				// Do the discovery process
-				sendDiscoverPacket(discoverBroadcastChannel);
-				sendInfoPacket(infoBroadcastChannel);
-
-				// Ok, peer(s) connected
-				logger.info("TCP pub-sub connection estabilished.");
-			});
-			return;
-		}
 
 		// Get live / unreachable endpoints
 		ArrayList<TcpEndpoint> liveEndpoints = getEndpoints(true);
