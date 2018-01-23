@@ -49,7 +49,6 @@ public class KafkaTransporter extends Transporter {
 	// --- PROPERTIES ---
 
 	protected Properties properties = new Properties();
-	protected String groupID;
 	protected String[] urls = new String[] { "127.0.0.1:9092" };
 
 	// --- KAFKA CLIENTS ---
@@ -72,9 +71,8 @@ public class KafkaTransporter extends Transporter {
 		this.urls = urls;
 	}
 
-	public KafkaTransporter(String prefix, String groupID, Properties properties, String... urls) {
+	public KafkaTransporter(String prefix, Properties properties, String... urls) {
 		super(prefix);
-		this.groupID = groupID;
 		this.properties.putAll(properties);
 		this.urls = urls;
 	}
@@ -113,13 +111,6 @@ public class KafkaTransporter extends Transporter {
 				urlList.toArray(urls);
 			}
 		}
-		
-		// Read group ID
-		groupID = config.get("groupID", groupID);
-		if (groupID == null) {
-			groupID = prefix;
-		}
-		properties.put("group.id", groupID);
 
 		// Read custom properties from config, eg:
 		//
@@ -141,13 +132,6 @@ public class KafkaTransporter extends Transporter {
 			}
 		}
 
-		// Set key serializer / deserializer
-		properties.put("key.serializer", ByteArraySerializer.class.getName());
-		properties.put("key.deserializer", ByteArrayDeserializer.class.getName());
-
-		// Set value serializer / deserializer
-		properties.put("value.serializer", ByteArraySerializer.class.getName());
-		properties.put("value.deserializer", ByteArrayDeserializer.class.getName());
 	}
 
 	// --- CONNECT ---
@@ -181,11 +165,14 @@ public class KafkaTransporter extends Transporter {
 				}
 				urlList.append(url);
 			}
-			properties.put("bootstrap.servers", urlList);
-
+			properties.put("bootstrap.servers", urlList.toString());
+			
 			// Create producer and consumer
-			producer = new KafkaProducer<>(properties);
-			consumer = new KafkaConsumer<>(properties);
+			ByteArraySerializer byteArraySerializer = new ByteArraySerializer();
+			producer = new KafkaProducer<>(properties, byteArraySerializer, byteArraySerializer);
+			
+			ByteArrayDeserializer byteArrayDeserializer = new ByteArrayDeserializer();
+			consumer = new KafkaConsumer<>(properties, byteArrayDeserializer, byteArrayDeserializer);
 
 			// Start reader loop
 			executor = Executors.newSingleThreadExecutor();
@@ -336,14 +323,6 @@ public class KafkaTransporter extends Transporter {
 
 	public void setProperties(Properties properties) {
 		this.properties = properties;
-	}
-
-	public String getGroupID() {
-		return groupID;
-	}
-
-	public void setGroupID(String groupID) {
-		this.groupID = groupID;
 	}
 
 }

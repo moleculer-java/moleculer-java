@@ -283,8 +283,10 @@ public abstract class Transporter implements MoleculerComponent {
 
 	protected String channel(String cmd, String nodeID) {
 		StringBuilder name = new StringBuilder(64);
-		name.append(prefix);
-		name.append('.');
+		if (prefix != null && !prefix.isEmpty()) {
+			name.append(prefix);
+			name.append('.');
+		}
 		name.append(cmd);
 		if (nodeID != null && !nodeID.isEmpty()) {
 			name.append('.');

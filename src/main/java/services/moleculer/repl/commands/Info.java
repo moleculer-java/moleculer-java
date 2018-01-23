@@ -90,7 +90,7 @@ public class Info extends Command {
 		int usedLen = (int) (20 * used / total);
 		StringBuilder tmp = new StringBuilder();
 		tmp.append('[');
-		printChars(tmp, '|', usedLen);
+		printChars(tmp, '#', usedLen);
 		printChars(tmp, '-', 20 - usedLen);
 		tmp.append("] ");
 		synchronized (formatter) {
