@@ -59,7 +59,7 @@ public class Info extends Command {
 
 	@Override
 	public String getDescription() {
-		return "Informations about the broker";
+		return "Information about the broker";
 	}
 
 	@Override
@@ -79,7 +79,7 @@ public class Info extends Command {
 		Runtime r = Runtime.getRuntime();
 
 		// General informations
-		printHeader(out, "General informations");
+		printHeader(out, "General information");
 		TextTable table = new TextTable(false, "Name", "Value");
 		table.addRow("CPU", System.getProperty("os.arch", "unknown") + ", cores: " + r.availableProcessors());
 		int cpuUsage = broker.components().monitor().getTotalCpuPercent();
