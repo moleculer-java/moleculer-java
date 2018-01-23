@@ -134,15 +134,27 @@ public class Nodes extends Command {
 			} else {
 				Map<String, Transporter.NodeActivity> activities = transporter.getNodeActivities();
 				Transporter.NodeActivity activity = activities.get(nodeID);
+				int cpuUsage = 0;
 				if (activity == null) {
 					if (localNodeID.equals(nodeID)) {
-						row.add(broker.components().monitor().getTotalCpuPercent() + "%");
+						cpuUsage = broker.components().monitor().getTotalCpuPercent();
 					} else {
-						row.add("0%");
+						cpuUsage = 0;
 					}
 				} else {
-					row.add(activity.cpu + "%");
+					cpuUsage = activity.cpu;
 				}
+				
+				// Draw gauge
+				int c = cpuUsage / 4;
+				StringBuilder sb = new StringBuilder();
+				sb.append("[");
+				for(int i = 0; i < 20; i++) {
+					sb.append(i <= c ? "#" : "-");
+				}
+				sb.append("] ");
+				sb.append(cpuUsage + "%");
+				row.add(sb.toString());
 			}
 
 			// Add row

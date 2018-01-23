@@ -51,6 +51,7 @@ import services.moleculer.transporter.Transporter;
 public class Services extends Nodes {
 
 	public Services() {
+		options.clear();		
 		option("local, -l", "only local services");
 		option("skipinternal, -i", "skip internal services");
 		option("details, -d", "print endpoints");
