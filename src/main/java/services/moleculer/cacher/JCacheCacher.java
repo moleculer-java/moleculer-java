@@ -66,6 +66,7 @@ import services.moleculer.util.CheckedTree;
  * <li>Apache Ignite
  * <li>Hazelcast
  * <li>Oracle Coherence
+ * <li>Couchbase (https://github.com/couchbaselabs/couchbase-java-cache)
  * <li>Terracotta Ehcache
  * <li>Infinispan
  * <li>Blazing Cache

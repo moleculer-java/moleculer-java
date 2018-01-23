@@ -77,7 +77,7 @@ public class Actions extends Nodes {
 		boolean skipinternal = params.contains("--skipinternal") || params.contains("-i");
 		boolean details = params.contains("--details") || params.contains("-d");
 		boolean all = params.contains("--all") || params.contains("-a");
-		
+
 		// Collect data
 		Transporter transporter = broker.components().transporter();
 		Tree infos = getNodeInfos(broker, transporter);
@@ -116,11 +116,11 @@ public class Actions extends Nodes {
 		TextTable table = new TextTable("Action", "Nodes", "State", "Cached", "Params");
 		for (String actionName : actionNames) {
 			if (skipinternal && actionName.startsWith("$")) {
-				
+
 				// Skip internal actions
 				continue;
 			}
-			
+
 			// Create row
 			ArrayList<String> row = new ArrayList<>(5);
 			HashMap<String, Tree> configs = actionMap.get(actionName);
@@ -136,30 +136,30 @@ public class Actions extends Nodes {
 			if (configs.containsKey(localNodeID)) {
 				nodes = "(*) " + nodes;
 			} else if (local) {
-				
+
 				// Skip non-local actions
 				continue;
 			}
 			row.add(nodes);
 
-			// TODO Add "State" cell
-			boolean available = false;
+			// Add "State" cell
+			boolean online = false;
 			for (Tree config : configs.values()) {
-				String nodeID = config.get("sender", "unknown");
-				
-				// TODO config has no "live" property! 
-				boolean online = localNodeID.equals(nodeID) ? true : config.get("live", true);
-				if (online) {
-					available = true;
+				String nodeID = config.get("nodeID", localNodeID);
+				if (transporter == null) {
+					online = true;
 					break;
+				} else {
+					online = transporter.isOnline(nodeID);
+					if (online) {
+						break;
+					}
 				}
 			}
-			if (!available && !all) {
-				
-				// Skip offline action handlers
+			if (!all && !online) {
 				continue;
 			}
-			row.add(available ? "OK" : "FAILED");
+			row.add(online ? "OK" : "FAILED");
 
 			// Add "Cached" cell
 			boolean cache = false;
@@ -201,14 +201,12 @@ public class Actions extends Nodes {
 				String[] nodeIDArray = new String[configs.size()];
 				configs.keySet().toArray(nodeIDArray);
 				Arrays.sort(nodeIDArray, String.CASE_INSENSITIVE_ORDER);
-				for (String nodeID: nodeIDArray) {
+				for (String nodeID : nodeIDArray) {
 					if (localNodeID.equals(nodeID)) {
 						table.addRow("", "<local>", "OK", "", "");
 					} else {
-						Tree config = configs.get(nodeID);
-						boolean online = config == null ? false : config.get("live", true);
-						String state = online ?  "OK" : "FAILED";
-						table.addRow("", nodeID, state, "", "");
+						online = transporter == null ? true : transporter.isOnline(nodeID);
+						table.addRow("", nodeID, online ? "OK" : "FAILED", "", "");
 					}
 				}
 			}

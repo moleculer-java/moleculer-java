@@ -682,11 +682,11 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			readLock.unlock();
 		}
 		if (strategy == null) {
-			throw new NoSuchElementException("Invalid action name (" + name + ")!");
+			throw new NoSuchElementException("Unknown action name (" + name + ")!");
 		}
 		ActionEndpoint endpoint = strategy.getEndpoint(nodeID);
 		if (endpoint == null) {
-			throw new NoSuchElementException("Invalid nodeID (" + nodeID + ")!");
+			throw new NoSuchElementException("Unknown nodeID (" + nodeID + ")!");
 		}
 		return endpoint;
 	}
