@@ -330,7 +330,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 				// Redis transporter is ready for use
 				logger.info("All channels subscribed.");
-
+				
 				// Do the discovery process
 				sendDiscoverPacket(discoverBroadcastChannel);
 				sendInfoPacket(infoBroadcastChannel);

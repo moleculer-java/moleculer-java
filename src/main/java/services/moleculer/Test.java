@@ -54,8 +54,9 @@ public class Test {
 		// Define transporter
 		// Transporter transporter = new NatsTransporter();
 		KafkaTransporter transporter = new KafkaTransporter();
-		// transporter.setUrls(new String[] { "192.168.51.29:9092" });
-		transporter.setDebug(true);
+		transporter.setUrls(new String[] { "192.168.51.29:9092" });
+		//transporter.setDebug(true);
+		transporter.setGroupID("test");
 		// Transporter transporter = null;
 
 		// Define cacher
@@ -66,7 +67,7 @@ public class Test {
 
 		// Create broker
 		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).cacher(cacher).monitor(monitor)
-				.nodeID("server-2").build();
+				.nodeID("server-3").build();
 		// .repl(new RemoteRepl())
 
 		broker.createService(new Service("math") {

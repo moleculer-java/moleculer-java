@@ -370,7 +370,11 @@ public class KafkaTransporter extends Transporter {
 	@Override
 	public Promise subscribe(String channel) {
 		poller.subscribe(channel);
-		return Promise.resolve();
+		Promise p = new Promise();
+		scheduler.schedule(() -> {
+			p.complete();
+		}, 1, TimeUnit.SECONDS);
+		return p;
 	}
 
 	// --- PUBLISH ---
