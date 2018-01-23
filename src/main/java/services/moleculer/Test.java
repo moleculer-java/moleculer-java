@@ -33,7 +33,7 @@ package services.moleculer;
 
 import services.moleculer.cacher.Cache;
 import services.moleculer.cacher.Cacher;
-import services.moleculer.cacher.OHCacher;
+import services.moleculer.cacher.MemoryCacher;
 import services.moleculer.eventbus.Group;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
@@ -55,19 +55,19 @@ public class Test {
 		// Transporter transporter = new NatsTransporter();
 		KafkaTransporter transporter = new KafkaTransporter();
 		transporter.setUrls(new String[] { "192.168.51.29:9092" });
-		//transporter.setDebug(true);
+		transporter.setDebug(true);
 		transporter.setGroupID("test");
 		// Transporter transporter = null;
 
 		// Define cacher
-		Cacher cacher = new OHCacher();
+		Cacher cacher = new MemoryCacher();
 
 		// CPU monitor
 		Monitor monitor = new SigarMonitor();
 
 		// Create broker
 		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).cacher(cacher).monitor(monitor)
-				.nodeID("server-3").build();
+				.nodeID("server-2").build();
 		// .repl(new RemoteRepl())
 
 		broker.createService(new Service("math") {
