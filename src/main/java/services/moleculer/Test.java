@@ -41,7 +41,7 @@ import services.moleculer.monitor.Monitor;
 import services.moleculer.monitor.SigarMonitor;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
-import services.moleculer.transporter.RedisTransporter;
+import services.moleculer.transporter.NatsTransporter;
 import services.moleculer.transporter.Transporter;
 
 public class Test {
@@ -53,7 +53,7 @@ public class Test {
 		System.setProperty("java.library.path", nativeDir);
 
 		// Define transporter
-		Transporter transporter = new RedisTransporter();
+		Transporter transporter = new NatsTransporter();
 		// transporter.setDebug(true);
 		// Transporter transporter = null;
 

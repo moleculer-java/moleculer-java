@@ -29,11 +29,11 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.transporter;
+package services.moleculer.transporter.tcp;
 
-public class TcpWriteBuffer {
+public class TcpReadBuffer {
 
-	protected void write(byte[] bytes) {
+	public void read() {
 		
 	}
 	

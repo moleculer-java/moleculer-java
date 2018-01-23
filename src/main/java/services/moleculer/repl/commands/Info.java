@@ -106,8 +106,8 @@ public class Info extends Command {
 			table.addRow("Hostname", address.getHostName());
 		} catch (Exception ignored) {
 		}
-		table.addRow("Software version", Double.toString(ServiceBroker.IMPLEMENTATION_VERSION));
-		table.addRow("Moleculer version", Double.toString(ServiceBroker.MOLECULER_VERSION));
+		table.addRow("Software version", Double.toString(ServiceBroker.SOFTWARE_VERSION));
+		table.addRow("Moleculer version", Double.toString(ServiceBroker.PROTOCOL_VERSION));
 		table.addRow("Java VM version", System.getProperty("java.version", "unknown") + " from "
 				+ System.getProperty("java.vm.vendor", "unknown vendor"));
 		table.addRow("Java VM type", System.getProperty("java.vm.name", "unknown"));

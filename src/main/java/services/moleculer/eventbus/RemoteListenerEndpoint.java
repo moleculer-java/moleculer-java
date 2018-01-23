@@ -69,15 +69,17 @@ public class RemoteListenerEndpoint extends ListenerEndpoint {
 	// --- INVOKE REMOTE LISTENER ---
 
 	@Override
-	public void on(String name, Tree payload, Groups groups, boolean emit) throws Exception {
+	public void on(String name, Tree payload, Groups groups, boolean broadcast) throws Exception {
 		LinkedHashMap<String, Object> map = new LinkedHashMap<String, Object>();
-		map.put("ver", ServiceBroker.MOLECULER_VERSION);
+		map.put("ver", ServiceBroker.PROTOCOL_VERSION);
 		map.put("sender", nodeID);
 		map.put("event", name);
-		if (emit) {
-			map.put("groups", groups == null ? null : groups.groups());
-		} else if (groups != null) {
-			logger.warn("Moleculer V2 doesn't support grouped broadcast (message: " + payload.toString(false) + ")!");
+		map.put("broadcast", broadcast);
+		if (groups != null) {
+			String[] array = groups.groups();
+			if (array != null && array.length > 0) {
+				map.put("groups", array);
+			}
 		}
 		if (payload != null) {
 			map.put("data", payload.asObject());

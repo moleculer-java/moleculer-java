@@ -31,7 +31,7 @@
  */
 package services.moleculer.transporter;
 
-import static services.moleculer.ServiceBroker.MOLECULER_VERSION;
+import static services.moleculer.ServiceBroker.PROTOCOL_VERSION;
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 
@@ -112,8 +112,10 @@ public abstract class Transporter implements MoleculerComponent {
 	protected String prefix;
 	protected ServiceBroker broker;
 	protected String nodeID;
+
 	protected int heartbeatInterval;
 	protected int heartbeatTimeout;
+	protected int offlineTimeout;
 
 	// --- DEBUG COMMUNICATION ---
 
@@ -133,9 +135,21 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- HEARTBEAT TIMES OF OTHER NODES ---
 
-	protected final ConcurrentHashMap<String, Long[]> nodeActivities = new ConcurrentHashMap<>(128);
+	protected final ConcurrentHashMap<String, NodeActivity> nodeActivities = new ConcurrentHashMap<>(128);
 
-	protected final Map<String, Long[]> publicNodeActivities = Collections.unmodifiableMap(nodeActivities);
+	protected final Map<String, NodeActivity> publicNodeActivities = Collections.unmodifiableMap(nodeActivities);
+
+	public static final class NodeActivity {
+
+		protected NodeActivity(long timestamp, int cpu) {
+			this.timesamp = timestamp;
+			this.cpu = cpu;
+		}
+
+		public final long timesamp;
+		public final int cpu;
+
+	}
 
 	// --- NODE INFO MAP ---
 
@@ -154,7 +168,7 @@ public abstract class Transporter implements MoleculerComponent {
 	public Transporter(String prefix, Serializer serializer) {
 		this.prefix = prefix;
 		this.serializer = serializer;
-		
+
 		// TODO Need a r/w lock to synchronize removes / updates
 	}
 
@@ -210,7 +224,7 @@ public abstract class Transporter implements MoleculerComponent {
 		}
 		logger.info(nameOf(this, true) + " sends heartbeat signal every " + heartbeatInterval + " seconds.");
 
-		// Heartbeat socketTimeout (find in Transporter config)
+		// Heartbeat timeout (find in Transporter config)
 		heartbeatTimeout = config.get("heartbeatTimeout", heartbeatTimeout);
 		if (heartbeatTimeout < 1) {
 
@@ -220,7 +234,21 @@ public abstract class Transporter implements MoleculerComponent {
 				heartbeatTimeout = 30;
 			}
 		}
-		logger.info("Heartbeat socketTimeout of " + nameOf(this, true) + " is " + heartbeatTimeout + " seconds.");
+		logger.info("Heartbeat timeout of " + nameOf(this, true) + " is " + heartbeatTimeout + " seconds.");
+
+		// Offline timeout (find in Transporter config)
+		offlineTimeout = config.get("offlineTimeout", offlineTimeout);
+		if (offlineTimeout < 1) {
+
+			// Find in broker config
+			offlineTimeout = config.getParent().get("offlineTimeout", 0);
+			if (offlineTimeout < 1 || offlineTimeout < heartbeatTimeout) {
+				offlineTimeout = Math.max(heartbeatTimeout * 2, 180);
+			}
+		}
+		logger.info("Configuration timeout of offline nodes is " + offlineTimeout + " seconds.");
+
+		// Debug mode
 		debug = config.get("debug", debug);
 
 		// Start serializer
@@ -266,7 +294,7 @@ public abstract class Transporter implements MoleculerComponent {
 	}
 
 	public abstract void connect();
-	
+
 	// --- SERVER CONNECTED ---
 
 	/**
@@ -362,7 +390,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 		// TODO Add more properties
 		Tree message = new Tree();
-		message.put("ver", ServiceBroker.MOLECULER_VERSION);
+		message.put("ver", ServiceBroker.PROTOCOL_VERSION);
 		message.put("sender", nodeID);
 		message.put("id", ctx.id);
 		message.put("action", ctx.name);
@@ -452,11 +480,8 @@ public abstract class Transporter implements MoleculerComponent {
 				// HeartBeat packet
 				if (channel.endsWith(heartbeatChannel)) {
 
-					// Store timestamp of the sender's last activity
-					Long[] info = new Long[2];
-					info[0] = System.currentTimeMillis();
-					info[1] = data.get("cpu", 0L);
-					nodeActivities.put(sender, info);
+					// Store when of the sender's last activity
+					nodeActivities.put(sender, new NodeActivity(System.currentTimeMillis(), data.get("cpu", 0)));
 					return;
 				}
 
@@ -466,29 +491,72 @@ public abstract class Transporter implements MoleculerComponent {
 					// Register services in info block
 					Tree services = data.get("services");
 					if (services != null && services.isEnumeration()) {
-						for (Tree service : services) {
-
-							// Register actions
-							registry.addActions(service);
-
-							// Register listeners
-							eventbus.addListeners(service);
-						}
-						logger.info("Node \"" + sender + "\" connected.");
-
-						// Store node info
-						Tree previousInfo = nodeInfos.put(sender, data);
 						
-						// Notify local listeners
-						// TODO: What does "reconnection" mean in this situation?
+						// Changed?
+						Tree previousInfo = nodeInfos.put(sender, data);
+						boolean connected = false;
+						boolean reconnected = false;
+						boolean updated = false;
 						if (previousInfo == null) {
 							
-							// Node is not registered
-							broadcastNodeConnected(data, false);
+							// New node
+							connected = true;
+							
 						} else {
 							
-							// Node is registered
+							// Registered node
+							Tree offline = previousInfo.remove("offline");
+							if (offline == null) {
+
+								// Node was live
+								if (!previousInfo.equals(data)) {
+									
+									// Info block changed
+									updated = true;
+								}
+							} else {
+
+								// Node was offline
+								reconnected = true;
+							}
+						}
+						
+						// Register actions and listeners
+						if (connected || reconnected || updated) {
+							if (updated) {
+								
+								// Remove previous actions
+								registry.removeActions(sender);
+								
+								// Remove previous listeners
+								eventbus.removeListeners(sender);
+							}
+							for (Tree service : services) {
+
+								// Register actions
+								registry.addActions(service);
+
+								// Register listeners
+								eventbus.addListeners(service);
+							}
+						}
+						
+						// Notify local listeners
+						if (updated) {
+
+							// Node updated
+							logger.info("Node \"" + sender + "\" updated.");
 							broadcastNodeUpdated(data);
+
+						} else if (connected || reconnected) {
+
+							// Node connected or reconnected
+							if (connected) {
+								logger.info("Node \"" + sender + "\" connected.");
+							} else {
+								logger.info("Node \"" + sender + "\" reconnected.");
+							}
+							broadcastNodeConnected(data, reconnected);
 						}
 					}
 					return;
@@ -504,6 +572,17 @@ public abstract class Transporter implements MoleculerComponent {
 				// Disconnect packet
 				if (channel.equals(disconnectChannel)) {
 
+					// Ok, all actions and listeners removed
+					logger.info("Node \"" + sender + "\" disconnected.");
+
+					// Get node info
+					Tree info = nodeInfos.get(sender);
+					if (info != null && info.get("offline") != null) {
+						
+						// Allready offline
+						return;
+					}
+					
 					// Remove CPU usage and last heartbeat time
 					nodeActivities.remove(sender);
 
@@ -512,15 +591,15 @@ public abstract class Transporter implements MoleculerComponent {
 
 					// Remove remote event listeners
 					eventbus.removeListeners(sender);
-
-					// Get node info
-					Tree info = nodeInfos.remove(sender);
-
-					// Ok, all actions and listeners removed
-					logger.info("Node \"" + sender + "\" disconnected.");
 					
-					// Notify listeners
-					broadcastNodeDisconnected(info, false);
+					if (info != null) {
+
+						// Notify listeners (not unexpected disconnection)
+						broadcastNodeDisconnected(info, false);
+						
+						// Store disconnection time
+						info.put("offline", System.currentTimeMillis());
+					}
 				}
 
 			} catch (Exception cause) {
@@ -554,12 +633,12 @@ public abstract class Transporter implements MoleculerComponent {
 			eventbus.broadcast("$node.disconnected", message, null, true);
 		}
 	}
-	
+
 	// --- GENERIC MOLECULER PACKETS ---
 
 	protected void sendDiscoverPacket(String channel) {
 		Tree message = new Tree();
-		message.put("ver", MOLECULER_VERSION);
+		message.put("ver", PROTOCOL_VERSION);
 		message.put("sender", nodeID);
 		publish(channel, message);
 	}
@@ -570,7 +649,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 	protected void sendHeartbeatPacket() {
 		Tree message = new Tree();
-		message.put("ver", MOLECULER_VERSION);
+		message.put("ver", PROTOCOL_VERSION);
 		message.put("sender", nodeID);
 		message.put("cpu", monitor.getTotalCpuPercent());
 		publish(heartbeatChannel, message);
@@ -587,21 +666,27 @@ public abstract class Transporter implements MoleculerComponent {
 	protected volatile long lastCheck;
 
 	protected void checkNodes() {
-		Iterator<Map.Entry<String, Long[]>> entries = nodeActivities.entrySet().iterator();
-		long now = System.currentTimeMillis();
+
+		// Check time
+ 		long now = System.currentTimeMillis();
 		if (now < lastCheck) {
 			lastCheck = now;
 			return;
 		}
 		lastCheck = now;
-		Map.Entry<String, Long[]> entry;
+
+		// Cleanup "nodeActivities" map
+		Iterator<Map.Entry<String, NodeActivity>> activityEntries = nodeActivities.entrySet().iterator();
+		Map.Entry<String, NodeActivity> activityEntry;
 		long timeoutMillis = heartbeatTimeout * 1000L;
-		while (entries.hasNext()) {
-			entry = entries.next();
-			if (now - entry.getValue()[0] > timeoutMillis) {
+		long timestamp;
+		while (activityEntries.hasNext()) {
+			activityEntry = activityEntries.next();
+			timestamp = activityEntry.getValue().timesamp;
+			if (now - timestamp > timeoutMillis) {
 
 				// Get timeouted node's ID
-				String nodeID = entry.getKey();
+				String nodeID = activityEntry.getKey();
 
 				// Remove remote actions
 				registry.removeActions(nodeID);
@@ -609,41 +694,78 @@ public abstract class Transporter implements MoleculerComponent {
 				// Remove remote event listeners
 				eventbus.removeListeners(nodeID);
 
-				// Remove local timestamp entry
-				entries.remove();
+				// Remove local when entry
+				activityEntries.remove();
 
 				// Get node info
-				Tree info = nodeInfos.remove(nodeID);
-				
+				Tree info = nodeInfos.get(nodeID);
+				if (info != null) {
+
+					// Store disconnection time
+					info.put("offline", System.currentTimeMillis());
+
+					// Ok, all actions and listeners removed
+					logger.info("Node \"" + nodeID
+							+ "\" is no longer available because it hasn't submitted heartbeat signal for "
+							+ heartbeatTimeout + " seconds.");
+
+					// Notify listeners (unexpected disconnection)
+					broadcastNodeDisconnected(info, true);
+				}
+			}
+		}
+
+		// Cleanup "nodeInfos" map
+		Iterator<Map.Entry<String, Tree>> infoEntries = nodeInfos.entrySet().iterator();
+		Map.Entry<String, Tree> infoEntry;
+		timeoutMillis = offlineTimeout * 1000L;
+		while (infoEntries.hasNext()) {
+			infoEntry = infoEntries.next();
+			timestamp = infoEntry.getValue().get("offline", -1L);
+			if (timestamp < 1) {
+				continue;
+			}
+			if (now - timestamp > timeoutMillis) {
+
+				// Remove entry
+				infoEntries.remove();
+
+				// Get timeouted node's ID
+				String nodeID = infoEntry.getKey();
+
 				// Ok, all actions and listeners removed
 				logger.info("Node \"" + nodeID
-						+ "\" is no longer available because it hasn't submitted heartbeat signal for "
-						+ heartbeatTimeout + " seconds.");
-				
-				// Notify listeners
-				broadcastNodeDisconnected(info, true);
+						+ "\" is no longer registered because it hasn't submitted heartbeat signal for "
+						+ offlineTimeout + " seconds.");
 			}
 		}
 	}
+	
+	// --- GET NODE ACTIVITIES MAP ---
 
-	// --- GET NODE ACTIVITIES MAP (REMOTE NODES ONLY) ---
-
-	public Map<String, Long[]> getNodeActivities() {
-
-		// NodeID -> [timestamp, cpu usage]
-		return Collections.unmodifiableMap(publicNodeActivities);
+	public Map<String, NodeActivity> getNodeActivities() {
+		return publicNodeActivities;
 	}
 
-	// --- GET NODEIDS OF ALL NODES (LOCAL AND REMOTE) ---
+	// --- IS NODE ONLINE? ---
 	
+	public boolean isOnline(String nodeID) {
+		if (this.nodeID.equals(nodeID)) {
+			return true;
+		}
+		return nodeActivities.containsKey(nodeID);
+	}
+	
+	// --- GET NODEIDS OF ALL NODES ---
+
 	public Set<String> getAllNodeIDs() {
 		HashSet<String> nodeIDs = new HashSet<>(nodeInfos.keySet());
 		nodeIDs.add(nodeID);
 		return nodeIDs;
 	}
-	
-	// --- GET REMOTE NODE INFO (LOCAL AND REMOTE) ---
-	
+
+	// --- GET REMOTE NODE INFO ---
+
 	public Tree getNodeInfo(String nodeID) {
 		if (this.nodeID.equals(nodeID)) {
 			return registry.generateDescriptor();
@@ -654,7 +776,7 @@ public abstract class Transporter implements MoleculerComponent {
 		}
 		return info.clone();
 	}
-	
+
 	// --- OPTIONAL ERROR HANDLER ---
 
 	/**

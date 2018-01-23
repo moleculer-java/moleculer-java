@@ -71,7 +71,7 @@ public class CpuUsageStrategy<T extends Endpoint> extends XORShiftRandomStrategy
 	public Endpoint next(Endpoint[] array) {
 		
 		// Get the CPU usage map from the transporter
-		Map<String, Long[]> activities = transporter.getNodeActivities();
+		Map<String, Transporter.NodeActivity> activities = transporter.getNodeActivities();
 
 		// Minimum values
 		long minCPU = Long.MAX_VALUE;
@@ -79,34 +79,27 @@ public class CpuUsageStrategy<T extends Endpoint> extends XORShiftRandomStrategy
 		
 		// Processing variables
 		Endpoint endpoint;
-		Long[] values;
-		long cpuUsage;
+		Transporter.NodeActivity entry;
 		
 		// Find the lower CPU usage in sample
-		int tries = Math.min(maxTries, array.length);
-		for (int i = 0; i < tries; i++) {
+		for (int i = 0; i < maxTries; i++) {
 			
 			// Get random endpoint
-			if (tries <= maxTries) {
-				endpoint = array[i];
-			} else {
-				endpoint = super.next(array);
-			}
+			endpoint = super.next(array);
 			
 			// Check CPU usage
-			values = activities.get(endpoint.nodeID());
-			if (values == null) {
+			entry = activities.get(endpoint.nodeID());
+			if (entry == null) {
 				if (minEndpoint == null) {
 					minEndpoint = endpoint;
 				}
 				continue;
 			}
-			cpuUsage = values[1];
-			if (cpuUsage <= lowCpuUsage) {
+			if (entry.cpu <= lowCpuUsage) {
 				return endpoint;
 			}
-			if (cpuUsage < minCPU) {
-				minCPU = cpuUsage;
+			if (entry.cpu < minCPU) {
+				minCPU = entry.cpu;
 				minEndpoint = endpoint;
 			}			
 		}
