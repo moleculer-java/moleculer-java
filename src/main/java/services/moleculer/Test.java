@@ -42,7 +42,6 @@ import services.moleculer.monitor.SigarMonitor;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
 import services.moleculer.transporter.KafkaTransporter;
-import services.moleculer.transporter.Transporter;
 
 public class Test {
 
@@ -55,7 +54,7 @@ public class Test {
 		// Define transporter
 		// Transporter transporter = new NatsTransporter();
 		KafkaTransporter transporter = new KafkaTransporter();
-		transporter.setUrls(new String[] { "192.168.51.29:9092" });
+		// transporter.setUrls(new String[] { "192.168.51.29:9092" });
 		transporter.setDebug(true);
 		// Transporter transporter = null;
 

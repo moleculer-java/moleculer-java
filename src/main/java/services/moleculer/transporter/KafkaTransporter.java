@@ -7,12 +7,14 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 
@@ -26,8 +28,12 @@ import services.moleculer.service.Name;
  * streaming apps. It is horizontally scalable, fault-tolerant, wicked fast, and
  * runs in production in thousands of companies. Sample of usage:<br>
  * <br>
- * Transporter t = new KafkaTransporter();<br>
- * ServiceBroker broker = ServiceBroker.builder().transporter(t).build();<br>
+ * KafkaTransporter trans = new KafkaTransporter();<br>
+ * trans.setUrls(new String[] { "192.168.51.29:9092" });<br>
+ * trans.setDebug(true);<br>
+ * ServiceBroker broker = ServiceBroker.builder().transporter(trans).build();<br>
+ * //broker.createService(new Service("test") {...});<br>
+ * broker.start();<br>
  * <br>
  * <b>Required dependency:</b><br>
  * <br>
@@ -49,13 +55,17 @@ public class KafkaTransporter extends Transporter {
 	// --- PROPERTIES ---
 
 	protected Properties properties = new Properties();
+	protected String groupID;
 	protected String[] urls = new String[] { "127.0.0.1:9092" };
 
-	// --- KAFKA CLIENTS ---
+	// --- KAFKA PRODUCER / MESSAGE SENDER ---
 
 	protected KafkaProducer<byte[], byte[]> producer;
-	protected KafkaConsumer<byte[], byte[]> consumer;
 
+	// --- KAFKA CONSUMER / MESSAGE RECEIVER ---
+
+	protected KafkaPoller poller;
+	
 	// --- CONSTUCTORS ---
 
 	public KafkaTransporter() {
@@ -71,8 +81,9 @@ public class KafkaTransporter extends Transporter {
 		this.urls = urls;
 	}
 
-	public KafkaTransporter(String prefix, Properties properties, String... urls) {
+	public KafkaTransporter(String prefix, String groupID, Properties properties, String... urls) {
 		super(prefix);
+		this.groupID = groupID;
 		this.properties.putAll(properties);
 		this.urls = urls;
 	}
@@ -112,6 +123,18 @@ public class KafkaTransporter extends Transporter {
 			}
 		}
 
+		// Read group ID
+		String id = properties.getProperty("group.id");
+		if (id != null && !id.isEmpty()) {
+			groupID = id;
+		} else {
+			groupID = config.get("groupID", groupID);
+			if (groupID == null || groupID.isEmpty()) {
+				groupID = prefix;
+			}
+			properties.setProperty("group.id", groupID);
+		}
+		
 		// Read custom properties from config, eg:
 		//
 		// properties {
@@ -122,12 +145,12 @@ public class KafkaTransporter extends Transporter {
 		// "buffer.memory": 33554432,
 		// "enable.auto.commit": true,
 		// "auto.commit.interval.ms": 1000,
-		// "session.timeout.ms": 30000		
+		// "session.timeout.ms": 30000
 		// }
 		//
 		Tree props = config.get("properties");
 		if (props != null) {
-			for (Tree prop: props) {
+			for (Tree prop : props) {
 				properties.setProperty(prop.getName(), prop.asString());
 			}
 		}
@@ -166,17 +189,18 @@ public class KafkaTransporter extends Transporter {
 				urlList.append(url);
 			}
 			properties.put("bootstrap.servers", urlList.toString());
-			
-			// Create producer and consumer
+
+			// Create producer
+			Properties copy = new Properties();
+			copy.putAll(properties);
+			copy.remove("group.id");
 			ByteArraySerializer byteArraySerializer = new ByteArraySerializer();
-			producer = new KafkaProducer<>(properties, byteArraySerializer, byteArraySerializer);
-			
-			ByteArrayDeserializer byteArrayDeserializer = new ByteArrayDeserializer();
-			consumer = new KafkaConsumer<>(properties, byteArrayDeserializer, byteArrayDeserializer);
+			producer = new KafkaProducer<>(copy, byteArraySerializer, byteArraySerializer);
 
 			// Start reader loop
+			poller = new KafkaPoller(this);
 			executor = Executors.newSingleThreadExecutor();
-			executor.execute(this::readIncomingMessages);
+			executor.execute(poller);
 
 			// Start subscribing channels...
 			connected();
@@ -189,20 +213,18 @@ public class KafkaTransporter extends Transporter {
 	// --- DISCONNECT ---
 
 	protected void disconnect() {
-		subscriptions.clear();
+		if (poller != null) {
+			poller.stop();
+		}
 		if (executor != null) {
 			try {
-				executor.shutdownNow();
+				executor.shutdown();
 			} catch (Exception ignored) {
 			}
 			executor = null;
 		}
-		if (consumer != null) {
-			try {
-				consumer.close(10, TimeUnit.SECONDS);
-			} catch (Exception ignored) {
-			}
-			consumer = null;
+		if (poller != null) {
+			poller = null;
 		}
 		if (producer != null) {
 			try {
@@ -213,34 +235,109 @@ public class KafkaTransporter extends Transporter {
 		}
 	}
 
-	// --- MESSAGE READER LOOP ---
+	// --- INPROCESS READER ---
+	
+	protected static class KafkaPoller implements Runnable {
 
-	protected void readIncomingMessages() {
-		while (true) {
+		// --- STATUS CODES ---
+		
+		protected static final int UNSUBSCRIBED = 0;
+		protected static final int SUBSCRIBED = 1;
+		protected static final int STOPPING = 2;
+		
+		// --- KAFKA CONSUMER / MESSAGE RECEIVER ---
+
+		protected KafkaConsumer<byte[], byte[]> consumer;
+
+		// --- PARENT TRANSPORTER ---
+
+		protected final KafkaTransporter transporter;
+
+		// --- STATUS ---
+		
+		protected final AtomicInteger status = new AtomicInteger(UNSUBSCRIBED);
+		
+		// --- CONSTRUCTOR ---
+
+		protected KafkaPoller(KafkaTransporter transporter) {
+			this.transporter = transporter;
+			
+			// Create consumer
+			ByteArrayDeserializer deserializer = new ByteArrayDeserializer();
+			consumer = new KafkaConsumer<>(transporter.properties, deserializer, deserializer);
+		}
+
+		// --- SET OF SUBSCRIPTIONS ---
+
+		protected HashSet<String> subscriptions = new HashSet<>();
+		
+		// --- READER LOOP --
+
+		protected static boolean firstError = true;
+		
+		public void run() {
 			try {
-				if (consumer == null) {
-					return;
-				}
 				
-				// Try to read incoming records
-				ConsumerRecords<byte[], byte[]> records = consumer.poll(1000);
-				if (records == null || records.isEmpty()) {
-					continue;
+				// Loop
+				int current;
+				while ((current = status.get()) != STOPPING) {
+
+					// Try to read incoming records
+					if (current == UNSUBSCRIBED) {
+						Thread.sleep(1000);
+						continue;
+					}
+					ConsumerRecords<byte[], byte[]> records = consumer.poll(5000);
+					if (records == null || records.isEmpty()) {
+						continue;
+					}
+					for (ConsumerRecord<byte[], byte[]> record : records) {
+
+						// Process incoming records
+						transporter.received(record.topic(), record.value());
+					}
 				}
-				for (ConsumerRecord<byte[], byte[]> record : records) {
-					
-					// Process incoming records
-					received(record.topic(), record.value());
-				}
-			} catch (IllegalStateException closed) {
-				return;
+			} catch (WakeupException wakeUp) {
+				
+				// Stopping...
+				
 			} catch (Exception cause) {
-				if (cause != null && !(cause instanceof InterruptedException)) {
-					error(cause);
+				if (firstError) {
+					firstError = false;
+					transporter.logger.error("Unable to connect to Kafka server!", cause);
 				}
-				return;
+				if (cause != null && !(cause instanceof InterruptedException)) {
+					
+					// Reconnect
+					transporter.error(cause);
+				}
+			} finally {
+				if (consumer != null) {
+					try {
+						consumer.close();						
+					} catch (Exception cause) {
+						transporter.logger.warn("Unable to close Kafka consumer!", cause);
+					}
+				}
+				consumer = null;
 			}
 		}
+
+		// --- SUBSCRIBE ---
+		
+		protected void subscribe(String channel) {
+			subscriptions.add(channel);
+			consumer.subscribe(subscriptions);
+			status.set(SUBSCRIBED);
+		}
+		
+		// --- STOP ---
+		
+		protected void stop() {
+			status.set(STOPPING);			
+			consumer.wakeup();
+		}
+
 	}
 
 	// --- RECONNECT ---
@@ -270,18 +367,9 @@ public class KafkaTransporter extends Transporter {
 
 	// --- SUBSCRIBE ---
 
-	protected HashSet<String> subscriptions = new HashSet<>();
-
 	@Override
 	public Promise subscribe(String channel) {
-		if (consumer != null) {
-			subscriptions.add(channel);
-			try {
-				consumer.subscribe(subscriptions);
-			} catch (Exception cause) {
-				return Promise.reject(cause);
-			}
-		}
+		poller.subscribe(channel);
 		return Promise.resolve();
 	}
 
@@ -323,6 +411,14 @@ public class KafkaTransporter extends Transporter {
 
 	public void setProperties(Properties properties) {
 		this.properties = properties;
+	}
+
+	public String getGroupID() {
+		return groupID;
+	}
+
+	public void setGroupID(String groupID) {
+		this.groupID = groupID;
 	}
 
 }
