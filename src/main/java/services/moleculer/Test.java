@@ -56,12 +56,11 @@ public class Test {
 		KafkaTransporter transporter = new KafkaTransporter();
 		transporter.setUrls(new String[] { "192.168.51.29:9092" });
 		transporter.setDebug(true);
-		transporter.setGroupID("test");
 		// Transporter transporter = null;
 
 		// Define cacher
 		Cacher cacher = new MemoryCacher();
-
+		
 		// CPU monitor
 		Monitor monitor = new SigarMonitor();
 

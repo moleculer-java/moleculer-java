@@ -461,6 +461,12 @@ public abstract class Transporter implements MoleculerComponent {
 					return;
 				}
 
+				// Incoming response
+				if (channel.equals(responseChannel)) {
+					registry.receiveResponse(data);
+					return;
+				}
+
 				// Invoming event
 				if (channel.equals(eventChannel)) {
 					eventbus.receiveEvent(data);
@@ -473,12 +479,6 @@ public abstract class Transporter implements MoleculerComponent {
 					return;
 				}
 
-				// Incoming response
-				if (channel.equals(responseChannel)) {
-					registry.receiveResponse(data);
-					return;
-				}
-
 				// HeartBeat packet
 				if (channel.endsWith(heartbeatChannel)) {
 
@@ -486,7 +486,7 @@ public abstract class Transporter implements MoleculerComponent {
 					nodeActivities.put(sender, new NodeActivity(System.currentTimeMillis(), data.get("cpu", 0)));
 					return;
 				}
-
+				
 				// Info packet
 				if (channel.equals(infoChannel) || channel.equals(infoBroadcastChannel)) {
 

@@ -384,6 +384,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 				// Send response
 				Tree response = new Tree();
+				response.put("sender", nodeID);
 				response.put("id", id);
 				response.put("ver", ServiceBroker.PROTOCOL_VERSION);
 				response.put("success", true);

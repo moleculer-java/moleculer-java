@@ -55,7 +55,6 @@ public class KafkaTransporter extends Transporter {
 	// --- PROPERTIES ---
 
 	protected Properties properties = new Properties();
-	protected String groupID;
 	protected String[] urls = new String[] { "127.0.0.1:9092" };
 
 	// --- KAFKA PRODUCER / MESSAGE SENDER ---
@@ -81,9 +80,8 @@ public class KafkaTransporter extends Transporter {
 		this.urls = urls;
 	}
 
-	public KafkaTransporter(String prefix, String groupID, Properties properties, String... urls) {
+	public KafkaTransporter(String prefix, Properties properties, String... urls) {
 		super(prefix);
-		this.groupID = groupID;
 		this.properties.putAll(properties);
 		this.urls = urls;
 	}
@@ -123,17 +121,8 @@ public class KafkaTransporter extends Transporter {
 			}
 		}
 
-		// Read group ID
-		String id = properties.getProperty("group.id");
-		if (id != null && !id.isEmpty()) {
-			groupID = id;
-		} else {
-			groupID = config.get("groupID", groupID);
-			if (groupID == null || groupID.isEmpty()) {
-				groupID = prefix;
-			}
-			properties.setProperty("group.id", groupID);
-		}
+		// Set unique "node ID" as Kafka "group ID"
+		properties.setProperty("group.id", nodeID);
 		
 		// Read custom properties from config, eg:
 		//
@@ -411,14 +400,6 @@ public class KafkaTransporter extends Transporter {
 
 	public void setProperties(Properties properties) {
 		this.properties = properties;
-	}
-
-	public String getGroupID() {
-		return groupID;
-	}
-
-	public void setGroupID(String groupID) {
-		this.groupID = groupID;
 	}
 
 }

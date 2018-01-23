@@ -31,6 +31,8 @@
  */
 package services.moleculer.service;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,7 +74,7 @@ public abstract class ActionEndpoint implements MoleculerComponent, Endpoint {
 	protected int ttl;
 
 	protected int hashCode;
-	
+
 	// --- COMPONENTS ---
 
 	protected ServiceBroker broker;
@@ -104,7 +106,21 @@ public abstract class ActionEndpoint implements MoleculerComponent, Endpoint {
 
 		// Set cache parameters
 		cached = config.get("cache", false);
-		cacheKeys = config.get("cacheKeys", "").split(",");
+		Tree keys = config.get("cacheKeys");
+		if (keys != null) {
+			if (keys.isEnumeration()) {
+				List<String> list = keys.asList(String.class);
+				if (list.size() > 0) {
+					cacheKeys = new String[list.size()];
+					list.toArray(cacheKeys);
+				}
+			} else if (keys.isPrimitive()) {
+				cacheKeys = config.get("cacheKeys", "").split(",");
+				if (cacheKeys.length == 0) {
+					cacheKeys = null;
+				}
+			}
+		}
 		ttl = config.get("ttl", 0);
 
 		// Set default invaocation socketTimeout
@@ -115,7 +131,7 @@ public abstract class ActionEndpoint implements MoleculerComponent, Endpoint {
 		if (cached) {
 			cacher = broker.components().cacher();
 		}
-		
+
 		// Set the hashCode
 		final int prime = 31;
 		hashCode = 1;
