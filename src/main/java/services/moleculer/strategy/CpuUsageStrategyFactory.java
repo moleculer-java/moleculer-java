@@ -50,7 +50,7 @@ public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- PROPERTIES ---
 
-	protected int maxTries = 3;
+	protected int maxTries = 3; // sampleCount
 	protected int lowCpuUsage = 10;
 
 	// --- COMPONENTS ---
