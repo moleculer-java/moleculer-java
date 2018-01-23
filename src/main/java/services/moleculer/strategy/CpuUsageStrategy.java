@@ -82,10 +82,15 @@ public class CpuUsageStrategy<T extends Endpoint> extends XORShiftRandomStrategy
 		Transporter.NodeActivity entry;
 		
 		// Find the lower CPU usage in sample
-		for (int i = 0; i < maxTries; i++) {
+		int tries = Math.min(maxTries, array.length);
+		for (int i = 0; i < tries; i++) {
 			
 			// Get random endpoint
-			endpoint = super.next(array);
+			if (tries <= maxTries) {
+				endpoint = array[i];
+			} else {
+				endpoint = super.next(array);
+			}
 			
 			// Check CPU usage
 			entry = activities.get(endpoint.nodeID());
