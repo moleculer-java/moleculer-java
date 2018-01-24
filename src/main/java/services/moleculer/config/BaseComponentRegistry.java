@@ -330,69 +330,41 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	private static final Tree replaceType(String id, String value) {
 		String test = value.toLowerCase();
 		if (TRANSPORTER_ID.equals(id)) {
+			Tree cfg = null;
 			if (test.startsWith("redis")) {
-				Tree cfg = newConfig("services.moleculer.transporter.RedisTransporter");
-				if (test.contains("://")) {
-					cfg.put("url", value);
-				}
-				return cfg;
+				cfg = newConfig("services.moleculer.transporter.RedisTransporter");
+			} else if (test.startsWith("nats")) {
+				cfg = newConfig("services.moleculer.transporter.NatsTransporter");
+			} else if (test.startsWith("mqtt")) {
+				cfg = newConfig("services.moleculer.transporter.MqttTransporter");
+			} else if (test.startsWith("jms")) {
+				cfg = newConfig("services.moleculer.transporter.JmsTransporter");
+			} else if (test.startsWith("amqp")) {
+				cfg = newConfig("services.moleculer.transporter.AmqpTransporter");
+			} else if (test.startsWith("google")) {
+				cfg = newConfig("services.moleculer.transporter.GoogleTransporter");
+			} else if (test.startsWith("ws")) {
+				cfg = newConfig("services.moleculer.transporter.SocketClusterTransporter");
+			} else if (test.startsWith("kafka")) {
+				cfg = newConfig("services.moleculer.transporter.KafkaTransporter");
 			}
-			if (test.startsWith("nats")) {
-				Tree cfg = newConfig("services.moleculer.transporter.NatsTransporter");
-				if (test.contains("://")) {
-					cfg.put("url", value);
-				}
-				return cfg;
+			if (cfg != null && test.contains("://")) {
+				cfg.put("url", value);
 			}
-			if (test.startsWith("mqtt")) {
-				Tree cfg = newConfig("services.moleculer.transporter.MqttTransporter");
-				if (test.contains("://")) {
-					cfg.put("url", value);
-				}
-				return cfg;
-			}
-			if (test.startsWith("jms")) {
-				Tree cfg = newConfig("services.moleculer.transporter.JmsTransporter");
-				if (test.contains("://")) {
-					cfg.put("url", value);
-				}
-				return cfg;
-			}
-			if (test.startsWith("amqp")) {
-				Tree cfg = newConfig("services.moleculer.transporter.AmqpTransporter");
-				if (test.contains("://")) {
-					cfg.put("url", value);
-				}
-				return cfg;
-			}
-			if (test.startsWith("google")) {
-				Tree cfg = newConfig("services.moleculer.transporter.GoogleTransporter");
-				if (test.contains("://")) {
-					cfg.put("url", value);
-				}
-				return cfg;
-			}
-			if (test.startsWith("ws")) {
-				Tree cfg = newConfig("services.moleculer.transporter.SocketClusterTransporter");
-				if (test.contains("://")) {
-					cfg.put("url", value);
-				}
-				return cfg;
-			}
+			return cfg;
 		} else if (CACHER_ID.equals(id)) {
+			Tree cfg = null;
 			if (test.startsWith("redis")) {
-				Tree cfg = newConfig("services.moleculer.cacher.RedisCacher");
-				if (value.contains("://")) {
-					cfg.put("url", value);
-				}
-				return cfg;
+				cfg = newConfig("services.moleculer.cacher.RedisCacher");
+			} else if (test.equals("memory")) {
+				cfg = newConfig("services.moleculer.cacher.MemoryCacher");
+			} else if (test.equals("offheap")) {
+				cfg = newConfig("services.moleculer.cacher.OHCacher");
 			}
-			if (test.equals("memory")) {
-				return newConfig("services.moleculer.cacher.MemoryCacher");
+			if (cfg != null && test.contains("://")) {
+				cfg.put("url", value);
 			}
-			if (test.equals("offheap")) {
-				return newConfig("services.moleculer.cacher.OHCacher");
-			}
+			return cfg;
 		} else if (CONTEXT_ID.equals(id)) {
 			if (test.equals("default")) {
 				return newConfig("services.moleculer.context.DefaultContextFactory");
@@ -428,6 +400,9 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			}
 			if (test.equals("jmx")) {
 				return newConfig("services.moleculer.monitor.JMXMonitor");
+			}
+			if (test.equals("command")) {
+				return newConfig("services.moleculer.monitor.CommandMonitor");
 			}
 			if (test.equals("constant")) {
 				return newConfig("services.moleculer.monitor.ConstantMonitor");
