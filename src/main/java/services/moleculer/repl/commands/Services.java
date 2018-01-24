@@ -77,7 +77,7 @@ public class Services extends Nodes {
 		boolean skipinternal = params.contains("--skipinternal") || params.contains("-i");
 		boolean details = params.contains("--details") || params.contains("-d");
 		boolean all = params.contains("--all") || params.contains("-a");
-
+		
 		// Collect data
 		Transporter transporter = broker.components().transporter();
 		Tree infos = getNodeInfos(broker, transporter);

@@ -59,7 +59,7 @@ public class Env extends Command {
 
 	@Override
 	public String getUsage() {
-		return "env [options]";
+		return "env";
 	}
 
 	@Override

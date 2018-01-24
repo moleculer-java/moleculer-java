@@ -31,7 +31,6 @@
  */
 package services.moleculer.transporter;
 
-import java.nio.channels.Selector;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
@@ -43,8 +42,10 @@ import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
+import services.moleculer.transporter.tcp.TcpReader;
+import services.moleculer.transporter.tcp.TcpWriter;
+import services.moleculer.util.CheckedTree;
 import services.moleculer.transporter.tcp.TcpEndpoint;
-import services.moleculer.transporter.tcp.TcpWriteBuffer;
 
 /**
  * TCP Transporter. Now it's just an empty sketch (it doesn't work).
@@ -68,26 +69,26 @@ public class TcpTransporter extends Transporter {
 	protected static final byte PACKET_GOSSIP_REQUEST_ID = 9;
 	protected static final byte PACKET_GOSSIP_RESPONSE_ID = 10;
 
-	// --- REGISTERED ENDPOINTS ---
+	// --- ALL REGISTERED ENDPOINTS ---
 
 	protected final HashMap<String, TcpEndpoint> endpoints = new HashMap<>();
 
-	// --- ENDPOINT CACHES ---
+	// --- PROPERTIES ---
 
-	protected final AtomicReference<ArrayList<TcpEndpoint>> cachedLiveEndpoints = new AtomicReference<>();
-	protected final AtomicReference<ArrayList<TcpEndpoint>> cachedUnreachableEndpoints = new AtomicReference<>();
+	/**
+	 * TCP port.
+	 */
+	protected int port = 7328;
 
-	// --- OTHER WORKING VARIABLES ---
+	/**
+	 * Socket socketTimeout, in milliseconds (0 = no timeout).
+	 */
+	protected int socketTimeout;
 
-	protected Random rnd = new Random();
-
-	// --- NIO SELECTOR ---
-
-	protected Selector selector;
-
-	// --- WRITE BUFFERS ---
-
-	protected HashMap<String, TcpWriteBuffer> writeBuffers = new HashMap<>();
+	/**
+	 * Gossiping period time, in seconds
+	 */
+	protected int gossipingSeconds = 1;
 
 	// --- CONSTUCTORS ---
 
@@ -100,11 +101,6 @@ public class TcpTransporter extends Transporter {
 	}
 
 	// --- START TRANSPORTER ---
-
-	/**
-	 * Cancelable timer
-	 */
-	protected volatile ScheduledFuture<?> timer;
 
 	/**
 	 * Initializes transporter instance.
@@ -121,35 +117,50 @@ public class TcpTransporter extends Transporter {
 		super.start(broker, config);
 
 		// Process config
-
-		// Start gossiper process
-		timer = scheduler.scheduleAtFixedRate(this::doGossiping, 1, 1, TimeUnit.SECONDS);
+		port = config.get("port", port);
+		socketTimeout = config.get("socketTimeout", socketTimeout);
+		gossipingSeconds = config.get("cleanup", gossipingSeconds);
 	}
 
 	// --- CONNECT ---
+
+	/**
+	 * Cancelable timer
+	 */
+	protected volatile ScheduledFuture<?> timer;
+
+	/**
+	 * Socket reader
+	 */
+	protected TcpReader reader;
+
+	/**
+	 * Socket writer
+	 */
+	protected TcpWriter writer;
 
 	@Override
 	public void connect() {
 		try {
 
-			// Create selector
-			if (selector != null) {
-				disconnect();
+			// Create reader and writer
+			disconnect();
+			reader = new TcpReader(this);
+			writer = new TcpWriter(this);
+
+			// Start reader and writer
+			reader.connect();
+			writer.connect();
+
+			// Start gossiper
+			if (gossipingSeconds < 1) {
+				gossipingSeconds = 1;
 			}
-			selector = Selector.open();
+			timer = scheduler.scheduleWithFixedDelay(this::doGossiping, gossipingSeconds * 2, gossipingSeconds,
+					TimeUnit.SECONDS);
 
-			// TODO Create server socket
-
-			// Send discover
-			executor.execute(() -> {
-
-				// Do the discovery process
-				sendDiscoverPacket(discoverBroadcastChannel);
-				sendInfoPacket(infoBroadcastChannel);
-
-				// Ok, peer(s) connected
-				logger.info("TCP pub-sub connection estabilished.");
-			});
+			// Ok, transporter started
+			logger.info("TCP pub-sub connection estabilished.");
 
 		} catch (Exception cause) {
 			String msg = cause.getMessage();
@@ -167,18 +178,23 @@ public class TcpTransporter extends Transporter {
 
 	protected void disconnect() {
 
-		// Close server socket
-
-		// Close client sockets
-
-		// Close selector
-		if (selector != null) {
-			try {
-				selector.close();
-			} catch (Exception ignored) {
-			}
+		// Stop timer of the gossiper
+		if (timer != null) {
+			timer.cancel(false);
+			timer = null;
 		}
-		selector = null;
+
+		// Close socket reader
+		if (reader != null) {
+			reader.disconnect();
+			reader = null;
+		}
+
+		// Close socket writer
+		if (writer != null) {
+			writer.disconnect();
+			writer = null;
+		}
 	}
 
 	// --- RECONNECT ---
@@ -204,23 +220,21 @@ public class TcpTransporter extends Transporter {
 	 */
 	@Override
 	public void stop() {
-
-		// Stop timer
-		if (timer != null) {
-			timer.cancel(false);
-			timer = null;
-		}
-
-		// Disconnect, close sockets
 		disconnect();
 	}
 
-	// --- SUBSCRIBE ---
+	// --- MESSAGE RECEIVED ---
+
+	public void messageReceived(byte packetID, byte[] packet) {
+
+		// TODO message received
+		System.out.println("PACKET RECEIVED: " + new String(packet));
+	}
+
+	// --- SUBSCRIBE (UNUSED) ---
 
 	@Override
 	public Promise subscribe(String channel) {
-
-		// Unused method
 		return Promise.resolve();
 	}
 
@@ -228,7 +242,7 @@ public class TcpTransporter extends Transporter {
 
 	@Override
 	public void publish(String channel, Tree message) {
-		if (selector != null) {
+		if (writer != null) {
 			try {
 
 				// Parse channel
@@ -289,10 +303,18 @@ public class TcpTransporter extends Transporter {
 				// Create data packet to send
 				byte[] packet = serialize(packetID, message);
 
-				// Send to node(s)
+				// Send packet...
 				if (nodeID == null) {
-					sendToAllNodes(packet);
+
+					// Send to all live endpoints
+					ArrayList<TcpEndpoint> liveEndpoints = getEndpoints(true);
+					for (TcpEndpoint endpoint : liveEndpoints) {
+						writer.send(endpoint, packet);
+					}
+
 				} else {
+
+					// Send packet to one endpoint
 					TcpEndpoint endpoint;
 					synchronized (endpoints) {
 						endpoint = endpoints.get(nodeID);
@@ -301,7 +323,8 @@ public class TcpTransporter extends Transporter {
 						logger.warn("Unknown node ID (" + nodeID + ")!");
 						return;
 					}
-					sendToNode(endpoint, packet);
+					writer.send(endpoint, packet);
+
 				}
 
 			} catch (Exception cause) {
@@ -318,37 +341,15 @@ public class TcpTransporter extends Transporter {
 		packet[4] = (byte) packet.length;
 		packet[3] = (byte) (packet.length >>> 8);
 		packet[2] = (byte) (packet.length >>> 16);
-		packet[1] = (byte) (packet.length >>> 32);
+		packet[1] = (byte) (packet.length >>> 24);
 		packet[0] = (byte) (packet[1] ^ packet[2] ^ packet[3] ^ packet[4] ^ packet[5]);
 		System.arraycopy(data, 0, packet, 6, data.length);
 		return packet;
 	}
 
-	protected void sendToAllNodes(byte[] packet) {
+	// --- GOSSIPING (SINGLE THREAD) ---
 
-		// Send to all live endpoints
-		ArrayList<TcpEndpoint> liveEndpoints = getEndpoints(true);
-		for (TcpEndpoint endpoint : liveEndpoints) {
-			sendToNode(endpoint, packet);
-		}
-	}
-
-	protected void sendToNode(TcpEndpoint endpoint, byte[] packet) {
-
-		// Send to endpoint
-		TcpWriteBuffer writeBuffer;
-		synchronized (writeBuffers) {
-			writeBuffer = writeBuffers.get(endpoint.nodeID());
-		}
-		if (writeBuffer != null) {
-			writeBuffer.write(packet);
-			return;
-		}
-
-		// TODO Create new buffer (open socket)
-	}
-
-	// --- GOSSIPING ---
+	protected Random rnd = new Random();
 
 	protected void doGossiping() {
 
@@ -376,7 +377,56 @@ public class TcpTransporter extends Transporter {
 			}
 
 		}
+
+		// TODO TEST
+		TcpEndpoint endpoint = new TcpEndpoint("server-2", "127.0.0.1", 7328);
+		try {
+			byte[] packet = serialize(PACKET_EVENT_ID, new CheckedTree("hello"));
+			System.out.println("SEND: " + new String(packet));
+			writer.send(endpoint, packet);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
+
+	protected void sendGossipToRandomEndpoint(ArrayList<TcpEndpoint> endpoints, ArrayList<TcpEndpoint> rest) {
+		int size = endpoints.size();
+		if (size < 1) {
+			return;
+		}
+
+		// Create message
+		Tree message = new Tree();
+		Tree nodes = message.putList("nodes");
+		for (TcpEndpoint endpoint : endpoints) {
+			endpoint.writeStatus(nodes.addMap());
+		}
+		for (TcpEndpoint endpoint : rest) {
+			endpoint.writeStatus(nodes.addMap());
+		}
+
+		// Choose random endpoint
+		int index = rnd.nextInt(size);
+		TcpEndpoint endpoint = endpoints.get(index);
+
+		// Create data packet to send
+		try {
+
+			// Create gossip packet
+			byte[] packet = serialize(PACKET_GOSSIP_REQUEST_ID, message);
+
+			// Send gossip request to node
+			writer.send(endpoint, packet);
+
+		} catch (Exception cause) {
+			logger.error("Unable to serialize data!", cause);
+		}
+	}
+
+	// --- ENDPOINT CACHE (MULTI-THREAD) ---
+
+	protected final AtomicReference<ArrayList<TcpEndpoint>> cachedLiveEndpoints = new AtomicReference<>();
+	protected final AtomicReference<ArrayList<TcpEndpoint>> cachedUnreachableEndpoints = new AtomicReference<>();
 
 	protected ArrayList<TcpEndpoint> getEndpoints(boolean live) {
 		synchronized (endpoints) {
@@ -393,7 +443,7 @@ public class TcpTransporter extends Transporter {
 			ArrayList<TcpEndpoint> liveEndpoints = new ArrayList<>(size);
 			ArrayList<TcpEndpoint> unreachableEndpoints = new ArrayList<>(size);
 			for (TcpEndpoint endpoint : endpoints.values()) {
-				if (endpoint.live()) {
+				if (endpoint.isOnline()) {
 					liveEndpoints.add(endpoint);
 				} else {
 					unreachableEndpoints.add(endpoint);
@@ -408,35 +458,30 @@ public class TcpTransporter extends Transporter {
 		}
 	}
 
-	protected void sendGossipToRandomEndpoint(ArrayList<TcpEndpoint> endpoints, ArrayList<TcpEndpoint> rest) {
-		int size = endpoints.size();
-		if (size < 1) {
-			return;
-		}
-		int index = rnd.nextInt(size);
-		TcpEndpoint peer = endpoints.get(index);
+	// --- GETTERS AND SETTERS ---
 
-		// Create message
-		Tree message = new Tree();
-		Tree nodes = message.putList("nodes");
-		for (TcpEndpoint endpoint : endpoints) {
-			endpoint.writeTo(nodes.addMap());
-		}
-		for (TcpEndpoint endpoint : rest) {
-			endpoint.writeTo(nodes.addMap());
-		}
+	public int getPort() {
+		return port;
+	}
 
-		// Create data packet to send
-		try {
+	public void setPort(int port) {
+		this.port = port;
+	}
 
-			byte[] packet = serialize(PACKET_GOSSIP_REQUEST_ID, message);
+	public int getSocketTimeout() {
+		return socketTimeout;
+	}
 
-			// Send gossip request to node
-			sendToNode(peer, packet);
+	public void setSocketTimeout(int timeout) {
+		this.socketTimeout = timeout;
+	}
 
-		} catch (Exception cause) {
-			logger.error("Unable to serialize data!", cause);
-		}
+	public int getGossipingSeconds() {
+		return gossipingSeconds;
+	}
+
+	public void setGossipingSeconds(int gossipingSeconds) {
+		this.gossipingSeconds = gossipingSeconds;
 	}
 
 }

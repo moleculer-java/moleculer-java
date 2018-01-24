@@ -75,7 +75,7 @@ public class DefaultEventBus extends EventBus {
 	protected boolean asyncLocalInvocation;
 
 	/**
-	 * Check Moleculer version
+	 * Check protocol version
 	 */
 	protected boolean checkVersion;
 
@@ -176,11 +176,11 @@ public class DefaultEventBus extends EventBus {
 	@Override
 	public void receiveEvent(Tree message) {
 
-		// Verify Moleculer version
+		// Verify protocol version
 		if (checkVersion) {
-			int ver = message.get("ver", -1);
-			if (ver != ServiceBroker.PROTOCOL_VERSION) {
-				logger.warn("Invalid message version (" + ver + ")!");
+			String ver = message.get("ver", "unknown");
+			if (!ServiceBroker.PROTOCOL_VERSION.equals(ver)) {
+				logger.warn("Invalid protocol version (" + ver + ")!");
 				return;
 			}
 		}

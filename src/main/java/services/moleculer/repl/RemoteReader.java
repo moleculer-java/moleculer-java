@@ -40,6 +40,8 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 
+import services.moleculer.ServiceBroker;
+
 /**
  * TCP reader / writer for the telnet based REPL console.
  */
@@ -83,7 +85,7 @@ public class RemoteReader {
 		this.username = username;
 		this.password = password;
 		this.loggedOn = !authenticated;
-		String header = "Moleculer Microservice Framework";
+		String header = "Moleculer Microservice Framework V" + ServiceBroker.SOFTWARE_VERSION;
 		int len = (79 - header.length()) / 2;
 		String spaces = "                                                                               ";
 		String title = spaces.substring(0, len) + header + spaces.substring(0, len);
@@ -117,16 +119,16 @@ public class RemoteReader {
 					throw new IOException();
 				}
 				if (len == 1) {
-					int readed = requestBuffer.array()[0] & 0xff;
+					int read = requestBuffer.array()[0] & 0xff;
 					if (skip != 0) {
 						skip--;
 						return;
 					}
-					if (readed == 255) {
+					if (read == 255) {
 						skip = 2;
 						return;
 					}
-					char c = (char) readed;
+					char c = (char) read;
 					if ((c > 31 && c < 128) || c == '\r' || c == '\n' || c == '\b') {
 
 						// Enter?
@@ -350,8 +352,8 @@ public class RemoteReader {
 		if ("r".equalsIgnoreCase(command) || "repeat".equalsIgnoreCase(command)) {
 			command = lastCommand;
 		}
-		if (command.equals("help")) {
-			command = "help telnet";
+		if (command.equals("help") || command.startsWith("nodes") || command.startsWith("actions")) {
+			command += " telnet";
 		}
 		remoteRepl.onCommand(out, command);
 		out.print("mol $ ");

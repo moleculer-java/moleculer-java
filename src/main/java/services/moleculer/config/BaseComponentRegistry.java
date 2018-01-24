@@ -92,7 +92,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	// --- START REGISTRY AND COMPONENTS ---
 
 	/**
-	 * Initializes registry instance.
+	 * Initializes newChannels instance.
 	 * 
 	 * @param broker
 	 *            parent ServiceBroker
@@ -343,8 +343,6 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 				cfg = newConfig("services.moleculer.transporter.AmqpTransporter");
 			} else if (test.startsWith("google")) {
 				cfg = newConfig("services.moleculer.transporter.GoogleTransporter");
-			} else if (test.startsWith("ws")) {
-				cfg = newConfig("services.moleculer.transporter.SocketClusterTransporter");
 			} else if (test.startsWith("kafka")) {
 				cfg = newConfig("services.moleculer.transporter.KafkaTransporter");
 			}

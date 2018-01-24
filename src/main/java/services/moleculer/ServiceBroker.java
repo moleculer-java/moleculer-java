@@ -69,12 +69,12 @@ public class ServiceBroker {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final double SOFTWARE_VERSION = 1.3;
+	public static final String SOFTWARE_VERSION = "1.3";
 
 	/**
 	 * Version of the implemented Moleculer Protocol.
 	 */
-	public static final int PROTOCOL_VERSION = 3;
+	public static final String PROTOCOL_VERSION = "3";
 
 	// --- LOGGER ---
 
@@ -105,7 +105,7 @@ public class ServiceBroker {
 	// --- INERNAL AND USER-DEFINED COMPONENTS ---
 
 	/**
-	 * Component registry of the Service Broker instance. ComponentRegistry has
+	 * Component newChannels of the Service Broker instance. ComponentRegistry has
 	 * similar functionality to Spring's ApplicationContext; stores "beans"
 	 * (MoleculerComponents), and by using the method "get(id)" you can retrieve
 	 * instances of your component.
@@ -165,7 +165,7 @@ public class ServiceBroker {
 		// Set nodeID
 		nodeID = settings.getNodeID();
 
-		// Set the component registry
+		// Set the component newChannels
 		components = settings.getComponents();
 		
 		// Install internal services

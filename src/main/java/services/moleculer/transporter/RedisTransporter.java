@@ -64,7 +64,6 @@ import services.moleculer.util.redis.RedisPubSubClient;
  * @see MqttTransporter
  * @see AmqpTransporter
  * @see JmsTransporter
- * @see SocketClusterTransporter
  * @see GoogleTransporter
  */
 @Name("Redis Transporter")

@@ -77,6 +77,7 @@ public class Actions extends Nodes {
 		boolean skipinternal = params.contains("--skipinternal") || params.contains("-i");
 		boolean details = params.contains("--details") || params.contains("-d");
 		boolean all = params.contains("--all") || params.contains("-a");
+		boolean telnet = params.contains("telnet");
 
 		// Collect data
 		Transporter transporter = broker.components().transporter();
@@ -113,7 +114,12 @@ public class Actions extends Nodes {
 		Arrays.sort(actionNames, String.CASE_INSENSITIVE_ORDER);
 
 		// Create table
-		TextTable table = new TextTable("Action", "Nodes", "State", "Cached", "Params");
+		TextTable table;
+		if (telnet) {
+			table = new TextTable("Action", "Nodes", "State", "Cached");
+		} else {
+			table = new TextTable("Action", "Nodes", "State", "Cached", "Params");
+		}
 		for (String actionName : actionNames) {
 			if (skipinternal && actionName.startsWith("$")) {
 
@@ -172,27 +178,29 @@ public class Actions extends Nodes {
 			row.add(cache ? "Yes" : "No");
 
 			// Add "Params" cell
-			HashSet<String> paramSet = new HashSet<>();
-			for (Tree config : configs.values()) {
-				Tree paramsBlock = config.get("params");
-				if (paramsBlock == null || paramsBlock.isNull()) {
-					continue;
+			if (!telnet) {
+				HashSet<String> paramSet = new HashSet<>();
+				for (Tree config : configs.values()) {
+					Tree paramsBlock = config.get("params");
+					if (paramsBlock == null || paramsBlock.isNull()) {
+						continue;
+					}
+					for (Tree param : paramsBlock) {
+						paramSet.add(param.getName());
+					}
 				}
-				for (Tree param : paramsBlock) {
-					paramSet.add(param.getName());
+				String[] paramArray = new String[paramSet.size()];
+				paramSet.toArray(paramArray);
+				Arrays.sort(paramArray, String.CASE_INSENSITIVE_ORDER);
+				StringBuilder paramList = new StringBuilder(64);
+				for (String param : paramArray) {
+					if (paramList.length() > 0) {
+						paramList.append(", ");
+					}
+					paramList.append(param);
 				}
+				row.add(paramList.toString());
 			}
-			String[] paramArray = new String[paramSet.size()];
-			paramSet.toArray(paramArray);
-			Arrays.sort(paramArray, String.CASE_INSENSITIVE_ORDER);
-			StringBuilder paramList = new StringBuilder(64);
-			for (String param : paramArray) {
-				if (paramList.length() > 0) {
-					paramList.append(", ");
-				}
-				paramList.append(param);
-			}
-			row.add(paramList.toString());
 
 			// Add row
 			table.addRow(row);
@@ -203,10 +211,18 @@ public class Actions extends Nodes {
 				Arrays.sort(nodeIDArray, String.CASE_INSENSITIVE_ORDER);
 				for (String nodeID : nodeIDArray) {
 					if (localNodeID.equals(nodeID)) {
-						table.addRow("", "<local>", "OK", "", "");
+						if (telnet) {
+							table.addRow("", "<local>", "OK", "");
+						} else {
+							table.addRow("", "<local>", "OK", "", "");
+						}
 					} else {
 						online = transporter == null ? true : transporter.isOnline(nodeID);
-						table.addRow("", nodeID, online ? "OK" : "FAILED", "", "");
+						if (telnet) {
+							table.addRow("", nodeID, online ? "OK" : "FAILED", "");
+						} else {
+							table.addRow("", nodeID, online ? "OK" : "FAILED", "", "");
+						}
 					}
 				}
 			}

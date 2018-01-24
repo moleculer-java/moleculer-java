@@ -221,6 +221,7 @@ public class LocalRepl extends Repl implements Runnable {
 				commands.keySet().toArray(names);
 				Arrays.sort(names, String.CASE_INSENSITIVE_ORDER);
 				TextTable table = new TextTable(false, "Command", "Description");
+				table.setPadding(2);
 				for (String name : names) {
 					if (!telnet && name.equals("close")) {
 						continue;

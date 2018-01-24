@@ -50,7 +50,7 @@ import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.UIDGenerator;
 
 /**
- * ComponentRegistry is a registry for loaded Moleculer Components. A Moleculer
+ * ComponentRegistry is a newChannels for loaded Moleculer Components. A Moleculer
  * Component can be a required internal component (eg. Cacher), or a custom
  * user-defined object (eg. DAO object to access a database). ComponentRegistry
  * has similar functionality to Spring's ApplicationContext; stores "beans"
@@ -161,7 +161,7 @@ public abstract class ComponentRegistry {
 	 * ID of ServiceRegistry definition in the configuration file. Sample
 	 * configuration entry in JSON format:<br>
 	 * <br>
-	 * "registry": {<br>
+	 * "newChannels": {<br>
 	 * "type": "default",<br>
 	 * "opts": {}<br>
 	 * <br>
@@ -169,7 +169,7 @@ public abstract class ComponentRegistry {
 	 * {@code components()} method:<br>
 	 * borker.components().registry();
 	 */
-	public static final String REGISTRY_ID = "registry";
+	public static final String REGISTRY_ID = "newChannels";
 
 	/**
 	 * ID of Transporter definition in the configuration file. Sample
@@ -236,7 +236,7 @@ public abstract class ComponentRegistry {
 	// --- START REGISTRY AND COMPONENTS ---
 
 	/**
-	 * Initializes registry instance.
+	 * Initializes newChannels instance.
 	 * 
 	 * @param broker
 	 *            parent ServiceBroker
@@ -252,7 +252,7 @@ public abstract class ComponentRegistry {
 	// --- STOP REGISTRY AND COMPONENTS ---
 
 	/**
-	 * Closes this component registry.
+	 * Closes this component newChannels.
 	 */
 	public void stop() {
 	}
@@ -301,7 +301,7 @@ public abstract class ComponentRegistry {
 
 	/**
 	 * Returns the ServiceBroker's ServiceRegistry (which is defined in the
-	 * configuration file's "registry" block).
+	 * configuration file's "newChannels" block).
 	 * 
 	 * @return ServiceBroker's ServiceRegistry
 	 */

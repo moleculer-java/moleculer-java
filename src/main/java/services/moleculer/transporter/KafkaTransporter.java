@@ -45,7 +45,6 @@ import services.moleculer.service.Name;
  * @see NatsTransporter
  * @see MqttTransporter
  * @see AmqpTransporter
- * @see SocketClusterTransporter
  * @see GoogleTransporter
  * @see JmsTransporter
  */

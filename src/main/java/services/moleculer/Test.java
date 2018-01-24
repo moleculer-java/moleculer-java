@@ -52,10 +52,10 @@ public class Test {
 		System.setProperty("java.library.path", nativeDir);
 
 		// Define transporter
-		// Transporter transporter = new NatsTransporter();
+		// Transporter transporter = new TcpTransporter();
 		KafkaTransporter transporter = new KafkaTransporter();
-		transporter.setUrls(new String[] { "192.168.51.29:9092" });
-		transporter.setDebug(true);
+		// transporter.setUrls(new String[] { "192.168.51.29:9092" });
+		//transporter.setDebug(true);
 		// Transporter transporter = null;
 
 		// Define cacher

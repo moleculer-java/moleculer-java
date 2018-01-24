@@ -81,7 +81,7 @@ public class RemoteRepl extends LocalRepl {
 	/**
 	 * Socket socketTimeout, in milliseconds (0 = no timeout).
 	 */
-	protected int socketTimeout = 1000 * 60 * 5;
+	protected int socketTimeout;
 
 	/**
 	 * Maximum number of opened telnet maxSessions.

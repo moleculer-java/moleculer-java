@@ -70,7 +70,6 @@ import services.moleculer.service.ServiceRegistry;
  * @see MqttTransporter
  * @see AmqpTransporter
  * @see JmsTransporter
- * @see SocketClusterTransporter
  * @see GoogleTransporter
  */
 @Name("Transporter")

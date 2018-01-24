@@ -66,7 +66,6 @@ import services.moleculer.service.Name;
  * @see NatsTransporter
  * @see AmqpTransporter
  * @see JmsTransporter
- * @see SocketClusterTransporter
  * @see GoogleTransporter
  */
 @Name("MQTT Transporter")

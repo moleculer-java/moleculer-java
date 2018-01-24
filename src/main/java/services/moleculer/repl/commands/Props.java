@@ -59,7 +59,7 @@ public class Props extends Command {
 
 	@Override
 	public String getUsage() {
-		return "props [options]";
+		return "props";
 	}
 
 	@Override

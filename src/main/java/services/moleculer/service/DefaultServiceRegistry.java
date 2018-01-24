@@ -100,6 +100,11 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 	protected int cleanup = 1;
 
 	/**
+	 * Check protocol version
+	 */
+	protected boolean checkVersion;
+
+	/**
 	 * Reader lock of configuration
 	 */
 	protected final Lock readLock;
@@ -155,6 +160,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
 		cleanup = config.get("cleanup", cleanup);
 		defaultTimeout = config.get("defaultTimeout", defaultTimeout);
+		checkVersion = config.get("checkVersion", checkVersion);
 
 		// Node-style Service Registry config?
 		Tree parent = config.getParent();
@@ -316,11 +322,13 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 	public void receiveRequest(Tree message) {
 
-		// Verify Moleculer version
-		int ver = message.get("ver", -1);
-		if (ver != ServiceBroker.PROTOCOL_VERSION) {
-			logger.warn("Invalid message version (" + ver + ")!");
-			return;
+		// Verify protocol version
+		if (checkVersion) {
+			String ver = message.get("ver", "unknown");
+			if (!ServiceBroker.PROTOCOL_VERSION.equals(ver)) {
+				logger.warn("Invalid protocol version (" + ver + ")!");
+				return;
+			}
 		}
 
 		// Get action property
@@ -432,11 +440,13 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 	@Override
 	public void receiveResponse(Tree message) {
 
-		// Verify Moleculer version
-		int ver = message.get("ver", -1);
-		if (ver != ServiceBroker.PROTOCOL_VERSION) {
-			logger.warn("Invalid version:\r\n" + message);
-			return;
+		// Verify protocol version
+		if (checkVersion) {
+			String ver = message.get("ver", "unknown");
+			if (!ServiceBroker.PROTOCOL_VERSION.equals(ver)) {
+				logger.warn("Invalid protocol version (" + ver + ")!");
+				return;
+			}
 		}
 
 		// Get response's unique ID
@@ -828,4 +838,12 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		this.cleanup = cleanupSeconds;
 	}
 
+	public boolean isCheckVersion() {
+		return checkVersion;
+	}
+
+	public void setCheckVersion(boolean checkVersion) {
+		this.checkVersion = checkVersion;
+	}
+	
 }

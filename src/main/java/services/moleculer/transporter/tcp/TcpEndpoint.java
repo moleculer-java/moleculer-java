@@ -31,6 +31,9 @@
  */
 package services.moleculer.transporter.tcp;
 
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+
 import io.datatree.Tree;
 
 public class TcpEndpoint {
@@ -43,64 +46,65 @@ public class TcpEndpoint {
 	protected final int hashCode;
 
 	// --- STATUS ---
-	
-	protected volatile boolean live;
-	protected volatile long when;
+
+	/**
+	 * Timestamp
+	 */
+	protected final AtomicLong when = new AtomicLong();
+
+	/**
+	 * CPU usage at "when" (-1 = offline)
+	 */
+	protected final AtomicInteger cpu = new AtomicInteger();
 
 	// --- CONSTRUCTOR ---
 
-	public TcpEndpoint(String nodeID, String host, int port, boolean live) {
+	public TcpEndpoint(String nodeID, String host, int port) {
 
 		// Save properties
 		this.nodeID = nodeID;
 		this.host = host;
 		this.port = port;
 		this.hashCode = nodeID.hashCode();
-		
-		// Save status
-		this.live = live;
-		this.when = System.currentTimeMillis();
+
+		// Set time
+		when.set(System.currentTimeMillis());
 	}
 
-	// --- GETTERS ---
+	// --- IS ONLINE ---
+	
+	public boolean isOnline() {
+		return cpu.get() >  -1;
+	}
+	
+	// --- MARK AS OFFLINE ---
 
-	public String nodeID() {
-		return nodeID;
-	}
-	
-	public String host() {
-		return host;
-	}
-	
-	public int port() {
-		return port;
+	public void markAsOffline() {
+		cpu.set(-1);
 	}
 
-	public synchronized boolean live() {
-		return live;
-	}
-	
 	// --- WRITE STATUS ---
-	
-	public synchronized void writeTo(Tree target) {
+
+	public void writeStatus(Tree target) {
 		target.put("nodeID", nodeID);
 		target.put("host", host);
 		target.put("port", port);
-		target.put("live", live);
-		target.put("when", when);
+		target.put("cpu", cpu.get());
+		target.put("when", when.get());
 	}
-	
+
 	// --- READ STATUS ---
 
-	public synchronized void readFrom(Tree source) {
-		final boolean live = source.get("live", true);
-		final long when = source.get("when", 0L);
-		if (this.when < when) {
-			this.live = live;
-			this.when = when;
+	public void readStatus(Tree source) {
+		long update = source.get("when", 0L);
+		long current = when.get();
+		if (update > current) {
+			if (when.compareAndSet(current, update)) {
+				cpu.set(source.get("cpu", 0));
+			}
 		}
 	}
-	
+
 	// --- COLLECTION HELPERS ---
 
 	@Override

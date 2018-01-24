@@ -29,12 +29,52 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.transporter.tcp;
+package services.moleculer.repl.commands;
 
-public class TcpReadBuffer {
+import java.io.PrintStream;
 
-	public void read() {
-		
+import services.moleculer.ServiceBroker;
+import services.moleculer.cacher.Cacher;
+import services.moleculer.repl.Command;
+import services.moleculer.service.Name;
+
+/**
+ * Clear cacher's memory. Sample command:<br>
+ * <pre>
+ * clear users.*
+ * </pre>
+ */
+@Name("clear")
+public class Clear extends Command {
+
+	@Override
+	public String getDescription() {
+		return "Delete cached entries by pattern";
+	}
+	
+	@Override
+	public String getUsage() {
+		return "clear <pattern>";
+	}
+
+	@Override
+	public int getNumberOfRequiredParameters() {
+		return 1;
+	}
+
+	@Override
+	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
+		Cacher cacher = broker.components().cacher();
+		if (cacher == null) {
+			out.println("Unable to clear cache - broker has no cacher module.");
+		} else {
+			String match = parameters[0];
+			cacher.clean(match).then(in -> {
+				out.println("Cache cleared successfully.");
+			}).Catch(cause -> {
+				out.println("Unable to remove entries from cache (" + cause + ")!");
+			});
+		}
 	}
 	
 }

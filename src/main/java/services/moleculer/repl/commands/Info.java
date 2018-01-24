@@ -106,8 +106,8 @@ public class Info extends Command {
 			table.addRow("Hostname", address.getHostName());
 		} catch (Exception ignored) {
 		}
-		table.addRow("Software version", Double.toString(ServiceBroker.SOFTWARE_VERSION));
-		table.addRow("Moleculer version", Double.toString(ServiceBroker.PROTOCOL_VERSION));
+		table.addRow("Software version", ServiceBroker.SOFTWARE_VERSION);
+		table.addRow("Protocol version", ServiceBroker.PROTOCOL_VERSION);
 		table.addRow("Java VM version", System.getProperty("java.version", "unknown") + " from "
 				+ System.getProperty("java.vm.vendor", "unknown vendor"));
 		table.addRow("Java VM type", System.getProperty("java.vm.name", "unknown"));
@@ -155,7 +155,7 @@ public class Info extends Command {
 		addType(table, "Context factory", broker.components().context());
 		addType(table, "Event bus", broker.components().eventbus());
 		addType(table, "System monitor", broker.components().monitor());
-		addType(table, "Service registry", broker.components().registry());
+		addType(table, "Service newChannels", broker.components().registry());
 		addType(table, "REPL console", broker.components().repl());
 		addType(table, "UID generator", broker.components().uid());
 		table.addRow("", "");

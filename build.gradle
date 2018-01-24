@@ -105,11 +105,6 @@ dependencies {
 	// https://mvnrepository.com/artifact/net.sf.xenqtt/xenqtt
 	compile group: 'net.sf.xenqtt', name: 'xenqtt', version: '0.9.7'
 
-	// --- DEPENDENCY OF THE SOCKETCLUSTER TRANSPORTER ---
-	
-	// https://bintray.com/sacoo7/Maven/socketcluster-client
-	compile group: 'io.github.sac', name: 'SocketclusterClientJava', version: '1.7.2'
-
 	// --- DEPENDENCY OF THE JMS TRANSPORTER ---
 
 	// https://mvnrepository.com/artifact/javax.jms/javax.jms-api
@@ -118,7 +113,7 @@ dependencies {
 	// --- ACTIVE QM CLIENT API FOR JMS TESTING ---
 
 	// https://mvnrepository.com/artifact/org.apache.activemq/activemq-client
-	compile group: 'org.apache.activemq', name: 'activemq-client', version: '5.15.2'
+	// compile group: 'org.apache.activemq', name: 'activemq-client', version: '5.15.2'
 
 	// --- DEPENDENCY OF THE AMQP/RABBITMQ TRANSPORTER ---
 	

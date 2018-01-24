@@ -73,11 +73,12 @@ public class Nodes extends Command {
 
 	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
-		
+
 		// Parse parameters
 		List<String> params = Arrays.asList(parameters);
 		boolean all = params.contains("--all") || params.contains("-a");
 		boolean details = params.contains("--details") || params.contains("-d");
+		boolean telnet = params.contains("telnet");
 
 		// Collect data
 		Transporter transporter = broker.components().transporter();
@@ -85,7 +86,12 @@ public class Nodes extends Command {
 		String localNodeID = broker.nodeID();
 
 		// Create table
-		TextTable table = new TextTable("Node ID", "Services", "Version", "Client", "IP", "State", "CPU");		
+		TextTable table;
+		if (telnet) {
+			table = new TextTable("Node ID", "S.", "V.", "Client", "IP", "State", "CPU");
+		} else {
+			table = new TextTable("Node ID", "Services", "Version", "Client", "IP", "State", "CPU");
+		}
 		for (Tree info : infos) {
 			ArrayList<String> row = new ArrayList<>(7);
 
@@ -110,11 +116,24 @@ public class Nodes extends Command {
 			// Add "IP" cell
 			Tree ipList = info.get("ipList");
 			int ipCount = ipList == null ? 0 : ipList.size();
-			String firstIP = ipCount < 1 ? "unknown" : ipList.get(0).asString();
-			if (ipCount > 1) {
-				firstIP += " (+" + (ipCount - 1) + ')';
+			String ip = null;
+			if (ipCount > 0) {
+				for (Tree ipe : ipList) {
+					String v = ipe.asString();
+					if (ip == null) {
+						ip = v;
+					} else if (ip.length() > v.length()) {
+						ip = v;
+					}
+				}
 			}
-			row.add(firstIP);
+			if (ip == null) {
+				ip = "unknown";
+			}
+			if (ipCount > 1) {
+				ip += " (+" + (ipCount - 1) + ')';
+			}
+			row.add(ip);
 
 			// Add "State" cell (ONLINE / OFFLINE)
 			boolean online;
@@ -144,25 +163,29 @@ public class Nodes extends Command {
 				} else {
 					cpuUsage = activity.cpu;
 				}
-				
+
 				// Draw gauge
-				int c = cpuUsage / 4;
-				StringBuilder sb = new StringBuilder();
-				sb.append("[");
-				for(int i = 0; i < 20; i++) {
-					sb.append(i <= c ? "#" : "-");
+				if (telnet) {
+					row.add(cpuUsage + "%");
+				} else {
+					int c = cpuUsage / 4;
+					StringBuilder sb = new StringBuilder();
+					sb.append("[");
+					for (int i = 0; i < 20; i++) {
+						sb.append(i <= c ? "#" : "-");
+					}
+					sb.append("] ");
+					sb.append(cpuUsage + "%");
+					row.add(sb.toString());
 				}
-				sb.append("] ");
-				sb.append(cpuUsage + "%");
-				row.add(sb.toString());
 			}
 
 			// Add row
 			table.addRow(row);
-			
+
 			// Service details
 			if (details && services != null) {
-				for (Tree service: services) {
+				for (Tree service : services) {
 					table.addRow("", service.get("name", "unknown"), "-", "", "", "", "");
 				}
 			}
@@ -190,5 +213,5 @@ public class Nodes extends Command {
 		}
 		return infos;
 	}
-	
+
 }

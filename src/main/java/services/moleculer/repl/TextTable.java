@@ -10,7 +10,7 @@ public class TextTable {
 
 	// --- VARIABLES ---
 
-	private int padding = 2;
+	private int padding = 1;
 	private String newLine = System.getProperty("line.separator", "\r\n");
 
 	private char jointSymbol = '+';
