@@ -36,6 +36,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -110,9 +111,8 @@ public class TcpReader implements Runnable {
 
 		// Close selector
 		if (selector != null) {
-			try {
-				selector.wakeup();
-			} catch (Exception ignored) {
+			for (SelectionKey key: selector.keys()) {
+				close(key.channel());
 			}
 			try {
 				selector.close();
@@ -123,10 +123,7 @@ public class TcpReader implements Runnable {
 
 		// Close server socket
 		if (serverChannel != null) {
-			try {
-				serverChannel.close();
-			} catch (Exception ignored) {
-			}
+			close(serverChannel);
 			serverChannel = null;
 		}
 	}
@@ -143,6 +140,7 @@ public class TcpReader implements Runnable {
 		Iterator<SelectionKey> keys;
 		SelectionKey key;
 		byte crc, type;
+		Socket socket;
 		int n, len;
 
 		// Loop
@@ -180,7 +178,7 @@ public class TcpReader implements Runnable {
 								try {
 
 									// Set socket timeout
-									Socket socket = channel.socket();
+									socket = channel.socket();
 									if (timeout > 0) {
 										socket.setSoTimeout(timeout);
 									}
@@ -191,10 +189,7 @@ public class TcpReader implements Runnable {
 									key.interestOps(SelectionKey.OP_READ);
 
 								} catch (Exception cause) {
-									try {
-										channel.close();
-									} catch (Exception ignored) {
-									}
+									close(channel);
 								}
 							}
 						} else if (key.isReadable()) {
@@ -255,7 +250,7 @@ public class TcpReader implements Runnable {
 										packet = copy;
 										
 										// Process incoming message
-										transporter.messageReceived(type, packet);
+										transporter.received(type, packet);
 										
 									} else {
 										
@@ -269,11 +264,7 @@ public class TcpReader implements Runnable {
 									key.attach(packet);
 								}
 							} catch (Exception cause) {
-								cause.printStackTrace();
-								try {
-									key.channel().close();
-								} catch (Exception ignored) {
-								}
+								close(key.channel());
 							}
 
 						}
@@ -284,4 +275,13 @@ public class TcpReader implements Runnable {
 		}
 	}
 
+	protected void close(SelectableChannel channel) {
+		if (channel != null) {
+			try {
+				channel.close();
+			} catch (Exception ignored) {
+			}
+		}
+	}
+	
 }

@@ -33,9 +33,11 @@ package services.moleculer.transporter.tcp;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -43,6 +45,8 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import services.moleculer.transporter.TcpTransporter;
 
@@ -50,10 +54,15 @@ public class TcpWriter implements Runnable {
 
 	// --- PROPERTIES ---
 
-	/**
-	 * Parent transporter
-	 */
 	protected final TcpTransporter transporter;
+	protected final HashMap<TcpEndpoint, SocketChannel> channels = new HashMap<>();
+	protected final HashMap<SocketChannel, LinkedList<ByteBuffer>> newChannels = new HashMap<>();
+	protected final HashSet<SelectionKey> writableKeys = new HashSet<>();
+	protected final HashSet<SocketChannel> channelsToClose = new HashSet<>();
+	protected final AtomicBoolean hasNewChannels = new AtomicBoolean();
+	protected final AtomicBoolean hasWritableKeys = new AtomicBoolean();
+
+	protected Selector selector;
 
 	// --- CONSTRUCTOR ---
 
@@ -61,15 +70,21 @@ public class TcpWriter implements Runnable {
 		this.transporter = transporter;
 	}
 
-	// --- NIO VARIABLES ---
-
-	protected Selector selector;
-
 	// --- CONNECT ---
+
+	/**
+	 * Cancelable timer
+	 */
+	protected volatile ScheduledFuture<?> timer;
 
 	protected ExecutorService executor;
 
+	protected int maxConnections;
+
 	public void connect() throws Exception {
+
+		// Set max number of connections
+		maxConnections = transporter.getMaxKeepAliveConnections();
 
 		// Create selector
 		disconnect();
@@ -98,79 +113,138 @@ public class TcpWriter implements Runnable {
 			executor = null;
 		}
 
-		// Close sockets
-		for (SocketChannel channel : channels.values()) {
-			try {
-				channel.close();
-			} catch (Exception ignored) {
-			}
-		}
-		channels.clear();
-		for (SocketChannel channel : newChannels.keySet()) {
-			try {
-				channel.close();
-			} catch (Exception ignored) {
-			}
-		}
-		newChannels.clear();
-		
 		// Close selector
 		if (selector != null) {
-			try {
-				selector.wakeup();
-			} catch (Exception ignored) {
-			}
 			try {
 				selector.close();
 			} catch (Exception ignored) {
 			}
 			selector = null;
 		}
+
+		// Close sockets
+		synchronized (channels) {
+			closeAll(channels.values());
+		}
+		synchronized (newChannels) {
+			closeAll(newChannels.keySet());
+		}
+		synchronized (channelsToClose) {
+			closeAll(channelsToClose);
+		}
+	}
+
+	protected void closeAll(Collection<SocketChannel> channels) {
+		for (SocketChannel channel : channels) {
+			try {
+				channel.close();
+			} catch (Exception ignored) {
+			}
+		}
+		channels.clear();
 	}
 
 	// --- WRITE TO SOCKET ---
 
-	protected final HashMap<TcpEndpoint, SocketChannel> channels = new HashMap<>();
-
-	protected final HashMap<SocketChannel, LinkedList<ByteBuffer>> newChannels = new HashMap<>();
-
-	protected final HashSet<SelectionKey> writableKeys = new HashSet<>();
-	
 	@SuppressWarnings("unchecked")
-	public void send(TcpEndpoint endpoint, byte[] packet) throws Exception {
+	public void send(TcpEndpoint endpoint, byte[] packet) {
+		try {
 
-		// TODO Synchronze buffers, newChannels
-		
-		// Get channel and append packet to selection key
-		SocketChannel channel = channels.get(endpoint);
-		if (channel == null) {
-			
-			InetSocketAddress address = new InetSocketAddress(endpoint.host, endpoint.port);
-			SocketChannel client = SocketChannel.open(address);
-			client.configureBlocking(false);
-			channels.put(endpoint, client);
-			
-			LinkedList<ByteBuffer> buffers = new LinkedList<>();
-			buffers.addLast(ByteBuffer.wrap(packet));
-			newChannels.put(client, buffers);			
-			selector.wakeup();
-			
-		} else {
-			
-			SelectionKey key = channel.keyFor(selector);
-			if (key == null) {
+			// Get channel and append packet to selection key
+			SelectionKey key = null;
+			SocketChannel channel;
+			if (maxConnections == 0) {
+
+				// Keep-alive disabled
+				channel = null;
+			} else {
+
+				// Keep-alive enabled
+				synchronized (channels) {
+					channel = channels.get(endpoint);
+					if (channel != null) {
+						key = channel.keyFor(selector);
+						if (key == null) {
+							channels.remove(endpoint);
+						}
+					}
+				}
+			}
+
+			// Create new socket
+			if (channel == null || key == null) {
+				LinkedList<ByteBuffer> buffers = new LinkedList<>();
+				buffers.addLast(ByteBuffer.wrap(packet));
+
+				InetSocketAddress address = new InetSocketAddress(endpoint.host, endpoint.port);
+				SocketChannel client = SocketChannel.open(address);
+				client.configureBlocking(false);
+
+				// Register channel
+				if (maxConnections != 0) {
+					SocketChannel previous;
+					synchronized (channels) {
+						previous = channels.put(endpoint, client);
+
+					}
+					if (previous != null) {
+						synchronized (channelsToClose) {
+							channelsToClose.add(previous);
+						}
+					}
+
+					// Close an empty, unused channel
+					if (maxConnections != -1 && channels.size() > maxConnections) {
+						Iterator<SocketChannel> opened = channels.values().iterator();
+						while (opened.hasNext()) {
+							SocketChannel testChannel = opened.next();
+							synchronized (newChannels) {
+								if (newChannels.containsKey(testChannel)) {
+									continue;
+								}
+							}
+							if (testChannel == client) {
+								continue;
+							}
+							SelectionKey testKey = testChannel.keyFor(selector);
+							if (testKey != null) {
+								LinkedList<ByteBuffer> list = (LinkedList<ByteBuffer>) key.attachment();
+								boolean empty;
+								synchronized (list) {
+									empty = list.isEmpty();
+								}
+								if (empty) {
+									opened.remove();
+									close(testChannel);
+									break;
+								}
+							}
+						}
+					}
+				}
+				synchronized (newChannels) {
+					newChannels.put(client, buffers);
+				}
+				hasNewChannels.set(true);
+				selector.wakeup();
+
 				return;
 			}
+
+			// Send data
 			LinkedList<ByteBuffer> buffers = (LinkedList<ByteBuffer>) key.attachment();
-			if (buffers == null) {
-				buffers = new LinkedList<>();
-				key.attach(buffers);
+			ByteBuffer buffer = ByteBuffer.wrap(packet);
+			synchronized (buffers) {
+				buffers.addLast(buffer);
 			}
-			buffers.addLast(ByteBuffer.wrap(packet));
-			
-			writableKeys.add(key);
+			synchronized (writableKeys) {
+				writableKeys.add(key);
+			}
+			hasWritableKeys.set(true);
 			selector.wakeup();
-			
+
+		} catch (Exception cause) {
+			transporter.handlePostError(packet, cause);
 		}
 	}
 
@@ -181,7 +255,11 @@ public class TcpWriter implements Runnable {
 	public void run() {
 
 		// Variables
+		LinkedList<ByteBuffer> buffers;
 		Iterator<SelectionKey> keys;
+		ByteBuffer buffer = null;
+		SocketChannel channel;
+		boolean remove, empty;
 		SelectionKey key;
 		int n;
 
@@ -193,69 +271,130 @@ public class TcpWriter implements Runnable {
 					continue;
 				}
 				n = selector.select();
-				
-				// TODO Synchronze newChannels
-				
-				if (!newChannels.isEmpty()) {
-					for (Map.Entry<SocketChannel, LinkedList<ByteBuffer>> entry: newChannels.entrySet()) {
-						SocketChannel channel = entry.getKey();						
-						channel.register(selector, SelectionKey.OP_WRITE, entry.getValue());
+
+				// Register new channels
+				if (hasNewChannels.compareAndSet(true, false)) {
+					synchronized (newChannels) {
+						for (Map.Entry<SocketChannel, LinkedList<ByteBuffer>> entry : newChannels.entrySet()) {
+							entry.getKey().register(selector, SelectionKey.OP_WRITE, entry.getValue());
+						}
+						newChannels.clear();
 					}
-					newChannels.clear();
 				}
-				if (!writableKeys.isEmpty()) {
-					for (SelectionKey k: writableKeys) {
-						k.interestOps(SelectionKey.OP_WRITE);
+
+				// Set key status
+				if (hasWritableKeys.compareAndSet(true, false)) {
+					synchronized (writableKeys) {
+						for (SelectionKey writableKey : writableKeys) {
+							writableKey.interestOps(SelectionKey.OP_WRITE);
+						}
+						writableKeys.clear();
 					}
-					writableKeys.clear();
 				}
-				
+
+				// Has keys?
+				if (n < 1) {
+					continue;
+				}
+
 			} catch (NullPointerException nullPointer) {
 				continue;
 			} catch (Exception anyError) {
 				break;
 			}
-			if (n != 0) {
-				keys = selector.selectedKeys().iterator();
-				while (keys.hasNext()) {
-					key = keys.next();
-					if (key == null) {
-						continue;
-					}
-					if (key.isValid() && key.isWritable()) {
 
-						// Write data
-						try {
-							
-							// TODO Synchronze buffers
-							
-							LinkedList<ByteBuffer> buffers = (LinkedList<ByteBuffer>) key.attachment();
-							if (buffers == null || buffers.isEmpty()) {
-								key.interestOps(0);
-								key.attach(null);
-								keys.remove();
-								continue;
-							}
-							ByteBuffer buffer = buffers.getFirst();
-							if (buffer.hasRemaining()) {
-								SocketChannel client = (SocketChannel) key.channel();
-								client.write(buffer);
-								if (!buffer.hasRemaining()) {
-									buffers.removeFirst();	
-								}
-							} else {
+			// Loop on keys
+			keys = selector.selectedKeys().iterator();
+			while (keys.hasNext()) {
+				key = keys.next();
+				if (key == null) {
+					continue;
+				}
+				if (key.isValid() && key.isWritable()) {
+
+					// Write data
+					try {
+						buffers = (LinkedList<ByteBuffer>) key.attachment();
+						synchronized (buffers) {
+							empty = buffers.isEmpty();
+						}
+						if (empty) {
+							switchToIdle(key);
+							keys.remove();
+							continue;
+						}
+						buffer = buffers.getFirst();
+						if (buffer.hasRemaining()) {
+							channel = (SocketChannel) key.channel();
+							channel.write(buffer);
+							remove = !buffer.hasRemaining();
+						} else {
+							remove = true;
+						}
+						if (remove) {
+							synchronized (buffers) {
 								buffers.removeFirst();
+								empty = buffers.isEmpty();
 							}
-							
-						} catch (Exception cause) {
-							cause.printStackTrace();
-							try {
-								key.channel().close();
-							} catch (Exception ignored) {
+							if (empty) {
+								switchToIdle(key);
 							}
 						}
+					} catch (Exception cause) {
+						if (buffer != null) {
+							transporter.handlePostError(buffer.array(), cause);
+						}
+						close(key);
+					} finally {
+						buffer = null;
 					}
-					keys.remove();
+				}
+				keys.remove();
+			}
+		}
+	}
+
+	protected void switchToIdle(SelectionKey key) {
+		key.interestOps(0);
+		SelectableChannel channel = key.channel();
+		if (channel != null) {
+			if (maxConnections == 0) {
+
+				// Keep-alive disabled
+				close(channel);
+			} else {
+
+				// Keep-alive enabled
+				boolean close;
+				synchronized (channelsToClose) {
+					close = channelsToClose.remove(channel);
+				}
+				if (close) {
+					close(channel);
+				}
+			}
+		}
+	}
+
+	protected void close(SelectionKey key) {
+		if (key != null) {
+			close(key.channel());
+		}
+	}
+
+	protected void close(SelectableChannel channel) {
+		if (channel != null) {
+			try {
+				channel.close();
+			} catch (Exception ignored) {
+			}
+			synchronized (channels) {
+				Iterator<SocketChannel> i = channels.values().iterator();
+				while (i.hasNext()) {
+					if (channel == i.next()) {
+						i.remove();
+						break;
+					}
 				}
 			}
 		}

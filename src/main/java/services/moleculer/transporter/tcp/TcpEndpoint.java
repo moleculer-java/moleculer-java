@@ -80,7 +80,13 @@ public class TcpEndpoint {
 	// --- MARK AS OFFLINE ---
 
 	public void markAsOffline() {
-		cpu.set(-1);
+		long update = System.currentTimeMillis();
+		long current = when.get();
+		if (update > current) {
+			if (when.compareAndSet(current, update)) {
+				cpu.set(-1);
+			}
+		}
 	}
 
 	// --- WRITE STATUS ---

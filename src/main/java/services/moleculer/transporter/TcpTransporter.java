@@ -31,8 +31,11 @@
  */
 package services.moleculer.transporter;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Random;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -42,10 +45,10 @@ import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
+import services.moleculer.transporter.tcp.TcpEndpoint;
 import services.moleculer.transporter.tcp.TcpReader;
 import services.moleculer.transporter.tcp.TcpWriter;
 import services.moleculer.util.CheckedTree;
-import services.moleculer.transporter.tcp.TcpEndpoint;
 
 /**
  * TCP Transporter. Now it's just an empty sketch (it doesn't work).
@@ -58,16 +61,13 @@ public class TcpTransporter extends Transporter {
 	protected static final byte PACKET_EVENT_ID = 1;
 	protected static final byte PACKET_REQUEST_ID = 2;
 	protected static final byte PACKET_RESPONSE_ID = 3;
-	protected static final byte PACKET_DISCOVER_ID = 4;
-	protected static final byte PACKET_INFO_ID = 5;
-	protected static final byte PACKET_DISCONNECT_ID = 6;
-	protected static final byte PACKET_PING_ID = 7;
-	protected static final byte PACKET_PONG_ID = 8;
+	protected static final byte PACKET_PING_ID = 4;
+	protected static final byte PACKET_PONG_ID = 5;
 
 	// --- PACKET IDS OF GOSSIPER ---
 
-	protected static final byte PACKET_GOSSIP_REQUEST_ID = 9;
-	protected static final byte PACKET_GOSSIP_RESPONSE_ID = 10;
+	protected static final byte PACKET_GOSSIP_REQUEST_ID = 6;
+	protected static final byte PACKET_GOSSIP_RESPONSE_ID = 7;
 
 	// --- ALL REGISTERED ENDPOINTS ---
 
@@ -86,9 +86,15 @@ public class TcpTransporter extends Transporter {
 	protected int socketTimeout;
 
 	/**
-	 * Gossiping period time, in seconds
+	 * Gossiping period time, in SECONDS
 	 */
-	protected int gossipingSeconds = 1;
+	protected int gossipPeriod = 1;
+
+	/**
+	 * Max number of keep-alive connections (-1 = unlimited, 0 = keep-alive
+	 * disabled, N = number of connections)
+	 */
+	protected int maxKeepAliveConnections = -1;
 
 	// --- CONSTUCTORS ---
 
@@ -119,7 +125,8 @@ public class TcpTransporter extends Transporter {
 		// Process config
 		port = config.get("port", port);
 		socketTimeout = config.get("socketTimeout", socketTimeout);
-		gossipingSeconds = config.get("cleanup", gossipingSeconds);
+		gossipPeriod = config.get("gossipPeriod", gossipPeriod);
+		maxKeepAliveConnections = config.get("maxKeepAliveConnections", maxKeepAliveConnections);
 	}
 
 	// --- CONNECT ---
@@ -153,11 +160,10 @@ public class TcpTransporter extends Transporter {
 			writer.connect();
 
 			// Start gossiper
-			if (gossipingSeconds < 1) {
-				gossipingSeconds = 1;
+			if (gossipPeriod < 1) {
+				gossipPeriod = 1;
 			}
-			timer = scheduler.scheduleWithFixedDelay(this::doGossiping, gossipingSeconds * 2, gossipingSeconds,
-					TimeUnit.SECONDS);
+			timer = scheduler.scheduleWithFixedDelay(this::doGossiping, gossipPeriod, gossipPeriod, TimeUnit.SECONDS);
 
 			// Ok, transporter started
 			logger.info("TCP pub-sub connection estabilished.");
@@ -205,14 +211,6 @@ public class TcpTransporter extends Transporter {
 		scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
 	}
 
-	// --- ANY I/O ERROR ---
-
-	@Override
-	protected void error(Throwable cause) {
-		logger.warn("Unexpected communication error occured!", cause);
-		reconnect();
-	}
-
 	// --- STOP TRANSPORTER ---
 
 	/**
@@ -225,17 +223,131 @@ public class TcpTransporter extends Transporter {
 
 	// --- MESSAGE RECEIVED ---
 
-	public void messageReceived(byte packetID, byte[] packet) {
+	public void received(byte packetID, byte[] packet) {
+		executor.execute(() -> {
 
-		// TODO message received
-		System.out.println("PACKET RECEIVED: " + new String(packet));
+			// Parse message
+			Tree data;
+			try {
+				data = serializer.read(packet);
+			} catch (Exception cause) {
+				logger.warn("Unable to parse incoming message!", cause);
+				return;
+			}
+
+			// Debug
+			if (debug) {
+				logger.info("Message received from channel #" + packetID + ":\r\n" + data.toString());
+			}
+
+			// Send message to proper component
+			try {
+
+				switch (packetID) {
+				case PACKET_EVENT_ID:
+
+					// Incoming event
+					eventbus.receiveEvent(data);
+					return;
+
+				case PACKET_REQUEST_ID:
+
+					// Incoming request
+					registry.receiveRequest(data);
+					return;
+
+				case PACKET_RESPONSE_ID:
+
+					// Incoming response
+					registry.receiveResponse(data);
+					return;
+
+				case PACKET_PING_ID:
+
+					// Not implemented
+					return;
+
+				case PACKET_PONG_ID:
+
+					// Not implemented
+					return;
+
+				case PACKET_GOSSIP_REQUEST_ID:
+
+					// Gossip request
+					return;
+
+				case PACKET_GOSSIP_RESPONSE_ID:
+
+					// Gossip response
+					return;
+
+				default:
+					logger.warn("Unsupported message ID (" + packetID + ")!");
+				}
+
+			} catch (Exception cause) {
+				logger.warn("Unable to process incoming message!", cause);
+			}
+		});
+	}
+
+	// --- CONNECTION ERROR ---
+
+	public void handlePostError(byte[] packet, Throwable error) {
+		if (packet != null && packet.length > 6) {
+			executor.execute(() -> {
+				try {
+
+					// Remove header
+					byte[] copy = new byte[packet.length - 6];
+					System.arraycopy(packet, 6, copy, 0, copy.length);
+
+					// Deserialize packet
+					Tree message = serializer.read(copy);
+
+					// Get request's unique ID
+					String id = message.get("id", (String) null);
+					if (id == null || id.isEmpty()) {
+
+						// Not a request
+						return;
+					}
+
+					// Create response message
+					Tree response = new Tree();
+					response.put("id", id);
+					response.put("ver", ServiceBroker.PROTOCOL_VERSION);
+					response.put("success", false);
+					response.put("data", (String) null);
+					if (error != null) {
+
+						// Add message
+						Tree errorMap = response.putMap("error");
+						errorMap.put("message", error.getMessage());
+
+						// Add trace
+						StringWriter sw = new StringWriter(128);
+						PrintWriter pw = new PrintWriter(sw);
+						error.printStackTrace(pw);
+						errorMap.put("trace", sw.toString());
+					}
+					
+					// Send back to 
+					registry.receiveResponse(response);
+
+				} catch (Exception cause) {
+					logger.warn("Unable to handle error!", cause);
+				}
+			});
+		}
 	}
 
 	// --- SUBSCRIBE (UNUSED) ---
 
 	@Override
 	public Promise subscribe(String channel) {
-		return Promise.resolve();
+		throw new UnsupportedOperationException();
 	}
 
 	// --- PUBLISH ---
@@ -243,6 +355,7 @@ public class TcpTransporter extends Transporter {
 	@Override
 	public void publish(String channel, Tree message) {
 		if (writer != null) {
+			byte[] packet = null;
 			try {
 
 				// Parse channel
@@ -252,15 +365,13 @@ public class TcpTransporter extends Transporter {
 					return;
 				}
 				int e = channel.indexOf('.', s + 1);
-				final String command;
-				final String nodeID;
 				if (e == -1) {
-					command = channel.substring(s + 1);
-					nodeID = null;
-				} else {
-					command = channel.substring(s + 1, e);
-					nodeID = channel.substring(e + 1);
+					logger.warn("Broadcast messaging isn't supported (" + channel + ")!");
+					return;
+
 				}
+				String command = channel.substring(s + 1, e);
+				String nodeID = channel.substring(e + 1);
 
 				// Switch by packet type
 				byte packetID;
@@ -274,62 +385,34 @@ public class TcpTransporter extends Transporter {
 				case PACKET_RESPONSE:
 					packetID = PACKET_RESPONSE_ID;
 					break;
-				case PACKET_DISCOVER:
-					packetID = PACKET_DISCOVER_ID;
-					break;
-				case PACKET_INFO:
-					packetID = PACKET_INFO_ID;
-					break;
-				case PACKET_DISCONNECT:
-					packetID = PACKET_DISCONNECT_ID;
-					break;
 				case PACKET_PING:
 					packetID = PACKET_PING_ID;
 					break;
 				case PACKET_PONG:
 					packetID = PACKET_PONG_ID;
 					break;
-				case PACKET_HEARTBEAT:
-
-					// Not used in TCP transporter
-					logger.warn("Unsupported command (" + command + ")!");
-					return;
-
 				default:
-					logger.warn("Invalid command (" + command + ")!");
+					logger.warn("Unsupported command (" + command + ")!");
 					return;
 				}
 
 				// Create data packet to send
-				byte[] packet = serialize(packetID, message);
+				packet = serialize(packetID, message);
 
-				// Send packet...
-				if (nodeID == null) {
-
-					// Send to all live endpoints
-					ArrayList<TcpEndpoint> liveEndpoints = getEndpoints(true);
-					for (TcpEndpoint endpoint : liveEndpoints) {
-						writer.send(endpoint, packet);
-					}
-
-				} else {
-
-					// Send packet to one endpoint
-					TcpEndpoint endpoint;
-					synchronized (endpoints) {
-						endpoint = endpoints.get(nodeID);
-					}
-					if (endpoint == null) {
-						logger.warn("Unknown node ID (" + nodeID + ")!");
-						return;
-					}
-					writer.send(endpoint, packet);
-
+				// Send packet to endpoint
+				TcpEndpoint endpoint;
+				synchronized (endpoints) {
+					endpoint = endpoints.get(nodeID);
 				}
+				if (endpoint == null) {
+					logger.warn("Unknown node ID (" + nodeID + ")!");
+					return;
+				}
+				writer.send(endpoint, packet);
 
 			} catch (Exception cause) {
 				logger.warn("Unable to send message!", cause);
-				reconnect();
+				handlePostError(packet, cause);
 			}
 		}
 	}
@@ -381,13 +464,32 @@ public class TcpTransporter extends Transporter {
 		// TODO TEST
 		TcpEndpoint endpoint = new TcpEndpoint("server-2", "127.0.0.1", 7328);
 		try {
-			byte[] packet = serialize(PACKET_EVENT_ID, new CheckedTree("hello"));
-			System.out.println("SEND: " + new String(packet));
-			writer.send(endpoint, packet);
+			l++;
+			if (l == 5) {
+				System.out.println("--------------");
+				//reader.disconnect();
+				Thread.sleep(1000);
+			}
+			for (int i = 0; i < 1; i++) {
+				
+				LinkedHashMap<String, Object> map = new LinkedHashMap<String, Object>();
+				map.put("ver", ServiceBroker.PROTOCOL_VERSION);
+				map.put("sender", nodeID);
+				map.put("event", "foo.*");
+				map.put("broadcast", true);
+				map.put("data", "test");
+				
+				byte[] packet = serialize(PACKET_EVENT_ID, new CheckedTree(map));
+				System.out.println("SEND: " + new String(packet));
+				writer.send(endpoint, packet);
+				Thread.sleep(1000000);
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
+
+	int l = 0;
 
 	protected void sendGossipToRandomEndpoint(ArrayList<TcpEndpoint> endpoints, ArrayList<TcpEndpoint> rest) {
 		int size = endpoints.size();
@@ -476,12 +578,20 @@ public class TcpTransporter extends Transporter {
 		this.socketTimeout = timeout;
 	}
 
-	public int getGossipingSeconds() {
-		return gossipingSeconds;
+	public int getGossipPeriod() {
+		return gossipPeriod;
 	}
 
-	public void setGossipingSeconds(int gossipingSeconds) {
-		this.gossipingSeconds = gossipingSeconds;
+	public void setGossipPeriod(int gossipPeriod) {
+		this.gossipPeriod = gossipPeriod;
+	}
+
+	public int getMaxKeepAliveConnections() {
+		return maxKeepAliveConnections;
+	}
+
+	public void setMaxKeepAliveConnections(int maxKeepAliveConnections) {
+		this.maxKeepAliveConnections = maxKeepAliveConnections;
 	}
 
 }

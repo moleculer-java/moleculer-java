@@ -466,7 +466,7 @@ public abstract class Transporter implements MoleculerComponent {
 					return;
 				}
 
-				// Invoming event
+				// Incoming event
 				if (channel.equals(eventChannel)) {
 					eventbus.receiveEvent(data);
 					return;
