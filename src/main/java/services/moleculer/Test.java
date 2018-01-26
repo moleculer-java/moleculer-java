@@ -42,7 +42,6 @@ import services.moleculer.monitor.SigarMonitor;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
 import services.moleculer.transporter.TcpTransporter;
-import services.moleculer.transporter.Transporter;
 
 public class Test {
 
@@ -53,10 +52,10 @@ public class Test {
 		System.setProperty("java.library.path", nativeDir);
 
 		// Define transporter
-		Transporter transporter = new TcpTransporter();
+		TcpTransporter transporter = new TcpTransporter();
 		// KafkaTransporter transporter = new KafkaTransporter();
-		// transporter.setUrls(new String[] { "192.168.51.29:9092" });
-		//transporter.setDebug(true);
+		transporter.setUrls(new String[] { "tcp://127.0.0.1:9092/node-2" });
+		transporter.setDebug(true);
 		// Transporter transporter = null;
 
 		// Define cacher

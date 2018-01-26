@@ -34,21 +34,21 @@ package services.moleculer.transporter;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
-import services.moleculer.transporter.tcp.TcpEndpoint;
+import services.moleculer.transporter.tcp.KeyAttachment;
 import services.moleculer.transporter.tcp.TcpReader;
 import services.moleculer.transporter.tcp.TcpWriter;
-import services.moleculer.util.CheckedTree;
 
 /**
  * TCP Transporter. Now it's just an empty sketch (it doesn't work).
@@ -56,22 +56,14 @@ import services.moleculer.util.CheckedTree;
 @Name("TCP Transporter")
 public class TcpTransporter extends Transporter {
 
-	// --- STANDARD PACKET IDS ---
+	// --- PACKET IDS ---
 
 	protected static final byte PACKET_EVENT_ID = 1;
 	protected static final byte PACKET_REQUEST_ID = 2;
 	protected static final byte PACKET_RESPONSE_ID = 3;
 	protected static final byte PACKET_PING_ID = 4;
 	protected static final byte PACKET_PONG_ID = 5;
-
-	// --- PACKET IDS OF GOSSIPER ---
-
-	protected static final byte PACKET_GOSSIP_REQUEST_ID = 6;
-	protected static final byte PACKET_GOSSIP_RESPONSE_ID = 7;
-
-	// --- ALL REGISTERED ENDPOINTS ---
-
-	protected final HashMap<String, TcpEndpoint> endpoints = new HashMap<>();
+	protected static final byte PACKET_GOSSIP_ID = 6;
 
 	// --- PROPERTIES ---
 
@@ -79,11 +71,6 @@ public class TcpTransporter extends Transporter {
 	 * TCP port.
 	 */
 	protected int port = 7328;
-
-	/**
-	 * Socket socketTimeout, in milliseconds (0 = no timeout).
-	 */
-	protected int socketTimeout;
 
 	/**
 	 * Gossiping period time, in SECONDS
@@ -96,6 +83,12 @@ public class TcpTransporter extends Transporter {
 	 */
 	protected int maxKeepAliveConnections = -1;
 
+	/**
+	 * List of URLs ("tcp://host:port/nodeID" or "host:port/nodeID" or
+	 * "host/nodeID")
+	 */
+	protected String[] urls;
+
 	// --- CONSTUCTORS ---
 
 	public TcpTransporter() {
@@ -104,6 +97,11 @@ public class TcpTransporter extends Transporter {
 
 	public TcpTransporter(String prefix) {
 		super(prefix);
+	}
+
+	public TcpTransporter(String prefix, String... urls) {
+		super(prefix);
+		this.urls = urls;
 	}
 
 	// --- START TRANSPORTER ---
@@ -123,8 +121,24 @@ public class TcpTransporter extends Transporter {
 		super.start(broker, config);
 
 		// Process config
+		Tree urlNode = config.get("url");
+		if (urlNode != null) {
+			List<String> urlList;
+			if (urlNode.isPrimitive()) {
+				urlList = new LinkedList<>();
+				String url = urlNode.asString().trim();
+				if (!url.isEmpty()) {
+					urlList.add(url);
+				}
+			} else {
+				urlList = urlNode.asList(String.class);
+			}
+			if (!urlList.isEmpty()) {
+				urls = new String[urlList.size()];
+				urlList.toArray(urls);
+			}
+		}
 		port = config.get("port", port);
-		socketTimeout = config.get("socketTimeout", socketTimeout);
 		gossipPeriod = config.get("gossipPeriod", gossipPeriod);
 		maxKeepAliveConnections = config.get("maxKeepAliveConnections", maxKeepAliveConnections);
 	}
@@ -159,6 +173,31 @@ public class TcpTransporter extends Transporter {
 			reader.connect();
 			writer.connect();
 
+			// Add URLs
+			if (urls != null) {
+				for (String url : urls) {
+					int i = url.indexOf("://");
+					if (i > -1 && i < url.length() - 4) {
+						url = url.substring(i + 3);
+					}
+					url = url.replace('/', ':');
+					String[] parts = url.split(":");
+					if (parts.length < 2) {
+						logger.warn("Invalid URL format (" + url + ")!");
+						continue;
+					}
+					String targetNodeID = parts[2];
+					if (targetNodeID.equals(nodeID)) {
+						continue;
+					}
+					if (parts.length == 3) {
+						setOfflineNode(targetNodeID, parts[0], Integer.parseInt(parts[1]));
+					} else if (parts.length == 2) {
+						setOfflineNode(targetNodeID, parts[0], port);
+					} 
+				}
+			}
+			
 			// Start gossiper
 			if (gossipPeriod < 1) {
 				gossipPeriod = 1;
@@ -272,14 +311,60 @@ public class TcpTransporter extends Transporter {
 					// Not implemented
 					return;
 
-				case PACKET_GOSSIP_REQUEST_ID:
+				case PACKET_GOSSIP_ID:
 
-					// Gossip request
-					return;
+					// Gossip packet
+					for (Tree info : data.get("nodes")) {
+						String sender = info.get("sender", (String) null);
+						if (nodeID.equals(sender)) {
+							continue;
+						}
+						boolean offline = info.get("offline") != null;
+						if (offline) {
 
-				case PACKET_GOSSIP_RESPONSE_ID:
+							// Node is offline?
+							Tree current = nodeInfos.get(sender);
+							if (current == null || current.get("offline") != null) {
 
-					// Gossip response
+								// Allready offline
+								return;
+							}
+
+							// Check "when" flag
+							long previousWhen = current.get("when", 0L);
+							long currentWhen = info.get("when", Long.MAX_VALUE);
+							if (previousWhen <= currentWhen) {
+
+								// Not changed
+								return;
+							}
+							logger.info("Node \"" + sender + "\" disconnected.");
+
+							// Remove CPU usage and last heartbeat time
+							nodeActivities.remove(sender);
+
+							// Remove remote actions
+							registry.removeActions(sender);
+
+							// Remove remote event listeners
+							eventbus.removeListeners(sender);
+
+							// Notify listeners (not unexpected disconnection)
+							broadcastNodeDisconnected(info, false);
+
+							// Remove from activities
+							nodeActivities.remove(sender);
+
+						} else {
+
+							// Store in activities
+							nodeActivities.put(sender,
+									new NodeActivity(System.currentTimeMillis(), info.get("cpu", 0)));
+
+							// Register services and listeners
+							registerOrUpdateNode(sender, info);
+						}
+					}
 					return;
 
 				default:
@@ -294,48 +379,56 @@ public class TcpTransporter extends Transporter {
 
 	// --- CONNECTION ERROR ---
 
-	public void handlePostError(byte[] packet, Throwable error) {
-		if (packet != null && packet.length > 6) {
+	public void unableToSend(KeyAttachment attachment, Throwable error) {
+		if (attachment != null) {
 			executor.execute(() -> {
 				try {
 
+					// Mark endpoint as offline
+					nodeActivities.remove(attachment.nodeID);
+
+					// Add a nodeInfo entry
+					setOfflineNode(attachment.nodeID, attachment.host, attachment.port);
+
 					// Remove header
-					byte[] copy = new byte[packet.length - 6];
-					System.arraycopy(packet, 6, copy, 0, copy.length);
+					byte[] packet = attachment.getCurrentPacket();
+					if (packet != null && packet.length > 6) {
+						byte[] copy = new byte[packet.length - 6];
+						System.arraycopy(packet, 6, copy, 0, copy.length);
 
-					// Deserialize packet
-					Tree message = serializer.read(copy);
+						// Deserialize packet
+						Tree message = serializer.read(copy);
 
-					// Get request's unique ID
-					String id = message.get("id", (String) null);
-					if (id == null || id.isEmpty()) {
+						// Get request's unique ID
+						String id = message.get("id", (String) null);
+						if (id == null || id.isEmpty()) {
 
-						// Not a request
-						return;
+							// Not a request
+							return;
+						}
+
+						// Create response message
+						Tree response = new Tree();
+						response.put("id", id);
+						response.put("ver", ServiceBroker.PROTOCOL_VERSION);
+						response.put("success", false);
+						response.put("data", (String) null);
+						if (error != null) {
+
+							// Add message
+							Tree errorMap = response.putMap("error");
+							errorMap.put("message", error.getMessage());
+
+							// Add trace
+							StringWriter sw = new StringWriter(128);
+							PrintWriter pw = new PrintWriter(sw);
+							error.printStackTrace(pw);
+							errorMap.put("trace", sw.toString());
+						}
+
+						// Send error response back to the source
+						registry.receiveResponse(response);
 					}
-
-					// Create response message
-					Tree response = new Tree();
-					response.put("id", id);
-					response.put("ver", ServiceBroker.PROTOCOL_VERSION);
-					response.put("success", false);
-					response.put("data", (String) null);
-					if (error != null) {
-
-						// Add message
-						Tree errorMap = response.putMap("error");
-						errorMap.put("message", error.getMessage());
-
-						// Add trace
-						StringWriter sw = new StringWriter(128);
-						PrintWriter pw = new PrintWriter(sw);
-						error.printStackTrace(pw);
-						errorMap.put("trace", sw.toString());
-					}
-					
-					// Send back to 
-					registry.receiveResponse(response);
-
 				} catch (Exception cause) {
 					logger.warn("Unable to handle error!", cause);
 				}
@@ -343,6 +436,20 @@ public class TcpTransporter extends Transporter {
 		}
 	}
 
+	protected void setOfflineNode(String nodeID, String host, int port) {
+		Tree info = nodeInfos.get(nodeID);
+		if (info == null) {
+			info = new Tree();
+			info.put("sender", nodeID);
+			info.putObject("ipList", Collections.singletonList(host));
+			info.put("port", port);
+		}
+		long now = System.currentTimeMillis();
+		info.put("when", now);
+		info.putObject("offline", now, true);
+		nodeInfos.put(nodeID, info);
+	}
+	
 	// --- SUBSCRIBE (UNUSED) ---
 
 	@Override
@@ -400,19 +507,15 @@ public class TcpTransporter extends Transporter {
 				packet = serialize(packetID, message);
 
 				// Send packet to endpoint
-				TcpEndpoint endpoint;
-				synchronized (endpoints) {
-					endpoint = endpoints.get(nodeID);
-				}
-				if (endpoint == null) {
+				Tree info = nodeInfos.get(nodeID);
+				if (info == null) {
 					logger.warn("Unknown node ID (" + nodeID + ")!");
 					return;
 				}
-				writer.send(endpoint, packet);
+				writer.send(nodeID, info, packet);
 
 			} catch (Exception cause) {
 				logger.warn("Unable to send message!", cause);
-				handlePostError(packet, cause);
 			}
 		}
 	}
@@ -430,152 +533,104 @@ public class TcpTransporter extends Transporter {
 		return packet;
 	}
 
-	// --- GOSSIPING (SINGLE THREAD) ---
+	// --- GOSSIPING ---
 
 	protected Random rnd = new Random();
 
 	protected void doGossiping() {
-
-		// Get live / unreachable endpoints
-		ArrayList<TcpEndpoint> liveEndpoints = getEndpoints(true);
-		ArrayList<TcpEndpoint> unreachableEndpoints = getEndpoints(false);
-
-		// Do gossiping with a live endpoint
-		sendGossipToRandomEndpoint(liveEndpoints, unreachableEndpoints);
-
-		// Do gossiping with a unreachable endpoint
-		int unreachableEndpointCount = unreachableEndpoints.size();
-		if (unreachableEndpointCount > 0) {
-
-			// 10 nodes:
-			// 1 dead / (9 live + 1) = 0.10
-			// 5 dead / (5 live + 1) = 0.83
-			// 9 dead / (1 live + 1) = 4.50
-			double ratio = unreachableEndpointCount / (liveEndpoints.size() + 1);
-
-			// Random number between 0.0 and 1.0
-			double random = rnd.nextDouble();
-			if (random < ratio) {
-				sendGossipToRandomEndpoint(unreachableEndpoints, liveEndpoints);
-			}
-
-		}
-
-		// TODO TEST
-		TcpEndpoint endpoint = new TcpEndpoint("server-2", "127.0.0.1", 7328);
 		try {
-			l++;
-			if (l == 5) {
-				System.out.println("--------------");
-				//reader.disconnect();
-				Thread.sleep(1000);
+
+			// Create gossip message
+			Collection<Tree> values = nodeInfos.values();
+			int size = values.size();
+			if (size == 0) {
+				return;
 			}
-			for (int i = 0; i < 1; i++) {
-				
-				LinkedHashMap<String, Object> map = new LinkedHashMap<String, Object>();
-				map.put("ver", ServiceBroker.PROTOCOL_VERSION);
-				map.put("sender", nodeID);
-				map.put("event", "foo.*");
-				map.put("broadcast", true);
-				map.put("data", "test");
-				
-				byte[] packet = serialize(PACKET_EVENT_ID, new CheckedTree(map));
-				System.out.println("SEND: " + new String(packet));
-				writer.send(endpoint, packet);
-				Thread.sleep(1000000);
+			Tree root = new Tree();
+			root.put("ver", ServiceBroker.PROTOCOL_VERSION);
+			root.put("sender", nodeID);
+			Tree nodes = root.putList("nodes");
+
+			// Add current node to message
+			nodes.addObject(registry.generateDescriptor());
+
+			// Add node infos to message
+			ArrayList<Tree> liveEndpoints = new ArrayList<>(size);
+			ArrayList<Tree> unreachableEndpoints = new ArrayList<>(size);
+			for (Tree info : nodeInfos.values()) {
+				if (info.get("offline", 0L) > 0) {
+					unreachableEndpoints.add(info);
+				} else {
+					liveEndpoints.add(info);
+				}
+				nodes.addObject(info);
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	int l = 0;
-
-	protected void sendGossipToRandomEndpoint(ArrayList<TcpEndpoint> endpoints, ArrayList<TcpEndpoint> rest) {
-		int size = endpoints.size();
-		if (size < 1) {
-			return;
-		}
-
-		// Create message
-		Tree message = new Tree();
-		Tree nodes = message.putList("nodes");
-		for (TcpEndpoint endpoint : endpoints) {
-			endpoint.writeStatus(nodes.addMap());
-		}
-		for (TcpEndpoint endpoint : rest) {
-			endpoint.writeStatus(nodes.addMap());
-		}
-
-		// Choose random endpoint
-		int index = rnd.nextInt(size);
-		TcpEndpoint endpoint = endpoints.get(index);
-
-		// Create data packet to send
-		try {
+			int liveEndpointCount = liveEndpoints.size();
+			int unreachableEndpointCount = unreachableEndpoints.size();
 
 			// Create gossip packet
-			byte[] packet = serialize(PACKET_GOSSIP_REQUEST_ID, message);
+			byte[] packet = serialize(PACKET_GOSSIP_ID, root);
 
-			// Send gossip request to node
-			writer.send(endpoint, packet);
+			// Do gossiping with a live endpoint
+			if (liveEndpointCount > 1) {
+				sendGossipToRandomEndpoint(liveEndpoints, liveEndpointCount, packet);
+			}
 
+			// Do gossiping with a unreachable endpoint
+			if (unreachableEndpointCount > 0) {
+
+				// 10 nodes:
+				// 1 dead / (9 live + 1) = 0.10
+				// 5 dead / (5 live + 1) = 0.83
+				// 9 dead / (1 live + 1) = 4.50
+				double ratio = unreachableEndpointCount / (liveEndpointCount + 1);
+
+				// Random number between 0.0 and 1.0
+				double random = rnd.nextDouble();
+				if (random < ratio) {
+					sendGossipToRandomEndpoint(unreachableEndpoints, unreachableEndpointCount, packet);
+				}
+			}
 		} catch (Exception cause) {
-			logger.error("Unable to serialize data!", cause);
+			logger.error("Unable to send gossip message to peer!", cause);
 		}
 	}
 
-	// --- ENDPOINT CACHE (MULTI-THREAD) ---
+	protected void sendGossipToRandomEndpoint(ArrayList<Tree> endpoints, int size, byte[] packet) {
+		for (int i = 0; i < size; i++) {
 
-	protected final AtomicReference<ArrayList<TcpEndpoint>> cachedLiveEndpoints = new AtomicReference<>();
-	protected final AtomicReference<ArrayList<TcpEndpoint>> cachedUnreachableEndpoints = new AtomicReference<>();
+			// Choose random endpoint
+			int index = rnd.nextInt(size);
+			Tree info = endpoints.get(index);
 
-	protected ArrayList<TcpEndpoint> getEndpoints(boolean live) {
-		synchronized (endpoints) {
-			ArrayList<TcpEndpoint> result;
-			if (live) {
-				result = cachedLiveEndpoints.get();
-			} else {
-				result = cachedUnreachableEndpoints.get();
+			// Send data
+			String targetNodeID = info.get("sender", (String) null);
+			if (nodeID.equals(targetNodeID)) {
+				continue;
 			}
-			if (result != null) {
-				return result;
-			}
-			int size = endpoints.size();
-			ArrayList<TcpEndpoint> liveEndpoints = new ArrayList<>(size);
-			ArrayList<TcpEndpoint> unreachableEndpoints = new ArrayList<>(size);
-			for (TcpEndpoint endpoint : endpoints.values()) {
-				if (endpoint.isOnline()) {
-					liveEndpoints.add(endpoint);
-				} else {
-					unreachableEndpoints.add(endpoint);
-				}
-			}
-			cachedLiveEndpoints.set(liveEndpoints);
-			cachedUnreachableEndpoints.set(unreachableEndpoints);
-			if (live) {
-				return liveEndpoints;
-			}
-			return unreachableEndpoints;
+
+			// Send gossip message to node
+			writer.send(targetNodeID, info, packet);
+			break;
 		}
 	}
 
 	// --- GETTERS AND SETTERS ---
 
+	public String[] getUrls() {
+		return urls;
+	}
+
+	public void setUrls(String[] urls) {
+		this.urls = urls;
+	}
+	
 	public int getPort() {
 		return port;
 	}
 
 	public void setPort(int port) {
 		this.port = port;
-	}
-
-	public int getSocketTimeout() {
-		return socketTimeout;
-	}
-
-	public void setSocketTimeout(int timeout) {
-		this.socketTimeout = timeout;
 	}
 
 	public int getGossipPeriod() {

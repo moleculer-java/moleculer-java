@@ -98,14 +98,14 @@ public final class ServiceBrokerSettings {
 	private String namespace = "";
 	private String nodeID;
 	private boolean internalServices = true;
-	
+
 	// --- COMPONENT REGISTRY (STANDALONE/SPRING/GUICE) ---
-	
+
 	private ComponentRegistry components = new StandaloneComponentRegistry();
 	private Tree config = new Tree();
 
 	// --- INTERNAL COMPONENTS ---
-	
+
 	private ContextFactory context = new DefaultContextFactory();
 	private ServiceRegistry registry = new DefaultServiceRegistry();
 	private EventBus eventbus = new DefaultEventBus();
@@ -125,7 +125,7 @@ public final class ServiceBrokerSettings {
 	static {
 		try {
 			if (!TreeReaderRegistry.isAvailable("js")) {
-				TreeReaderRegistry.setReader("js", new JSReader());				
+				TreeReaderRegistry.setReader("js", new JSReader());
 			}
 		} catch (Exception ignored) {
 		}
@@ -144,9 +144,9 @@ public final class ServiceBrokerSettings {
 			nodeID = "node" + System.currentTimeMillis();
 		}
 
-		// Create thread pools
+		// Create default thread pools
 		executor = ForkJoinPool.commonPool();
-		scheduler = Executors.newSingleThreadScheduledExecutor();
+		scheduler = Executors.newScheduledThreadPool(ForkJoinPool.commonPool().getParallelism());
 
 		// Set the default System Monitor
 		monitor = tryToLoadMonitor("Sigar");
@@ -222,8 +222,8 @@ public final class ServiceBrokerSettings {
 		// TODO Set base proeprties
 		setNamespace(config.get("namespace", namespace));
 		setNodeID(config.get("nodeID", nodeID));
-		
-		internalServices = config.get("internalServices" , internalServices);
+
+		internalServices = config.get("internalServices", internalServices);
 
 		// Create executor
 		String value = config.get(EXECUTOR_ID + '.' + "type", "");
@@ -409,7 +409,7 @@ public final class ServiceBrokerSettings {
 	public final void setRepl(Repl repl) {
 		this.repl = repl;
 	}
-	
+
 	public final boolean isInternalServices() {
 		return internalServices;
 	}

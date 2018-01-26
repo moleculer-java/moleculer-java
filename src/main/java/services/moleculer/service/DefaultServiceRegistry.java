@@ -215,6 +215,10 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			stopAllLocalServices();
 
 		} finally {
+			
+			// Clear cache
+			cachedDescriptor.set(null);
+
 			writeLock.unlock();
 		}
 	}
@@ -574,6 +578,10 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			broadcastServicesChanged(true);
 
 		} finally {
+			
+			// Clear cache
+			cachedDescriptor.set(null);
+
 			writeLock.unlock();
 		}
 	}
@@ -609,6 +617,10 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 					actionStrategy.addEndpoint(endpoint);
 				}
 			} finally {
+				
+				// Clear cache
+				cachedDescriptor.set(null);
+
 				writeLock.unlock();
 			}
 
@@ -648,6 +660,10 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 				broadcastServicesChanged(false);
 			}
 		} finally {
+
+			// Clear cache
+			cachedDescriptor.set(null);
+
 			writeLock.unlock();
 		}
 	}
@@ -704,9 +720,15 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
+	protected AtomicReference<Tree> cachedDescriptor = new AtomicReference<>();
+	
 	@Override
 	public Tree generateDescriptor() {
-		Tree root = new Tree();
+		Tree root = cachedDescriptor.get();
+		if (root != null) {
+			return root.clone();
+		}
+		root = new Tree();
 
 		// Protocol version
 		root.put("ver", ServiceBroker.PROTOCOL_VERSION);
@@ -715,6 +737,9 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		String nodeID = broker.nodeID();
 		root.put("sender", nodeID);
 
+		// Generated at
+		root.put("when", System.currentTimeMillis());
+		
 		// Services array
 		Tree services = root.putList("services");
 		Tree servicesMap = new Tree();
@@ -738,8 +763,10 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 				serviceMap.put("name", service);
 
 				// Not used
-				serviceMap.putMap("settings");
-				serviceMap.putMap("metadata");
+				// serviceMap.putMap("settings");
+				// serviceMap.putMap("metadata");
+				
+				// Node ID
 				serviceMap.put("nodeID", nodeID);
 
 				// Action block
@@ -769,7 +796,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 				}
 
 				// Not used
-				actionMap.putMap("params");
+				// actionMap.putMap("params");
 
 			}
 		} finally {
@@ -782,6 +809,12 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		// IP array
 		Tree ipList = root.putList("ipList");
 		try {
+			InetAddress local = InetAddress.getLocalHost();
+			root.put("hostName", local.getHostName());
+			ipList.add(local.getHostAddress());
+		} catch (Exception ignored) {
+		}		
+		try {
 			Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
 			while (e.hasMoreElements()) {
 				NetworkInterface n = (NetworkInterface) e.nextElement();
@@ -789,15 +822,17 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 				while (ee.hasMoreElements()) {
 					InetAddress i = (InetAddress) ee.nextElement();
 					if (!i.isLoopbackAddress()) {
-						ipList.add(i.getHostAddress());
+						String test = i.getHostAddress();
+						Tree same = ipList.find((child) -> {
+							return test.equals(child.asString());
+						});
+						if (same == null) {
+							ipList.add(test);
+						}
 					}
 				}
 			}
-		} catch (Exception ioError) {
-			try {
-				ipList.add(InetAddress.getLocalHost().getHostAddress());
-			} catch (Exception ignored) {
-			}
+		} catch (Exception ignored) {
 		}
 
 		// Client descriptor
@@ -807,9 +842,10 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		client.put("langVersion", System.getProperty("java.version", "1.8"));
 
 		// Config (not used in this version)
-		root.putMap("config");
+		// root.putMap("config");
 
-		return root;
+		cachedDescriptor.set(root);
+		return root.clone();
 	}
 
 	// --- GETTERS / SETTERS ---

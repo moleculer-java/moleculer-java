@@ -32,8 +32,6 @@
 package services.moleculer.transporter.tcp;
 
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
-import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -41,13 +39,14 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.datatree.Tree;
 import services.moleculer.transporter.TcpTransporter;
 
 public class TcpWriter implements Runnable {
@@ -55,10 +54,12 @@ public class TcpWriter implements Runnable {
 	// --- PROPERTIES ---
 
 	protected final TcpTransporter transporter;
-	protected final HashMap<TcpEndpoint, SocketChannel> channels = new HashMap<>();
-	protected final HashMap<SocketChannel, LinkedList<ByteBuffer>> newChannels = new HashMap<>();
+
+	protected final LinkedHashMap<String, SelectionKey> allKeys = new LinkedHashMap<>();
+
+	protected final HashMap<SocketChannel, KeyAttachment> newChannels = new HashMap<>();
 	protected final HashSet<SelectionKey> writableKeys = new HashSet<>();
-	protected final HashSet<SocketChannel> channelsToClose = new HashSet<>();
+
 	protected final AtomicBoolean hasNewChannels = new AtomicBoolean();
 	protected final AtomicBoolean hasWritableKeys = new AtomicBoolean();
 
@@ -90,7 +91,7 @@ public class TcpWriter implements Runnable {
 		disconnect();
 		selector = Selector.open();
 
-		// Start selector
+		// Start selector's loop
 		executor = Executors.newSingleThreadExecutor();
 		executor.execute(this);
 	}
@@ -123,14 +124,11 @@ public class TcpWriter implements Runnable {
 		}
 
 		// Close sockets
-		synchronized (channels) {
-			closeAll(channels.values());
-		}
 		synchronized (newChannels) {
 			closeAll(newChannels.keySet());
 		}
-		synchronized (channelsToClose) {
-			closeAll(channelsToClose);
+		synchronized (writableKeys) {
+			writableKeys.clear();
 		}
 	}
 
@@ -146,97 +144,53 @@ public class TcpWriter implements Runnable {
 
 	// --- WRITE TO SOCKET ---
 
-	@SuppressWarnings("unchecked")
-	public void send(TcpEndpoint endpoint, byte[] packet) {
+	public void send(String nodeID, Tree info, byte[] packet) {
+		KeyAttachment attachment = null;
 		try {
 
 			// Get channel and append packet to selection key
 			SelectionKey key = null;
-			SocketChannel channel;
-			if (maxConnections == 0) {
-
-				// Keep-alive disabled
-				channel = null;
-			} else {
+			if (maxConnections != 0) {
 
 				// Keep-alive enabled
-				synchronized (channels) {
-					channel = channels.get(endpoint);
-					if (channel != null) {
-						key = channel.keyFor(selector);
-						if (key == null) {
-							channels.remove(endpoint);
-						}
-					}
+				synchronized (allKeys) {
+					key = allKeys.get(nodeID);
 				}
 			}
 
-			// Create new socket
-			if (channel == null || key == null) {
-				LinkedList<ByteBuffer> buffers = new LinkedList<>();
-				buffers.addLast(ByteBuffer.wrap(packet));
+			// Create connection
+			if (key == null) {
 
-				InetSocketAddress address = new InetSocketAddress(endpoint.host, endpoint.port);
-				SocketChannel client = SocketChannel.open(address);
-				client.configureBlocking(false);
-
-				// Register channel
-				if (maxConnections != 0) {
-					SocketChannel previous;
-					synchronized (channels) {
-						previous = channels.put(endpoint, client);
-
-					}
-					if (previous != null) {
-						synchronized (channelsToClose) {
-							channelsToClose.add(previous);
-						}
-					}
-
-					// Close an empty, unused channel
-					if (maxConnections != -1 && channels.size() > maxConnections) {
-						Iterator<SocketChannel> opened = channels.values().iterator();
-						while (opened.hasNext()) {
-							SocketChannel testChannel = opened.next();
-							synchronized (newChannels) {
-								if (newChannels.containsKey(testChannel)) {
-									continue;
-								}
-							}
-							if (testChannel == client) {
-								continue;
-							}
-							SelectionKey testKey = testChannel.keyFor(selector);
-							if (testKey != null) {
-								LinkedList<ByteBuffer> list = (LinkedList<ByteBuffer>) key.attachment();
-								boolean empty;
-								synchronized (list) {
-									empty = list.isEmpty();
-								}
-								if (empty) {
-									opened.remove();
-									close(testChannel);
-									break;
-								}
-							}
-						}
+				// Create new attachment
+				String host = info.get("hostName", (String) null);
+				if (host == null) {
+					Tree ipList = info.get("ipList");
+					if (ipList.size() > 0) {
+						host = ipList.get(0).asString();
+					} else {
+						throw new Exception("Missing or empty \"ipList\" property!");
 					}
 				}
+				int port = info.get("port", 7328);
+				attachment = new KeyAttachment(nodeID, host, port, packet);
+
+				// Create new socket
+				InetSocketAddress address = new InetSocketAddress(host, port);
+				SocketChannel channel = SocketChannel.open(address);
+				channel.configureBlocking(false);
+
+				// Send channel to registering
 				synchronized (newChannels) {
-					newChannels.put(client, buffers);
+					newChannels.put(channel, attachment);
 				}
 				hasNewChannels.set(true);
 				selector.wakeup();
-
 				return;
 			}
 
 			// Send data
-			LinkedList<ByteBuffer> buffers = (LinkedList<ByteBuffer>) key.attachment();
-			ByteBuffer buffer = ByteBuffer.wrap(packet);
-			synchronized (buffers) {
-				buffers.addLast(buffer);
-			}
+			attachment = (KeyAttachment) key.attachment();
+			attachment.append(packet);
 			synchronized (writableKeys) {
 				writableKeys.add(key);
 			}
@@ -244,25 +198,23 @@ public class TcpWriter implements Runnable {
 			selector.wakeup();
 
 		} catch (Exception cause) {
-			transporter.handlePostError(packet, cause);
+			transporter.unableToSend(attachment, cause);
 		}
 	}
 
 	// --- WRITER LOOP ---
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public void run() {
 
 		// Variables
-		LinkedList<ByteBuffer> buffers;
+		KeyAttachment attachment = null;
+		SocketChannel channel = null;
 		Iterator<SelectionKey> keys;
-		ByteBuffer buffer = null;
-		SocketChannel channel;
-		boolean remove, empty;
 		SelectionKey key;
 		int n;
 
+		// Loop
 		while (!Thread.currentThread().isInterrupted()) {
 
 			// Waiting for sockets
@@ -275,7 +227,7 @@ public class TcpWriter implements Runnable {
 				// Register new channels
 				if (hasNewChannels.compareAndSet(true, false)) {
 					synchronized (newChannels) {
-						for (Map.Entry<SocketChannel, LinkedList<ByteBuffer>> entry : newChannels.entrySet()) {
+						for (Map.Entry<SocketChannel, KeyAttachment> entry : newChannels.entrySet()) {
 							entry.getKey().register(selector, SelectionKey.OP_WRITE, entry.getValue());
 						}
 						newChannels.clear();
@@ -299,7 +251,7 @@ public class TcpWriter implements Runnable {
 
 			} catch (NullPointerException nullPointer) {
 				continue;
-			} catch (Exception anyError) {
+			} catch (Exception fatalError) {
 				break;
 			}
 
@@ -314,39 +266,16 @@ public class TcpWriter implements Runnable {
 
 					// Write data
 					try {
-						buffers = (LinkedList<ByteBuffer>) key.attachment();
-						synchronized (buffers) {
-							empty = buffers.isEmpty();
-						}
-						if (empty) {
-							switchToIdle(key);
-							keys.remove();
-							continue;
-						}
-						buffer = buffers.getFirst();
-						if (buffer.hasRemaining()) {
-							channel = (SocketChannel) key.channel();
-							channel.write(buffer);
-							remove = !buffer.hasRemaining();
-						} else {
-							remove = true;
-						}
-						if (remove) {
-							synchronized (buffers) {
-								buffers.removeFirst();
-								empty = buffers.isEmpty();
-							}
-							if (empty) {
-								switchToIdle(key);
-							}
+						attachment = (KeyAttachment) key.attachment();
+						channel = (SocketChannel) key.channel();
+						if (!attachment.write(channel)) {
+
+							// All data sent
+							switchToIdle(attachment, key, channel);
 						}
 					} catch (Exception cause) {
-						if (buffer != null) {
-							transporter.handlePostError(buffer.array(), cause);
-						}
-						close(key);
-					} finally {
-						buffer = null;
+						transporter.unableToSend(attachment, cause);
+						close(attachment, key, channel);
 					}
 				}
 				keys.remove();
@@ -354,48 +283,31 @@ public class TcpWriter implements Runnable {
 		}
 	}
 
-	protected void switchToIdle(SelectionKey key) {
+	protected void switchToIdle(KeyAttachment attachment, SelectionKey key, SocketChannel channel) {
 		key.interestOps(0);
-		SelectableChannel channel = key.channel();
-		if (channel != null) {
-			if (maxConnections == 0) {
+		if (maxConnections == 0) {
 
-				// Keep-alive disabled
-				close(channel);
-			} else {
+			// Keep-alive disabled
+			close(attachment, key, channel);
+		}
+	}
 
-				// Keep-alive enabled
-				boolean close;
-				synchronized (channelsToClose) {
-					close = channelsToClose.remove(channel);
-				}
-				if (close) {
-					close(channel);
-				}
+	protected void close(KeyAttachment attachment, SelectionKey key, SocketChannel channel) {
+		if (attachment != null) {
+			synchronized (allKeys) {
+				allKeys.remove(attachment.nodeID);
 			}
 		}
-	}
-
-	protected void close(SelectionKey key) {
-		if (key != null) {
-			close(key.channel());
+		if (channel == null) {
+			if (key == null) {
+				return;
+			}
+			channel = (SocketChannel) key.channel();
 		}
-	}
-
-	protected void close(SelectableChannel channel) {
 		if (channel != null) {
 			try {
 				channel.close();
 			} catch (Exception ignored) {
-			}
-			synchronized (channels) {
-				Iterator<SocketChannel> i = channels.values().iterator();
-				while (i.hasNext()) {
-					if (channel == i.next()) {
-						i.remove();
-						break;
-					}
-				}
 			}
 		}
 	}

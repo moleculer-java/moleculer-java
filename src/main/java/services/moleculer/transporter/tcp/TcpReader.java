@@ -34,7 +34,6 @@ package services.moleculer.transporter.tcp;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
@@ -134,13 +133,11 @@ public class TcpReader implements Runnable {
 	public void run() {
 
 		// Variables
-		int timeout = transporter.getSocketTimeout();
 		byte[] bytes, copy, packet, remaining;
 		SocketChannel channel = null;
 		Iterator<SelectionKey> keys;
 		SelectionKey key;
 		byte crc, type;
-		Socket socket;
 		int n, len;
 
 		// Loop
@@ -176,12 +173,6 @@ public class TcpReader implements Runnable {
 							}
 							if (channel != null) {
 								try {
-
-									// Set socket timeout
-									socket = channel.socket();
-									if (timeout > 0) {
-										socket.setSoTimeout(timeout);
-									}
 
 									// Register socket
 									channel.configureBlocking(false);

@@ -489,77 +489,8 @@ public abstract class Transporter implements MoleculerComponent {
 				// Info packet
 				if (channel.equals(infoChannel) || channel.equals(infoBroadcastChannel)) {
 
-					// Register services in info block
-					Tree services = data.get("services");
-					if (services != null && services.isEnumeration()) {
-						
-						// Changed?
-						Tree previousInfo = nodeInfos.put(sender, data);
-						boolean connected = false;
-						boolean reconnected = false;
-						boolean updated = false;
-						if (previousInfo == null) {
-							
-							// New node
-							connected = true;
-							
-						} else {
-							
-							// Registered node
-							Tree offline = previousInfo.remove("offline");
-							if (offline == null) {
-
-								// Node was live
-								if (!previousInfo.equals(data)) {
-									
-									// Info block changed
-									updated = true;
-								}
-							} else {
-
-								// Node was offline
-								reconnected = true;
-							}
-						}
-						
-						// Register actions and listeners
-						if (connected || reconnected || updated) {
-							if (updated) {
-								
-								// Remove previous actions
-								registry.removeActions(sender);
-								
-								// Remove previous listeners
-								eventbus.removeListeners(sender);
-							}
-							for (Tree service : services) {
-
-								// Register actions
-								registry.addActions(service);
-
-								// Register listeners
-								eventbus.addListeners(service);
-							}
-						}
-						
-						// Notify local listeners
-						if (updated) {
-
-							// Node updated
-							logger.info("Node \"" + sender + "\" updated.");
-							broadcastNodeUpdated(data);
-
-						} else if (connected || reconnected) {
-
-							// Node connected or reconnected
-							if (connected) {
-								logger.info("Node \"" + sender + "\" connected.");
-							} else {
-								logger.info("Node \"" + sender + "\" reconnected.");
-							}
-							broadcastNodeConnected(data, reconnected);
-						}
-					}
+					// Register services and listeners
+					registerOrUpdateNode(sender, data);
 					return;
 				}
 
@@ -573,16 +504,14 @@ public abstract class Transporter implements MoleculerComponent {
 				// Disconnect packet
 				if (channel.equals(disconnectChannel)) {
 
-					// Ok, all actions and listeners removed
-					logger.info("Node \"" + sender + "\" disconnected.");
-
 					// Get node info
 					Tree info = nodeInfos.get(sender);
-					if (info != null && info.get("offline") != null) {
+					if (info == null || info.get("offline") != null) {
 						
 						// Allready offline
 						return;
 					}
+					logger.info("Node \"" + sender + "\" disconnected.");
 					
 					// Remove CPU usage and last heartbeat time
 					nodeActivities.remove(sender);
@@ -593,14 +522,11 @@ public abstract class Transporter implements MoleculerComponent {
 					// Remove remote event listeners
 					eventbus.removeListeners(sender);
 					
-					if (info != null) {
-
-						// Notify listeners (not unexpected disconnection)
-						broadcastNodeDisconnected(info, false);
+					// Notify listeners (not unexpected disconnection)
+					broadcastNodeDisconnected(info, false);
 						
-						// Store disconnection time
-						info.put("offline", System.currentTimeMillis());
-					}
+					// Store disconnection time
+					info.put("offline", System.currentTimeMillis());
 				}
 
 			} catch (Exception cause) {
@@ -609,6 +535,90 @@ public abstract class Transporter implements MoleculerComponent {
 		});
 	}
 
+	protected void registerOrUpdateNode(String sender, Tree data) throws Exception {
+		
+		// Register services in info block
+		Tree services = data.get("services");
+		if (services != null && services.isEnumeration()) {
+			
+			// Changed?
+			Tree previousInfo = nodeInfos.put(sender, data);
+			boolean connected = false;
+			boolean reconnected = false;
+			boolean updated = false;
+			if (previousInfo == null) {
+				
+				// New node
+				connected = true;
+				
+			} else {
+				
+				// Check "when" flag
+				long previousWhen = previousInfo.get("when", 0L);
+				long currentWhen = data.get("when", Long.MAX_VALUE);
+				if (previousWhen <= currentWhen) {
+					
+					// Not changed
+					return;
+				}
+				
+				// Registered node
+				Tree offline = previousInfo.remove("offline");
+				if (offline == null || !offline.asBoolean()) {
+
+					// Node was online
+					if (!previousInfo.equals(data)) {
+						
+						// Info block changed
+						updated = true;
+					}
+				} else {
+
+					// Node was offline
+					reconnected = true;
+				}
+			}
+			
+			// Register actions and listeners
+			if (connected || reconnected || updated) {
+				if (updated) {
+					
+					// Remove previous actions
+					registry.removeActions(sender);
+					
+					// Remove previous listeners
+					eventbus.removeListeners(sender);
+				}
+				for (Tree service : services) {
+
+					// Register actions
+					registry.addActions(service);
+
+					// Register listeners
+					eventbus.addListeners(service);
+				}
+			}
+			
+			// Notify local listeners
+			if (updated) {
+
+				// Node updated
+				logger.info("Node \"" + sender + "\" updated.");
+				broadcastNodeUpdated(data);
+
+			} else if (connected || reconnected) {
+
+				// Node connected or reconnected
+				if (connected) {
+					logger.info("Node \"" + sender + "\" connected.");
+				} else {
+					logger.info("Node \"" + sender + "\" reconnected.");
+				}
+				broadcastNodeConnected(data, reconnected);
+			}
+		}
+	}
+	
 	protected void broadcastNodeConnected(Tree info, boolean reconnected) {
 		if (info != null) {
 			Tree message = new Tree();
