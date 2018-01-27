@@ -135,8 +135,6 @@ public class AsyncFileLogger extends Handler implements Runnable {
 	public void run() {
 		LinkedList<LogRecord> records = new LinkedList<>();
 		try {
-
-			// String message = getFormatter().format(record);
 			Formatter formatter = getFormatter();
 			StringBuilder lines = new StringBuilder(512);
 
@@ -165,8 +163,7 @@ public class AsyncFileLogger extends Handler implements Runnable {
 		}
 	}
 
-	protected void writeLines(LinkedList<LogRecord> records, StringBuilder lines, Formatter formatter)
-			throws Exception {
+	protected void writeLines(LinkedList<LogRecord> records, StringBuilder lines, Formatter formatter) throws Exception {
 		lines.setLength(0);
 		for (LogRecord record : records) {
 			lines.append(formatter.format(record));

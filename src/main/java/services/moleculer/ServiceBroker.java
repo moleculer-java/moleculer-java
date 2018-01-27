@@ -165,7 +165,7 @@ public class ServiceBroker {
 		// Set nodeID
 		nodeID = settings.getNodeID();
 
-		// Set the component newChannels
+		// Set the component registry
 		components = settings.getComponents();
 		
 		// Install internal services

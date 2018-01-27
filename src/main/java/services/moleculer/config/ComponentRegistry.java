@@ -69,7 +69,7 @@ public abstract class ComponentRegistry {
 	 * ID of ComponentRegistry (Spring, Guice, Standalone) in the configuration
 	 * file. Sample configuration entry in JSON format:<br>
 	 * <br>
-	 * "component": {<br>
+	 * "components": {<br>
 	 * "type": "standalone",<br>
 	 * "opts": {<br>
 	 * "packagesToScan": "your.service.packages"<br>

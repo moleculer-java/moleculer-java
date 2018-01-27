@@ -3,8 +3,8 @@
 	"prefix": "dev",
 	"nodeID": null,
 	
-	"registry": {
-		"type": "services.moleculer.config.StandaloneComponentRegistry",
+	"components": {
+		"type": "standalone",
 		"opts": {
 			"packagesToScan": "services.moleculer"
 		}

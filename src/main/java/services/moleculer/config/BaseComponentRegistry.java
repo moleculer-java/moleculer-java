@@ -84,7 +84,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	private Transporter transporter;
 	private Monitor monitor;
 	private Repl repl;
-	
+
 	// --- CUSTOM COMPONENTS ---
 
 	protected Map<String, MoleculerComponentContainer> componentMap;
@@ -133,90 +133,94 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 
 			// Get name property
 			String id = nameOf(subConfig);
+			if (!COMPONENTS_ID.equals(id)) {
 
-			// Rewrite short config to standard config
-			if (subConfig.isPrimitive()) {
-				String value = subConfig.asString();
-				Tree replace = replaceType(id, value);
-				if (replace != null) {
-					subConfig = replace;
+				// Rewrite short config to standard config
+				if (subConfig.isPrimitive()) {
+					String value = subConfig.asString();
+					Tree replace = replaceType(id, value);
+					if (replace != null) {
+						subConfig = replace;
+					}
 				}
-			}
 
-			// Ignore
-			if (!subConfig.isMap()) {
-				continue;
-			}
-
-			// Get class name / type
-			String type = typeOf(subConfig);
-
-			// Rewrite short type
-			Tree replace = replaceType(id, type);
-			if (replace != null) {
-				type = replace.get("type", type);
-			}
-
-			// Unknown entry
-			if (type == null || type.isEmpty()) {
-				continue;
-			}
-
-			// Create instance
-			Class<?> implClass = Class.forName(type);
-			if (!MoleculerComponent.class.isAssignableFrom(implClass)) {
-				if (ComponentRegistry.class.isAssignableFrom(implClass)) {
+				// Ignore
+				if (!subConfig.isMap()) {
 					continue;
 				}
-				throw new IllegalArgumentException(
-						"Class \"" + type + "\" must implement the MoleculerComponent interface!");
-			}
-			MoleculerComponent component = (MoleculerComponent) implClass.newInstance();
 
-			// Maybe it's an internal compoment
-			if (CONTEXT_ID.equals(id) && checkType(ContextFactory.class, implClass)) {
-				context = (ContextFactory) component;
-				continue;
-			}
-			if (UID_ID.equals(id) && checkType(UIDGenerator.class, implClass)) {
-				uid = (UIDGenerator) component;
-				continue;
-			}
-			if (EVENTBUS_ID.equals(id) && checkType(EventBus.class, implClass)) {
-				eventbus = (EventBus) component;
-				continue;
-			}
-			if (CACHER_ID.equals(id) && checkType(Cacher.class, implClass)) {
-				cacher = (Cacher) component;
-				continue;
-			}
-			if (STRATEGY_ID.equals(id) && checkType(StrategyFactory.class, implClass)) {
-				strategy = (StrategyFactory) component;
-				continue;
-			}
-			if (REGISTRY_ID.equals(id) && checkType(ServiceRegistry.class, implClass)) {
-				registry = (ServiceRegistry) component;
-				continue;
-			}
-			if (TRANSPORTER_ID.equals(id) && checkType(Transporter.class, implClass)) {
-				transporter = (Transporter) component;
-				continue;
-			}
-			if (MONITOR_ID.equals(id) && checkType(Monitor.class, implClass)) {
-				monitor = (Monitor) component;
-				continue;
-			}
-			if (REPL_ID.equals(id) && checkType(Repl.class, implClass)) {
-				repl = (Repl) component;
-				continue;
-			}
+				// Get class name / type
+				String type = typeOf(subConfig);
 
-			// Store as custom component
-			componentMap.put(id, new MoleculerComponentContainer(component, subConfig));
+				// Rewrite short type
+				Tree replace = replaceType(id, type);
+				if (replace != null) {
+					type = replace.get("type", type);
+				}
+
+				// Unknown entry
+				if (type == null || type.isEmpty()) {
+					continue;
+				}
+
+				// Create instance
+				Class<?> implClass = Class.forName(type);
+				if (!MoleculerComponent.class.isAssignableFrom(implClass)) {
+					throw new IllegalArgumentException(
+							"Class \"" + type + "\" must implement the MoleculerComponent interface!");
+				}
+				MoleculerComponent component = (MoleculerComponent) implClass.newInstance();
+
+				// Maybe it's an internal compoment
+				if (CONTEXT_ID.equals(id) && checkType(ContextFactory.class, implClass)) {
+					context = (ContextFactory) component;
+					continue;
+				}
+				if (UID_ID.equals(id) && checkType(UIDGenerator.class, implClass)) {
+					uid = (UIDGenerator) component;
+					continue;
+				}
+				if (EVENTBUS_ID.equals(id) && checkType(EventBus.class, implClass)) {
+					eventbus = (EventBus) component;
+					continue;
+				}
+				if (CACHER_ID.equals(id) && checkType(Cacher.class, implClass)) {
+					cacher = (Cacher) component;
+					continue;
+				}
+				if (STRATEGY_ID.equals(id) && checkType(StrategyFactory.class, implClass)) {
+					strategy = (StrategyFactory) component;
+					continue;
+				}
+				if (REGISTRY_ID.equals(id) && checkType(ServiceRegistry.class, implClass)) {
+					registry = (ServiceRegistry) component;
+					continue;
+				}
+				if (TRANSPORTER_ID.equals(id) && checkType(Transporter.class, implClass)) {
+					transporter = (Transporter) component;
+					continue;
+				}
+				if (MONITOR_ID.equals(id) && checkType(Monitor.class, implClass)) {
+					monitor = (Monitor) component;
+					continue;
+				}
+				if (REPL_ID.equals(id) && checkType(Repl.class, implClass)) {
+					repl = (Repl) component;
+					continue;
+				}
+
+				// Store as custom component
+				componentMap.put(id, new MoleculerComponentContainer(component, subConfig));
+			}
 		}
 
 		// Find services in Spring Context / Classpath / etc.
-		findServices(broker, configOf(COMPONENTS_ID, config));
+		Tree registryConfig = configOf(COMPONENTS_ID, config);
+		Tree opts = registryConfig.get("opts");
+		if (opts == null) {
+			opts = registryConfig.putMap("opts");
+		}
+		findServices(broker, opts);
 
 		// Get namespace
 		String ns = settings.getNamespace();
@@ -231,7 +235,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		start(broker, monitor, configOf(MONITOR_ID, config), ns);
 		start(broker, transporter, configOf(TRANSPORTER_ID, config), ns);
 		start(broker, repl, configOf(REPL_ID, config), ns);
-		
+
 		// Start custom components
 		for (MoleculerComponentContainer container : componentMap.values()) {
 			start(broker, container.component, container.config, ns);
@@ -293,10 +297,12 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 					}
 				}
 				component.start(broker, opts);
-				if (name.indexOf(' ') == -1) {
-					logger.info("Component " + name + " started.");
-				} else {
-					logger.info(name + " started.");
+				if (!(component instanceof Repl)) {
+					if (name.indexOf(' ') == -1) {
+						logger.info("Component " + name + " started.");
+					} else {
+						logger.info(name + " started.");
+					}
 				}
 			} catch (Exception cause) {
 				logger.error("Unable to start " + name + "!", cause);
@@ -345,6 +351,8 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 				cfg = newConfig("services.moleculer.transporter.GoogleTransporter");
 			} else if (test.startsWith("kafka")) {
 				cfg = newConfig("services.moleculer.transporter.KafkaTransporter");
+			} else if (test.startsWith("tcp")) {
+				cfg = newConfig("services.moleculer.transporter.TcpTransporter");
 			}
 			if (cfg != null && test.contains("://")) {
 				cfg.put("url", value);
@@ -383,7 +391,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			}
 			if (test.equals("cpu")) {
 				return newConfig("services.moleculer.strategy.CpuUsageStrategyFactory");
-			}			
+			}
 		} else if (REGISTRY_ID.equals(id)) {
 			if (test.equals("default")) {
 				return newConfig("services.moleculer.service.DefaultServiceRegistry");
@@ -463,10 +471,12 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			String name = nameOf(component, true);
 			try {
 				component.stop();
-				if (name.indexOf(' ') == -1) {
-					logger.info("Component " + name + " stopped.");
-				} else {
-					logger.info(name + " stopped.");
+				if (!(component instanceof Repl)) {
+					if (name.indexOf(' ') == -1) {
+						logger.info("Component " + name + " stopped.");
+					} else {
+						logger.info(name + " stopped.");
+					}
 				}
 			} catch (Throwable cause) {
 				logger.error("Unable to stop " + name + "!", cause);
@@ -532,7 +542,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 	public final Repl repl() {
 		return repl;
 	}
-	
+
 	// --- GET IDS OF CUSTOM COMPONENTS ---
 
 	private final AtomicReference<String[]> cachedNames = new AtomicReference<>();

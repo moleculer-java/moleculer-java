@@ -59,7 +59,7 @@ public final class ServiceBrokerBuilder {
 	// --- CONFIGURATION ---
 
 	private final ServiceBrokerSettings settings;
-
+	
 	// --- CONSTRUCTOR ---
 
 	public ServiceBrokerBuilder(ServiceBrokerSettings settings) {

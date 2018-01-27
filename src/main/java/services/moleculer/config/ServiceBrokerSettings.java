@@ -248,14 +248,13 @@ public final class ServiceBrokerSettings {
 		if (!value.isEmpty()) {
 			String test = value.toLowerCase();
 			if (test.equals("standalone")) {
-				setComponents(new StandaloneComponentRegistry());
+				value = "services.moleculer.config.StandaloneComponentRegistry";
 			} else if (test.equals("spring")) {
-				setComponents(new SpringComponentRegistry());
+				value = "services.moleculer.config.SpringComponentRegistry";
 			} else if (test.equals("guice")) {
-				setComponents(new GuiceComponentRegistry());
-			} else {
-				setComponents((ComponentRegistry) Class.forName(value).newInstance());
+				value = "services.moleculer.config.GuiceComponentRegistry";
 			}
+			setComponents((ComponentRegistry) Class.forName(value).newInstance());
 		}
 	}
 

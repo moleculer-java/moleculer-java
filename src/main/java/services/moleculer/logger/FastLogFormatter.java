@@ -42,13 +42,13 @@ import java.util.logging.LogRecord;
  */
 public class FastLogFormatter extends Formatter {
 
-	protected static final char[] SEVERE =  "] SEVERE  ".toCharArray();
+	protected static final char[] SEVERE = "] SEVERE  ".toCharArray();
 	protected static final char[] WARNING = "] WARNING ".toCharArray();
-	protected static final char[] INFO =    "] INFO    ".toCharArray();
-	protected static final char[] CONFIG =  "] CONFIG  ".toCharArray();
-	protected static final char[] FINE =    "] FINE    ".toCharArray();
-	protected static final char[] FINER =   "] FINER   ".toCharArray();
-	protected static final char[] FINEST =  "] FINEST  ".toCharArray();
+	protected static final char[] INFO = "] INFO    ".toCharArray();
+	protected static final char[] CONFIG = "] CONFIG  ".toCharArray();
+	protected static final char[] FINE = "] FINE    ".toCharArray();
+	protected static final char[] FINER = "] FINER   ".toCharArray();
+	protected static final char[] FINEST = "] FINEST  ".toCharArray();
 
 	protected static final char[] BREAK = System.getProperty("line.separator", "\r\n").toCharArray();
 	protected static final char[] AT = " at ".toCharArray();
@@ -91,6 +91,7 @@ public class FastLogFormatter extends Formatter {
 			}
 		}
 		line.append(className);
+
 		n = line.length();
 		if (n > position || position - n > 30) {
 			position = n;
@@ -115,8 +116,9 @@ public class FastLogFormatter extends Formatter {
 	}
 
 	protected void dump(Throwable cause, int level, int lineLength) {
+		int maxChars = Math.min(lineLength, 75);
 		if (level == 0) {
-			for (int i = 0; i < lineLength; i++) {
+			for (int i = 0; i < maxChars; i++) {
 				line.append('-');
 			}
 			line.append(BREAK);
@@ -154,7 +156,7 @@ public class FastLogFormatter extends Formatter {
 			line.append(BREAK);
 			dump(cause, ++level, lineLength);
 		} else {
-			for (int i = 0; i < lineLength; i++) {
+			for (int i = 0; i < maxChars; i++) {
 				line.append('-');
 			}
 			line.append(BREAK);
