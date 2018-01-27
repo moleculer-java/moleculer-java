@@ -78,10 +78,19 @@ public class TcpTransporter extends Transporter {
 	protected int gossipPeriod = 1;
 
 	/**
-	 * Max number of keep-alive connections (-1 = unlimited, 0 = keep-alive
-	 * disabled, N = number of connections)
+	 * Max number of keep-alive connections (0 = unlimited)
 	 */
-	protected int maxKeepAliveConnections = -1;
+	protected int maxKeepAliveConnections;
+
+	/**
+	 * Keep-alive timeout in SECONDS (0 = no timeout)
+	 */
+	protected int keepAliveTimeout = 60;
+
+	/**
+	 * Max enable packet size (BYTES)
+	 */
+	protected int maxPacketSize = 1024 * 1024 * 128;
 
 	/**
 	 * List of URLs ("tcp://host:port/nodeID" or "host:port/nodeID" or
@@ -138,9 +147,19 @@ public class TcpTransporter extends Transporter {
 				urlList.toArray(urls);
 			}
 		}
+
+		// TCP server's port
 		port = config.get("port", port);
+
+		// Gossiper's gossiping period in seconds
 		gossipPeriod = config.get("gossipPeriod", gossipPeriod);
+
+		// TCP socket properties
 		maxKeepAliveConnections = config.get("maxKeepAliveConnections", maxKeepAliveConnections);
+		keepAliveTimeout = config.get("keepAliveTimeout", keepAliveTimeout);
+
+		// Maxiumum enabled size of a packet, in bytes
+		maxPacketSize = config.get("maxPacketSize", maxPacketSize);
 	}
 
 	// --- CONNECT ---
@@ -167,7 +186,7 @@ public class TcpTransporter extends Transporter {
 			// Create reader and writer
 			disconnect();
 			reader = new TcpReader(this);
-			writer = new TcpWriter(this);
+			writer = new TcpWriter(this, scheduler);
 
 			// Start reader and writer
 			reader.connect();
@@ -194,10 +213,10 @@ public class TcpTransporter extends Transporter {
 						setOfflineNode(targetNodeID, parts[0], Integer.parseInt(parts[1]));
 					} else if (parts.length == 2) {
 						setOfflineNode(targetNodeID, parts[0], port);
-					} 
+					}
 				}
 			}
-			
+
 			// Start gossiper
 			if (gossipPeriod < 1) {
 				gossipPeriod = 1;
@@ -449,7 +468,7 @@ public class TcpTransporter extends Transporter {
 		info.putObject("offline", now, true);
 		nodeInfos.put(nodeID, info);
 	}
-	
+
 	// --- SUBSCRIBE (UNUSED) ---
 
 	@Override
@@ -505,6 +524,12 @@ public class TcpTransporter extends Transporter {
 
 				// Create data packet to send
 				packet = serialize(packetID, message);
+				
+				// Check size
+				if (maxPacketSize > 0 && packet.length > maxPacketSize) {
+					throw new Exception("Outgoing packet is larger than the \"maxPacketSize\" limit (" + packet.length + " > "
+							+ maxPacketSize + ")!");
+				}
 
 				// Send packet to endpoint
 				Tree info = nodeInfos.get(nodeID);
@@ -523,12 +548,20 @@ public class TcpTransporter extends Transporter {
 	protected byte[] serialize(byte packetID, Tree message) throws Exception {
 		byte[] data = serializer.write(message);
 		byte[] packet = new byte[data.length + 6];
+
+		// 6. byte is the packet type (from 1 to 6)
 		packet[5] = packetID;
+
+		// 2.-5. bytes are the length of the packet
 		packet[4] = (byte) packet.length;
 		packet[3] = (byte) (packet.length >>> 8);
 		packet[2] = (byte) (packet.length >>> 16);
 		packet[1] = (byte) (packet.length >>> 24);
+
+		// First byte = Header's CRC (XOR)
 		packet[0] = (byte) (packet[1] ^ packet[2] ^ packet[3] ^ packet[4] ^ packet[5]);
+
+		// Add data block
 		System.arraycopy(data, 0, packet, 6, data.length);
 		return packet;
 	}
@@ -624,7 +657,7 @@ public class TcpTransporter extends Transporter {
 	public void setUrls(String[] urls) {
 		this.urls = urls;
 	}
-	
+
 	public int getPort() {
 		return port;
 	}
@@ -647,6 +680,22 @@ public class TcpTransporter extends Transporter {
 
 	public void setMaxKeepAliveConnections(int maxKeepAliveConnections) {
 		this.maxKeepAliveConnections = maxKeepAliveConnections;
+	}
+
+	public int getKeepAliveTimeout() {
+		return keepAliveTimeout;
+	}
+
+	public void setKeepAliveTimeout(int maxKeepAliveTimeout) {
+		this.keepAliveTimeout = maxKeepAliveTimeout;
+	}
+
+	public int getMaxPacketSize() {
+		return maxPacketSize;
+	}
+
+	public void setMaxPacketSize(int maxPacketSize) {
+		this.maxPacketSize = maxPacketSize;
 	}
 
 }

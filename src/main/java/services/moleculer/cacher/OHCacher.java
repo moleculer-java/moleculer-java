@@ -134,7 +134,8 @@ public class OHCacher extends Cacher {
 	protected int ttl;
 
 	/**
-	 * Compress key and/or value above this size (BYTES)
+	 * Compress key and/or value above this size (BYTES), 0 = disable
+	 * compression
 	 */
 	protected int compressAbove = 1024;
 
@@ -217,7 +218,7 @@ public class OHCacher extends Cacher {
 		// Default TTL seconds
 		ttl = config.get("ttl", ttl);
 
-		// Cache or transporter compresses content above this size (specified in
+		// Cache compresses content above this size (specified in
 		// bytes).
 		compressAbove = config.get("compressAbove", compressAbove);
 

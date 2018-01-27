@@ -59,6 +59,11 @@ public class TcpReader implements Runnable {
 	 */
 	protected final TcpTransporter transporter;
 
+	/**
+	 * Maximum size of an incoming packet
+	 */
+	protected int maxPacketSize;
+
 	// --- CONSTRUCTOR ---
 
 	public TcpReader(TcpTransporter transporter) {
@@ -85,6 +90,9 @@ public class TcpReader implements Runnable {
 		selector = Selector.open();
 		serverChannel.register(selector, SelectionKey.OP_ACCEPT);
 
+		// Get properties
+		maxPacketSize = transporter.getMaxPacketSize();
+
 		// Start selector
 		executor = Executors.newSingleThreadExecutor();
 		executor.execute(this);
@@ -110,7 +118,7 @@ public class TcpReader implements Runnable {
 
 		// Close selector
 		if (selector != null) {
-			for (SelectionKey key: selector.keys()) {
+			for (SelectionKey key : selector.keys()) {
 				close(key.channel());
 			}
 			try {
@@ -204,7 +212,14 @@ public class TcpReader implements Runnable {
 									packet = copy;
 								}
 								if (packet.length > 5) {
-																		
+
+									// Check size
+									if (maxPacketSize > 0 && packet.length > maxPacketSize) {
+										throw new Exception(
+												"Incomin packet is larger than the \"maxPacketSize\" limit ("
+														+ packet.length + " > " + maxPacketSize + ")!");
+									}
+
 									// Read header and check CRC
 									crc = (byte) (packet[1] ^ packet[2] ^ packet[3] ^ packet[4] ^ packet[5]);
 									if (crc != packet[0]) {
@@ -212,14 +227,14 @@ public class TcpReader implements Runnable {
 									}
 									len = ((0xFF & packet[1]) << 24) | ((0xFF & packet[2]) << 16)
 											| ((0xFF & packet[3]) << 8) | (0xFF & packet[4]);
-									
+
 									// Check length
 									if (packet.length >= len) {
-										
+
 										// All of bytes received
 										type = packet[5];
 										if (packet.length > len) {
-											
+
 											// Get remaining bytes
 											remaining = new byte[packet.length - len];
 											System.arraycopy(packet, len, remaining, 0, remaining.length);
@@ -228,27 +243,27 @@ public class TcpReader implements Runnable {
 											System.arraycopy(packet, 0, copy, 0, copy.length);
 											packet = copy;
 											len = copy.length;
-											
+
 										} else {
-											
+
 											// Clear attachment
 											key.attach(null);
 										}
-										
+
 										// Remove header
 										copy = new byte[len - 6];
 										System.arraycopy(packet, 6, copy, 0, copy.length);
 										packet = copy;
-										
+
 										// Process incoming message
 										transporter.received(type, packet);
-										
+
 									} else {
-										
+
 										// Waiting for data
 										key.attach(packet);
 									}
-									
+
 								} else {
 
 									// Waiting for data
@@ -274,5 +289,5 @@ public class TcpReader implements Runnable {
 			}
 		}
 	}
-	
+
 }

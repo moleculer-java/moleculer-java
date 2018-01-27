@@ -32,6 +32,7 @@
 package services.moleculer.transporter.tcp;
 
 import java.net.InetSocketAddress;
+import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -40,10 +41,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.datatree.Tree;
@@ -65,27 +69,44 @@ public class TcpWriter implements Runnable {
 
 	protected Selector selector;
 
+	// --- COMPONENTS ---
+
+	protected ScheduledExecutorService scheduler;
+
 	// --- CONSTRUCTOR ---
 
-	public TcpWriter(TcpTransporter transporter) {
+	public TcpWriter(TcpTransporter transporter, ScheduledExecutorService scheduler) {
 		this.transporter = transporter;
+		this.scheduler = scheduler;
 	}
 
 	// --- CONNECT ---
 
 	/**
-	 * Cancelable timer
+	 * Cancelable timer of timeout handler
 	 */
 	protected volatile ScheduledFuture<?> timer;
 
+	/**
+	 * Writer thread
+	 */
 	protected ExecutorService executor;
 
+	/**
+	 * Max number of opened connections
+	 */
 	protected int maxConnections;
+
+	/**
+	 * Keep-alive timeout in MILLISECONDS
+	 */
+	protected long keepAliveTimeout;
 
 	public void connect() throws Exception {
 
 		// Set max number of connections
 		maxConnections = transporter.getMaxKeepAliveConnections();
+		keepAliveTimeout = transporter.getKeepAliveTimeout() * 1000L;
 
 		// Create selector
 		disconnect();
@@ -94,6 +115,11 @@ public class TcpWriter implements Runnable {
 		// Start selector's loop
 		executor = Executors.newSingleThreadExecutor();
 		executor.execute(this);
+
+		// Start timeout handler
+		if (maxConnections > 0 && keepAliveTimeout > 0) {
+			timer = scheduler.scheduleAtFixedRate(this::manageTimeouts, 1, 1, TimeUnit.SECONDS);
+		}
 	}
 
 	// --- DISCONNECT ---
@@ -104,6 +130,12 @@ public class TcpWriter implements Runnable {
 	}
 
 	public void disconnect() {
+
+		// Close timer
+		if (timer != null) {
+			timer.cancel(true);
+			timer = null;
+		}
 
 		// Close selector thread
 		if (executor != null) {
@@ -142,6 +174,57 @@ public class TcpWriter implements Runnable {
 		channels.clear();
 	}
 
+	// --- MANAGE TIMEOUTS ---
+
+	protected void manageTimeouts() {
+
+		// Collect closeable channels
+		LinkedList<SelectableChannel> collected = new LinkedList<>();
+		long timeLimit = keepAliveTimeout > 0 ? System.currentTimeMillis() - keepAliveTimeout : 0;
+		Iterator<SelectionKey> keys;
+		KeyAttachment attachment;
+		int channelsToClose;
+		SelectionKey key;
+		synchronized (allKeys) {
+			channelsToClose = maxConnections > 0 ? allKeys.size() - maxConnections : 0;
+			keys = allKeys.values().iterator();
+			while (keys.hasNext()) {
+				key = keys.next();
+				if (key == null) {
+					continue;
+				}
+				attachment = (KeyAttachment) key.attachment();
+				if (attachment == null) {
+					collected.add(key.channel());
+					continue;
+				}
+				if (timeLimit > 0) {
+					if (attachment.invalidate(timeLimit)) {
+						collected.add(key.channel());
+						continue;
+					}
+				}
+				if (channelsToClose > 0) {
+					if (attachment.invalidate(timeLimit)) {
+						collected.add(key.channel());
+						channelsToClose--;
+						continue;
+					}
+				}
+			}
+		}
+
+		// Close channels
+		for (SelectableChannel channel : collected) {
+			if (channel != null) {
+				try {
+					channel.close();
+				} catch (Exception ingored) {
+				}
+			}
+		}
+	}
+
 	// --- WRITE TO SOCKET ---
 
 	public void send(String nodeID, Tree info, byte[] packet) {
@@ -150,46 +233,22 @@ public class TcpWriter implements Runnable {
 
 			// Get channel and append packet to selection key
 			SelectionKey key = null;
-			if (maxConnections != 0) {
-
-				// Keep-alive enabled
-				synchronized (allKeys) {
-					key = allKeys.get(nodeID);
-				}
+			synchronized (allKeys) {
+				key = allKeys.get(nodeID);
 			}
 
-			// Create connection
+			// Open new connection
 			if (key == null) {
-
-				// Create new attachment
-				String host = info.get("hostName", (String) null);
-				if (host == null) {
-					Tree ipList = info.get("ipList");
-					if (ipList.size() > 0) {
-						host = ipList.get(0).asString();
-					} else {
-						throw new Exception("Missing or empty \"ipList\" property!");
-					}
-				}
-				int port = info.get("port", 7328);
-				attachment = new KeyAttachment(nodeID, host, port, packet);
-
-				// Create new socket
-				InetSocketAddress address = new InetSocketAddress(host, port);
-				SocketChannel channel = SocketChannel.open(address);
-				channel.configureBlocking(false);
-
-				// Send channel to registering
-				synchronized (newChannels) {
-					newChannels.put(channel, attachment);
-				}
-				hasNewChannels.set(true);
-				selector.wakeup();
+				openNewConnection(nodeID, info, packet);
 				return;
 			}
 
-			// Send data
+			// Try to use an existing connection
 			attachment = (KeyAttachment) key.attachment();
+			if (attachment == null || !attachment.use()) {
+				openNewConnection(nodeID, info, packet);
+				return;
+			}
 			attachment.append(packet);
 			synchronized (writableKeys) {
 				writableKeys.add(key);
@@ -200,6 +259,34 @@ public class TcpWriter implements Runnable {
 		} catch (Exception cause) {
 			transporter.unableToSend(attachment, cause);
 		}
+	}
+
+	protected void openNewConnection(String nodeID, Tree info, byte[] packet) throws Exception {
+
+		// Create new attachment
+		String host = info.get("hostName", (String) null);
+		if (host == null) {
+			Tree ipList = info.get("ipList");
+			if (ipList.size() > 0) {
+				host = ipList.get(0).asString();
+			} else {
+				throw new Exception("Missing or empty \"ipList\" property!");
+			}
+		}
+		int port = info.get("port", 7328);
+		KeyAttachment attachment = new KeyAttachment(nodeID, host, port, packet);
+
+		// Create new socket
+		InetSocketAddress address = new InetSocketAddress(host, port);
+		SocketChannel channel = SocketChannel.open(address);
+		channel.configureBlocking(false);
+
+		// Send channel to registering
+		synchronized (newChannels) {
+			newChannels.put(channel, attachment);
+		}
+		hasNewChannels.set(true);
+		selector.wakeup();
 	}
 
 	// --- WRITER LOOP ---
@@ -271,7 +358,7 @@ public class TcpWriter implements Runnable {
 						if (!attachment.write(channel)) {
 
 							// All data sent
-							switchToIdle(attachment, key, channel);
+							key.interestOps(0);
 						}
 					} catch (Exception cause) {
 						transporter.unableToSend(attachment, cause);
@@ -280,15 +367,6 @@ public class TcpWriter implements Runnable {
 				}
 				keys.remove();
 			}
-		}
-	}
-
-	protected void switchToIdle(KeyAttachment attachment, SelectionKey key, SocketChannel channel) {
-		key.interestOps(0);
-		if (maxConnections == 0) {
-
-			// Keep-alive disabled
-			close(attachment, key, channel);
 		}
 	}
 
