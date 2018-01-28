@@ -333,6 +333,11 @@ public class KafkaTransporter extends Transporter {
 	 */
 	@Override
 	public void stop() {
+		
+		// Stop timers
+		super.stop();
+		
+		// Disconnect
 		disconnect();
 	}
 

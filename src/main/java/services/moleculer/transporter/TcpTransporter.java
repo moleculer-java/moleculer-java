@@ -51,9 +51,13 @@ import services.moleculer.service.Name;
 import services.moleculer.transporter.tcp.SendBuffer;
 import services.moleculer.transporter.tcp.TcpReader;
 import services.moleculer.transporter.tcp.TcpWriter;
+import services.moleculer.transporter.tcp.UDPBroadcaster;
 
 /**
- * TCP Transporter. Now it's just an empty sketch.
+ * TCP Transporter with optional UDP discovery ("zero configuration") module.
+ * TCP Transporter uses fault tolerant and peer-to-peer GOSSIP protocol to
+ * discover location and service information about the other nodes participating
+ * in a Moleculer Cluster.
  */
 @Name("TCP Transporter")
 public class TcpTransporter extends Transporter {
@@ -70,7 +74,7 @@ public class TcpTransporter extends Transporter {
 	// --- PROPERTIES ---
 
 	/**
-	 * TCP port.
+	 * TCP port (used by the Transporter and Gossiper services)
 	 */
 	protected int port = 7328;
 
@@ -96,24 +100,53 @@ public class TcpTransporter extends Transporter {
 
 	/**
 	 * List of URLs ("tcp://host:port/nodeID" or "host:port/nodeID" or
-	 * "host/nodeID")
+	 * "host/nodeID"), when UDP discovery is disabled
 	 */
 	protected String[] urls = new String[0];
 
+	/**
+	 * UDP multicast host of automatic discovery service ("zero config" mode)
+	 */
+	protected String multicastHost = "230.0.0.0";
+
+	/**
+	 * UDP multicast port of automatic discovery service
+	 */
+	protected int multicastPort = 4445;
+
+	/**
+	 * UDP multicast period in SECONDS
+	 */
+	protected int multicastPeriod = 60;
+
 	// --- COMPONENTS ---
 
+	/**
+	 * CPU monitor
+	 */
 	protected Monitor monitor;
 
 	// --- CONSTUCTORS ---
 
+	/**
+	 * Start TCP Transporter in "zero config" mode, with automatic UDP service
+	 * discovery.
+	 */
 	public TcpTransporter() {
 		super();
 	}
 
+	/**
+	 * Start TCP Transporter in "zero config" mode, with automatic UDP service
+	 * discovery, with the specified prefix.
+	 */
 	public TcpTransporter(String prefix) {
 		super(prefix);
 	}
 
+	/**
+	 * Start TCP Transporter in full TCP mode, without UDP discovery.
+	 */
 	public TcpTransporter(String prefix, String... urls) {
 		super(prefix);
 		this.urls = urls;
@@ -132,13 +165,15 @@ public class TcpTransporter extends Transporter {
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
+		// Process basic properties (eg. "prefix")
+		super.start(broker, config);
+
 		// Disable heartbeat messages
 		heartbeatInterval = 0;
 		heartbeatTimeout = 0;
-		offlineTimeout = 0;
-
-		// Process basic properties (eg. "prefix")
-		super.start(broker, config);
+		if (urls != null && urls.length > 0) {
+			offlineTimeout = 0;
+		}
 
 		// TCP server's port
 		port = config.get("port", port);
@@ -158,12 +193,17 @@ public class TcpTransporter extends Transporter {
 
 		// Maxiumum enabled size of a packet, in bytes
 		maxPacketSize = config.get("maxPacketSize", maxPacketSize);
+
+		// UDP discovery ("zero config" mode)
+		multicastHost = config.get("multicastHost", multicastHost);
+		multicastPort = config.get("multicastPort", multicastPort);
+		multicastPeriod = config.get("multicastPeriod", multicastPeriod);
 	}
 
 	// --- CONNECT ---
 
 	/**
-	 * Cancelable timer
+	 * Cancelable timer of gossiper
 	 */
 	protected volatile ScheduledFuture<?> timer;
 
@@ -176,6 +216,11 @@ public class TcpTransporter extends Transporter {
 	 * Socket writer
 	 */
 	protected TcpWriter writer;
+
+	/**
+	 * UDP broadcaster
+	 */
+	protected UDPBroadcaster broadcaster;
 
 	@Override
 	public void connect() {
@@ -190,8 +235,19 @@ public class TcpTransporter extends Transporter {
 			reader.connect();
 			writer.connect();
 
-			// Add URLs
-			if (urls != null) {
+			// Full TCP or "zero config" UDP mode?
+			if (urls == null || urls.length == 0) {
+
+				// TCP + UDP mode ("zero config")
+				if (multicastPeriod < 10) {
+					multicastPeriod = 10;
+				}
+				broadcaster = new UDPBroadcaster(nodeID, this, scheduler, monitor);
+				broadcaster.connect();
+
+			} else {
+
+				// Full TCP mode
 				long now = System.currentTimeMillis();
 				for (String url : urls) {
 					int i = url.indexOf("://");
@@ -208,15 +264,15 @@ public class TcpTransporter extends Transporter {
 					if (targetNodeID.equals(nodeID)) {
 						continue;
 					}
-					int port = this.port;					
+					int port = this.port;
 					if (parts.length == 3) {
 						port = Integer.parseInt(parts[1]);
 					}
-					
+
 					// Add as offline node (without services block)
 					Tree info = new Tree();
 					info.put("sender", targetNodeID);
-					info.put("when", now);
+					info.put("when", 0);
 					info.put("offlineSince", now);
 					info.putObject("hostName", parts[0]);
 					info.put("port", port);
@@ -248,6 +304,12 @@ public class TcpTransporter extends Transporter {
 	// --- DISCONNECT ---
 
 	protected void disconnect() {
+
+		// Stop broadcaster
+		if (broadcaster != null) {
+			broadcaster.disconnect();
+			broadcaster = null;
+		}
 
 		// Stop timer of the gossiper
 		if (timer != null) {
@@ -283,6 +345,11 @@ public class TcpTransporter extends Transporter {
 	 */
 	@Override
 	public void stop() {
+
+		// Stop timers
+		super.stop();
+
+		// Disconnect
 		disconnect();
 	}
 
@@ -377,9 +444,6 @@ public class TcpTransporter extends Transporter {
 						logger.info("Unable to send message to " + buffer.host + ":" + buffer.port + ".");
 					}
 
-					// Remove from CPU activity map
-					nodeActivities.remove(buffer.nodeID);
-
 					// Mark endpoint as offline
 					Tree info = nodeInfos.get(buffer.nodeID);
 					long now = System.currentTimeMillis();
@@ -391,13 +455,15 @@ public class TcpTransporter extends Transporter {
 						info.putObject("hostName", buffer.host);
 						info.putObject("ipList", Collections.singletonList(buffer.host));
 						info.put("port", buffer.port);
-						nodeInfos.put(buffer.nodeID, info);
+						updateLocalInfos(buffer.nodeID, info);
 					} else {
-						info.put("when", now);
-						Tree offline = info.get("offlineSince");
+						Tree copy = info.clone();
+						copy.put("when", now);
+						Tree offline = copy.get("offlineSince");
 						if (offline == null) {
-							info.put("offlineSince", now);
+							copy.put("offlineSince", now);
 						}
+						updateLocalInfos(buffer.nodeID, copy);
 					}
 
 					// Remove header
@@ -571,9 +637,7 @@ public class TcpTransporter extends Transporter {
 			ArrayList<Tree> liveEndpoints = new ArrayList<>(size);
 			ArrayList<Tree> unreachableEndpoints = new ArrayList<>(size);
 			for (Tree info : nodeInfos.values()) {
-				if (info.get("services") != null) {
-					
-					// Add non-empty info blocks with services
+				if (info.get("when", 0L) > 0) {
 					nodes.addObject(info);
 				}
 				if (info.get("offlineSince") != null) {
@@ -608,7 +672,7 @@ public class TcpTransporter extends Transporter {
 					sendGossipToRandomEndpoint(unreachableEndpoints, unreachableEndpointCount, packet);
 				}
 			}
-			
+
 		} catch (Exception cause) {
 			logger.error("Unable to send gossip message to peer!", cause);
 		}
@@ -626,10 +690,35 @@ public class TcpTransporter extends Transporter {
 			if (nodeID.equals(targetNodeID)) {
 				continue;
 			}
-			
+
 			// Send gossip message to node
 			writer.send(targetNodeID, info, packet);
 			break;
+		}
+	}
+
+	// --- UDP BROADCAST MESSAGE RECEIVEd ---
+
+	public void udpPacketReceiver(String nodeID, int cpu, String host, int port) {
+
+		// Debug
+		if (debug) {
+			logger.info("UDP message received (node ID: " + nodeID + ", CPU usage: " + cpu + ").");
+		}
+
+		// Store data
+		long now = System.currentTimeMillis();
+		if (nodeInfos.containsKey(nodeID)) {
+			nodeActivities.put(nodeID, new NodeActivity(now, cpu));
+		} else {
+			Tree info = new Tree();
+			info.put("sender", nodeID);
+			info.put("when", 0);
+			info.put("offlineSince", now);
+			info.putObject("hostName", host);
+			info.put("port", port);
+			nodeInfos.put(nodeID, info);
+			logger.info("Node \"" + nodeID + "\" registered.");
 		}
 	}
 
@@ -681,6 +770,30 @@ public class TcpTransporter extends Transporter {
 
 	public void setMaxPacketSize(int maxPacketSize) {
 		this.maxPacketSize = maxPacketSize;
+	}
+
+	public String getMulticastHost() {
+		return multicastHost;
+	}
+
+	public void setMulticastHost(String broadcastHost) {
+		this.multicastHost = broadcastHost;
+	}
+
+	public int getMulticastPort() {
+		return multicastPort;
+	}
+
+	public void setMulticastPort(int broadcastPort) {
+		this.multicastPort = broadcastPort;
+	}
+
+	public int getMulticastPeriod() {
+		return multicastPeriod;
+	}
+
+	public void setMulticastPeriod(int broadcastPeriod) {
+		this.multicastPeriod = broadcastPeriod;
 	}
 
 }

@@ -146,7 +146,7 @@ public class RemoteRepl extends LocalRepl {
 				host = InetAddress.getLocalHost().getHostAddress();
 			} catch (Exception ignored) {
 			}
-			logger.info("Telnet server listening on \"telnet://" + host + ":" + port + "\".");
+			logger.info("Telnet server listening on telnet://" + host + ':' + port + '.');
 		} catch (Exception cause) {
 			logger.error("Unable to start telnet!", cause);
 		}

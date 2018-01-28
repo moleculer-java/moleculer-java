@@ -212,7 +212,6 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 			} finally {
 				client = null;
 				subscriptions.clear();
-				disconnected();
 			}
 			try {
 				ThreadGroup group = Thread.currentThread().getThreadGroup();
@@ -259,6 +258,11 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 	 */
 	@Override
 	public void stop() {
+		
+		// Stop timers
+		super.stop();
+		
+		// Disconnect
 		disconnect();
 	}
 

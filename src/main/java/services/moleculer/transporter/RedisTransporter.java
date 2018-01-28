@@ -228,7 +228,13 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	public void stop() {
 		int s = status.getAndSet(STATUS_STOPPED);
 		if (s != STATUS_STOPPED) {
+			
+			// Stop timers
+			super.stop();
+			
+			// Disconnect
 			disconnect();
+			
 		} else {
 			throw new IllegalStateException("Redis Trransporter is already stopped!");
 		}

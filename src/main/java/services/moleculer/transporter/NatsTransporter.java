@@ -247,6 +247,11 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 	 */
 	@Override
 	public void stop() {
+		
+		// Stop timers
+		super.stop();
+		
+		// Disconnect
 		disconnect();
 	}
 

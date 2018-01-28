@@ -55,8 +55,8 @@ public class Test {
 		TcpTransporter transporter = new TcpTransporter();
 		// KafkaTransporter transporter = new KafkaTransporter();
 		transporter.setPort(12001);
-		transporter.setUrls(new String[] { "localhost:12002/node-2" });
-		transporter.setDebug(true);
+		// transporter.setUrls(new String[] { "localhost:12002/node-2" });
+		// transporter.setDebug(true);
 		// Transporter transporter = null;
 
 		// Define cacher
@@ -72,7 +72,7 @@ public class Test {
 
 		broker.createService(new Service("math") {
 
-			@Cache(keys = { "a", "b" })
+			//@Cache(keys = { "a", "b" })
 			public Action add = ctx -> {
 				int a = ctx.params.get("a", 0);
 				int b = ctx.params.get("b", 0);

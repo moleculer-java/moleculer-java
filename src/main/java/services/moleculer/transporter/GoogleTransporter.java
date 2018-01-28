@@ -178,8 +178,6 @@ public class GoogleTransporter extends Transporter {
 				}
 			} catch (Throwable cause) {
 				logger.warn("Unexpected error occured while closing Google Cloud client!", cause);
-			} finally {
-				disconnected();
 			}
 		}
 	}
@@ -215,6 +213,11 @@ public class GoogleTransporter extends Transporter {
 	 */
 	@Override
 	public void stop() {
+		
+		// Stop timers
+		super.stop();
+		
+		// Disconnect
 		disconnect();
 	}
 

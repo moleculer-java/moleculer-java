@@ -259,6 +259,11 @@ public class AmqpTransporter extends Transporter {
 	 */
 	@Override
 	public void stop() {
+		
+		// Stop timers
+		super.stop();
+		
+		// Disconnect
 		disconnect();
 	}
 

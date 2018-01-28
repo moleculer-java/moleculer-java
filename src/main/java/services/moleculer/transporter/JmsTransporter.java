@@ -282,6 +282,11 @@ public class JmsTransporter extends Transporter {
 	 */
 	@Override
 	public void stop() {
+		
+		// Stop timers
+		super.stop();
+		
+		// Disconnect
 		disconnect();
 	}
 

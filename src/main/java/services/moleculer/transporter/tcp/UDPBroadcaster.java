@@ -31,9 +31,265 @@
  */
 package services.moleculer.transporter.tcp;
 
+import java.net.DatagramPacket;
+import java.net.InetAddress;
+import java.net.MulticastSocket;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import services.moleculer.monitor.Monitor;
+import services.moleculer.transporter.TcpTransporter;
+
 /**
  * UDP broadcaster / receiver of the TCP Transporter.
  */
-public class UDPBroadcaster {
+public final class UDPBroadcaster {
 
+	// --- LOGGER ---
+
+	private static final Logger logger = LoggerFactory.getLogger(UDPBroadcaster.class);
+
+	// --- PROPERTIES ---
+
+	/**
+	 * TCP port (used by the Transporter and Gossiper services)
+	 */
+	protected final int port;
+	
+	/**
+	 * UDP multicast host of automatic discovery service
+	 */
+	private final String broadcastHost;
+
+	/**
+	 * UDP multicast port of automatic discovery service
+	 */
+	private final int broadcastPort;
+
+	/**
+	 * UDP broadcast period in SECONDS
+	 */
+	protected final int broadcastPeriod;
+
+	/**
+	 * Debug monde
+	 */
+	private final boolean debug;
+
+	/**
+	 * Current NodeID
+	 */
+	private final String nodeID;
+
+	// --- COMPONENTS ---
+
+	/**
+	 * Sender's executor
+	 */
+	private final ScheduledExecutorService scheduler;
+
+	/**
+	 * CPU monitor
+	 */
+	private final Monitor monitor;
+
+	// --- RECEIVER'S EXECUTOR ---
+
+	/**
+	 * Receiver's executor
+	 */
+	private ExecutorService executor;
+
+	// --- COMPONENTS ---
+
+	/**
+	 * Parent transporter
+	 */
+	private final TcpTransporter transporter;
+
+	// --- CONSTRUCTOR ---
+
+	public UDPBroadcaster(String nodeID, TcpTransporter transporter, ScheduledExecutorService scheduler,
+			Monitor monitor) {
+		this.nodeID = nodeID;
+		this.transporter = transporter;
+		this.scheduler = scheduler;
+		this.monitor = monitor;
+		this.debug = transporter.isDebug();
+		this.broadcastHost = transporter.getMulticastHost();
+		this.broadcastPort = transporter.getMulticastPort();
+		this.broadcastPeriod = transporter.getMulticastPeriod();
+		this.port = transporter.getPort();
+	}
+
+	// --- CONNECT ---
+
+	/**
+	 * Cancelable timer of sender
+	 */
+	private volatile ScheduledFuture<?> timer;
+
+	/**
+	 * Multicast receiver
+	 */
+	private MulticastSocket udpReceiver;
+
+	public final void connect() throws Exception {
+
+		// Join UDP group
+		disconnect();
+		udpReceiver = new MulticastSocket(broadcastPort);
+		udpReceiver.joinGroup(InetAddress.getByName(broadcastHost));
+		logger.info("Discovery service started on udp://" + broadcastHost + ':' + broadcastPort + '.');
+
+		// Start packet receiver
+		executor = Executors.newSingleThreadExecutor();
+		executor.execute(this::receive);
+
+		// Start packet sender
+		timer = scheduler.scheduleAtFixedRate(this::send, 1, broadcastPeriod, TimeUnit.SECONDS);
+	}
+
+	// --- DISCONNECT ---
+
+	@Override
+	protected final void finalize() throws Throwable {
+		disconnect();
+	}
+
+	public final void disconnect() {
+
+		// Close timer
+		if (timer != null) {
+			timer.cancel(true);
+			timer = null;
+		}
+
+		// Stop sender
+		if (executor != null) {
+			try {
+				executor.shutdownNow();
+			} catch (Exception ignored) {
+			}
+			executor = null;
+		}
+
+		// Stop receiver
+		if (udpReceiver != null) {
+			try {
+				InetAddress address = InetAddress.getByName(broadcastHost);
+				udpReceiver.leaveGroup(address);
+			} catch (Exception ignored) {
+			}
+			try {
+				udpReceiver.close();
+			} catch (Exception ignored) {
+			}
+			udpReceiver = null;
+			logger.info("Discovery service stopped.");
+		}
+
+	}
+
+	// --- UDP SENDER'S LOOP ---
+
+	private final void send() {
+		MulticastSocket udpSocket = null;
+		try {
+			String msg = nodeID + ':' + monitor.getTotalCpuPercent() + ':' + port;
+			byte[] bytes = msg.getBytes();
+			udpSocket = new MulticastSocket(broadcastPort);
+			InetAddress address = InetAddress.getByName(broadcastHost);
+			DatagramPacket packet = new DatagramPacket(bytes, bytes.length, address, broadcastPort);
+			udpSocket.send(packet);
+			if (debug) {
+				logger.info("UDP message submitted: " + msg);
+			}
+		} catch (Exception cause) {
+			logger.error("Unable to send UDP packet!", cause);
+		} finally {
+			try {
+				if (udpSocket != null) {
+					udpSocket.close();
+				}
+				udpSocket = null;
+			} catch (Exception ignored) {
+			}
+		}
+	}
+
+	// --- UDP SENDER'S LOOP ---
+
+	private final void receive() {
+
+		// Variables
+		byte[] buf = new byte[512];
+
+		// Loop
+		while (!Thread.currentThread().isInterrupted()) {
+			try {
+				DatagramPacket packet = new DatagramPacket(buf, buf.length);
+				udpReceiver.receive(packet);
+				byte[] data = packet.getData();
+				if (data == null) {
+					continue;
+				}
+				String received = new String(data).trim();
+				if (debug) {
+					logger.info("UDP message received: " + received);
+				}
+				String tokens[] = received.split(":");
+				if (tokens.length != 3) {
+					continue;
+				}
+				if (nodeID.equals(tokens[0])) {
+					continue;
+				}
+				int cpu = 0;
+				try {
+					cpu = Integer.parseInt(tokens[1]);
+				} catch (Exception cause) {
+					logger.warn("Invalid CPU usage format (" + tokens[1] + ")!");
+				}
+				String host = packet.getAddress().getHostAddress();
+				int port = 0;
+				try {
+					port = Integer.parseInt(tokens[2]);
+				} catch (Exception cause) {
+					logger.warn("Invalid port number format (" + tokens[2] + ")!");
+				}
+				
+				// Notify TCP Transporter
+				transporter.udpPacketReceiver(tokens[0], cpu, host, port);
+					
+			} catch (Exception cause) {
+				logger.warn("Unexpected error occured in UDP broadcaster!", cause);
+				if (udpReceiver != null) {
+					try {
+						InetAddress address = InetAddress.getByName(broadcastHost);
+						udpReceiver.leaveGroup(address);
+					} catch (Exception ignored) {
+					}
+					try {
+						udpReceiver.close();
+					} catch (Exception ignored) {
+					}
+				}
+				try {
+					Thread.sleep(1000);
+					udpReceiver = new MulticastSocket(broadcastPort);
+					udpReceiver.joinGroup(InetAddress.getByName(broadcastHost));
+					logger.info("UDP broadcaster reconnected.");
+				} catch (Exception interrupt) {
+					return;
+				}
+			}
+		}
+	}
 }

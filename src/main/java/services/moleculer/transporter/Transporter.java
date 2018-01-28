@@ -292,9 +292,9 @@ public abstract class Transporter implements MoleculerComponent {
 	protected volatile ScheduledFuture<?> heartBeatTimer;
 
 	/**
-	 * Cancelable "Check Nodes" timer
+	 * Cancelable "Check Activities / Infos" timer
 	 */
-	protected volatile ScheduledFuture<?> checkNodesTimer;
+	protected volatile ScheduledFuture<?> checkTimeoutTimer;
 
 	protected void connected() {
 		executor.execute(() -> {
@@ -328,9 +328,9 @@ public abstract class Transporter implements MoleculerComponent {
 							heartbeatInterval, TimeUnit.SECONDS);
 				}
 
-				// Start checkNodes timer
-				if (checkNodesTimer == null && heartbeatTimeout > 0) {
-					checkNodesTimer = scheduler.scheduleAtFixedRate(this::checkNodes, heartbeatTimeout,
+				// Start timeout checker's timer
+				if (checkTimeoutTimer == null && heartbeatTimeout > 0) {
+					checkTimeoutTimer = scheduler.scheduleAtFixedRate(this::checkActivities, heartbeatTimeout,
 							heartbeatTimeout, TimeUnit.SECONDS);
 				}
 
@@ -343,26 +343,6 @@ public abstract class Transporter implements MoleculerComponent {
 		});
 	}
 
-	// --- SERVER DISCONNECTED ---
-
-	protected void disconnected() {
-
-		// Stop heartbeat timer
-		if (heartBeatTimer != null) {
-			heartBeatTimer.cancel(false);
-			heartBeatTimer = null;
-		}
-
-		// Stop checkNodes timer
-		if (checkNodesTimer != null) {
-			checkNodesTimer.cancel(false);
-			checkNodesTimer = null;
-		}
-
-		// Clear timestamps
-		nodeActivities.clear();
-	}
-
 	// --- STOP TRANSPORTER ---
 
 	/**
@@ -371,6 +351,21 @@ public abstract class Transporter implements MoleculerComponent {
 	@Override
 	public void stop() {
 		sendDisconnectPacket();
+		
+		// Stop heartbeat timer
+		if (heartBeatTimer != null) {
+			heartBeatTimer.cancel(false);
+			heartBeatTimer = null;
+		}
+
+		// Stop timeout checker's timer
+		if (checkTimeoutTimer != null) {
+			checkTimeoutTimer.cancel(false);
+			checkTimeoutTimer = null;
+		}
+
+		// Clear timestamps
+		nodeActivities.clear();		
 	}
 
 	// --- REQUEST PACKET ---
@@ -530,108 +525,122 @@ public abstract class Transporter implements MoleculerComponent {
 			return;
 		}
 
-		// Services block is required for registration
-		Tree services = info.get("services");
-		if (services != null && services.size() > 0) {
+		// Current timestamp
+		long now = System.currentTimeMillis();
 
-			// Current timestamp
-			long now = System.currentTimeMillis();
+		// Get current info-block
+		Tree current = nodeInfos.get(sender);
+		
+		// Is node offline in remote info?
+		Tree offline = info.get("offlineSince");
+		if (offline != null) {
+
+			// Is node unknown?
+			if (current == null) {
+				nodeInfos.put(sender, info);
+				logger.info("Node \"" + sender + "\" registered.");
+				return;
+			}
 			
-			// Get local / current info-block
-			Tree current = nodeInfos.get(sender);
+			// Check "when" flag
+			long currentWhen = current.get("when", 0L);
+			long newWhen = info.get("when", Long.MAX_VALUE);
+			if (currentWhen >= newWhen) {
 
-			// Is node offline in remote info?
-			Tree offline = info.get("offlineSince");
-			if (offline != null) {
-
-				// Is node offline in local storage?
-				if (current == null) {
-
-					// Check since flag
-					long since = offline.asLong();
-					if (now - since > offlineTimeout * 1000L) {
-
-						// Do not store - too old offline entry
-						return;
-					}
-
-					// Store this offline node
-					nodeInfos.put(sender, info);
-					return;
-				}
-				if (current.get("offlineSince") != null) {
-
-					// Allready offline - do nothing
-					return;
-				}
-
-				// Update local "offlineSince" flag
-				current.put("offlineSince", offline.asLong());
-
-				// Node disconnected
-				logger.info("Node \"" + sender + "\" disconnected.");
-
-				// Remove CPU usage and last heartbeat time
-				nodeActivities.remove(sender);
-
-				// Remove remote actions
-				registry.removeActions(sender);
-
-				// Remove remote event listeners
-				eventbus.removeListeners(sender);
-
-				// Notify listeners (not unexpected disconnection)
-				broadcastNodeDisconnected(info, false);
+				// Not changed or the received info is older
 				return;
 			}
 
-			// Received node info has "online" status
-			boolean connected = false;
-			boolean reconnected = false;
-			boolean updated = false;
-			if (current == null) {
+			// Update local "offlineSince" flag
+			boolean isCurrentlyOffline = current.get("offlineSince") != null;
 
-				// New, unknown online node
-				connected = true;
+			// Already offline?
+			if (isCurrentlyOffline) {
+
+				// Already offline - do not remove services
+				nodeActivities.remove(sender);
+				return;
+			}
+
+			// Store new info
+			nodeInfos.put(sender, info);
+
+			// Remove CPU usage and last heartbeat time
+			nodeActivities.remove(sender);
+
+			// Remove remote actions
+			registry.removeActions(sender);
+
+			// Remove remote event listeners
+			eventbus.removeListeners(sender);
+
+			// Node disconnected
+			logger.info("Node \"" + sender + "\" disconnected.");
+
+			// Notify listeners (unexpected disconnection)
+			broadcastNodeDisconnected(info, true);
+			return;
+		}
+
+		// Received node info has "online" status
+		boolean connected = false;
+		boolean reconnected = false;
+		boolean updated = false;
+		if (current == null) {
+
+			// New, unknown online node
+			connected = true;
+
+		} else {
+
+			// Check "when" flag
+			long currentWhen = current.get("when", 0L);
+			long newWhen = info.get("when", Long.MAX_VALUE);
+			if (currentWhen > newWhen) {
+
+				// Received info is older
+				return;
+			}
+			if (currentWhen == newWhen) {
+				
+				// Config not changed, save the CPU info only
+				int currentCPU = current.get("cpu", 0);
+				int newCPU = info.get("cpu", 0);
+				if (currentCPU != newCPU) {
+					nodeActivities.put(sender, new NodeActivity(now, newCPU));
+				}
+				return;
+			}
+
+			// Received info is newer than local
+			if (current.get("offlineSince") == null) {
+
+				// Info block updated
+				updated = true;
 
 			} else {
 
-				// Check "when" flag
-				long currentWhen = current.get("when", 0L);
-				long newWhen = info.get("when", Long.MAX_VALUE);
-				if (currentWhen >= newWhen) {
-
-					// Not changed (received info is older)
-					return;
-				}
-
-				// Received info is newer than local
-				if (current.get("offlineSince") == null) {
-
-					// Info block updated
-					updated = true;
-
-				} else {
-
-					// Node was offline
-					reconnected = true;
-				}
+				// Node was offline
+				reconnected = true;
 			}
+		}
 
-			// Register actions and listeners
-			if (connected || reconnected || updated) {
-				
-				// Store new info
-				nodeInfos.put(sender, info);
-				
-				if (updated) {
+		// Register actions and listeners
+		if (connected || reconnected || updated) {
 
-					// Remove previous actions
-					registry.removeActions(sender);
+			// Store new info
+			nodeInfos.put(sender, info);
 
-					// Remove previous listeners
-					eventbus.removeListeners(sender);
-				}
+			if (updated) {
+
+				// Remove previous actions
+				registry.removeActions(sender);
+
+				// Remove previous listeners
+				eventbus.removeListeners(sender);
+			}
+			Tree services = info.get("services");
+			if (services != null && services.size() > 0) {
 				for (Tree service : services) {
 
 					// Register actions
@@ -641,30 +650,30 @@ public abstract class Transporter implements MoleculerComponent {
 					eventbus.addListeners(service);
 				}
 			}
+		}
 
-			// Store in activities
-			Tree cpu = info.get("cpu");
-			if (cpu != null) {
-				nodeActivities.put(sender, new NodeActivity(now, cpu.asInteger()));
+		// Store in activities
+		Tree cpu = info.get("cpu");
+		if (cpu != null) {
+			nodeActivities.put(sender, new NodeActivity(now, cpu.asInteger()));
+		}
+
+		// Notify local listeners
+		if (updated) {
+
+			// Node updated
+			logger.info("Node \"" + sender + "\" updated.");
+			broadcastNodeUpdated(info);
+
+		} else if (connected || reconnected) {
+
+			// Node connected or reconnected
+			if (connected) {
+				logger.info("Node \"" + sender + "\" connected.");
+			} else {
+				logger.info("Node \"" + sender + "\" reconnected.");
 			}
-
-			// Notify local listeners
-			if (updated) {
-
-				// Node updated
-				logger.info("Node \"" + sender + "\" updated.");
-				broadcastNodeUpdated(info);
-
-			} else if (connected || reconnected) {
-
-				// Node connected or reconnected
-				if (connected) {
-					logger.info("Node \"" + sender + "\" connected.");
-				} else {
-					logger.info("Node \"" + sender + "\" reconnected.");
-				}
-				broadcastNodeConnected(info, reconnected);
-			}
+			broadcastNodeConnected(info, reconnected);
 		}
 	}
 
@@ -721,11 +730,11 @@ public abstract class Transporter implements MoleculerComponent {
 		publish(disconnectChannel, message);
 	}
 
-	// --- "CHECK NODES" PROCESS ---
+	// --- TIMEOUT PROCESS ---
 
 	protected volatile long lastCheck;
 
-	protected void checkNodes() {
+	protected void checkActivities() {
 
 		// Check time
 		long now = System.currentTimeMillis();
@@ -776,9 +785,16 @@ public abstract class Transporter implements MoleculerComponent {
 		}
 
 		// Cleanup "nodeInfos" map
+		checkInfos();
+	}
+	
+	protected void checkInfos() {
+		
+		// Cleanup "nodeInfos" map
 		Iterator<Map.Entry<String, Tree>> infoEntries = nodeInfos.entrySet().iterator();
 		Map.Entry<String, Tree> infoEntry;
-		timeoutMillis = offlineTimeout * 1000L;
+		long timestamp, timeoutMillis = offlineTimeout * 1000L;
+		long now = System.currentTimeMillis();
 		while (infoEntries.hasNext()) {
 			infoEntry = infoEntries.next();
 			timestamp = infoEntry.getValue().get("offlineSince", -1L);

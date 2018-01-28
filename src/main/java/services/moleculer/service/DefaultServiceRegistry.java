@@ -81,7 +81,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 	// --- PENDING REMOTE INVOCATIONS ---
 
 	protected final ConcurrentHashMap<String, PendingPromise> promises = new ConcurrentHashMap<>(8192);
-	
+
 	// --- PROPERTIES ---
 
 	/**
@@ -215,7 +215,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			stopAllLocalServices();
 
 		} finally {
-			
+
 			// Clear cache
 			cachedDescriptor.set(null);
 
@@ -578,7 +578,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			broadcastServicesChanged(true);
 
 		} finally {
-			
+
 			// Clear cache
 			cachedDescriptor.set(null);
 
@@ -617,10 +617,6 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 					actionStrategy.addEndpoint(endpoint);
 				}
 			} finally {
-				
-				// Clear cache
-				cachedDescriptor.set(null);
-
 				writeLock.unlock();
 			}
 
@@ -648,8 +644,16 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 					endpoints.remove();
 				}
 			}
-			if (broker.nodeID().equals(nodeID)) {
-				stopAllLocalServices();
+			if (this.nodeID.equals(nodeID)) {
+
+				// Stop local services
+				try {
+					stopAllLocalServices();				
+				} finally {
+
+					// Clear cache
+					cachedDescriptor.set(null);
+				}
 
 				// Notify local listeners (LOCAL services changed)
 				broadcastServicesChanged(true);
@@ -660,10 +664,6 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 				broadcastServicesChanged(false);
 			}
 		} finally {
-
-			// Clear cache
-			cachedDescriptor.set(null);
-
 			writeLock.unlock();
 		}
 	}
@@ -721,7 +721,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
 	protected AtomicReference<Tree> cachedDescriptor = new AtomicReference<>();
-	
+
 	@Override
 	public Tree generateDescriptor() {
 		Tree root = cachedDescriptor.get();
@@ -739,7 +739,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 		// Generated at
 		root.put("when", System.currentTimeMillis());
-		
+
 		// Services array
 		Tree services = root.putList("services");
 		Tree servicesMap = new Tree();
@@ -765,7 +765,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 				// Not used
 				// serviceMap.putMap("settings");
 				// serviceMap.putMap("metadata");
-				
+
 				// Node ID
 				serviceMap.put("nodeID", nodeID);
 
@@ -813,7 +813,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			root.put("hostName", local.getHostName());
 			ipList.add(local.getHostAddress());
 		} catch (Exception ignored) {
-		}		
+		}
 		try {
 			Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
 			while (e.hasMoreElements()) {
@@ -881,5 +881,5 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 	public void setCheckVersion(boolean checkVersion) {
 		this.checkVersion = checkVersion;
 	}
-	
+
 }
