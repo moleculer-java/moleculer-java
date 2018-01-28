@@ -32,17 +32,13 @@
 package services.moleculer.transporter.tcp;
 
 import java.net.InetSocketAddress;
-import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -59,33 +55,45 @@ import services.moleculer.transporter.TcpTransporter;
 /**
  * Packet sender Thread of the TCP Transporter.
  */
-public class TcpWriter implements Runnable {
+public final class TcpWriter implements Runnable {
 
 	// --- LOGGER ---
 
-	protected static final Logger logger = LoggerFactory.getLogger(TcpWriter.class);
-
-	// --- PROPERTIES ---
-
-	protected final TcpTransporter transporter;
-
-	protected final LinkedHashMap<String, SelectionKey> allKeys = new LinkedHashMap<>();
-	protected final HashMap<SocketChannel, KeyAttachment> newChannels = new HashMap<>();
-	
-	protected final HashSet<SelectionKey> writableKeys = new HashSet<>();
-
-	protected final AtomicBoolean hasNewChannels = new AtomicBoolean();
-	protected final AtomicBoolean hasWritableKeys = new AtomicBoolean();
-
-	protected Selector selector;
+	private static final Logger logger = LoggerFactory.getLogger(TcpWriter.class);
 
 	// --- COMPONENTS ---
 
-	protected ScheduledExecutorService scheduler;
+	private ScheduledExecutorService scheduler;
 
-	// --- DEBUG COMMUNICATION ---
+	// --- PROPERTIES ---
 
-	protected boolean debug;
+	/**
+	 * Max number of opened connections
+	 */
+	private int maxConnections;
+
+	/**
+	 * Keep-alive timeout in MILLISECONDS
+	 */
+	private long keepAliveTimeout;
+
+	/**
+	 * Debug monde
+	 */
+	private final boolean debug;
+
+	// --- NIO VARIABLES ---
+
+	private final TcpTransporter transporter;
+
+	private final LinkedHashMap<String, SendBuffer> buffers = new LinkedHashMap<>();
+	private final LinkedList<SendBuffer> opened = new LinkedList<>();
+	private final HashSet<SendBuffer> writable = new HashSet<>();
+
+	private final AtomicBoolean hasOpened = new AtomicBoolean();
+	private final AtomicBoolean hasWritable = new AtomicBoolean();
+
+	private Selector selector;
 
 	// --- CONSTRUCTOR ---
 
@@ -100,24 +108,14 @@ public class TcpWriter implements Runnable {
 	/**
 	 * Cancelable timer of timeout handler
 	 */
-	protected volatile ScheduledFuture<?> timer;
+	private volatile ScheduledFuture<?> timer;
 
 	/**
 	 * Writer thread
 	 */
-	protected ExecutorService executor;
+	private ExecutorService executor;
 
-	/**
-	 * Max number of opened connections
-	 */
-	protected int maxConnections;
-
-	/**
-	 * Keep-alive timeout in MILLISECONDS
-	 */
-	protected long keepAliveTimeout;
-
-	public void connect() throws Exception {
+	public final void connect() throws Exception {
 
 		// Set max number of connections
 		maxConnections = transporter.getMaxKeepAliveConnections();
@@ -140,11 +138,11 @@ public class TcpWriter implements Runnable {
 	// --- DISCONNECT ---
 
 	@Override
-	protected void finalize() throws Throwable {
+	protected final void finalize() throws Throwable {
 		disconnect();
 	}
 
-	public void disconnect() {
+	public final void disconnect() {
 
 		// Close timer
 		if (timer != null) {
@@ -171,68 +169,51 @@ public class TcpWriter implements Runnable {
 		}
 
 		// Close sockets
-		synchronized (allKeys) {
-			closeAll(newChannels.keySet());
-		}
-		synchronized (writableKeys) {
-			writableKeys.clear();
-		}
-	}
-
-	protected void closeAll(Collection<SocketChannel> channels) {
-		for (SocketChannel channel : channels) {
-
-			// Debug
-			if (debug) {
-				try {
-					logger.info("Client channel closed to " + channel.getRemoteAddress() + ".");
-				} catch (Exception ignored) {
+		synchronized (buffers) {
+			SelectionKey key;
+			for (SendBuffer attachment : buffers.values()) {
+				key = attachment.key();
+				if (key != null) {
+					close((SocketChannel) key.channel());
 				}
 			}
-
-			// Close channel
-			try {
-				channel.close();
-			} catch (Exception ignored) {
-			}
+			buffers.clear();
 		}
-		channels.clear();
+		synchronized (writable) {
+			writable.clear();
+		}
+		synchronized (opened) {
+			opened.clear();
+		}
 	}
 
 	// --- MANAGE TIMEOUTS ---
 
-	protected void manageTimeouts() {
+	private final void manageTimeouts() {
 
 		// Collect closeable channels
-		LinkedList<SelectableChannel> collected = new LinkedList<>();
+		LinkedList<SendBuffer> closeables = new LinkedList<>();
 		long timeLimit = keepAliveTimeout > 0 ? System.currentTimeMillis() - keepAliveTimeout : 0;
-		Iterator<SelectionKey> keys;
-		KeyAttachment attachment;
-		int channelsToClose;
-		SelectionKey key;
-		synchronized (allKeys) {
-			channelsToClose = maxConnections > 0 ? allKeys.size() - maxConnections : 0;
-			keys = allKeys.values().iterator();
-			while (keys.hasNext()) {
-				key = keys.next();
-				if (key == null) {
-					continue;
-				}
-				attachment = (KeyAttachment) key.attachment();
-				if (attachment == null) {
-					collected.add(key.channel());
-					continue;
-				}
+		Iterator<SendBuffer> allBuffers;
+		SendBuffer buffer;
+		int connectionsToClose;
+		synchronized (buffers) {
+			connectionsToClose = maxConnections > 0 ? buffers.size() - maxConnections : 0;
+			allBuffers = buffers.values().iterator();
+			while (allBuffers.hasNext()) {
+				buffer = allBuffers.next();
 				if (timeLimit > 0) {
-					if (attachment.invalidate(timeLimit)) {
-						collected.add(key.channel());
+					if (buffer.invalidate(timeLimit)) {
+						closeables.add(buffer);
+						allBuffers.remove();
 						continue;
 					}
 				}
-				if (channelsToClose > 0) {
-					if (attachment.invalidate(timeLimit)) {
-						collected.add(key.channel());
-						channelsToClose--;
+				if (connectionsToClose > 0) {
+					if (buffer.invalidate(0)) {
+						closeables.add(buffer);
+						connectionsToClose--;
+						allBuffers.remove();
 						continue;
 					}
 				}
@@ -240,105 +221,68 @@ public class TcpWriter implements Runnable {
 		}
 
 		// Close channels
-		for (SelectableChannel channel : collected) {
-			if (channel != null) {
-
-				// Debug
-				if (debug) {
-					logger.info("Client channel closed to " + channel + ".");
-				}
-
-				// Close channel
-				try {
-					channel.close();
-				} catch (Exception ingored) {
-				}
+		SelectionKey key;
+		for (SendBuffer closeable : closeables) {
+			key = closeable.key();
+			if (key != null) {
+				close((SocketChannel) key.channel());
 			}
 		}
 	}
 
 	// --- WRITE TO SOCKET ---
 
-	public void send(String nodeID, Tree info, byte[] packet) {
-		KeyAttachment attachment = null;
-		try {
+	public final void send(String nodeID, Tree info, byte[] packet) {
 
-			// Get channel and append packet to selection key
-			SelectionKey key = null;
-			synchronized (allKeys) {
-				key = allKeys.get(nodeID);
-			}
+		// Get or create buffer
+		SendBuffer buffer = null;
+		boolean newBuffer = false;
+		synchronized (buffers) {
+			buffer = buffers.get(nodeID);
+			if (buffer == null || !buffer.use()) {
 
-			// Open new connection
-			if (key == null) {
-				openNewConnection(nodeID, info, packet);
-				return;
-			}
-
-			// Try to use an existing connection
-			attachment = (KeyAttachment) key.attachment();
-			if (attachment == null || !attachment.use()) {
-				openNewConnection(nodeID, info, packet);
-				return;
-			}
-			attachment.append(packet);
-			synchronized (writableKeys) {
-				writableKeys.add(key);
-			}
-			hasWritableKeys.set(true);
-			selector.wakeup();
-
-		} catch (Exception cause) {
-			transporter.unableToSend(attachment, cause);
-		}
-	}
-
-	protected void openNewConnection(String nodeID, Tree info, byte[] packet) {
-		KeyAttachment attachment = null;
-		try {
-
-			// Create new attachment
-			String host = info.get("hostName", (String) null);
-			if (host == null) {
-				Tree ipList = info.get("ipList");
-				if (ipList.size() > 0) {
-					host = ipList.get(0).asString();
-				} else {
-					throw new Exception("Missing or empty \"ipList\" property!");
+				// Create new attachment
+				String host = info.get("hostName", (String) null);
+				if (host == null) {
+					Tree ipList = info.get("ipList");
+					if (ipList.size() > 0) {
+						host = ipList.get(0).asString();
+					} else {
+						throw new IllegalArgumentException("Missing or empty \"ipList\" property!");
+					}
 				}
+				int port = info.get("port", 7328);
+				buffer = new SendBuffer(nodeID, host, port, packet);
+				buffers.put(nodeID, buffer);
+				newBuffer = true;
 			}
-			int port = info.get("port", 7328);
-			attachment = new KeyAttachment(nodeID, host, port, packet);
-
-			// Create new socket
-			InetSocketAddress address = new InetSocketAddress(host, port);
-			SocketChannel channel = SocketChannel.open(address);
-			channel.configureBlocking(false);
-
-			// Debug
-			if (debug) {
-				logger.info("Client channel opened to " + channel.getRemoteAddress() + ".");
-			}
-
-			// Send channel to registering
-			synchronized (allKeys) {
-				newChannels.put(channel, attachment);
-			}
-			hasNewChannels.set(true);
-			selector.wakeup();
-
-		} catch (Exception cause) {
-			transporter.unableToSend(attachment, cause);
 		}
+		if (newBuffer) {
+
+			// New buffer
+			synchronized (opened) {
+				opened.add(buffer);
+			}
+			hasOpened.set(true);
+		} else {
+
+			// Reuse opened buffer
+			buffer.append(packet);
+			synchronized (writable) {
+				writable.add(buffer);
+			}
+			hasWritable.set(true);
+		}
+		selector.wakeup();
 	}
 
 	// --- WRITER LOOP ---
 
 	@Override
-	public void run() {
+	public final void run() {
 
 		// Variables
-		KeyAttachment attachment = null;
+		SendBuffer buffer = null;
 		SocketChannel channel = null;
 		Iterator<SelectionKey> keys;
 		SelectionKey key;
@@ -355,24 +299,43 @@ public class TcpWriter implements Runnable {
 				n = selector.select();
 
 				// Register new channels
-				if (hasNewChannels.compareAndSet(true, false)) {					
-					synchronized (allKeys) {
-						for (Map.Entry<SocketChannel, KeyAttachment> entry : newChannels.entrySet()) {
-							attachment = entry.getValue();
-							key = entry.getKey().register(selector, SelectionKey.OP_WRITE, attachment);
-							allKeys.put(attachment.nodeID, key);
+				if (hasOpened.compareAndSet(true, false)) {
+					synchronized (opened) {
+						for (SendBuffer newBuffer : opened) {
+							try {
+
+								// Create new socket
+								InetSocketAddress address = new InetSocketAddress(newBuffer.host, newBuffer.port);
+								channel = SocketChannel.open(address);
+								channel.configureBlocking(false);
+
+								// Register socket in selector
+								key = channel.register(selector, SelectionKey.OP_WRITE, newBuffer);
+								newBuffer.key(key);
+
+							} catch (Exception cause) {
+								synchronized (buffers) {
+									buffers.remove(newBuffer.nodeID);
+								}
+								transporter.unableToSend(newBuffer, cause);
+							}
 						}
-						newChannels.clear();
+						opened.clear();
 					}
 				}
 
 				// Set key status
-				if (hasWritableKeys.compareAndSet(true, false)) {
-					synchronized (writableKeys) {
-						for (SelectionKey writableKey : writableKeys) {
-							writableKey.interestOps(SelectionKey.OP_WRITE);
+				if (hasWritable.compareAndSet(true, false)) {
+					synchronized (writable) {
+						for (SendBuffer writableBuffer : writable) {
+							key = writableBuffer.key();
+							if (key != null) {
+
+								// Switch to write mode
+								key.interestOps(SelectionKey.OP_WRITE);
+							}
 						}
-						writableKeys.clear();
+						writable.clear();
 					}
 				}
 
@@ -398,9 +361,9 @@ public class TcpWriter implements Runnable {
 
 					// Write data
 					try {
-						attachment = (KeyAttachment) key.attachment();
+						buffer = (SendBuffer) key.attachment();
 						channel = (SocketChannel) key.channel();
-						if (!attachment.write(channel)) {
+						if (!buffer.write(channel)) {
 
 							// Debug
 							if (debug) {
@@ -411,8 +374,13 @@ public class TcpWriter implements Runnable {
 							key.interestOps(0);
 						}
 					} catch (Exception cause) {
-						transporter.unableToSend(attachment, cause);
-						close(attachment, key, channel);
+						if (buffer != null) {
+							synchronized (buffers) {
+								buffers.remove(buffer.nodeID);
+							}
+							transporter.unableToSend(buffer, cause);
+						}
+						close(channel);
 					}
 				}
 				keys.remove();
@@ -420,19 +388,20 @@ public class TcpWriter implements Runnable {
 		}
 	}
 
-	protected void close(KeyAttachment attachment, SelectionKey key, SocketChannel channel) {
-		if (attachment != null) {
-			synchronized (allKeys) {
-				allKeys.remove(attachment.nodeID);
-			}
-		}
-		if (channel == null) {
-			if (key == null) {
-				return;
-			}
-			channel = (SocketChannel) key.channel();
-		}
+	// --- CLOSE CHANNEL ---
+
+	private final void close(SocketChannel channel) {
 		if (channel != null) {
+
+			// Debug
+			if (debug) {
+				try {
+					logger.info("Client channel closed to " + channel.getRemoteAddress() + ".");
+				} catch (Exception ignored) {
+				}
+			}
+
+			// Close channel
 			try {
 				channel.close();
 			} catch (Exception ignored) {

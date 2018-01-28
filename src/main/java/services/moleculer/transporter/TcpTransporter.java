@@ -47,7 +47,7 @@ import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.service.Name;
-import services.moleculer.transporter.tcp.KeyAttachment;
+import services.moleculer.transporter.tcp.SendBuffer;
 import services.moleculer.transporter.tcp.TcpReader;
 import services.moleculer.transporter.tcp.TcpWriter;
 
@@ -411,24 +411,24 @@ public class TcpTransporter extends Transporter {
 
 	// --- CONNECTION ERROR ---
 
-	public void unableToSend(KeyAttachment attachment, Throwable error) {
-		if (attachment != null) {
+	public void unableToSend(SendBuffer buffer, Throwable error) {
+		if (buffer != null) {
 			executor.execute(() -> {
 				try {
 
 					// Debug
 					if (debug) {
-						logger.info("Unable to send message to " + attachment.host + ":" + attachment.port + ".");
+						logger.info("Unable to send message to " + buffer.host + ":" + buffer.port + ".");
 					}
 
 					// Mark endpoint as offline
-					nodeActivities.remove(attachment.nodeID);
+					nodeActivities.remove(buffer.nodeID);
 
 					// Add a nodeInfo entry
-					setOfflineNode(attachment.nodeID, attachment.host, attachment.port);
+					setOfflineNode(buffer.nodeID, buffer.host, buffer.port);
 
 					// Remove header
-					byte[] packet = attachment.getCurrentPacket();
+					byte[] packet = buffer.getCurrentPacket();
 					if (packet != null && packet.length > 6) {
 						byte[] copy = new byte[packet.length - 6];
 						System.arraycopy(packet, 6, copy, 0, copy.length);

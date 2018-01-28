@@ -52,31 +52,34 @@ import services.moleculer.transporter.TcpTransporter;
 /**
  * Packet receiver Thread of the TCP Transporter.
  */
-public class TcpReader implements Runnable {
+public final class TcpReader implements Runnable {
 
 	// --- SHARED BUFFER ---
 
-	protected static final ByteBuffer requestBuffer = ByteBuffer.allocateDirect(16384);
+	private static final ByteBuffer requestBuffer = ByteBuffer.allocateDirect(16384);
 
 	// --- LOGGER ---
 
-	protected static final Logger logger = LoggerFactory.getLogger(TcpReader.class);
+	private static final Logger logger = LoggerFactory.getLogger(TcpReader.class);
 
 	// --- PROPERTIES ---
 
 	/**
-	 * Parent transporter
-	 */
-	protected final TcpTransporter transporter;
-
-	/**
 	 * Maximum size of an incoming packet
 	 */
-	protected int maxPacketSize;
+	private int maxPacketSize;
 
-	// --- DEBUG COMMUNICATION ---
+	/**
+	 * Debug monde
+	 */
+	private final boolean debug;
 
-	protected boolean debug;
+	// --- COMPONENTS ---
+
+	/**
+	 * Parent transporter
+	 */
+	private final TcpTransporter transporter;
 
 	// --- CONSTRUCTOR ---
 
@@ -87,14 +90,14 @@ public class TcpReader implements Runnable {
 
 	// --- NIO VARIABLES ---
 
-	protected ServerSocketChannel serverChannel;
-	protected Selector selector;
+	private ServerSocketChannel serverChannel;
+	private Selector selector;
 
 	// --- CONNECT ---
 
-	protected ExecutorService executor;
+	private ExecutorService executor;
 
-	public void connect() throws Exception {
+	public final void connect() throws Exception {
 
 		// Create selector and server socket
 		disconnect();
@@ -116,11 +119,11 @@ public class TcpReader implements Runnable {
 	// --- DISCONNECT ---
 
 	@Override
-	protected void finalize() throws Throwable {
+	protected final void finalize() throws Throwable {
 		disconnect();
 	}
 
-	public void disconnect() {
+	public final void disconnect() {
 
 		// Close selector thread
 		if (executor != null) {
@@ -153,7 +156,7 @@ public class TcpReader implements Runnable {
 	// --- READER LOOP ---
 
 	@Override
-	public void run() {
+	public final void run() {
 
 		// Variables
 		byte[] bytes, copy, packet, remaining;
@@ -252,7 +255,12 @@ public class TcpReader implements Runnable {
 									if (packet.length >= len) {
 
 										// All of bytes received
-										type = packet[5];
+										type = packet[5];										
+										if (type < 1 || type > 6) {
+											
+											// Unknown packet type!
+											throw new Exception("Invalid packet type (" + type + ")!");
+										}
 										if (packet.length > len) {
 
 											// Get remaining bytes
@@ -307,7 +315,9 @@ public class TcpReader implements Runnable {
 		}
 	}
 
-	protected void close(SelectableChannel channel) {
+	// --- CLOSE CHANNEL ---
+	
+	private final void close(SelectableChannel channel) {
 		if (channel != null) {
 
 			// Debug

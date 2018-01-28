@@ -32,14 +32,16 @@
 package services.moleculer.transporter.tcp;
 
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
-* Attachment of TcpWriter's channels.
-*/
-public class KeyAttachment {
+ * Attachment of TcpWriter's channels.
+ */
+public final class SendBuffer {
 
 	// --- PROPERTIES ---
 
@@ -47,14 +49,14 @@ public class KeyAttachment {
 	public final String host;
 	public final int port;
 
-	protected ByteBuffer first;
-	protected final LinkedList<ByteBuffer> buffers = new LinkedList<>();
-
-	protected final AtomicLong lastUsed;
+	private ByteBuffer first;
+	private final LinkedList<ByteBuffer> buffers = new LinkedList<>();
+	private final AtomicLong lastUsed;
+	private final AtomicReference<SelectionKey> key = new AtomicReference<>();
 
 	// --- CONSTRUCTOR ---
 
-	public KeyAttachment(String nodeID, String host, int port, byte[] packet) {
+	SendBuffer(String nodeID, String host, int port, byte[] packet) {
 		this.nodeID = nodeID;
 		this.host = host;
 		this.port = port;
@@ -62,9 +64,19 @@ public class KeyAttachment {
 		this.lastUsed = new AtomicLong(System.currentTimeMillis());
 	}
 
+	// --- SELECTION KEY ---
+
+	final void key(SelectionKey registeredKey) {
+		key.compareAndSet(null, registeredKey);
+	}
+
+	final SelectionKey key() {
+		return key.get();
+	}
+
 	// --- INVALIDATE / TOUCH ---
 
-	public boolean use() {
+	final boolean use() {
 		long current;
 		long now = System.currentTimeMillis();
 		while (true) {
@@ -81,7 +93,7 @@ public class KeyAttachment {
 		}
 	}
 
-	public boolean invalidate(long limit) {
+	final boolean invalidate(long limit) {
 		long current = lastUsed.get();
 		if (current < limit && first == null) {
 			synchronized (buffers) {
@@ -95,7 +107,7 @@ public class KeyAttachment {
 
 	// --- ADD BYTES ---
 
-	public void append(byte[] packet) {
+	final void append(byte[] packet) {
 		ByteBuffer buffer = ByteBuffer.wrap(packet);
 		synchronized (buffers) {
 			buffers.addLast(buffer);
@@ -104,13 +116,13 @@ public class KeyAttachment {
 
 	// --- WRITE BYTES ---
 
-	public boolean write(SocketChannel channel) throws Exception {
+	final boolean write(SocketChannel channel) throws Exception {
 		shift();
 		channel.write(first);
 		return shift();
 	}
 
-	protected boolean shift() {
+	private final boolean shift() {
 		if (first == null) {
 			synchronized (buffers) {
 				if (buffers.isEmpty()) {
@@ -135,16 +147,16 @@ public class KeyAttachment {
 
 	// --- GET CURRENT PACKET ---
 
-	public byte[] getCurrentPacket() {
-		if (first == null) {
-			synchronized (buffers) {
+	public final byte[] getCurrentPacket() {
+		synchronized (buffers) {
+			if (first == null) {
 				if (buffers.isEmpty()) {
 					return null;
 				}
 				return buffers.getFirst().array();
 			}
+			return first.array();
 		}
-		return first.array();
 	}
 
 }
