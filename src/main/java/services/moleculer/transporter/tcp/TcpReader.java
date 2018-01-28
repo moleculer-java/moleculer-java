@@ -44,13 +44,23 @@ import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import services.moleculer.transporter.TcpTransporter;
 
+/**
+ * Packet receiver Thread of the TCP Transporter.
+ */
 public class TcpReader implements Runnable {
 
 	// --- SHARED BUFFER ---
 
 	protected static final ByteBuffer requestBuffer = ByteBuffer.allocateDirect(16384);
+
+	// --- LOGGER ---
+
+	protected static final Logger logger = LoggerFactory.getLogger(TcpReader.class);
 
 	// --- PROPERTIES ---
 
@@ -64,10 +74,15 @@ public class TcpReader implements Runnable {
 	 */
 	protected int maxPacketSize;
 
+	// --- DEBUG COMMUNICATION ---
+
+	protected boolean debug;
+
 	// --- CONSTRUCTOR ---
 
 	public TcpReader(TcpTransporter transporter) {
 		this.transporter = transporter;
+		debug = transporter.isDebug();
 	}
 
 	// --- NIO VARIABLES ---
@@ -187,6 +202,11 @@ public class TcpReader implements Runnable {
 									key = channel.register(selector, 0);
 									key.interestOps(SelectionKey.OP_READ);
 
+									// Debug
+									if (debug) {
+										logger.info("Server channel opened from " + channel.getRemoteAddress() + ".");
+									}
+
 								} catch (Exception cause) {
 									close(channel);
 								}
@@ -250,6 +270,12 @@ public class TcpReader implements Runnable {
 											key.attach(null);
 										}
 
+										// Debug
+										if (debug) {
+											logger.info(
+													len + " bytes received from " + channel.getRemoteAddress() + ".");
+										}
+
 										// Remove header
 										copy = new byte[len - 6];
 										System.arraycopy(packet, 6, copy, 0, copy.length);
@@ -283,6 +309,19 @@ public class TcpReader implements Runnable {
 
 	protected void close(SelectableChannel channel) {
 		if (channel != null) {
+
+			// Debug
+			if (debug) {
+				try {
+					if (channel instanceof SocketChannel) {
+						SocketChannel socketChannel = (SocketChannel) channel;
+						logger.info("Server channel closed from " + socketChannel.getRemoteAddress() + ".");
+					}
+				} catch (Exception ignored) {
+				}
+			}
+
+			// Close channel
 			try {
 				channel.close();
 			} catch (Exception ignored) {

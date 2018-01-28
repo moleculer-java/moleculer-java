@@ -91,23 +91,7 @@ public final class CommonUtils {
 
 			String jarFileName = URLDecoder.decode(packageURL.getFile(), "UTF-8");
 			jarFileName = jarFileName.substring(5, jarFileName.indexOf("!"));
-
-			JarFile jar = null;
-			try {
-				jar = new JarFile(jarFileName);
-				Enumeration<JarEntry> jarEntries = jar.entries();
-				while (jarEntries.hasMoreElements()) {
-					String entryName = jarEntries.nextElement().getName();
-					if (entryName.startsWith(packageName) && entryName.endsWith(".class")) {
-						entryName = entryName.substring(packageName.length() + 1, entryName.lastIndexOf('.'));
-						names.add(entryName);
-					}
-				}
-			} finally {
-				if (jar != null) {
-					jar.close();
-				}
-			}
+			scanJar(jarFileName, packageName, names);
 
 		} else {
 
@@ -125,7 +109,9 @@ public final class CommonUtils {
 			entryName = actual.getName();
 			if (entryName.endsWith(".class")) {
 				entryName = entryName.substring(0, entryName.lastIndexOf('.'));
-				names.add(entryName);
+				if (entryName.indexOf('$') == -1) {
+					names.add(entryName);					
+				}
 			}
 		}		
 	}
@@ -139,7 +125,9 @@ public final class CommonUtils {
 				String entryName = jarEntries.nextElement().getName();
 				if (entryName.startsWith(packageName) && entryName.endsWith(".class")) {
 					entryName = entryName.substring(packageName.length() + 1, entryName.lastIndexOf('.'));
-					names.add(entryName);
+					if (entryName.indexOf('$') == -1 && entryName.indexOf('/') == -1) {
+						names.add(entryName);					
+					}					
 				}
 			}
 		} catch (Exception ignored) {

@@ -31,6 +31,7 @@ import services.moleculer.service.Name;
  * KafkaTransporter trans = new KafkaTransporter();<br>
  * trans.setUrls(new String[] { "192.168.51.29:9092" });<br>
  * trans.setDebug(true);<br>
+ * trans.setProducerProperty("session.timeout.ms", "30000");<br>
  * ServiceBroker broker = ServiceBroker.builder().transporter(trans).build();<br>
  * //broker.createService(new Service("test") {...});<br>
  * broker.start();<br>
@@ -53,7 +54,9 @@ public class KafkaTransporter extends Transporter {
 
 	// --- PROPERTIES ---
 
-	protected Properties properties = new Properties();
+	protected Properties producerProperties = new Properties();
+	protected Properties consumerProperties = new Properties();
+	
 	protected String[] urls = new String[] { "127.0.0.1:9092" };
 
 	// --- KAFKA PRODUCER / MESSAGE SENDER ---
@@ -76,12 +79,6 @@ public class KafkaTransporter extends Transporter {
 
 	public KafkaTransporter(String prefix, String... urls) {
 		super(prefix);
-		this.urls = urls;
-	}
-
-	public KafkaTransporter(String prefix, Properties properties, String... urls) {
-		super(prefix);
-		this.properties.putAll(properties);
 		this.urls = urls;
 	}
 
@@ -121,28 +118,32 @@ public class KafkaTransporter extends Transporter {
 		}
 
 		// Set unique "node ID" as Kafka "group ID"
-		properties.setProperty("group.id", nodeID);
+		consumerProperties.setProperty("group.id", nodeID);
 		
 		// Read custom properties from config, eg:
 		//
-		// properties {
+		// consumerProperties {
 		// "acks": "all",
 		// "retries": 0,
-		// "batch.size": 16384,
-		// "linger.ms": 1,
-		// "buffer.memory": 33554432,
-		// "enable.auto.commit": true,
-		// "auto.commit.interval.ms": 1000,
-		// "session.timeout.ms": 30000
+		// "batch-size": 16384,
+		// "linger-ms": 1,
+		// "buffer-memory": 33554432,
+		// "enable-auto-commit": true,
+		// "auto-commit-interval-ms": 1000,
+		// "session-timeout-ms": 30000
 		// }
 		//
-		Tree props = config.get("properties");
+		copyProperties(config, consumerProperties, "consumerProperties");
+		copyProperties(config, producerProperties, "producerProperties");
+	}
+	
+	protected void copyProperties(Tree from, Properties to, String name) {
+		Tree props = from.get(name);
 		if (props != null) {
 			for (Tree prop : props) {
-				properties.setProperty(prop.getName(), prop.asString());
+				to.setProperty(prop.getName().replace('-', '.'), prop.asString());
 			}
-		}
-
+		}		
 	}
 
 	// --- CONNECT ---
@@ -176,14 +177,12 @@ public class KafkaTransporter extends Transporter {
 				}
 				urlList.append(url);
 			}
-			properties.put("bootstrap.servers", urlList.toString());
+			producerProperties.put("bootstrap.servers", urlList.toString());
+			consumerProperties.put("bootstrap.servers", urlList.toString());
 
 			// Create producer
-			Properties copy = new Properties();
-			copy.putAll(properties);
-			copy.remove("group.id");
 			ByteArraySerializer byteArraySerializer = new ByteArraySerializer();
-			producer = new KafkaProducer<>(copy, byteArraySerializer, byteArraySerializer);
+			producer = new KafkaProducer<>(producerProperties, byteArraySerializer, byteArraySerializer);
 
 			// Start reader loop
 			poller = new KafkaPoller(this);
@@ -252,7 +251,7 @@ public class KafkaTransporter extends Transporter {
 			
 			// Create consumer
 			ByteArrayDeserializer deserializer = new ByteArrayDeserializer();
-			consumer = new KafkaConsumer<>(transporter.properties, deserializer, deserializer);
+			consumer = new KafkaConsumer<>(transporter.consumerProperties, deserializer, deserializer);
 		}
 
 		// --- SET OF SUBSCRIPTIONS ---
@@ -377,10 +376,14 @@ public class KafkaTransporter extends Transporter {
 		}
 	}
 
-	// --- SET CLIENT PROPERTY ---
+	// --- SET CLIENT PROPERTIES ---
 
-	public void setProperty(String key, String value) {
-		properties.setProperty(key, value);
+	public void setProducerProperty(String key, String value) {
+		producerProperties.setProperty(key, value);
+	}
+
+	public void setConsumerProperty(String key, String value) {
+		consumerProperties.setProperty(key, value);
 	}
 
 	// --- GETTERS / SETTERS ---
@@ -393,12 +396,20 @@ public class KafkaTransporter extends Transporter {
 		this.urls = urls;
 	}
 
-	public Properties getProperties() {
-		return properties;
+	public Properties getProducerProperties() {
+		return producerProperties;
 	}
 
-	public void setProperties(Properties properties) {
-		this.properties = properties;
+	public void setProducerProperties(Properties producerProperties) {
+		this.producerProperties = producerProperties;
+	}
+
+	public Properties getConsumerProperties() {
+		return consumerProperties;
+	}
+
+	public void setConsumerProperties(Properties consumerProperties) {
+		this.consumerProperties = consumerProperties;
 	}
 
 }

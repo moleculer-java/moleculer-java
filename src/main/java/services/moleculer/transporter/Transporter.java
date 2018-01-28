@@ -112,9 +112,9 @@ public abstract class Transporter implements MoleculerComponent {
 	protected ServiceBroker broker;
 	protected String nodeID;
 
-	protected int heartbeatInterval;
-	protected int heartbeatTimeout;
-	protected int offlineTimeout;
+	protected int heartbeatInterval = 5;
+	protected int heartbeatTimeout = 30;
+	protected int offlineTimeout = 180;
 
 	// --- DEBUG COMMUNICATION ---
 
@@ -211,41 +211,29 @@ public abstract class Transporter implements MoleculerComponent {
 			serializer = new JsonSerializer();
 		}
 
-		// Heartbeat interval (find in Transporter config)
+		// Heartbeat interval
 		heartbeatInterval = config.get("heartbeatInterval", heartbeatInterval);
-		if (heartbeatInterval < 1) {
-
-			// Find in broker config
-			heartbeatInterval = config.getParent().get("heartbeatInterval", 0);
-			if (heartbeatInterval < 1) {
-				heartbeatInterval = 5;
-			}
+		if (heartbeatInterval > 0) {
+			logger.info(nameOf(this, true) + " sends heartbeat signal every " + heartbeatInterval + " seconds.");
 		}
-		logger.info(nameOf(this, true) + " sends heartbeat signal every " + heartbeatInterval + " seconds.");
 
-		// Heartbeat timeout (find in Transporter config)
+		// Heartbeat timeout
 		heartbeatTimeout = config.get("heartbeatTimeout", heartbeatTimeout);
-		if (heartbeatTimeout < 1) {
-
-			// Find in broker config
-			heartbeatTimeout = config.getParent().get("heartbeatTimeout", 0);
+		if (heartbeatTimeout > 0 || heartbeatInterval > 0) {
 			if (heartbeatTimeout < 1) {
-				heartbeatTimeout = 30;
+				heartbeatTimeout = Math.max(30, heartbeatInterval * 2);
 			}
+			logger.info("Heartbeat timeout of " + nameOf(this, true) + " is " + heartbeatTimeout + " seconds.");
 		}
-		logger.info("Heartbeat timeout of " + nameOf(this, true) + " is " + heartbeatTimeout + " seconds.");
 
-		// Offline timeout (find in Transporter config)
+		// Offline timeout
 		offlineTimeout = config.get("offlineTimeout", offlineTimeout);
-		if (offlineTimeout < 1) {
-
-			// Find in broker config
-			offlineTimeout = config.getParent().get("offlineTimeout", 0);
-			if (offlineTimeout < 1 || offlineTimeout < heartbeatTimeout) {
+		if (offlineTimeout > 0) {
+			if (offlineTimeout < heartbeatTimeout) {
 				offlineTimeout = Math.max(heartbeatTimeout * 2, 180);
 			}
+			logger.info("Configuration timeout of offline nodes is " + offlineTimeout + " seconds.");
 		}
-		logger.info("Configuration timeout of offline nodes is " + offlineTimeout + " seconds.");
 
 		// Debug mode
 		debug = config.get("debug", debug);
@@ -335,13 +323,13 @@ public abstract class Transporter implements MoleculerComponent {
 				sendInfoPacket(infoBroadcastChannel);
 
 				// Start sendHeartbeatPacket timer
-				if (heartBeatTimer == null) {
+				if (heartBeatTimer == null && heartbeatInterval > 0) {
 					heartBeatTimer = scheduler.scheduleAtFixedRate(this::sendHeartbeatPacket, heartbeatInterval,
 							heartbeatInterval, TimeUnit.SECONDS);
 				}
 
 				// Start checkNodes timer
-				if (checkNodesTimer == null) {
+				if (checkNodesTimer == null && heartbeatTimeout > 0) {
 					checkNodesTimer = scheduler.scheduleAtFixedRate(this::checkNodes, heartbeatTimeout,
 							heartbeatTimeout, TimeUnit.SECONDS);
 				}

@@ -54,8 +54,9 @@ public class Test {
 		// Define transporter
 		TcpTransporter transporter = new TcpTransporter();
 		// KafkaTransporter transporter = new KafkaTransporter();
-		transporter.setUrls(new String[] { "tcp://127.0.0.1:9092/node-2" });
-		transporter.setDebug(true);
+		transporter.setPort(12001);
+		transporter.setUrls(new String[] { "tcp://127.0.0.1:12002/node-2" });
+		//transporter.setDebug(true);
 		// Transporter transporter = null;
 
 		// Define cacher
@@ -66,7 +67,7 @@ public class Test {
 
 		// Create broker
 		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).cacher(cacher).monitor(monitor)
-				.nodeID("server-2").build();
+				.nodeID("node-1").build();
 		// .repl(new RemoteRepl())
 
 		broker.createService(new Service("math") {

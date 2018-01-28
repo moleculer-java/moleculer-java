@@ -165,6 +165,9 @@ public class LocalRepl extends Repl implements Runnable {
 			while (!Thread.currentThread().isInterrupted()) {
 				reader = new LocalReader();
 				reader.start();
+				if (reader == null) {
+					return;
+				}
 				reader.join();
 				String command = reader.getLine();
 				reader = null;
@@ -285,19 +288,20 @@ public class LocalRepl extends Repl implements Runnable {
 
 	@Override
 	protected void stopReading() {
+		if (reader != null) {
+			LocalReader r = reader;
+			reader = null;
+			try {
+				r.interrupt();
+			} catch (Exception ignored) {
+			}
+		}
 		if (executor != null) {
 			try {
 				executor.shutdownNow();
 			} catch (Exception ignored) {
 			}
 			executor = null;
-		}
-		if (reader != null) {
-			try {
-				reader.interrupt();
-			} catch (Exception ignored) {
-			}
-			reader = null;
 		}
 		commands.clear();
 	}

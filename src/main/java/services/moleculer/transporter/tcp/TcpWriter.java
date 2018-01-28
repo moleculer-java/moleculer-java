@@ -50,18 +50,28 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.datatree.Tree;
 import services.moleculer.transporter.TcpTransporter;
 
+/**
+ * Packet sender Thread of the TCP Transporter.
+ */
 public class TcpWriter implements Runnable {
+
+	// --- LOGGER ---
+
+	protected static final Logger logger = LoggerFactory.getLogger(TcpWriter.class);
 
 	// --- PROPERTIES ---
 
 	protected final TcpTransporter transporter;
 
 	protected final LinkedHashMap<String, SelectionKey> allKeys = new LinkedHashMap<>();
-
 	protected final HashMap<SocketChannel, KeyAttachment> newChannels = new HashMap<>();
+	
 	protected final HashSet<SelectionKey> writableKeys = new HashSet<>();
 
 	protected final AtomicBoolean hasNewChannels = new AtomicBoolean();
@@ -73,11 +83,16 @@ public class TcpWriter implements Runnable {
 
 	protected ScheduledExecutorService scheduler;
 
+	// --- DEBUG COMMUNICATION ---
+
+	protected boolean debug;
+
 	// --- CONSTRUCTOR ---
 
 	public TcpWriter(TcpTransporter transporter, ScheduledExecutorService scheduler) {
 		this.transporter = transporter;
 		this.scheduler = scheduler;
+		debug = transporter.isDebug();
 	}
 
 	// --- CONNECT ---
@@ -156,7 +171,7 @@ public class TcpWriter implements Runnable {
 		}
 
 		// Close sockets
-		synchronized (newChannels) {
+		synchronized (allKeys) {
 			closeAll(newChannels.keySet());
 		}
 		synchronized (writableKeys) {
@@ -166,6 +181,16 @@ public class TcpWriter implements Runnable {
 
 	protected void closeAll(Collection<SocketChannel> channels) {
 		for (SocketChannel channel : channels) {
+
+			// Debug
+			if (debug) {
+				try {
+					logger.info("Client channel closed to " + channel.getRemoteAddress() + ".");
+				} catch (Exception ignored) {
+				}
+			}
+
+			// Close channel
 			try {
 				channel.close();
 			} catch (Exception ignored) {
@@ -217,6 +242,13 @@ public class TcpWriter implements Runnable {
 		// Close channels
 		for (SelectableChannel channel : collected) {
 			if (channel != null) {
+
+				// Debug
+				if (debug) {
+					logger.info("Client channel closed to " + channel + ".");
+				}
+
+				// Close channel
 				try {
 					channel.close();
 				} catch (Exception ingored) {
@@ -261,32 +293,43 @@ public class TcpWriter implements Runnable {
 		}
 	}
 
-	protected void openNewConnection(String nodeID, Tree info, byte[] packet) throws Exception {
+	protected void openNewConnection(String nodeID, Tree info, byte[] packet) {
+		KeyAttachment attachment = null;
+		try {
 
-		// Create new attachment
-		String host = info.get("hostName", (String) null);
-		if (host == null) {
-			Tree ipList = info.get("ipList");
-			if (ipList.size() > 0) {
-				host = ipList.get(0).asString();
-			} else {
-				throw new Exception("Missing or empty \"ipList\" property!");
+			// Create new attachment
+			String host = info.get("hostName", (String) null);
+			if (host == null) {
+				Tree ipList = info.get("ipList");
+				if (ipList.size() > 0) {
+					host = ipList.get(0).asString();
+				} else {
+					throw new Exception("Missing or empty \"ipList\" property!");
+				}
 			}
-		}
-		int port = info.get("port", 7328);
-		KeyAttachment attachment = new KeyAttachment(nodeID, host, port, packet);
+			int port = info.get("port", 7328);
+			attachment = new KeyAttachment(nodeID, host, port, packet);
 
-		// Create new socket
-		InetSocketAddress address = new InetSocketAddress(host, port);
-		SocketChannel channel = SocketChannel.open(address);
-		channel.configureBlocking(false);
+			// Create new socket
+			InetSocketAddress address = new InetSocketAddress(host, port);
+			SocketChannel channel = SocketChannel.open(address);
+			channel.configureBlocking(false);
 
-		// Send channel to registering
-		synchronized (newChannels) {
-			newChannels.put(channel, attachment);
+			// Debug
+			if (debug) {
+				logger.info("Client channel opened to " + channel.getRemoteAddress() + ".");
+			}
+
+			// Send channel to registering
+			synchronized (allKeys) {
+				newChannels.put(channel, attachment);
+			}
+			hasNewChannels.set(true);
+			selector.wakeup();
+
+		} catch (Exception cause) {
+			transporter.unableToSend(attachment, cause);
 		}
-		hasNewChannels.set(true);
-		selector.wakeup();
 	}
 
 	// --- WRITER LOOP ---
@@ -312,10 +355,12 @@ public class TcpWriter implements Runnable {
 				n = selector.select();
 
 				// Register new channels
-				if (hasNewChannels.compareAndSet(true, false)) {
-					synchronized (newChannels) {
+				if (hasNewChannels.compareAndSet(true, false)) {					
+					synchronized (allKeys) {
 						for (Map.Entry<SocketChannel, KeyAttachment> entry : newChannels.entrySet()) {
-							entry.getKey().register(selector, SelectionKey.OP_WRITE, entry.getValue());
+							attachment = entry.getValue();
+							key = entry.getKey().register(selector, SelectionKey.OP_WRITE, attachment);
+							allKeys.put(attachment.nodeID, key);
 						}
 						newChannels.clear();
 					}
@@ -356,6 +401,11 @@ public class TcpWriter implements Runnable {
 						attachment = (KeyAttachment) key.attachment();
 						channel = (SocketChannel) key.channel();
 						if (!attachment.write(channel)) {
+
+							// Debug
+							if (debug) {
+								logger.info("Message submission finished to " + channel.getRemoteAddress() + ".");
+							}
 
 							// All data sent
 							key.interestOps(0);

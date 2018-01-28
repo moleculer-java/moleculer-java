@@ -31,7 +31,6 @@
  */
 package services.moleculer.config;
 
-import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.scan;
 
 import java.io.ByteArrayInputStream;
@@ -55,7 +54,6 @@ import services.moleculer.eventbus.EventBus;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.repl.Repl;
 import services.moleculer.service.Name;
-import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
@@ -217,19 +215,10 @@ public final class GuiceComponentRegistry extends BaseComponentRegistry {
 						if (isInternalComponent(type)) {
 							continue;
 						}
-						if (Service.class.isAssignableFrom(type)) {
-							Service service = (Service) injector.getInstance(type);
-							String name = service.name();
-							broker.createService(service, configOf(name, config));
-							logger.info("Object \"" + name + "\" registered as Moleculer Service.");
-							continue;
-						}
-						if (MoleculerComponent.class.isAssignableFrom(type)) {
-							MoleculerComponent c = (MoleculerComponent) injector.getInstance(type);
-							String name = nameOf(c, true);
-							componentMap.put(name, new MoleculerComponentContainer(c, configOf(name, config)));
-							logger.info("Object " + name + " registered as Moleculer Component.");
-						}
+						
+						// Store as custom component or service
+						Object component = injector.getInstance(type);
+						register(broker, component, config);
 					} catch (Throwable cause) {
 						logger.warn("Unable to load class \"" + className + "\"!", cause);
 					}

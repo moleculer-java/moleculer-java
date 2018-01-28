@@ -32,6 +32,7 @@
 package services.moleculer.repl;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -140,6 +141,12 @@ public class RemoteRepl extends LocalRepl {
 			selector = Selector.open();
 			serverChannel.register(selector, SelectionKey.OP_ACCEPT);
 			super.startReading();
+			String host = "127.0.0.1";
+			try {
+				host = InetAddress.getLocalHost().getHostAddress();
+			} catch (Exception ignored) {
+			}
+			logger.info("Telnet server listening on \"telnet://" + host + ":" + port + "\".");
 		} catch (Exception cause) {
 			logger.error("Unable to start telnet!", cause);
 		}
@@ -202,7 +209,7 @@ public class RemoteRepl extends LocalRepl {
 										socket.setSoTimeout(socketTimeout);
 									}
 
-									// Regisztráljuk a kapcsolatot
+									// Registering connection
 									channel.configureBlocking(false);
 									newKey = channel.register(selector, 0);
 									buffer = new RemoteReader(this, channel, newKey, authenticated, echo, username,
@@ -212,7 +219,7 @@ public class RemoteRepl extends LocalRepl {
 										buffers.addLast(buffer);
 									}
 
-									// Telnet fejléc küldése
+									// Send telnet header
 									if (echo) {
 										buffer.addBytes(TELNET_HEADER, true);
 									}
@@ -225,7 +232,6 @@ public class RemoteRepl extends LocalRepl {
 									keys.remove();
 									continue;
 								} catch (Exception e4) {
-
 									try {
 										String message = "Telnet connection refused: " + e4.getMessage();
 										try {

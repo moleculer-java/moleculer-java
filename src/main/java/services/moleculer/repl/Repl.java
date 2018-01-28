@@ -78,7 +78,15 @@ public abstract class Repl implements MoleculerComponent {
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		enabled = config.get("enabled", false);
+		Tree enabledNode = config.get("enabled");
+		if (enabledNode != null) {
+			enabled = enabledNode.asBoolean();			
+		} else {
+			Tree parent = config.getParent();
+			if (parent != null) {
+				enabled = parent.get("type") != null;
+			}
+		}
 
 		// Start (if enabled)
 		startOrStopReading();
@@ -94,7 +102,7 @@ public abstract class Repl implements MoleculerComponent {
 				try {
 					startReading();
 					running = true;
-					logger.info(nameOf(this, true) + " started to wait for commands.");
+					logger.info(nameOf(this, true) + " started.");
 				} catch (Throwable cause) {
 					logger.error("Unable to start console!", cause);
 				}
@@ -105,7 +113,7 @@ public abstract class Repl implements MoleculerComponent {
 	protected synchronized void stopNow() {
 		try {
 			stopReading();
-			logger.info(nameOf(this, true) + " stopped to wait for commands.");
+			logger.info(nameOf(this, true) + " stopped.");
 		} catch (Throwable cause) {
 			logger.error("Unable to stop console!", cause);
 		}

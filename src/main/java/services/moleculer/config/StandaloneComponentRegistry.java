@@ -31,7 +31,6 @@
  */
 package services.moleculer.config;
 
-import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.scan;
 
 import java.util.LinkedList;
@@ -40,7 +39,6 @@ import java.util.List;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
-import services.moleculer.service.Service;
 
 /**
  * Standalone Component Registry. It's the simplest way to start a Moleculer
@@ -120,9 +118,6 @@ public final class StandaloneComponentRegistry extends BaseComponentRegistry {
 			if (!packageName.isEmpty()) {
 				LinkedList<String> classNames = scan(packageName);
 				for (String className : classNames) {
-					if (className.indexOf('$') > -1) {
-						continue;
-					}
 					className = packageName + '.' + className;
 					try {
 						Object component = Class.forName(className).newInstance();
@@ -130,22 +125,8 @@ public final class StandaloneComponentRegistry extends BaseComponentRegistry {
 							continue;
 						}
 
-						// Find Moleculer Services
-						if (component instanceof Service) {
-							Service service = (Service) component;
-							String name = service.name();
-							broker.createService(service, configOf(name, config));
-							logger.info("Object \"" + name + "\" registered as Moleculer Service.");
-							continue;
-						}
-
-						// Find Moleculer Components (eg. DAO classes)
-						if (component instanceof MoleculerComponent) {
-							MoleculerComponent c = (MoleculerComponent) component;
-							String name = nameOf(c, true);
-							componentMap.put(name, new MoleculerComponentContainer(c, configOf(name, config)));
-							logger.info("Object " + name + " registered as Moleculer Component.");
-						}
+						// Store as custom component or service
+						register(broker, component, config);
 					} catch (Throwable cause) {
 						logger.warn("Unable to load class \"" + className + "\"!", cause);
 					}

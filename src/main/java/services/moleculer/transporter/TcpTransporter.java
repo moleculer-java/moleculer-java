@@ -45,13 +45,14 @@ import java.util.concurrent.TimeUnit;
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
+import services.moleculer.monitor.Monitor;
 import services.moleculer.service.Name;
 import services.moleculer.transporter.tcp.KeyAttachment;
 import services.moleculer.transporter.tcp.TcpReader;
 import services.moleculer.transporter.tcp.TcpWriter;
 
 /**
- * TCP Transporter. Now it's just an empty sketch (it doesn't work).
+ * TCP Transporter. Now it's just an empty sketch.
  */
 @Name("TCP Transporter")
 public class TcpTransporter extends Transporter {
@@ -98,6 +99,10 @@ public class TcpTransporter extends Transporter {
 	 */
 	protected String[] urls;
 
+	// --- COMPONENTS ---
+	
+	protected Monitor monitor;
+	
 	// --- CONSTUCTORS ---
 
 	public TcpTransporter() {
@@ -126,6 +131,11 @@ public class TcpTransporter extends Transporter {
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
+		// Disable heartbeat messages
+		heartbeatInterval = 0;
+		heartbeatTimeout = 0;
+		offlineTimeout = 0;
+
 		// Process basic properties (eg. "prefix")
 		super.start(broker, config);
 
@@ -148,6 +158,9 @@ public class TcpTransporter extends Transporter {
 			}
 		}
 
+		// Set components
+		monitor = broker.components().monitor();
+		
 		// TCP server's port
 		port = config.get("port", port);
 
@@ -224,12 +237,12 @@ public class TcpTransporter extends Transporter {
 			timer = scheduler.scheduleWithFixedDelay(this::doGossiping, gossipPeriod, gossipPeriod, TimeUnit.SECONDS);
 
 			// Ok, transporter started
-			logger.info("TCP pub-sub connection estabilished.");
+			logger.info("TCP transporter server started on port #" + port + ".");
 
 		} catch (Exception cause) {
 			String msg = cause.getMessage();
 			if (msg == null || msg.isEmpty()) {
-				msg = "Unable to estabilish TCP connection!";
+				msg = "Unable to start TCP transporter!";
 			} else if (!msg.endsWith("!") && !msg.endsWith(".")) {
 				msg += "!";
 			}
@@ -403,6 +416,11 @@ public class TcpTransporter extends Transporter {
 			executor.execute(() -> {
 				try {
 
+					// Debug
+					if (debug) {
+						logger.info("Unable to send message to " + attachment.host + ":" + attachment.port + ".");
+					}
+
 					// Mark endpoint as offline
 					nodeActivities.remove(attachment.nodeID);
 
@@ -524,11 +542,11 @@ public class TcpTransporter extends Transporter {
 
 				// Create data packet to send
 				packet = serialize(packetID, message);
-				
+
 				// Check size
 				if (maxPacketSize > 0 && packet.length > maxPacketSize) {
-					throw new Exception("Outgoing packet is larger than the \"maxPacketSize\" limit (" + packet.length + " > "
-							+ maxPacketSize + ")!");
+					throw new Exception("Outgoing packet is larger than the \"maxPacketSize\" limit (" + packet.length
+							+ " > " + maxPacketSize + ")!");
 				}
 
 				// Send packet to endpoint
@@ -585,7 +603,10 @@ public class TcpTransporter extends Transporter {
 			Tree nodes = root.putList("nodes");
 
 			// Add current node to message
-			nodes.addObject(registry.generateDescriptor());
+			Tree descriptor = registry.generateDescriptor();
+			descriptor.put("port", port);
+			descriptor.put("cpu", monitor.getTotalCpuPercent());
+			nodes.addObject(descriptor);
 
 			// Add node infos to message
 			ArrayList<Tree> liveEndpoints = new ArrayList<>(size);
@@ -605,7 +626,7 @@ public class TcpTransporter extends Transporter {
 			byte[] packet = serialize(PACKET_GOSSIP_ID, root);
 
 			// Do gossiping with a live endpoint
-			if (liveEndpointCount > 1) {
+			if (liveEndpointCount > 0) {
 				sendGossipToRandomEndpoint(liveEndpoints, liveEndpointCount, packet);
 			}
 

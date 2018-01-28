@@ -48,6 +48,7 @@ import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.repl.Repl;
+import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
@@ -209,8 +210,8 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 					continue;
 				}
 
-				// Store as custom component
-				componentMap.put(id, new MoleculerComponentContainer(component, subConfig));
+				// Store as custom component or service
+				register(broker, component, subConfig);
 			}
 		}
 
@@ -237,11 +238,27 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		start(broker, repl, configOf(REPL_ID, config), ns);
 
 		// Start custom components
-		for (MoleculerComponentContainer container : componentMap.values()) {
+		for (MoleculerComponentContainer container : componentMap.values()) {		
 			start(broker, container.component, container.config, ns);
 		}
 	}
 
+	protected void register(ServiceBroker broker, Object component, Tree config) throws Exception {
+		if (component instanceof Service) {
+			Service service = (Service) component;
+			String name = service.name();
+			broker.createService(service, configOf(name, config));
+			logger.info("Object \"" + name + "\" registered as Moleculer Service.");
+			return;
+		}
+		if (component instanceof MoleculerComponent) {
+			MoleculerComponent c = (MoleculerComponent) component;
+			String name = nameOf(c, true);
+			componentMap.put(name, new MoleculerComponentContainer(c, configOf(name, config)));
+			logger.info("Object " + name + " registered as Moleculer Component.");
+		}
+	}
+	
 	// --- SERVICE AND COMPONENT FINDER FOR SPRING / GUICE / STANDALONE ---
 
 	protected abstract void findServices(ServiceBroker broker, Tree customConfig) throws Exception;
@@ -260,6 +277,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		internalTypes.add(ServiceRegistry.class);
 		internalTypes.add(Transporter.class);
 		internalTypes.add(Monitor.class);
+		internalTypes.add(Repl.class);
 	}
 
 	protected static final boolean isInternalComponent(Object component) {
@@ -286,8 +304,13 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 				if (opts == null) {
 					if (config.isMap()) {
 						opts = config.putMap("opts");
-					} else {
-						opts = new Tree();
+					} else if (config.getType() == String.class) {
+						String type = config.asString();
+						config = new Tree();
+						config.put("type", type);
+						opts = config.putMap("opts");
+					} else {						
+						opts = new Tree();						
 					}
 				}
 				if (namespace != null && !namespace.isEmpty()) {
@@ -440,6 +463,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 		componentMap.clear();
 
 		// Stop internal components
+		stop(repl);
 		stop(transporter);
 		stop(monitor);
 		stop(registry);

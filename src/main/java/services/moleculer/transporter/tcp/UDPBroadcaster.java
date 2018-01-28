@@ -29,39 +29,11 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.repl.commands;
-
-import java.io.PrintStream;
-
-import services.moleculer.ServiceBroker;
-import services.moleculer.repl.Command;
-import services.moleculer.service.Name;
+package services.moleculer.transporter.tcp;
 
 /**
-* "Exit application" command. Shuts down ServiceBroker then the virtual machine.
-*/
-@Name("exit")
-public class Exit extends Command {
-
-	@Override
-	public String getDescription() {
-		return "Exit application";
-	}
-	
-	@Override
-	public String getUsage() {
-		return "exit, q";
-	}
-
-	@Override
-	public int getNumberOfRequiredParameters() {
-		return 0;
-	}
-
-	@Override
-	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
-		broker.stop();
-		System.exit(0);			
-	}
+ * UDP broadcaster / receiver of the TCP Transporter.
+ */
+public class UDPBroadcaster {
 
 }
