@@ -314,6 +314,7 @@ public final class TcpWriter implements Runnable {
 								newBuffer.key(key);
 
 							} catch (Exception cause) {
+								buffer.invalidate();
 								synchronized (buffers) {
 									buffers.remove(newBuffer.nodeID);
 								}

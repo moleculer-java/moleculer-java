@@ -93,6 +93,10 @@ public final class SendBuffer {
 		}
 	}
 
+	final void invalidate() {
+		lastUsed.set(0);
+	}
+	
 	final boolean invalidate(long limit) {
 		long current = lastUsed.get();
 		if (current < limit && first == null) {
