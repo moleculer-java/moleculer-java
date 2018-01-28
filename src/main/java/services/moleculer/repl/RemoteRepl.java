@@ -141,7 +141,7 @@ public class RemoteRepl extends LocalRepl {
 			selector = Selector.open();
 			serverChannel.register(selector, SelectionKey.OP_ACCEPT);
 			super.startReading();
-			String host = "127.0.0.1";
+			String host = "localhost";
 			try {
 				host = InetAddress.getLocalHost().getHostAddress();
 			} catch (Exception ignored) {

@@ -317,7 +317,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 				// Redis transporter is ready for use
 				logger.info("All channels subscribed.");
-				
+
 				// Do the discovery process
 				sendDiscoverPacket(discoverBroadcastChannel);
 				sendInfoPacket(infoBroadcastChannel);
@@ -473,12 +473,12 @@ public abstract class Transporter implements MoleculerComponent {
 					nodeActivities.put(sender, new NodeActivity(System.currentTimeMillis(), data.get("cpu", 0)));
 					return;
 				}
-				
+
 				// Info packet
 				if (channel.equals(infoChannel) || channel.equals(infoBroadcastChannel)) {
 
 					// Register services and listeners
-					registerOrUpdateNode(sender, data);
+					updateLocalInfos(sender, data);
 					return;
 				}
 
@@ -494,13 +494,13 @@ public abstract class Transporter implements MoleculerComponent {
 
 					// Get node info
 					Tree info = nodeInfos.get(sender);
-					if (info == null || info.get("offline") != null) {
-						
+					if (info == null || info.get("offlineSince") != null) {
+
 						// Allready offline
 						return;
 					}
 					logger.info("Node \"" + sender + "\" disconnected.");
-					
+
 					// Remove CPU usage and last heartbeat time
 					nodeActivities.remove(sender);
 
@@ -509,12 +509,12 @@ public abstract class Transporter implements MoleculerComponent {
 
 					// Remove remote event listeners
 					eventbus.removeListeners(sender);
-					
+
 					// Notify listeners (not unexpected disconnection)
 					broadcastNodeDisconnected(info, false);
-						
+
 					// Store disconnection time
-					info.put("offline", System.currentTimeMillis());
+					info.put("offlineSince", System.currentTimeMillis());
 				}
 
 			} catch (Exception cause) {
@@ -523,57 +523,112 @@ public abstract class Transporter implements MoleculerComponent {
 		});
 	}
 
-	protected void registerOrUpdateNode(String sender, Tree data) throws Exception {
-		
-		// Register services in info block
-		Tree services = data.get("services");
-		if (services != null && services.isEnumeration()) {
+	protected void updateLocalInfos(String sender, Tree info) throws Exception {
+
+		// Skip this node's info block
+		if (sender == null || sender.isEmpty() || nodeID.equals(sender)) {
+			return;
+		}
+
+		// Services block is required for registration
+		Tree services = info.get("services");
+		if (services != null && services.size() > 0) {
+
+			// Current timestamp
+			long now = System.currentTimeMillis();
 			
-			// Changed?
-			Tree previousInfo = nodeInfos.put(sender, data);
+			// Get local / current info-block
+			Tree current = nodeInfos.get(sender);
+
+			// Is node offline in remote info?
+			Tree offline = info.get("offlineSince");
+			if (offline != null) {
+
+				// Is node offline in local storage?
+				if (current == null) {
+
+					// Check since flag
+					long since = offline.asLong();
+					if (now - since > offlineTimeout * 1000L) {
+
+						// Do not store - too old offline entry
+						return;
+					}
+
+					// Store this offline node
+					nodeInfos.put(sender, info);
+					return;
+				}
+				if (current.get("offlineSince") != null) {
+
+					// Allready offline - do nothing
+					return;
+				}
+
+				// Update local "offlineSince" flag
+				current.put("offlineSince", offline.asLong());
+
+				// Node disconnected
+				logger.info("Node \"" + sender + "\" disconnected.");
+
+				// Remove CPU usage and last heartbeat time
+				nodeActivities.remove(sender);
+
+				// Remove remote actions
+				registry.removeActions(sender);
+
+				// Remove remote event listeners
+				eventbus.removeListeners(sender);
+
+				// Notify listeners (not unexpected disconnection)
+				broadcastNodeDisconnected(info, false);
+				return;
+			}
+
+			// Received node info has "online" status
 			boolean connected = false;
 			boolean reconnected = false;
 			boolean updated = false;
-			if (previousInfo == null) {
-				
-				// New node
+			if (current == null) {
+
+				// New, unknown online node
 				connected = true;
-				
+
 			} else {
-				
+
 				// Check "when" flag
-				long previousWhen = previousInfo.get("when", 0L);
-				long currentWhen = data.get("when", Long.MAX_VALUE);
-				if (previousWhen <= currentWhen) {
-					
-					// Not changed
+				long currentWhen = current.get("when", 0L);
+				long newWhen = info.get("when", Long.MAX_VALUE);
+				if (currentWhen >= newWhen) {
+
+					// Not changed (received info is older)
 					return;
 				}
-				
-				// Registered node
-				Tree offline = previousInfo.remove("offline");
-				if (offline == null || !offline.asBoolean()) {
 
-					// Node was online
-					if (!previousInfo.equals(data)) {
-						
-						// Info block changed
-						updated = true;
-					}
+				// Received info is newer than local
+				if (current.get("offlineSince") == null) {
+
+					// Info block updated
+					updated = true;
+
 				} else {
 
 					// Node was offline
 					reconnected = true;
 				}
 			}
-			
+
 			// Register actions and listeners
 			if (connected || reconnected || updated) {
+				
+				// Store new info
+				nodeInfos.put(sender, info);
+				
 				if (updated) {
-					
+
 					// Remove previous actions
 					registry.removeActions(sender);
-					
+
 					// Remove previous listeners
 					eventbus.removeListeners(sender);
 				}
@@ -586,13 +641,19 @@ public abstract class Transporter implements MoleculerComponent {
 					eventbus.addListeners(service);
 				}
 			}
-			
+
+			// Store in activities
+			Tree cpu = info.get("cpu");
+			if (cpu != null) {
+				nodeActivities.put(sender, new NodeActivity(now, cpu.asInteger()));
+			}
+
 			// Notify local listeners
 			if (updated) {
 
 				// Node updated
 				logger.info("Node \"" + sender + "\" updated.");
-				broadcastNodeUpdated(data);
+				broadcastNodeUpdated(info);
 
 			} else if (connected || reconnected) {
 
@@ -602,11 +663,11 @@ public abstract class Transporter implements MoleculerComponent {
 				} else {
 					logger.info("Node \"" + sender + "\" reconnected.");
 				}
-				broadcastNodeConnected(data, reconnected);
+				broadcastNodeConnected(info, reconnected);
 			}
 		}
 	}
-	
+
 	protected void broadcastNodeConnected(Tree info, boolean reconnected) {
 		if (info != null) {
 			Tree message = new Tree();
@@ -667,7 +728,7 @@ public abstract class Transporter implements MoleculerComponent {
 	protected void checkNodes() {
 
 		// Check time
- 		long now = System.currentTimeMillis();
+		long now = System.currentTimeMillis();
 		if (now < lastCheck) {
 			lastCheck = now;
 			return;
@@ -701,7 +762,7 @@ public abstract class Transporter implements MoleculerComponent {
 				if (info != null) {
 
 					// Store disconnection time
-					info.put("offline", System.currentTimeMillis());
+					info.put("offlineSince", System.currentTimeMillis());
 
 					// Ok, all actions and listeners removed
 					logger.info("Node \"" + nodeID
@@ -720,7 +781,7 @@ public abstract class Transporter implements MoleculerComponent {
 		timeoutMillis = offlineTimeout * 1000L;
 		while (infoEntries.hasNext()) {
 			infoEntry = infoEntries.next();
-			timestamp = infoEntry.getValue().get("offline", -1L);
+			timestamp = infoEntry.getValue().get("offlineSince", -1L);
 			if (timestamp < 1) {
 				continue;
 			}
@@ -739,7 +800,7 @@ public abstract class Transporter implements MoleculerComponent {
 			}
 		}
 	}
-	
+
 	// --- GET NODE ACTIVITIES MAP ---
 
 	public Map<String, NodeActivity> getNodeActivities() {
@@ -747,14 +808,14 @@ public abstract class Transporter implements MoleculerComponent {
 	}
 
 	// --- IS NODE ONLINE? ---
-	
+
 	public boolean isOnline(String nodeID) {
 		if (this.nodeID.equals(nodeID)) {
 			return true;
 		}
 		return nodeActivities.containsKey(nodeID);
 	}
-	
+
 	// --- GET NODEIDS OF ALL NODES ---
 
 	public Set<String> getAllNodeIDs() {

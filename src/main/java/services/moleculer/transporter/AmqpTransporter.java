@@ -31,10 +31,10 @@
  */
 package services.moleculer.transporter;
 
+import static services.moleculer.util.CommonUtils.parseURLs;
+
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -77,7 +77,7 @@ public class AmqpTransporter extends Transporter {
 
 	protected String username;
 	protected String password;
-	protected String url = "127.0.0.1";
+	protected String url = "localhost";
 	protected SslContextFactory sslContextFactory;
 
 	// --- OTHER AMQP PROPERTIES ---
@@ -141,22 +141,10 @@ public class AmqpTransporter extends Transporter {
 		super.start(broker, config);
 
 		// Process config
-		Tree urlNode = config.get("url");
-		if (urlNode != null) {
-			List<String> urlList;
-			if (urlNode.isPrimitive()) {
-				urlList = new LinkedList<>();
-				String url = urlNode.asString().trim();
-				if (!url.isEmpty()) {
-					urlList.add(url);
-				}
-			} else {
-				urlList = urlNode.asList(String.class);
-			}
-			if (!urlList.isEmpty()) {
-				url = urlList.get(0);
-			}
+		if (url == null || url.isEmpty()) {
+			url = "localhost";
 		}
+		url = parseURLs(config, new String[] { url })[0];
 		username = config.get("username", username);
 		password = config.get("password", password);
 		mandatory = config.get("mandatory", mandatory);

@@ -162,5 +162,27 @@ public final class SendBuffer {
 			return first.array();
 		}
 	}
+	
+	// --- COLLECTION HELPERS ---
+	
+	@Override
+	public final int hashCode() {
+		return nodeID.hashCode();
+	}
+
+	@Override
+	public final boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (obj == null) {
+			return false;
+		}
+		if (getClass() != obj.getClass()) {
+			return false;
+		}
+		SendBuffer other = (SendBuffer) obj;
+		return nodeID.equals(other.nodeID);
+	}	
 
 }

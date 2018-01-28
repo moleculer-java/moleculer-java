@@ -87,7 +87,7 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 	protected String password;
 	protected int ttl;
 	protected boolean secure;
-	protected String[] urls = new String[] { "127.0.0.1" };
+	protected String[] urls = new String[] { "localhost" };
 
 	// --- REDIS CLIENT ---
 

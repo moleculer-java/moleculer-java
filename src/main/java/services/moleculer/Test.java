@@ -55,8 +55,8 @@ public class Test {
 		TcpTransporter transporter = new TcpTransporter();
 		// KafkaTransporter transporter = new KafkaTransporter();
 		transporter.setPort(12001);
-		transporter.setUrls(new String[] { "tcp://127.0.0.1:12002/node-2" });
-		//transporter.setDebug(true);
+		transporter.setUrls(new String[] { "localhost:12002/node-2" });
+		transporter.setDebug(true);
 		// Transporter transporter = null;
 
 		// Define cacher

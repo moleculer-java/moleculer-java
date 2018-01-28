@@ -38,9 +38,11 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Objects;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -82,7 +84,7 @@ public final class CommonUtils {
 					}
 					if (!names.isEmpty()) {
 						return names;
-					}					
+					}
 				}
 			}
 			return names;
@@ -110,12 +112,12 @@ public final class CommonUtils {
 			if (entryName.endsWith(".class")) {
 				entryName = entryName.substring(0, entryName.lastIndexOf('.'));
 				if (entryName.indexOf('$') == -1) {
-					names.add(entryName);					
+					names.add(entryName);
 				}
 			}
-		}		
+		}
 	}
-	
+
 	private static final void scanJar(String jarFileName, String packageName, LinkedList<String> names) {
 		JarFile jar = null;
 		try {
@@ -126,8 +128,8 @@ public final class CommonUtils {
 				if (entryName.startsWith(packageName) && entryName.endsWith(".class")) {
 					entryName = entryName.substring(packageName.length() + 1, entryName.lastIndexOf('.'));
 					if (entryName.indexOf('$') == -1 && entryName.indexOf('/') == -1) {
-						names.add(entryName);					
-					}					
+						names.add(entryName);
+					}
 				}
 			}
 		} catch (Exception ignored) {
@@ -139,6 +141,35 @@ public final class CommonUtils {
 				}
 			}
 		}
+	}
+
+	// --- PARSE URL LIST OR URL ARRAY ---
+
+	public static final String[] parseURLs(Tree config, String[] defaultURLs) {
+		Tree urlNode = config.get("url");
+		List<String> urlList;
+		if (urlNode == null) {
+			return defaultURLs;
+		} else if (urlNode.isPrimitive()) {
+			urlList = new ArrayList<>();
+			String[] urls = urlNode.asString().split(",");
+			for (String url : urls) {
+				url = url.trim();
+				if (!url.isEmpty()) {
+					urlList.add(url);
+				}
+			}
+		} else if (urlNode.isEnumeration()) {
+			urlList = urlNode.asList(String.class);
+		} else {
+			return defaultURLs;
+		}
+		if (urlList.isEmpty()) {
+			return defaultURLs;
+		}
+		String[] urls = new String[urlList.size()];
+		urlList.toArray(urls);
+		return urls;
 	}
 
 	// --- PARSE CALL / BROADCAST PARAMS ---

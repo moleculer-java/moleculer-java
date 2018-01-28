@@ -1,8 +1,8 @@
 package services.moleculer.transporter;
 
+import static services.moleculer.util.CommonUtils.parseURLs;
+
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -57,7 +57,7 @@ public class KafkaTransporter extends Transporter {
 	protected Properties producerProperties = new Properties();
 	protected Properties consumerProperties = new Properties();
 	
-	protected String[] urls = new String[] { "127.0.0.1:9092" };
+	protected String[] urls = { "localhost:9092" };
 
 	// --- KAFKA PRODUCER / MESSAGE SENDER ---
 
@@ -99,23 +99,7 @@ public class KafkaTransporter extends Transporter {
 		super.start(broker, config);
 
 		// Process config
-		Tree urlNode = config.get("url");
-		if (urlNode != null) {
-			List<String> urlList;
-			if (urlNode.isPrimitive()) {
-				urlList = new LinkedList<>();
-				String url = urlNode.asString().trim();
-				if (!url.isEmpty()) {
-					urlList.add(url);
-				}
-			} else {
-				urlList = urlNode.asList(String.class);
-			}
-			if (!urlList.isEmpty()) {
-				urls = new String[urlList.size()];
-				urlList.toArray(urls);
-			}
-		}
+		urls = parseURLs(config, urls);
 
 		// Set unique "node ID" as Kafka "group ID"
 		consumerProperties.setProperty("group.id", nodeID);

@@ -87,10 +87,8 @@ public final class TcpWriter implements Runnable {
 	private final TcpTransporter transporter;
 
 	private final LinkedHashMap<String, SendBuffer> buffers = new LinkedHashMap<>();
-	private final LinkedList<SendBuffer> opened = new LinkedList<>();
-	private final HashSet<SendBuffer> writable = new HashSet<>();
 
-	private final AtomicBoolean hasOpened = new AtomicBoolean();
+	private final HashSet<SendBuffer> writable = new HashSet<>();
 	private final AtomicBoolean hasWritable = new AtomicBoolean();
 
 	private Selector selector;
@@ -182,9 +180,6 @@ public final class TcpWriter implements Runnable {
 		synchronized (writable) {
 			writable.clear();
 		}
-		synchronized (opened) {
-			opened.clear();
-		}
 	}
 
 	// --- MANAGE TIMEOUTS ---
@@ -236,7 +231,6 @@ public final class TcpWriter implements Runnable {
 
 		// Get or create buffer
 		SendBuffer buffer = null;
-		boolean newBuffer = false;
 		synchronized (buffers) {
 			buffer = buffers.get(nodeID);
 			if (buffer == null || !buffer.use()) {
@@ -254,25 +248,13 @@ public final class TcpWriter implements Runnable {
 				int port = info.get("port", 7328);
 				buffer = new SendBuffer(nodeID, host, port, packet);
 				buffers.put(nodeID, buffer);
-				newBuffer = true;
 			}
 		}
-		if (newBuffer) {
-
-			// New buffer
-			synchronized (opened) {
-				opened.add(buffer);
-			}
-			hasOpened.set(true);
-		} else {
-
-			// Reuse opened buffer
-			buffer.append(packet);
-			synchronized (writable) {
-				writable.add(buffer);
-			}
-			hasWritable.set(true);
+		buffer.append(packet);
+		synchronized (writable) {
+			writable.add(buffer);
 		}
+		hasWritable.set(true);
 		selector.wakeup();
 	}
 
@@ -298,39 +280,31 @@ public final class TcpWriter implements Runnable {
 				}
 				n = selector.select();
 
-				// Register new channels
-				if (hasOpened.compareAndSet(true, false)) {
-					synchronized (opened) {
-						for (SendBuffer newBuffer : opened) {
-							try {
-
-								// Create new socket
-								InetSocketAddress address = new InetSocketAddress(newBuffer.host, newBuffer.port);
-								channel = SocketChannel.open(address);
-								channel.configureBlocking(false);
-
-								// Register socket in selector
-								key = channel.register(selector, SelectionKey.OP_WRITE, newBuffer);
-								newBuffer.key(key);
-
-							} catch (Exception cause) {
-								buffer.invalidate();
-								synchronized (buffers) {
-									buffers.remove(newBuffer.nodeID);
-								}
-								transporter.unableToSend(newBuffer, cause);
-							}
-						}
-						opened.clear();
-					}
-				}
-
 				// Set key status
 				if (hasWritable.compareAndSet(true, false)) {
 					synchronized (writable) {
 						for (SendBuffer writableBuffer : writable) {
 							key = writableBuffer.key();
-							if (key != null) {
+							if (key == null) {
+								
+								// Create new socket
+								try {
+									InetSocketAddress address = new InetSocketAddress(writableBuffer.host, writableBuffer.port);
+									channel = SocketChannel.open(address);
+									channel.configureBlocking(false);
+
+									// Register socket in selector
+									key = channel.register(selector, SelectionKey.OP_WRITE, writableBuffer);
+									writableBuffer.key(key);
+
+								} catch (Exception cause) {
+									writableBuffer.invalidate();
+									synchronized (buffers) {
+										buffers.remove(writableBuffer.nodeID);
+									}
+									transporter.unableToSend(writableBuffer, cause);
+								}
+							} else {
 
 								// Switch to write mode
 								key.interestOps(SelectionKey.OP_WRITE);

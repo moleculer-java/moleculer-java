@@ -31,9 +31,9 @@
  */
 package services.moleculer.transporter;
 
+import static services.moleculer.util.CommonUtils.parseURLs;
+
 import java.util.Date;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -75,7 +75,7 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 
 	protected String username;
 	protected String password;
-	protected String url = "127.0.0.1";
+	protected String url = "localhost";
 
 	// --- OTHER MQTT PROPERTIES ---
 
@@ -130,22 +130,10 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 		super.start(broker, config);
 
 		// Process config
-		Tree urlNode = config.get("url");
-		if (urlNode != null) {
-			List<String> urlList;
-			if (urlNode.isPrimitive()) {
-				urlList = new LinkedList<>();
-				String url = urlNode.asString().trim();
-				if (!url.isEmpty()) {
-					urlList.add(url);
-				}
-			} else {
-				urlList = urlNode.asList(String.class);
-			}
-			if (!urlList.isEmpty()) {
-				url = urlList.get(0);
-			}
+		if (url == null || url.isEmpty()) {
+			url = "localhost";
 		}
+		url = parseURLs(config, new String[] { url })[0];
 		username = config.get("username", username);
 		password = config.get("password", password);
 		cleanSession = config.get("cleanSession", cleanSession);
