@@ -61,6 +61,7 @@ public class SigarMonitor extends Monitor {
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
+		super.start(broker, config);
 		sigar = new Sigar();
 	}
 
@@ -72,13 +73,27 @@ public class SigarMonitor extends Monitor {
 	 * @return total CPU usage of the current OS
 	 */
 	@Override
-	public int getTotalCpuPercent() {
+	protected int detectTotalCpuPercent() {
 		try {
 			return (int) Math.max(sigar.getCpuPerc().getCombined() * 100d, 0d);
 		} catch (Exception cause) {
 			logger.warn("Unable to get CPU usage!", cause);
 		}
 		return 0;
+	}
+
+	/**
+	 * Returns the PID of Java VM.
+	 * 
+	 * @return current Java VM's process ID
+	 */
+	protected long detectPID() {
+		try {
+			return sigar.getPid();
+		} catch (Exception cause) {
+			logger.warn("Unable to get process ID!", cause);
+		}
+		return 0;			
 	}
 
 }

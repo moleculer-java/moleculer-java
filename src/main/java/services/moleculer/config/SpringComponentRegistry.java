@@ -74,7 +74,7 @@ import services.moleculer.service.Service;
  * @see GuiceComponentRegistry
  */
 @Name("Spring Component Registry")
-public final class SpringComponentRegistry extends BaseComponentRegistry implements ApplicationContextAware {
+public final class SpringComponentRegistry extends CommonRegistry implements ApplicationContextAware {
 
 	// --- FIND COMPONENTS AND SERVICES ---
 

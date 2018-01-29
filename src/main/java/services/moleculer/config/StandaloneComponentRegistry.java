@@ -55,7 +55,7 @@ import services.moleculer.service.Name;
  * @see GuiceComponentRegistry
  */
 @Name("Standalone Component Registry")
-public final class StandaloneComponentRegistry extends BaseComponentRegistry {
+public final class StandaloneComponentRegistry extends CommonRegistry {
 
 	// --- PACKAGES TO SCAN ---
 

@@ -66,7 +66,8 @@ public class ConstantMonitor extends Monitor {
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
-
+		super.start(broker, config);
+		
 		// Process config
 		totalCpuPercent = config.get("totalCpuPercent", totalCpuPercent);
 	}
@@ -83,6 +84,24 @@ public class ConstantMonitor extends Monitor {
 		return totalCpuPercent;
 	}
 
+	/**
+	 * Returns the system CPU usage, in percents, between 0 and 100.
+	 * 
+	 * @return total CPU usage of the current OS
+	 */
+	protected int detectTotalCpuPercent() {
+		return 0;
+	}
+	
+	/**
+	 * Returns the system CPU usage, in percents, between 0 and 100.
+	 * 
+	 * @return total CPU usage of the current OS
+	 */
+	protected long detectPID() {
+		return 0;
+	}
+	
 	// --- GETTERS / SETTERS ---
 
 	public void setTotalCpuPercent(int value) {

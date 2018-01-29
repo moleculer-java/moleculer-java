@@ -31,6 +31,8 @@
  */
 package services.moleculer.service;
 
+import static services.moleculer.util.CommonUtils.getHostName;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Field;
@@ -39,6 +41,7 @@ import java.net.NetworkInterface;
 import java.rmi.RemoteException;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -648,7 +651,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 				// Stop local services
 				try {
-					stopAllLocalServices();				
+					stopAllLocalServices();
 				} finally {
 
 					// Clear cache
@@ -806,12 +809,17 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			services.addObject(service);
 		}
 
+		// Host name
+		root.put("hostName", getHostName());
+		
 		// IP array
 		Tree ipList = root.putList("ipList");
+		HashSet<String> ips = new HashSet<>();
 		try {
 			InetAddress local = InetAddress.getLocalHost();
-			root.put("hostName", local.getHostName());
-			ipList.add(local.getHostAddress());
+			String defaultAddress = local.getHostAddress();
+			ips.add(defaultAddress);
+			ipList.add(defaultAddress);
 		} catch (Exception ignored) {
 		}
 		try {
@@ -823,10 +831,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 					InetAddress i = (InetAddress) ee.nextElement();
 					if (!i.isLoopbackAddress()) {
 						String test = i.getHostAddress();
-						Tree same = ipList.find((child) -> {
-							return test.equals(child.asString());
-						});
-						if (same == null) {
+						if (ips.add(test)) {
 							ipList.add(test);
 						}
 					}
@@ -848,6 +853,13 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		return root.clone();
 	}
 
+	// --- CLEAR CACHE ---
+
+	@Override
+	public void clearCache() {
+		cachedDescriptor.set(null);
+	}
+	
 	// --- GETTERS / SETTERS ---
 
 	public boolean isAsyncLocalInvocation() {

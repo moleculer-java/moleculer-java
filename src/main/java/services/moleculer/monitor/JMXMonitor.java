@@ -33,6 +33,7 @@ package services.moleculer.monitor;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
@@ -63,10 +64,13 @@ public class JMXMonitor extends Monitor {
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
+		super.start(broker, config);
 		mxBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
 	}
 
 	// --- SYSTEM MONITORING METHODS ---
+
+	protected AtomicBoolean cpuAccessible = new AtomicBoolean(true);
 
 	/**
 	 * Returns the system CPU usage, in percents, between 0 and 100.
@@ -74,12 +78,35 @@ public class JMXMonitor extends Monitor {
 	 * @return total CPU usage of the current OS
 	 */
 	@Override
-	public int getTotalCpuPercent() {
+	protected int detectTotalCpuPercent() {
+		if (cpuAccessible.get()) {
+			try {
+				Double value = (Double) mxBean.getSystemLoadAverage();
+				return (int) Math.max(value * 100d, 0d);
+			} catch (Exception cause) {
+				cpuAccessible.set(false);
+				logger.warn("Unable to get CPU usage (use Sigar API instead of JMX)!");
+			}
+		}
+		return 0;
+	}
+
+	/**
+	 * Returns the system CPU usage, in percents, between 0 and 100.
+	 * 
+	 * @return total CPU usage of the current OS
+	 */
+	@Override
+	protected long detectPID() {
 		try {
-			Double value = (Double) mxBean.getSystemLoadAverage();
-			return (int) Math.max(value * 100d, 0d);
+			String jvmName = ManagementFactory.getRuntimeMXBean().getName();
+			int index = jvmName.indexOf('@');
+			if (index < 1) {
+				return 0;
+			}
+			return Long.parseLong(jvmName.substring(0, index));
 		} catch (Exception cause) {
-			logger.warn("Unable to get CPU usage!", cause);
+			logger.warn("Unable to detect process ID usage (use Sigar API instead of JMX)!");
 		}
 		return 0;
 	}

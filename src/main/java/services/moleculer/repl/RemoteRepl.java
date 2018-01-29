@@ -31,8 +31,10 @@
  */
 package services.moleculer.repl;
 
+import static services.moleculer.util.CommonUtils.getHostName;
+import static services.moleculer.util.CommonUtils.nameOf;
+
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -141,15 +143,14 @@ public class RemoteRepl extends LocalRepl {
 			selector = Selector.open();
 			serverChannel.register(selector, SelectionKey.OP_ACCEPT);
 			super.startReading();
-			String host = "localhost";
-			try {
-				host = InetAddress.getLocalHost().getHostAddress();
-			} catch (Exception ignored) {
-			}
-			logger.info("Telnet server listening on telnet://" + host + ':' + port + '.');
+			
 		} catch (Exception cause) {
 			logger.error("Unable to start telnet!", cause);
 		}
+	}
+
+	protected void showStartMessage() {
+		logger.info(nameOf(this, true) + " started. Type \"telnet " + getHostName() + ' ' + port + "\" to connect.");		
 	}
 
 	// --- COMMAND READER LOOP ---

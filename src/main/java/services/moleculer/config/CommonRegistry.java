@@ -65,7 +65,7 @@ import services.moleculer.uid.UIDGenerator;
  * @see SpringComponentRegistry
  * @see GuiceComponentRegistry
  */
-public abstract class BaseComponentRegistry extends ComponentRegistry {
+public abstract class CommonRegistry extends ComponentRegistry {
 
 	// --- THREAD POOLS ---
 
@@ -430,7 +430,7 @@ public abstract class BaseComponentRegistry extends ComponentRegistry {
 			if (test.equals("jmx")) {
 				return newConfig("services.moleculer.monitor.JMXMonitor");
 			}
-			if (test.equals("command")) {
+			if (test.equals("cpuQueryCommand")) {
 				return newConfig("services.moleculer.monitor.CommandMonitor");
 			}
 			if (test.equals("constant")) {

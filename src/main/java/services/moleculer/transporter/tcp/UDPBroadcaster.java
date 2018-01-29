@@ -125,7 +125,7 @@ public final class UDPBroadcaster {
 		this.broadcastHost = transporter.getMulticastHost();
 		this.broadcastPort = transporter.getMulticastPort();
 		this.broadcastPeriod = transporter.getMulticastPeriod();
-		this.port = transporter.getPort();
+		this.port = transporter.getCurrentPort();
 	}
 
 	// --- CONNECT ---
@@ -147,7 +147,7 @@ public final class UDPBroadcaster {
 		udpReceiver = new MulticastSocket(broadcastPort);
 		udpReceiver.joinGroup(InetAddress.getByName(broadcastHost));
 		logger.info("Discovery service started on udp://" + broadcastHost + ':' + broadcastPort + '.');
-
+		
 		// Start packet receiver
 		executor = Executors.newSingleThreadExecutor();
 		executor.execute(this::receive);

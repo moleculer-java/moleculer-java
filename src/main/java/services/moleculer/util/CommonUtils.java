@@ -35,6 +35,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -141,6 +142,41 @@ public final class CommonUtils {
 				}
 			}
 		}
+	}
+
+	// --- LOCAL HOST NAME ---
+
+	private static String cachedHostName;
+
+	public static final String getHostName() {
+		if (cachedHostName != null) {
+			return cachedHostName;
+		}
+
+		// User-defined public hostname
+		String name = System.getProperty("hostname");
+		if (name == null || name.isEmpty()) {
+			try {
+				name = InetAddress.getLocalHost().getHostName();
+			} catch (Exception ignored) {
+				name = null;
+			}
+		}
+		if (name == null || name.isEmpty() || name.contains("localhost")) {
+			try {
+				name = System.getenv().get("COMPUTERNAME");
+				if (name != null) {
+					name = name.toLowerCase();
+				}
+			} catch (Exception ignored) {
+				name = null;
+			}
+		}
+		if (name == null || name.isEmpty()) {
+			name = "localhost";
+		}
+		cachedHostName = name;
+		return cachedHostName;
 	}
 
 	// --- PARSE URL LIST OR URL ARRAY ---

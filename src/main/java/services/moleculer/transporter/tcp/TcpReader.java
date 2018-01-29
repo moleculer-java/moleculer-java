@@ -70,7 +70,7 @@ public final class TcpReader implements Runnable {
 	private int maxPacketSize;
 
 	/**
-	 * Debug monde
+	 * Debug mode
 	 */
 	private final boolean debug;
 
@@ -95,19 +95,33 @@ public final class TcpReader implements Runnable {
 
 	// --- CONNECT ---
 
+	/**
+	 * Server's executor
+	 */
 	private ExecutorService executor;
+
+	/**
+	 * Current TPC port
+	 */
+	private int currentPort;
 
 	public final void connect() throws Exception {
 
-		// Create selector and server socket
+		// Create selector
 		disconnect();
+				
+		// Open channel
 		serverChannel = ServerSocketChannel.open();
 		ServerSocket serverSocket = serverChannel.socket();
 		serverSocket.bind(new InetSocketAddress(transporter.getPort()));
 		serverChannel.configureBlocking(false);
 		selector = Selector.open();
 		serverChannel.register(selector, SelectionKey.OP_ACCEPT);
-
+		
+		// Get current port
+		InetSocketAddress address = (InetSocketAddress) serverChannel.getLocalAddress();
+		currentPort = address.getPort();
+		
 		// Get properties
 		maxPacketSize = transporter.getMaxPacketSize();
 
@@ -116,6 +130,12 @@ public final class TcpReader implements Runnable {
 		executor.execute(this);
 	}
 
+	// --- GET CURRENT PORT ---
+	
+	public int getCurrentPort() {
+		return currentPort;
+	}
+	
 	// --- DISCONNECT ---
 
 	@Override

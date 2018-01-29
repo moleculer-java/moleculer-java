@@ -43,7 +43,9 @@ import java.util.logging.LogRecord;
  * The lines of the generated log file are readable by humans and machines.
  */
 public class FastLogFormatter extends Formatter {
-
+	
+	// --- CONSTANTS ---
+	
 	protected static final char[] SEVERE = "] SEVERE  ".toCharArray();
 	protected static final char[] WARNING = "] WARNING ".toCharArray();
 	protected static final char[] INFO = "] INFO    ".toCharArray();
@@ -58,10 +60,26 @@ public class FastLogFormatter extends Formatter {
 	protected static final char[] AT = " at ".toCharArray();
 	protected static final char[] JAVA = ".java:".toCharArray();
 
+	// --- PROPERTIES ---
+	
 	protected final StringBuilder line = new StringBuilder(512);
 
 	protected volatile int position = 83;
 
+	protected final boolean shortClassNames;
+	
+	// --- CONSTRUCTORS ---
+	
+	public FastLogFormatter() {
+		this(false);
+	}
+
+	public FastLogFormatter(boolean shortClassNames) {
+		this.shortClassNames = shortClassNames;
+	}
+
+	// --- FORMATTER ---
+	
 	public String format(LogRecord record) {
 		line.setLength(0);
 		line.append('[');
@@ -93,6 +111,12 @@ public class FastLogFormatter extends Formatter {
 			if (n > -1) {
 				className = className.substring(0, n);
 			}
+		}
+		if (shortClassNames) {
+			n = className.lastIndexOf('.');
+			if (n > -1) {
+				className = className.substring(n + 1);
+			}			
 		}
 		line.append(className);
 		n = line.length();

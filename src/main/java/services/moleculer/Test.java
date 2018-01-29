@@ -37,8 +37,7 @@ import services.moleculer.cacher.MemoryCacher;
 import services.moleculer.eventbus.Group;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
-import services.moleculer.monitor.Monitor;
-import services.moleculer.monitor.SigarMonitor;
+import services.moleculer.repl.RemoteRepl;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
 import services.moleculer.transporter.TcpTransporter;
@@ -54,20 +53,17 @@ public class Test {
 		// Define transporter
 		TcpTransporter transporter = new TcpTransporter();
 		// KafkaTransporter transporter = new KafkaTransporter();
-		transporter.setPort(12001);
 		// transporter.setUrls(new String[] { "localhost:12002/node-2" });
 		// transporter.setDebug(true);
+		transporter.setOfflineTimeout(30);
 		// Transporter transporter = null;
 
 		// Define cacher
 		Cacher cacher = new MemoryCacher();
 		
-		// CPU monitor
-		Monitor monitor = new SigarMonitor();
-
 		// Create broker
-		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).cacher(cacher).monitor(monitor)
-				.nodeID("node-1").build();
+		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).cacher(cacher)
+				.build();
 		// .repl(new RemoteRepl())
 
 		broker.createService(new Service("math") {

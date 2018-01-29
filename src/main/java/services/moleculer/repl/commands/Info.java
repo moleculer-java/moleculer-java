@@ -31,13 +31,21 @@
  */
 package services.moleculer.repl.commands;
 
+import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.nameOf;
 
 import java.io.PrintStream;
 import java.net.InetAddress;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 
 import io.datatree.Tree;
+import io.datatree.dom.TreeWriter;
+import io.datatree.dom.TreeWriterRegistry;
 import services.moleculer.ServiceBroker;
 import services.moleculer.repl.Command;
 import services.moleculer.repl.TextTable;
@@ -101,16 +109,29 @@ public class Info extends Command {
 		table.addRow("OS",
 				System.getProperty("os.name", "unknown") + " (V" + System.getProperty("os.version", "?") + ')');
 		try {
-			InetAddress address = InetAddress.getLocalHost();
-			table.addRow("IP", address.getHostAddress());
-			table.addRow("Hostname", address.getHostName());
+			table.addRow("IP", InetAddress.getLocalHost().getHostAddress());
 		} catch (Exception ignored) {
 		}
+		table.addRow("Hostname", getHostName());
 		table.addRow("Software version", ServiceBroker.SOFTWARE_VERSION);
 		table.addRow("Protocol version", ServiceBroker.PROTOCOL_VERSION);
 		table.addRow("Java VM version", System.getProperty("java.version", "unknown") + " from "
 				+ System.getProperty("java.vm.vendor", "unknown vendor"));
 		table.addRow("Java VM type", System.getProperty("java.vm.name", "unknown"));
+		table.addRow("Date and time", SimpleDateFormat
+				.getDateTimeInstance(SimpleDateFormat.FULL, SimpleDateFormat.MEDIUM, Locale.US).format(new Date()));
+		TimeZone zone = TimeZone.getDefault();
+		int rawOffset = zone.getRawOffset();
+		String offset;
+		if (rawOffset == 0) {
+			offset = "+00:00";
+		} else {
+			long hours = TimeUnit.MILLISECONDS.toHours(rawOffset);
+			long minutes = TimeUnit.MILLISECONDS.toMinutes(rawOffset);
+			minutes = Math.abs(minutes - TimeUnit.HOURS.toMinutes(hours));
+			offset = String.format("%+03d:%02d", hours, Math.abs(minutes));
+		}
+		table.addRow("Time zone", zone.getDisplayName() + " (GMT" + offset + ')');
 		out.println(table);
 
 		// Broker properties
@@ -132,7 +153,7 @@ public class Info extends Command {
 				Tree events = service.get("events");
 				if (events != null) {
 					eventCounter += events.size();
-				}				
+				}
 			}
 			table.addRow("Services", Integer.toString(services.size()));
 			table.addRow("Actions", Integer.toString(actionCounter));
@@ -144,7 +165,7 @@ public class Info extends Command {
 		}
 
 		table.addRow("", "");
-		addType(table, "Strategy", broker.components().strategy());
+		addType(table, "Invocation strategy", broker.components().strategy());
 		addType(table, "Cacher", broker.components().cacher());
 		if (t == null) {
 			table.addRow("Nodes", "1");
@@ -155,10 +176,11 @@ public class Info extends Command {
 		addType(table, "Context factory", broker.components().context());
 		addType(table, "Event bus", broker.components().eventbus());
 		addType(table, "System monitor", broker.components().monitor());
-		addType(table, "Service newChannels", broker.components().registry());
+		addType(table, "Service registry", broker.components().registry());
 		addType(table, "REPL console", broker.components().repl());
 		addType(table, "UID generator", broker.components().uid());
 		table.addRow("", "");
+
 		addType(table, "Task executor", broker.components().executor());
 		addType(table, "Task scheduler", broker.components().scheduler());
 		out.println(table);
@@ -169,6 +191,17 @@ public class Info extends Command {
 		if (t != null) {
 			Serializer s = t.getSerializer();
 			addType(table, "Serializer", s);
+			try {
+				if (s != null && "JSON".equalsIgnoreCase(s.format())) {
+					TreeWriter writer = TreeWriterRegistry.getWriter(s.format());
+					String api = nameOf(writer, false);
+					if (api.startsWith("json")) {
+						api = api.substring(4);
+					}
+					table.addRow("JSON implementation", api);
+				}
+			} catch (Exception ignored) {
+			}
 			addType(table, "Transporter", t);
 		} else {
 			table.addRow("Transporter", "<none>");

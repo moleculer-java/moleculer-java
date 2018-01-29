@@ -31,6 +31,8 @@
  */
 package services.moleculer.monitor;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +54,28 @@ public abstract class Monitor implements MoleculerComponent {
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
+	// --- PROPERTIES ---
+
+	/**
+	 * Cached process ID
+	 */
+	protected AtomicLong cachedPID = new AtomicLong();
+	
+	/**
+	 * CPU cache timeout in MILLISECONDS
+	 */
+	protected long cacheTimeout = 1000;
+
+	/**
+	 * Cached CPU usage
+	 */
+	protected volatile int cachedCPU;
+
+	/**
+	 * Timestamp of CPU detection
+	 */
+	protected volatile long cpuDetectedAt;
+
 	// --- START MONITOR INSTANCE ---
 
 	/**
@@ -64,6 +88,9 @@ public abstract class Monitor implements MoleculerComponent {
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
+		
+		// Process config
+		cacheTimeout = config.get("cacheTimeout", cacheTimeout);
 	}
 
 	// --- STOP MONITOR INSTANCE ---
@@ -75,13 +102,58 @@ public abstract class Monitor implements MoleculerComponent {
 	public void stop() {
 	}
 
-	// --- SYSTEM MONITORING METHODS ---
+	// --- PUBLIC SYSTEM MONITORING METHODS ---
+	
+	/**
+	 * Returns the cached system CPU usage, in percents, between 0 and 100.
+	 * 
+	 * @return total CPU usage of the current OS
+	 */
+	public int getTotalCpuPercent() {
+		long now = System.currentTimeMillis();
+		if (now - cpuDetectedAt > cacheTimeout) {
+			cachedCPU = detectTotalCpuPercent();
+			cpuDetectedAt = now;
+		}
+		return cachedCPU;
+	}
+
+	/**
+	 * Returns the cached PID of Java VM.
+	 * 
+	 * @return current Java VM's process ID
+	 */
+	public long getPID() {
+		long currentPID = cachedPID.get();
+		if (currentPID != 0) {
+			return currentPID;
+		}
+		currentPID = detectPID();
+		if (currentPID == 0) {
+			currentPID = System.nanoTime();
+			if (!cachedPID.compareAndSet(0, currentPID)) {
+				currentPID = cachedPID.get();
+			}
+		} else {
+			cachedPID.set(currentPID);
+		}
+		return currentPID;
+	}
+	
+	// --- ABSTRACT SYSTEM MONITORING METHODS ---
 
 	/**
 	 * Returns the system CPU usage, in percents, between 0 and 100.
 	 * 
 	 * @return total CPU usage of the current OS
 	 */
-	public abstract int getTotalCpuPercent();
-
+	protected abstract int detectTotalCpuPercent();
+	
+	/**
+	 * Returns the system CPU usage, in percents, between 0 and 100.
+	 * 
+	 * @return total CPU usage of the current OS
+	 */
+	protected abstract long detectPID();
+	
 }

@@ -92,7 +92,7 @@ import services.moleculer.uid.UIDGenerator;
  * @see SpringComponentRegistry
  */
 @Name("Guice Component Registry")
-public final class GuiceComponentRegistry extends BaseComponentRegistry {
+public final class GuiceComponentRegistry extends CommonRegistry {
 
 	// --- PACKAGES TO SCAN (REQUIRED) ---
 

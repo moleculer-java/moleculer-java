@@ -154,6 +154,13 @@ public class LocalRepl extends Repl implements Runnable {
 		}
 		executor = Executors.newSingleThreadExecutor();
 		executor.execute(this);
+		
+		// Log start
+		showStartMessage();
+	}
+	
+	protected void showStartMessage() {
+		logger.info(nameOf(this, true) + " started. Type \"help\" for list of commands.");		
 	}
 
 	// --- COMMAND READER LOOP ---
@@ -235,13 +242,13 @@ public class LocalRepl extends Repl implements Runnable {
 				out.println("Commands:");
 				out.println();
 				out.println(table);
-				out.println("  Type \"repeat\" or \"r\"  to repeat the execution of the last command.");
+				out.println("  Type \"repeat\" or \"r\"  to repeat the execution of the last cpuQueryCommand.");
 				out.println();
 				return;
 			}
 			Command impl = commands.get(cmd);
 			if (impl == null) {
-				out.println("The \"" + cmd + "\" command is unknown!");
+				out.println("The \"" + cmd + "\" cpuQueryCommand is unknown!");
 				out.println("Type \"help\" for more information.");
 				out.println();
 				return;
@@ -249,8 +256,8 @@ public class LocalRepl extends Repl implements Runnable {
 			String[] args = new String[tokens.length - 1];
 			System.arraycopy(tokens, 1, args, 0, args.length);
 			if (impl.getNumberOfRequiredParameters() > args.length) {
-				out.println("Unable to call \"" + cmd + "\" command!");
-				out.println("Too few command parameters (" + args.length + " < " + impl.getNumberOfRequiredParameters()
+				out.println("Unable to call \"" + cmd + "\" cpuQueryCommand!");
+				out.println("Too few cpuQueryCommand parameters (" + args.length + " < " + impl.getNumberOfRequiredParameters()
 						+ ")!");
 				out.println();
 				printCommandHelp(out, cmd);
@@ -268,7 +275,7 @@ public class LocalRepl extends Repl implements Runnable {
 	protected void printCommandHelp(PrintStream out, String name) {
 		Command impl = commands.get(name);
 		if (impl == null) {
-			out.println("The \"" + name + "\" command is unknown!");
+			out.println("The \"" + name + "\" cpuQueryCommand is unknown!");
 			out.println("Type \"help\" for more information.");
 			return;
 		}

@@ -49,7 +49,6 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
-import java.util.logging.SimpleFormatter;
 import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -96,6 +95,10 @@ public class AsyncFileLogger extends Handler implements Runnable {
 
 	protected File logDirectory;
 
+	// --- DISPLAY FORMATTER ---
+
+	protected Formatter displayFormatter;
+
 	// --- CONSTRUCTOR ---
 
 	protected ExecutorService executor;
@@ -136,8 +139,8 @@ public class AsyncFileLogger extends Handler implements Runnable {
 		LinkedList<LogRecord> records = new LinkedList<>();
 		try {
 			Formatter formatter = getFormatter();
-			StringBuilder lines = new StringBuilder(512);
-
+			StringBuilder fileLines = new StringBuilder(512);
+			StringBuilder displayLines = new StringBuilder(512);
 			while (true) {
 
 				// Get next records
@@ -150,7 +153,7 @@ public class AsyncFileLogger extends Handler implements Runnable {
 				}
 
 				// Write records to console and/or file
-				writeLines(records, lines, formatter);
+				writeLines(records, fileLines, displayLines, formatter);
 
 				// Waiting for other log records
 				Thread.sleep(400);
@@ -163,23 +166,35 @@ public class AsyncFileLogger extends Handler implements Runnable {
 		}
 	}
 
-	protected void writeLines(LinkedList<LogRecord> records, StringBuilder lines, Formatter formatter) throws Exception {
-		lines.setLength(0);
-		for (LogRecord record : records) {
-			lines.append(formatter.format(record));
-		}
-		records.clear();
-		String packet = lines.toString();
+	protected void writeLines(LinkedList<LogRecord> records, StringBuilder fileLines, StringBuilder displayLines,
+			Formatter formatter) throws Exception {
+		try {
+			fileLines.setLength(0);
+			for (LogRecord record : records) {
+				fileLines.append(formatter.format(record));
+			}
+			String packet = fileLines.toString();
 
-		// Write records to log file
-		if (logDirectory != null) {
-			String date = FILE_FORMAT.format(new Date());
-			appendToFile(prefix + date + ".log", packet.getBytes(fileEncoding));
-		}
+			// Write records to log file
+			if (logDirectory != null) {
+				String date = FILE_FORMAT.format(new Date());
+				appendToFile(prefix + date + ".log", packet.getBytes(fileEncoding));
+			}
 
-		// Write records to console
-		if (logToConsole) {
-			System.out.println(packet.trim());
+			// Write records to console
+			if (logToConsole) {
+				if (displayFormatter == null) {
+					System.out.println(packet.trim());
+				} else {
+					displayLines.setLength(0);
+					for (LogRecord record : records) {
+						displayLines.append(displayFormatter.format(record));
+					}
+					System.out.println(displayLines.toString().trim());
+				}
+			}
+		} finally {
+			records.clear();
 		}
 	}
 
@@ -319,7 +334,7 @@ public class AsyncFileLogger extends Handler implements Runnable {
 		}
 		if (!records.isEmpty()) {
 			try {
-				writeLines(records, new StringBuilder(512), getFormatter());
+				writeLines(records, new StringBuilder(), new StringBuilder(), getFormatter());
 			} catch (Exception ignored) {
 			}
 		}
@@ -433,14 +448,18 @@ public class AsyncFileLogger extends Handler implements Runnable {
 		}
 
 		// Set formatter
-		String formatterName = getProperty(className + ".formatter", FastLogFormatter.class.getName());
-		Formatter f = null;
-		try {
-			f = (Formatter) cl.loadClass(formatterName).newInstance();
-			setFormatter(f);
-		} catch (Exception ignored) {
-			f = new SimpleFormatter();
-			setFormatter(f);
+		String formatterName = getProperty(className + ".formatter", null);
+		if (formatterName != null && !formatterName.isEmpty()) {
+			try {
+				setFormatter((Formatter) cl.loadClass(formatterName).newInstance());
+				displayFormatter = null;
+			} catch (Exception ignored) {
+				setFormatter(new FastLogFormatter());
+				displayFormatter = new FastLogFormatter(true);
+			}
+		} else {
+			setFormatter(new FastLogFormatter());
+			displayFormatter = new FastLogFormatter(true);
 		}
 
 		// Set file encoding

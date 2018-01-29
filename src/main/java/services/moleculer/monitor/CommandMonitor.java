@@ -39,14 +39,14 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * CPU monitor, which detects the current CPU usage via command line.
+ * CPU monitor, which detects the current CPU usage via cpuQueryCommand line.
  */
 @Name("OS Command-based System Monitor")
 public class CommandMonitor extends Monitor {
 
 	// --- PROPERTIES ---
 
-	protected String command;
+	protected String cpuQueryCommand;
 
 	// --- CONSTUCTORS ---
 
@@ -54,29 +54,30 @@ public class CommandMonitor extends Monitor {
 	}
 
 	public CommandMonitor(String command) {
-		this.command = command;
+		this.cpuQueryCommand = command;
 	}
 
 	// --- START MONITOR ---
 
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
-		if (command == null) {
+		super.start(broker, config);
+		if (cpuQueryCommand == null) {
 			String os = System.getProperty("os.name").toLowerCase();
 			if (os.indexOf("win") >= 0) {
 
 				// Windows command to query the actual CPU usage
-				command = "wmic cpu get loadpercentage";
+				cpuQueryCommand = "wmic cpu get loadpercentage";
 
 			} else {
 
 				// Linux command to query the actual CPU usage
-				command = "top -b -n2 -p 1 | fgrep \"Cpu(s)\" | tail -1 | awk -F'id,' -v prefix=\"$prefix\" "
+				cpuQueryCommand = "top -b -n2 -p 1 | fgrep \"Cpu(s)\" | tail -1 | awk -F'id,' -v prefix=\"$prefix\" "
 						+ "'{ split($1, vs, \",\"); v=vs[length(vs)]; sub(\"%\", \"\", v); printf \"%s%.1f%%\n\", prefix, 100 - v }'";
 			}
 
 			// Or, get the command from the config
-			command = config.get("command", command);
+			cpuQueryCommand = config.get("cpuQueryCommand", cpuQueryCommand);
 		}
 	}
 
@@ -88,12 +89,12 @@ public class CommandMonitor extends Monitor {
 	 * @return total CPU usage of the current OS
 	 */
 	@Override
-	public int getTotalCpuPercent() {
+	protected int detectTotalCpuPercent() {
 		Process process = null;
 		try {
 			
 			// Execute command
-			process = Runtime.getRuntime().exec(command);
+			process = Runtime.getRuntime().exec(cpuQueryCommand);
 			BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
 			StringBuilder tmp = new StringBuilder();
 			String line = "";
@@ -116,7 +117,7 @@ public class CommandMonitor extends Monitor {
 				}
 			}
 		} catch (Exception cause) {
-			logger.error("Unable to execute command!", cause);
+			logger.error("Unable to execute cpuQueryCommand!", cause);
 		} finally {
 			if (process != null) {
 				try {
@@ -128,14 +129,25 @@ public class CommandMonitor extends Monitor {
 		return 0;
 	}
 
+	/**
+	 * Returns the PID of Java VM.
+	 * 
+	 * @return current Java VM's process ID
+	 */
+	protected long detectPID() {
+		
+		// Use generated, "fake" PID
+		return 0;
+	}
+	
 	// --- GETTERS / SETTERS ---
 
-	public String getCommand() {
-		return command;
+	public String getCpuQueryCommand() {
+		return cpuQueryCommand;
 	}
 
-	public void setCommand(String command) {
-		this.command = command;
+	public void setCpuQueryCommand(String command) {
+		this.cpuQueryCommand = command;
 	}
 
 }

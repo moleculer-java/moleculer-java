@@ -31,13 +31,13 @@
  */
 package services.moleculer.transporter;
 
+import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.parseURLs;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Random;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -47,6 +47,7 @@ import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.monitor.Monitor;
+import services.moleculer.repl.TextTable;
 import services.moleculer.service.Name;
 import services.moleculer.transporter.tcp.SendBuffer;
 import services.moleculer.transporter.tcp.TcpReader;
@@ -74,48 +75,50 @@ public class TcpTransporter extends Transporter {
 	// --- PROPERTIES ---
 
 	/**
-	 * TCP port (used by the Transporter and Gossiper services)
+	 * TCP port (used by the Transporter and Gossiper services). A port number
+	 * of zero will let the system pick up an ephemeral port in a bind
+	 * operation.
 	 */
-	protected int port = 7328;
+	protected int port = 0;
 
 	/**
-	 * Gossiping period time, in SECONDS
+	 * Gossiping period time, in SECONDS.
 	 */
 	protected int gossipPeriod = 1;
 
 	/**
-	 * Max number of keep-alive connections (0 = unlimited)
+	 * Max number of keep-alive connections (0 = unlimited).
 	 */
 	protected int maxKeepAliveConnections;
 
 	/**
-	 * Keep-alive timeout in SECONDS (0 = no timeout)
+	 * Keep-alive timeout in SECONDS (0 = no timeout).
 	 */
 	protected int keepAliveTimeout = 60;
 
 	/**
-	 * Max enable packet size (BYTES)
+	 * Max enable packet size (BYTES).
 	 */
 	protected int maxPacketSize = 1024 * 1024 * 64;
 
 	/**
 	 * List of URLs ("tcp://host:port/nodeID" or "host:port/nodeID" or
-	 * "host/nodeID"), when UDP discovery is disabled
+	 * "host/nodeID"), when UDP discovery is disabled.
 	 */
 	protected String[] urls = new String[0];
 
 	/**
-	 * UDP multicast host of automatic discovery service ("zero config" mode)
+	 * UDP multicast host of automatic discovery service ("zero config" mode).
 	 */
 	protected String multicastHost = "230.0.0.0";
 
 	/**
-	 * UDP multicast port of automatic discovery service
+	 * UDP multicast port of automatic discovery service.
 	 */
 	protected int multicastPort = 4445;
 
 	/**
-	 * UDP multicast period in SECONDS
+	 * UDP multicast period in SECONDS.
 	 */
 	protected int multicastPeriod = 60;
 
@@ -145,7 +148,8 @@ public class TcpTransporter extends Transporter {
 	}
 
 	/**
-	 * Start TCP Transporter in full TCP mode, without UDP discovery.
+	 * Start TCP Transporter in full TCP mode, without UDP discovery. Valid URL
+	 * syntax is "tcp://host:port/nodeID" or "host:port/nodeID".
 	 */
 	public TcpTransporter(String prefix, String... urls) {
 		super(prefix);
@@ -165,12 +169,14 @@ public class TcpTransporter extends Transporter {
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
+		// TCP transporter uses Gossiping protocol instead of HEARTBEAT signals
+		heartbeatInterval = 0;
+		heartbeatTimeout = 0;
+
 		// Process basic properties (eg. "prefix")
 		super.start(broker, config);
 
 		// Disable heartbeat messages
-		heartbeatInterval = 0;
-		heartbeatTimeout = 0;
 		if (urls != null && urls.length > 0) {
 			offlineTimeout = 0;
 		}
@@ -222,6 +228,11 @@ public class TcpTransporter extends Transporter {
 	 */
 	protected UDPBroadcaster broadcaster;
 
+	/**
+	 * Current TCP port
+	 */
+	protected int currentPort;
+
 	@Override
 	public void connect() {
 		try {
@@ -231,8 +242,11 @@ public class TcpTransporter extends Transporter {
 			reader = new TcpReader(this);
 			writer = new TcpWriter(this, scheduler);
 
-			// Start reader and writer
+			// Start TCP server
 			reader.connect();
+			currentPort = reader.getCurrentPort();
+
+			// Start data writer (TCP client)
 			writer.connect();
 
 			// Full TCP or "zero config" UDP mode?
@@ -256,17 +270,22 @@ public class TcpTransporter extends Transporter {
 					}
 					url = url.replace('/', ':');
 					String[] parts = url.split(":");
-					if (parts.length < 2) {
-						logger.warn("Invalid URL format (" + url + ")!");
+					if (parts.length < 3) {
+						logger.warn("Invalid URL format (" + url
+								+ ")! Valid syntax is \"tcp://host:port/nodeID\" or \"host:port/nodeID\"!");
 						continue;
 					}
 					String targetNodeID = parts[2];
 					if (targetNodeID.equals(nodeID)) {
 						continue;
 					}
-					int port = this.port;
-					if (parts.length == 3) {
+					int port;
+					try {
 						port = Integer.parseInt(parts[1]);
+					} catch (Exception e) {
+						logger.warn("Invalid URL format (" + url
+								+ ")! Valid syntax is \"tcp://host:port/nodeID\" or \"host:port/nodeID\"!");
+						continue;
 					}
 
 					// Add as offline node (without services block)
@@ -286,8 +305,14 @@ public class TcpTransporter extends Transporter {
 			}
 			timer = scheduler.scheduleWithFixedDelay(this::doGossiping, gossipPeriod, gossipPeriod, TimeUnit.SECONDS);
 
+			// Start offline timeout timer
+			if (checkTimeoutTimer == null && offlineTimeout > 0) {
+				checkTimeoutTimer = scheduler.scheduleAtFixedRate(this::checkInfos, offlineTimeout  / 2,
+						offlineTimeout / 2, TimeUnit.SECONDS);
+			}
+			
 			// Ok, transporter started
-			logger.info("TCP transporter server started on port #" + port + ".");
+			logger.info("Message receiver started on tcp://" + getHostName() + ':' + currentPort + ".");
 
 		} catch (Exception cause) {
 			String msg = cause.getMessage();
@@ -370,7 +395,7 @@ public class TcpTransporter extends Transporter {
 			}
 
 			// Debug
-			if (debug) {
+			if (debug && packetID != PACKET_GOSSIP_ID) {
 				logger.info("Message received from channel #" + packetID + ":\r\n" + data.toString());
 			}
 
@@ -410,6 +435,30 @@ public class TcpTransporter extends Transporter {
 
 					// Process (or ignore) incoming gossip packet
 					if (processingGossipPacket.compareAndSet(false, true)) {
+						if (debug) {
+							TextTable table = new TextTable("Node ID", "State", "Since", "Host", "Port");
+							long now = System.currentTimeMillis();
+							for (Tree info : data.get("nodes")) {
+								ArrayList<String> row = new ArrayList<>(5);
+								
+								row.add(info.get("sender", "unknown"));
+								
+								Tree offline = info.get("offlineSince");							
+								if (offline == null) {
+									row.add("ONLINE");
+									row.add("-");
+								} else {
+									row.add("OFFLINE");
+									row.add(((now - offline.asLong()) / 1000) + " sec");
+								}
+								
+								row.add(info.get("hostName", "unknown"));
+								row.add(Integer.toString(info.get("port", 0)));
+								
+								table.addRow(row);
+							}
+							logger.info("Message received from channel #" + packetID + ":\r\n" + table.toString());
+						}
 						try {
 							String sender;
 							for (Tree info : data.get("nodes")) {
@@ -447,16 +496,7 @@ public class TcpTransporter extends Transporter {
 					// Mark endpoint as offline
 					Tree info = nodeInfos.get(buffer.nodeID);
 					long now = System.currentTimeMillis();
-					if (info == null) {
-						info = new Tree();
-						info.put("sender", buffer.nodeID);
-						info.put("when", 0);
-						info.put("offlineSince", now);
-						info.put("hostName", buffer.host);
-						info.putObject("ipList", Collections.singletonList(buffer.host));
-						info.put("port", buffer.port);
-						updateLocalInfos(buffer.nodeID, info);
-					} else {
+					if (info != null) {
 						Tree copy = info.clone();
 						copy.put("when", now);
 						Tree offline = copy.get("offlineSince");
@@ -561,7 +601,7 @@ public class TcpTransporter extends Transporter {
 					packetID = PACKET_PONG_ID;
 					break;
 				default:
-					logger.warn("Unsupported command (" + command + ")!");
+					logger.warn("Unsupported cpuQueryCommand (" + command + ")!");
 					return;
 				}
 
@@ -629,7 +669,7 @@ public class TcpTransporter extends Transporter {
 
 			// Add current node to message
 			Tree descriptor = registry.generateDescriptor();
-			descriptor.put("port", port);
+			descriptor.put("port", currentPort);
 			descriptor.put("cpu", monitor.getTotalCpuPercent());
 			nodes.addObject(descriptor);
 
@@ -722,6 +762,16 @@ public class TcpTransporter extends Transporter {
 		}
 	}
 
+	// --- UNUSED METHODS ---
+	
+	public void setHeartbeatInterval(int heartbeatInterval) {
+		throw new UnsupportedOperationException();
+	}
+
+	public void setHeartbeatTimeout(int heartbeatTimeout) {
+		throw new UnsupportedOperationException();	
+	}
+	
 	// --- GETTERS AND SETTERS ---
 
 	public String[] getUrls() {
@@ -794,6 +844,10 @@ public class TcpTransporter extends Transporter {
 
 	public void setMulticastPeriod(int broadcastPeriod) {
 		this.multicastPeriod = broadcastPeriod;
+	}
+
+	public int getCurrentPort() {
+		return currentPort;
 	}
 
 }

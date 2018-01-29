@@ -38,7 +38,7 @@ import services.moleculer.repl.Command;
 import services.moleculer.service.Name;
 
 /**
-* "Exit application" command. Shuts down ServiceBroker then the virtual machine.
+* "Exit application" cpuQueryCommand. Shuts down ServiceBroker then the virtual machine.
 */
 @Name("exit")
 public class Exit extends Command {

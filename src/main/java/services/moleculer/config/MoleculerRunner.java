@@ -79,7 +79,7 @@ public class MoleculerRunner {
 					}
 				}
 
-				// Third optional argument is stop command
+				// Third optional argument is stop cpuQueryCommand
 				if (args.length > 2) {
 					stopMessage = args[2];
 				}
@@ -89,9 +89,8 @@ public class MoleculerRunner {
 					DatagramSocket socket = null;
 					try {
 						socket = new DatagramSocket();
-						InetAddress address = InetAddress.getLocalHost();
 						byte[] bytes = stopMessage.getBytes();
-						DatagramPacket packet = new DatagramPacket(bytes, bytes.length, address, stopPort);
+						DatagramPacket packet = new DatagramPacket(bytes, bytes.length, InetAddress.getLocalHost(), stopPort);
 						socket.send(packet);
 						return;
 					} finally {

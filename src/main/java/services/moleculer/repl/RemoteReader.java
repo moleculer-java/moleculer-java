@@ -148,7 +148,7 @@ public class RemoteReader {
 								String commandLine = new String(request, 0, counter);
 								commandLine = commandLine.trim();
 
-								// Execute command
+								// Execute cpuQueryCommand
 								if (commandLine.length() != 0) {
 									processCommand(commandLine);
 								}

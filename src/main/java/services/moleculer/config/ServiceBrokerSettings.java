@@ -35,11 +35,11 @@ import static services.moleculer.config.ComponentRegistry.COMPONENTS_ID;
 import static services.moleculer.config.ComponentRegistry.EXECUTOR_ID;
 import static services.moleculer.config.ComponentRegistry.SCHEDULER_ID;
 import static services.moleculer.util.CommonUtils.getFormat;
+import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.readTree;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.net.InetAddress;
 import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -62,8 +62,8 @@ import services.moleculer.eventbus.DefaultEventBus;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.monitor.Monitor;
-import services.moleculer.repl.Repl;
 import services.moleculer.repl.LocalRepl;
+import services.moleculer.repl.Repl;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.RoundRobinStrategyFactory;
@@ -135,15 +135,6 @@ public final class ServiceBrokerSettings {
 
 	public ServiceBrokerSettings() {
 
-		// Set the default NodeID
-		try {
-			nodeID = InetAddress.getLocalHost().getHostName();
-		} catch (Exception ignored) {
-		}
-		if (nodeID == null || nodeID.isEmpty()) {
-			nodeID = "node" + System.currentTimeMillis();
-		}
-
 		// Create default thread pools
 		executor = ForkJoinPool.commonPool();
 		scheduler = Executors.newScheduledThreadPool(ForkJoinPool.commonPool().getParallelism());
@@ -158,6 +149,9 @@ public final class ServiceBrokerSettings {
 				monitor = new ConstantMonitor();
 			}
 		}
+		
+		// Set the default NodeID
+		nodeID = getHostName() + '-' + monitor.getPID();
 	}
 
 	private static final Monitor tryToLoadMonitor(String type) {

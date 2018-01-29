@@ -102,7 +102,6 @@ public abstract class Repl implements MoleculerComponent {
 				try {
 					startReading();
 					running = true;
-					logger.info(nameOf(this, true) + " started.");
 				} catch (Throwable cause) {
 					logger.error("Unable to start console!", cause);
 				}

@@ -101,5 +101,9 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
 	public abstract Tree generateDescriptor();
+
+	// --- CLEAR CACHE ---
+
+	public abstract void clearCache();
 	
 }
