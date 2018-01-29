@@ -32,6 +32,8 @@
 package services.moleculer.logger;
 
 import java.time.Instant;
+import java.util.LinkedList;
+import java.util.StringTokenizer;
 import java.util.logging.Formatter;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -51,6 +53,8 @@ public class FastLogFormatter extends Formatter {
 	protected static final char[] FINEST = "] FINEST  ".toCharArray();
 
 	protected static final char[] BREAK = System.getProperty("line.separator", "\r\n").toCharArray();
+	protected static final String BREAK_STRING = new String(BREAK);
+	
 	protected static final char[] AT = " at ".toCharArray();
 	protected static final char[] JAVA = ".java:".toCharArray();
 
@@ -91,7 +95,6 @@ public class FastLogFormatter extends Formatter {
 			}
 		}
 		line.append(className);
-
 		n = line.length();
 		if (n > position || position - n > 30) {
 			position = n;
@@ -103,22 +106,145 @@ public class FastLogFormatter extends Formatter {
 			}
 		}
 		line.append(formatMessage(record));
-
+		line.append(BREAK);
+		
+		// Dump error
 		final Throwable cause = record.getThrown();
 		if (cause != null) {
-			n = line.length();
+			StringBuilder errors = new StringBuilder(256);
+			n = appendMessages(errors, cause);
+			String trace = errors.toString().trim();
+			if (!trace.isEmpty()) {
+				for (int i = 0; i < n; i++) {
+					line.append('-');
+				}
+				line.append(BREAK);
+				line.append(trace);
+				line.append(BREAK);
+				for (int i = 0; i < n; i++) {
+					line.append('-');
+				}
+				line.append(BREAK);
+			}
+			line.append("Trace: ");
+			line.append(cause.toString());
 			line.append(BREAK);
-			dump(cause, 0, n);
-		} else {
-			line.append(BREAK);
+			StackTraceElement[] array = cause.getStackTrace();
+			if (array != null && array.length > 0) {
+				for (n = 0; n < array.length; n++) {
+					line.append("-> [");
+					line.append(n);
+					line.append("] ");
+					line.append(array[n]);
+					line.append(BREAK);
+				}
+			}
 		}
 		return line.toString();
 	}
 
+	protected int appendMessages(StringBuilder errors, Throwable t) {
+		int max = 0;
+		try {
+			LinkedList<String> list = new LinkedList<>();
+			appendMessages(list, t, 0);
+			int n;
+			for (String line : list) {
+				errors.append(line);
+				n = line.length();
+				if (n > max) {
+					max = n;
+				}
+				errors.append(BREAK);
+			}
+		} catch (Exception ignored) {
+		}
+		return max;
+	}
+	
+	protected void appendMessages(LinkedList<String> list, Throwable t, int level) throws Exception {
+		if (level > 10) {
+			return;
+		}
+		String msg = t.getMessage();
+		if (msg != null) {
+			msg = msg.replace('\r', ' ').replace('\n', ' ').replace('\t', ' ').trim();
+			if (!msg.isEmpty()) {
+				msg = msg.toUpperCase();
+				msg = msg.replace("NESTED EXCEPTION IS", BREAK_STRING);
+				StringTokenizer st = new StringTokenizer(msg, BREAK_STRING);
+				while (st.hasMoreTokens()) {
+					String line = st.nextToken();
+					line = normalizeLine(line);
+					if (!line.isEmpty()) {
+						boolean found = false;
+						for (String test : list) {
+							if (test.contains(line)) {
+								found = true;
+								break;
+							}
+						}
+						if (!found) {
+							list.add(line);
+						}
+					}
+				}
+			}
+		}
+		Throwable cause = t.getCause();
+		if (cause != null) {
+			appendMessages(list, cause, level + 1);
+		}
+	}
+
+	protected String normalizeLine(String line) throws Exception {
+		StringBuilder tmp = new StringBuilder(line.length());
+		line = line.trim();
+		if (line.endsWith(";") || line.endsWith(":")) {
+			line = line.substring(0, line.length() - 1);
+		}
+		StringTokenizer st = new StringTokenizer(line);
+		String previous = "";
+		while (st.hasMoreTokens()) {
+			String word = normalizeWord(st.nextToken().trim());
+			if (!word.isEmpty()) {
+				if (previous.equals(word)) {
+					continue;
+				}
+				previous = word;
+				if (tmp.length() > 0) {
+					tmp.append(' ');
+				}
+				tmp.append(word);
+			}
+		}
+		return tmp.toString().trim();
+	}
+
+	protected String normalizeWord(String word) throws Exception {
+		if (word.startsWith("ORG.") || word.startsWith("COM.") || word.startsWith("JAVA.")
+				|| word.startsWith("JAVAX.")) {
+			int i = word.lastIndexOf('.');
+			word = word.substring(i + 1);
+			i = word.indexOf("EXCEPTION");
+			if (i > 1) {
+				word = word.substring(0, i) + ' ' + word.substring(i);
+			}
+			return word;
+		}
+		if (word.startsWith("[JAR:") && word.endsWith("]:")) {
+			int i = word.lastIndexOf('/');
+			if (i > 1) {
+				return "[JAR:..." + word.substring(i);
+			}
+			return "[JAR:...]";
+		}
+		return word;
+	}
+
 	protected void dump(Throwable cause, int level, int lineLength) {
-		int maxChars = Math.min(lineLength, 75);
 		if (level == 0) {
-			for (int i = 0; i < maxChars; i++) {
+			for (int i = 0; i < lineLength; i++) {
 				line.append('-');
 			}
 			line.append(BREAK);
@@ -156,7 +282,7 @@ public class FastLogFormatter extends Formatter {
 			line.append(BREAK);
 			dump(cause, ++level, lineLength);
 		} else {
-			for (int i = 0; i < maxChars; i++) {
+			for (int i = 0; i < lineLength; i++) {
 				line.append('-');
 			}
 			line.append(BREAK);

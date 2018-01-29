@@ -267,8 +267,12 @@ public final class UDPBroadcaster {
 				
 				// Notify TCP Transporter
 				transporter.udpPacketReceiver(tokens[0], cpu, host, port);
-					
+			
 			} catch (Exception cause) {
+				String msg = cause == null ? null : cause.getMessage();
+				if (msg != null && msg.contains("closed")) {
+					return;
+				}
 				logger.warn("Unexpected error occured in UDP broadcaster!", cause);
 				if (udpReceiver != null) {
 					try {
