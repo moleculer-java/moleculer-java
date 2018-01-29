@@ -551,22 +551,21 @@ public abstract class Transporter implements MoleculerComponent {
 				return;
 			}
 
-			// Update local "offlineSince" flag
-			boolean isCurrentlyOffline = current.get("offlineSince") != null;
-
-			// Already offline?
-			if (isCurrentlyOffline) {
-
-				// Already offline - do not remove services
-				nodeActivities.remove(sender);
-				return;
-			}
-
 			// Store new info
 			nodeInfos.put(sender, info);
 
 			// Remove CPU usage and last heartbeat time
 			nodeActivities.remove(sender);
+			
+			// Update local "offlineSince" flag
+			boolean isCurrentlyOffline = current.get("offlineSince") != null;
+
+			// Already offline?
+			if (isCurrentlyOffline) {
+				
+				// Already offline - do not remove services
+				return;
+			}
 
 			// Remove remote actions
 			registry.removeActions(sender);

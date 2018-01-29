@@ -239,7 +239,7 @@ public final class TcpReader implements Runnable {
 									// Check size
 									if (maxPacketSize > 0 && packet.length > maxPacketSize) {
 										throw new Exception(
-												"Incomin packet is larger than the \"maxPacketSize\" limit ("
+												"Incoming packet is larger than the \"maxPacketSize\" limit ("
 														+ packet.length + " > " + maxPacketSize + ")!");
 									}
 

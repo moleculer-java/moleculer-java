@@ -450,9 +450,9 @@ public class TcpTransporter extends Transporter {
 					if (info == null) {
 						info = new Tree();
 						info.put("sender", buffer.nodeID);
-						info.put("when", now);
+						info.put("when", 0);
 						info.put("offlineSince", now);
-						info.putObject("hostName", buffer.host);
+						info.put("hostName", buffer.host);
 						info.putObject("ipList", Collections.singletonList(buffer.host));
 						info.put("port", buffer.port);
 						updateLocalInfos(buffer.nodeID, info);
@@ -715,7 +715,7 @@ public class TcpTransporter extends Transporter {
 			info.put("sender", nodeID);
 			info.put("when", 0);
 			info.put("offlineSince", now);
-			info.putObject("hostName", host);
+			info.put("hostName", host);
 			info.put("port", port);
 			nodeInfos.put(nodeID, info);
 			logger.info("Node \"" + nodeID + "\" registered.");
