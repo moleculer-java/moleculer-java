@@ -276,7 +276,7 @@ public final class TcpReader implements Runnable {
 
 										// All of bytes received
 										type = packet[5];										
-										if (type < 1 || type > 6) {
+										if (type < 1 || type > 7) {
 											
 											// Unknown packet type!
 											throw new Exception("Invalid packet type (" + type + ")!");

@@ -47,13 +47,12 @@ import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.monitor.Monitor;
-import services.moleculer.repl.TextTable;
 import services.moleculer.service.Name;
+import services.moleculer.transporter.tcp.NodeActivity;
 import services.moleculer.transporter.tcp.SendBuffer;
 import services.moleculer.transporter.tcp.TcpReader;
 import services.moleculer.transporter.tcp.TcpWriter;
 import services.moleculer.transporter.tcp.UDPBroadcaster;
-import services.moleculer.util.CommonUtils;
 
 /**
  * TCP Transporter with optional UDP discovery ("zero configuration") module.
@@ -76,7 +75,8 @@ public class TcpTransporter extends Transporter {
 	protected static final byte PACKET_RESPONSE_ID = 3;
 	protected static final byte PACKET_PING_ID = 4;
 	protected static final byte PACKET_PONG_ID = 5;
-	protected static final byte PACKET_GOSSIP_ID = 6;
+	protected static final byte PACKET_GOSSIP_REQ_ID = 6;
+	protected static final byte PACKET_GOSSIP_RSP_ID = 7;
 
 	// --- PROPERTIES ---
 
@@ -193,6 +193,9 @@ public class TcpTransporter extends Transporter {
 		if (gossipPeriod < 1) {
 			gossipPeriod = 1;
 		}
+		if (multicastPeriod < 10) {
+			multicastPeriod = 10;
+		}
 
 		// Disable offline timeout when use host list
 		if (urls != null && urls.length > 0) {
@@ -206,9 +209,6 @@ public class TcpTransporter extends Transporter {
 
 		// TCP server's port
 		port = config.get("port", port);
-
-		// Process config
-		urls = parseURLs(config, urls);
 
 		// Set components
 		monitor = broker.components().monitor();
@@ -233,6 +233,54 @@ public class TcpTransporter extends Transporter {
 
 		// Max gossip processing timeframe
 		ignoreGossipMessagesUntil = config.get("ignoreGossipMessagesUntil", ignoreGossipMessagesUntil);
+
+		// Parse URLs (in "full TCP mode")
+		urls = parseURLs(config, urls);
+		if (urls != null && urls.length > 0) {
+			long now = System.currentTimeMillis();
+			writeLock.lock();
+			try {
+				for (String url : urls) {
+					int i = url.indexOf("://");
+					if (i > -1 && i < url.length() - 4) {
+						url = url.substring(i + 3);
+					}
+					url = url.replace('/', ':');
+					String[] parts = url.split(":");
+					if (parts.length < 3) {
+						logger.warn("Invalid URL format (" + url
+								+ ")! Valid syntax is \"tcp://host:port/nodeID\" or \"host:port/nodeID\"!");
+						continue;
+					}
+					String targetNodeID = parts[2];
+					if (targetNodeID.equals(nodeID)) {
+						continue;
+					}
+					int port;
+					try {
+						port = Integer.parseInt(parts[1]);
+					} catch (Exception e) {
+						logger.warn("Invalid URL format (" + url
+								+ ")! Valid syntax is \"tcp://host:port/nodeID\" or \"host:port/nodeID\"!");
+						continue;
+					}
+
+					// Add to "nodeInfos" without services block
+					Tree info = new Tree();
+					info.put("sender", targetNodeID);
+					info.put("when", 0);
+					info.putObject("hostname", parts[0]);
+					info.putList("ipList").add(parts[0]);
+					info.put("port", port);
+					nodeInfos.put(targetNodeID, info);
+
+					// Add to "offlineNodes"
+					offlineNodes.put(targetNodeID, now);
+				}
+			} finally {
+				writeLock.unlock();
+			}
+		}
 	}
 
 	// --- CONNECT ---
@@ -278,54 +326,10 @@ public class TcpTransporter extends Transporter {
 			// Start data writer (TCP client)
 			writer.connect();
 
-			// Full TCP or "zero config" UDP mode?
+			// TCP + UDP mode ("zero config")
 			if (urls == null || urls.length == 0) {
-
-				// TCP + UDP mode ("zero config")
-				if (multicastPeriod < 10) {
-					multicastPeriod = 10;
-				}
 				broadcaster = new UDPBroadcaster(nodeID, this, scheduler, monitor);
 				broadcaster.connect();
-
-			} else {
-
-				// Full TCP mode
-				long now = System.currentTimeMillis();
-				for (String url : urls) {
-					int i = url.indexOf("://");
-					if (i > -1 && i < url.length() - 4) {
-						url = url.substring(i + 3);
-					}
-					url = url.replace('/', ':');
-					String[] parts = url.split(":");
-					if (parts.length < 3) {
-						logger.warn("Invalid URL format (" + url
-								+ ")! Valid syntax is \"tcp://host:port/nodeID\" or \"host:port/nodeID\"!");
-						continue;
-					}
-					String targetNodeID = parts[2];
-					if (targetNodeID.equals(nodeID)) {
-						continue;
-					}
-					int port;
-					try {
-						port = Integer.parseInt(parts[1]);
-					} catch (Exception e) {
-						logger.warn("Invalid URL format (" + url
-								+ ")! Valid syntax is \"tcp://host:port/nodeID\" or \"host:port/nodeID\"!");
-						continue;
-					}
-
-					// Add as offline node (without services block)
-					Tree info = new Tree();
-					info.put("sender", targetNodeID);
-					info.put("when", 0);
-					info.put("offlineSince", now);
-					info.putObject("hostName", parts[0]);
-					info.put("port", port);
-					nodeInfos.put(targetNodeID, info);
-				}
 			}
 
 			// Start gossiper
@@ -333,7 +337,7 @@ public class TcpTransporter extends Transporter {
 
 			// Start offline timeout timer
 			if (checkTimeoutTimer == null && offlineTimeout > 0) {
-				checkTimeoutTimer = scheduler.scheduleAtFixedRate(this::checkInfos, offlineTimeout / 2,
+				checkTimeoutTimer = scheduler.scheduleAtFixedRate(this::checkOfflineTimeouts, offlineTimeout / 2,
 						offlineTimeout / 2, TimeUnit.SECONDS);
 			}
 
@@ -362,7 +366,7 @@ public class TcpTransporter extends Transporter {
 			broadcaster = null;
 		}
 
-		// Stop timer of the gossiper
+		// Stop gossiper's timer
 		if (timer != null) {
 			timer.cancel(false);
 			timer = null;
@@ -419,7 +423,7 @@ public class TcpTransporter extends Transporter {
 			}
 
 			// Debug
-			if (debug && packetID != PACKET_GOSSIP_ID) {
+			if (debug) {
 				logger.info("Message received from channel #" + packetID + ":\r\n" + data.toString());
 			}
 
@@ -455,10 +459,16 @@ public class TcpTransporter extends Transporter {
 					// Not implemented
 					return;
 
-				case PACKET_GOSSIP_ID:
+				case PACKET_GOSSIP_REQ_ID:
 
-					// Incoming gossip packet
-					processGossipMessage(data);
+					// Incoming gossip request
+					processGossipRequest(data);
+					return;
+
+				case PACKET_GOSSIP_RSP_ID:
+
+					// Incoming gossip request
+					processGossipResponse(data);
 					return;
 
 				default:
@@ -471,52 +481,54 @@ public class TcpTransporter extends Transporter {
 		});
 	}
 
-	// --- GOSSIP MESSAGE RECEIVED ---
+	// --- GOSSIP REQUEST MESSAGE RECEIVED ---
 
-	protected final AtomicLong gossipProcessedAt = new AtomicLong();
+	protected final AtomicLong lastRequest = new AtomicLong();
 
-	protected void processGossipMessage(Tree data) throws Exception {
+	protected void processGossipRequest(Tree data) throws Exception {
 
 		// Check last processed gossip message's timestamp
-		long lastProcessed = gossipProcessedAt.get();
+		long previous = lastRequest.get();
 		long now = System.currentTimeMillis();
-		if (now - lastProcessed < ignoreGossipMessagesUntil) {
+		if (now - previous < ignoreGossipMessagesUntil) {
 
 			// Ignore (protect CPU usage)
 			return;
 		}
 
 		// Process (or ignore) incoming gossip packet
-		if (gossipProcessedAt.compareAndSet(lastProcessed, now)) {
-			if (debug) {
-				TextTable table = new TextTable("Node ID", "State", "Since", "Host", "Port");
-				for (Tree info : data.get("nodes")) {
-					ArrayList<String> row = new ArrayList<>(5);
+		if (lastRequest.compareAndSet(previous, now)) {
 
-					row.add(info.get("sender", "unknown"));
-
-					Tree offline = info.get("offlineSince");
-					if (offline == null) {
-						row.add("ONLINE");
-						row.add("-");
-					} else {
-						row.add("OFFLINE");
-						row.add(((now - offline.asLong()) / 1000) + " sec");
-					}
-
-					row.add(info.get("hostName", "unknown"));
-					row.add(Integer.toString(info.get("port", 0)));
-
-					table.addRow(row);
+			// TODO process request
+			Tree nodes = data.get("nodes");
+			for (Tree node: nodes) {
+				String sender = node.getName();
+				if (node.size() == 3) {
+					
+					// Online node
+					long when = node.get(0).asLong();
+					long cpuWhen = node.get(1).asLong();
+					long cpuValue = node.get(2).asInteger();
+					
+				} else if (node.size() == 2) {
+					
+					// Offline node
+					long when = node.get(0).asLong();
+					long offlineSince = node.get(1).asLong();
+					
+				} else {
+					logger.warn("Invalid block:"  + node.toString(false));
 				}
-				logger.info("Gossip message received:\r\n" + table.toString());
-			}
-			String sender;
-			for (Tree info : data.get("nodes")) {
-				sender = info.get("sender", (String) null);
-				updateLocalInfos(sender, info);
 			}
 		}
+	}
+
+	// --- GOSSIP RESPONSE MESSAGE RECEIVED ---
+
+	protected void processGossipResponse(Tree data) throws Exception {
+
+		// TODO process response
+
 	}
 
 	// --- CONNECTION ERROR ---
@@ -541,7 +553,7 @@ public class TcpTransporter extends Transporter {
 						if (offline == null) {
 							copy.put("offlineSince", now);
 						}
-						updateLocalInfos(buffer.nodeID, copy);
+						updateNodeInfo(buffer.nodeID, copy);
 					}
 
 					// Remove header
@@ -691,45 +703,6 @@ public class TcpTransporter extends Transporter {
 
 	protected Random rnd = new Random();
 
-	// TODO remove
-	public void fakeGossiping() throws Exception {
-		long s = System.currentTimeMillis();
-		Tree root = new Tree();
-		root.put("ver", ServiceBroker.PROTOCOL_VERSION);
-		root.put("sender", nodeID);
-		Tree nodes = root.putList("nodes");
-
-		// Add current node to message
-		Tree descriptor = registry.generateDescriptor();
-		descriptor.put("port", currentPort);
-		descriptor.put("cpu", monitor.getTotalCpuPercent());
-		nodes.addObject(descriptor);
-		
-		for (int i = 0; i < 1000; i++) {
-			Tree copy = descriptor.clone();
-			copy.put("port", 1000 + i);
-			copy.put("sender", "fake-" + i);
-			nodes.addObject(copy);
-		}
-		long e = System.currentTimeMillis();
-		System.out.println("GENERATED: " + (e - s));
-		
-		s = System.currentTimeMillis();
-		byte[] packet = serialize(PACKET_GOSSIP_ID, root);
-		e = System.currentTimeMillis();
-		System.out.println("SERIALIZED: " + (e - s));
-		System.out.println(packet.length + " bytes");
-
-		s = System.currentTimeMillis();
-		byte[] comp = CommonUtils.compress(packet);
-		e = System.currentTimeMillis();
-		System.out.println("COMPRESSED: " + (e - s));
-		System.out.println(comp.length + " bytes");
-		
-		logger.info("START SENDING");
-		writer.send("node-1", descriptor, packet);
-	}
-	
 	protected void doGossiping() {
 		try {
 
@@ -742,32 +715,58 @@ public class TcpTransporter extends Transporter {
 			Tree root = new Tree();
 			root.put("ver", ServiceBroker.PROTOCOL_VERSION);
 			root.put("sender", nodeID);
-			Tree nodes = root.putList("nodes");
+			Tree nodes = root.putMap("nodes");
 
-			// Add current node to message
-			Tree descriptor = registry.generateDescriptor();
-			descriptor.put("port", currentPort);
-			descriptor.put("cpu", monitor.getTotalCpuPercent());
-			nodes.addObject(descriptor);
-
-			// Add node infos to message
+			// Add current node
+			Tree current = registry.generateDescriptor();
+			Tree node = nodes.putList(nodeID);
+			long when = current.get("when", 0L);
+			node.add(when);
+			node.add(System.currentTimeMillis());
+			node.add(monitor.getTotalCpuPercent());
+			
+			// Create gossip request message
 			ArrayList<Tree> liveEndpoints = new ArrayList<>(size);
 			ArrayList<Tree> unreachableEndpoints = new ArrayList<>(size);
-			for (Tree info : nodeInfos.values()) {
-				if (info.get("when", 0L) > 0) {
-					nodes.addObject(info);
+			readLock.lock();
+			try {
+				for (Tree info : nodeInfos.values()) {
+					String sender = info.get("sender", (String) null);
+					if (sender == null || sender.isEmpty() || nodeID.equals(sender)) {
+						continue;
+					}
+					when = info.get("when", 0L);
+					Long offline = offlineNodes.get(sender);
+					if (when > 0) {
+						node = nodes.putList(sender);
+						node.add(when);
+						if (offline == null) {
+							NodeActivity activity = nodeActivities.get(nodeID);
+							if (activity == null) {
+								node.add(0);
+								node.add(0);								
+							} else {
+								node.add(activity.when);
+								node.add(activity.cpu);
+							}
+						} else {
+							node.add(offline);
+						}
+					}
+					if (offline == null) {
+						liveEndpoints.add(info);
+					} else {
+						unreachableEndpoints.add(info);
+					}
 				}
-				if (info.get("offlineSince") != null) {
-					unreachableEndpoints.add(info);
-				} else {
-					liveEndpoints.add(info);
-				}
+			} finally {
+				readLock.unlock();
 			}
 			int liveEndpointCount = liveEndpoints.size();
 			int unreachableEndpointCount = unreachableEndpoints.size();
 
 			// Create gossip packet
-			byte[] packet = serialize(PACKET_GOSSIP_ID, root);
+			byte[] packet = serialize(PACKET_GOSSIP_REQ_ID, root);
 
 			// Do gossiping with a live endpoint
 			if (liveEndpointCount > 0) {
@@ -795,9 +794,6 @@ public class TcpTransporter extends Transporter {
 		}
 	}
 
-	// TODO remove
-	private int con = 0;
-	
 	protected void sendGossipToRandomEndpoint(ArrayList<Tree> endpoints, int size, byte[] packet) {
 		for (int i = 0; i < size; i++) {
 
@@ -805,11 +801,6 @@ public class TcpTransporter extends Transporter {
 			int index = rnd.nextInt(size);
 			Tree info = endpoints.get(index);
 
-			con++;
-			if (con % 10 == 0) {
-				info = nodeInfos.get("node-2");
-			}
-			
 			// Send data
 			String targetNodeID = info.get("sender", (String) null);
 			if (nodeID.equals(targetNodeID)) {
@@ -834,18 +825,28 @@ public class TcpTransporter extends Transporter {
 
 		// Store data
 		long now = System.currentTimeMillis();
-		if (nodeInfos.containsKey(nodeID)) {
-			nodeActivities.put(nodeID, new NodeActivity(now, cpu));
-		} else {
-			Tree info = new Tree();
-			info.put("sender", nodeID);
-			info.put("when", 0);
-			info.put("offlineSince", now);
-			info.put("hostName", host);
-			info.putList("ipList").add(ip);
-			info.put("port", port);
-			nodeInfos.put(nodeID, info);
-			logger.info("Node \"" + nodeID + "\" registered.");
+		writeLock.lock();
+		try {
+			if (!nodeInfos.containsKey(nodeID)) {
+
+				// Add to "nodeInfos" without services block
+				Tree info = new Tree();
+				info.put("sender", nodeID);
+				info.put("when", 0);
+				info.putObject("hostname", host);
+				info.putList("ipList").add(ip);
+				info.put("port", port);
+				nodeInfos.put(nodeID, info);
+
+				// Add to "offlineNodes"
+				offlineNodes.put(nodeID, now);
+			} else {
+
+				// Update node activity
+				nodeActivities.put(nodeID, new NodeActivity(now, cpu));
+			}
+		} finally {
+			writeLock.unlock();
 		}
 	}
 

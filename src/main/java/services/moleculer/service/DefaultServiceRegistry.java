@@ -810,7 +810,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		}
 
 		// Host name
-		root.put("hostName", getHostName());
+		root.put("hostname", getHostName());
 		
 		// IP array
 		Tree ipList = root.putList("ipList");

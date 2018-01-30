@@ -244,7 +244,7 @@ public final class TcpWriter implements Runnable {
 				// Create new attachment
 				String host = null;
 				if (useHostname) {
-					host = info.get("hostName", (String) null);
+					host = info.get("hostname", (String) null);
 				}
 				if (host == null) {
 					Tree ipList = info.get("ipList");

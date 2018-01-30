@@ -96,15 +96,6 @@ public class Test {
 
 		broker.start();
 		broker.repl();
-		
-		// TODO
-		try {
-			Thread.sleep(5000);
-			System.out.println("----------------------------");
-			transporter.fakeGossiping();			
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
 	}
 
 }

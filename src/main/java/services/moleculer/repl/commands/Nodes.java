@@ -35,7 +35,6 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import io.datatree.Tree;
@@ -44,6 +43,7 @@ import services.moleculer.repl.Command;
 import services.moleculer.repl.TextTable;
 import services.moleculer.service.Name;
 import services.moleculer.transporter.Transporter;
+import services.moleculer.transporter.tcp.NodeActivity;
 
 /**
  * List of nodes.
@@ -151,8 +151,7 @@ public class Nodes extends Command {
 			if (transporter == null) {
 				row.add(broker.components().monitor().getTotalCpuPercent() + "%");
 			} else {
-				Map<String, Transporter.NodeActivity> activities = transporter.getNodeActivities();
-				Transporter.NodeActivity activity = activities.get(nodeID);
+				NodeActivity activity = transporter.getNodeActivity(nodeID);
 				int cpuUsage = 0;
 				if (activity == null) {
 					if (localNodeID.equals(nodeID)) {
