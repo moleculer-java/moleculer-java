@@ -41,7 +41,7 @@ import java.util.Collection;
 import java.util.Random;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
@@ -53,12 +53,18 @@ import services.moleculer.transporter.tcp.SendBuffer;
 import services.moleculer.transporter.tcp.TcpReader;
 import services.moleculer.transporter.tcp.TcpWriter;
 import services.moleculer.transporter.tcp.UDPBroadcaster;
+import services.moleculer.util.CommonUtils;
 
 /**
  * TCP Transporter with optional UDP discovery ("zero configuration") module.
- * TCP Transporter uses fault tolerant and peer-to-peer GOSSIP protocol to
- * discover location and service information about the other nodes participating
- * in a Moleculer Cluster.
+ * <br>
+ * <br>
+ * TCP Transporter uses fault tolerant and peer-to-peer <b>Gossip Protocol</b>
+ * to discover location and service information about the other nodes
+ * participating in a Moleculer Cluster. In Moleculer's P2P architecture all
+ * nodes are equal, there is no "leader" or "controller" node, so the cluster is
+ * truly horizontally scalable. This transporter aims to run on top of an
+ * infrastructure of hundreds of nodes.
  */
 @Name("TCP Transporter")
 public class TcpTransporter extends Transporter {
@@ -128,6 +134,11 @@ public class TcpTransporter extends Transporter {
 	 * false results. Therefore, use hostnames if you are using DHCP.
 	 */
 	protected boolean useHostname = true;
+
+	/**
+	 * Ignore incoming gossip messages until this time (MILLISECONDS).
+	 */
+	protected long ignoreGossipMessagesUntil = 500;
 
 	// --- COMPONENTS ---
 
@@ -219,6 +230,9 @@ public class TcpTransporter extends Transporter {
 
 		// Use hostnames or IPs?
 		useHostname = config.get("useHostname", useHostname);
+
+		// Max gossip processing timeframe
+		ignoreGossipMessagesUntil = config.get("ignoreGossipMessagesUntil", ignoreGossipMessagesUntil);
 	}
 
 	// --- CONNECT ---
@@ -392,8 +406,6 @@ public class TcpTransporter extends Transporter {
 
 	// --- MESSAGE RECEIVED ---
 
-	protected final AtomicBoolean processingGossipPacket = new AtomicBoolean();
-
 	public void received(byte packetID, byte[] packet) {
 		executor.execute(() -> {
 
@@ -445,42 +457,8 @@ public class TcpTransporter extends Transporter {
 
 				case PACKET_GOSSIP_ID:
 
-					// Process (or ignore) incoming gossip packet
-					if (processingGossipPacket.compareAndSet(false, true)) {
-						if (debug) {
-							TextTable table = new TextTable("Node ID", "State", "Since", "Host", "Port");
-							long now = System.currentTimeMillis();
-							for (Tree info : data.get("nodes")) {
-								ArrayList<String> row = new ArrayList<>(5);
-
-								row.add(info.get("sender", "unknown"));
-
-								Tree offline = info.get("offlineSince");
-								if (offline == null) {
-									row.add("ONLINE");
-									row.add("-");
-								} else {
-									row.add("OFFLINE");
-									row.add(((now - offline.asLong()) / 1000) + " sec");
-								}
-
-								row.add(info.get("hostName", "unknown"));
-								row.add(Integer.toString(info.get("port", 0)));
-
-								table.addRow(row);
-							}
-							logger.info("Message received from channel #" + packetID + ":\r\n" + table.toString());
-						}
-						try {
-							String sender;
-							for (Tree info : data.get("nodes")) {
-								sender = info.get("sender", (String) null);
-								updateLocalInfos(sender, info);
-							}
-						} finally {
-							processingGossipPacket.set(false);
-						}
-					}
+					// Incoming gossip packet
+					processGossipMessage(data);
 					return;
 
 				default:
@@ -491,6 +469,54 @@ public class TcpTransporter extends Transporter {
 				logger.warn("Unable to process incoming message!", cause);
 			}
 		});
+	}
+
+	// --- GOSSIP MESSAGE RECEIVED ---
+
+	protected final AtomicLong gossipProcessedAt = new AtomicLong();
+
+	protected void processGossipMessage(Tree data) throws Exception {
+
+		// Check last processed gossip message's timestamp
+		long lastProcessed = gossipProcessedAt.get();
+		long now = System.currentTimeMillis();
+		if (now - lastProcessed < ignoreGossipMessagesUntil) {
+
+			// Ignore (protect CPU usage)
+			return;
+		}
+
+		// Process (or ignore) incoming gossip packet
+		if (gossipProcessedAt.compareAndSet(lastProcessed, now)) {
+			if (debug) {
+				TextTable table = new TextTable("Node ID", "State", "Since", "Host", "Port");
+				for (Tree info : data.get("nodes")) {
+					ArrayList<String> row = new ArrayList<>(5);
+
+					row.add(info.get("sender", "unknown"));
+
+					Tree offline = info.get("offlineSince");
+					if (offline == null) {
+						row.add("ONLINE");
+						row.add("-");
+					} else {
+						row.add("OFFLINE");
+						row.add(((now - offline.asLong()) / 1000) + " sec");
+					}
+
+					row.add(info.get("hostName", "unknown"));
+					row.add(Integer.toString(info.get("port", 0)));
+
+					table.addRow(row);
+				}
+				logger.info("Gossip message received:\r\n" + table.toString());
+			}
+			String sender;
+			for (Tree info : data.get("nodes")) {
+				sender = info.get("sender", (String) null);
+				updateLocalInfos(sender, info);
+			}
+		}
 	}
 
 	// --- CONNECTION ERROR ---
@@ -665,6 +691,45 @@ public class TcpTransporter extends Transporter {
 
 	protected Random rnd = new Random();
 
+	// TODO remove
+	public void fakeGossiping() throws Exception {
+		long s = System.currentTimeMillis();
+		Tree root = new Tree();
+		root.put("ver", ServiceBroker.PROTOCOL_VERSION);
+		root.put("sender", nodeID);
+		Tree nodes = root.putList("nodes");
+
+		// Add current node to message
+		Tree descriptor = registry.generateDescriptor();
+		descriptor.put("port", currentPort);
+		descriptor.put("cpu", monitor.getTotalCpuPercent());
+		nodes.addObject(descriptor);
+		
+		for (int i = 0; i < 1000; i++) {
+			Tree copy = descriptor.clone();
+			copy.put("port", 1000 + i);
+			copy.put("sender", "fake-" + i);
+			nodes.addObject(copy);
+		}
+		long e = System.currentTimeMillis();
+		System.out.println("GENERATED: " + (e - s));
+		
+		s = System.currentTimeMillis();
+		byte[] packet = serialize(PACKET_GOSSIP_ID, root);
+		e = System.currentTimeMillis();
+		System.out.println("SERIALIZED: " + (e - s));
+		System.out.println(packet.length + " bytes");
+
+		s = System.currentTimeMillis();
+		byte[] comp = CommonUtils.compress(packet);
+		e = System.currentTimeMillis();
+		System.out.println("COMPRESSED: " + (e - s));
+		System.out.println(comp.length + " bytes");
+		
+		logger.info("START SENDING");
+		writer.send("node-1", descriptor, packet);
+	}
+	
 	protected void doGossiping() {
 		try {
 
@@ -730,6 +795,9 @@ public class TcpTransporter extends Transporter {
 		}
 	}
 
+	// TODO remove
+	private int con = 0;
+	
 	protected void sendGossipToRandomEndpoint(ArrayList<Tree> endpoints, int size, byte[] packet) {
 		for (int i = 0; i < size; i++) {
 
@@ -737,6 +805,11 @@ public class TcpTransporter extends Transporter {
 			int index = rnd.nextInt(size);
 			Tree info = endpoints.get(index);
 
+			con++;
+			if (con % 10 == 0) {
+				info = nodeInfos.get("node-2");
+			}
+			
 			// Send data
 			String targetNodeID = info.get("sender", (String) null);
 			if (nodeID.equals(targetNodeID)) {
@@ -870,6 +943,14 @@ public class TcpTransporter extends Transporter {
 
 	public void setUseHostname(boolean useHostname) {
 		this.useHostname = useHostname;
+	}
+
+	public long getIgnoreGossipMessagesUntil() {
+		return ignoreGossipMessagesUntil;
+	}
+
+	public void setIgnoreGossipMessagesUntil(long ignoreGossipMessagesUntil) {
+		this.ignoreGossipMessagesUntil = ignoreGossipMessagesUntil;
 	}
 
 }

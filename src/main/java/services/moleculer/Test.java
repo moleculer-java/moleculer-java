@@ -31,13 +31,13 @@
  */
 package services.moleculer;
 
+import io.datatree.Tree;
 import services.moleculer.cacher.Cache;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.cacher.MemoryCacher;
 import services.moleculer.eventbus.Group;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
-import services.moleculer.repl.RemoteRepl;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
 import services.moleculer.transporter.TcpTransporter;
@@ -54,15 +54,15 @@ public class Test {
 		TcpTransporter transporter = new TcpTransporter();
 		// KafkaTransporter transporter = new KafkaTransporter();
 		// transporter.setUrls(new String[] { "localhost:12002/node-2" });
-		// transporter.setDebug(true);
-		transporter.setOfflineTimeout(30);
+		transporter.setDebug(true);
+		transporter.setOfflineTimeout(300);
 		// Transporter transporter = null;
 
 		// Define cacher
 		Cacher cacher = new MemoryCacher();
 		
 		// Create broker
-		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).cacher(cacher)
+		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).cacher(cacher).nodeID("node-1")
 				.build();
 		// .repl(new RemoteRepl())
 
@@ -96,6 +96,15 @@ public class Test {
 
 		broker.start();
 		broker.repl();
+		
+		// TODO
+		try {
+			Thread.sleep(5000);
+			System.out.println("----------------------------");
+			transporter.fakeGossiping();			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 }

@@ -228,19 +228,13 @@ public final class UDPBroadcaster {
 
 	private final void receive() {
 
-		// Variables
-		byte[] buf = new byte[512];
-
 		// Loop
 		while (!Thread.currentThread().isInterrupted()) {
 			try {
-				DatagramPacket packet = new DatagramPacket(buf, buf.length);
+				byte[] buffer = new byte[512];
+				DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 				udpReceiver.receive(packet);
-				byte[] data = packet.getData();
-				if (data == null) {
-					continue;
-				}
-				String received = new String(data).trim();
+				String received = new String(buffer).trim();
 				if (debug) {
 					logger.info("UDP message received: " + received);
 				}

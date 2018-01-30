@@ -526,9 +526,17 @@ public abstract class Transporter implements MoleculerComponent {
 		// Check offline status
 		Tree offline = info.get("offlineSince");
 		if (nodeID.equals(sender)) {
-
-			// Regenerate service descriptor with a fresh "when" timestamp
 			if (offline != null) {
+				Tree current = registry.generateDescriptor();
+				long currentWhen = current.get("when", 0L);
+				long newWhen = info.get("when", Long.MAX_VALUE);
+				if (currentWhen > newWhen) {
+
+					// Not changed or the received info is older
+					return;
+				}
+
+				// Regenerate service descriptor with a fresh "when" timestamp
 				registry.clearCache();
 			}
 			return;
@@ -557,7 +565,7 @@ public abstract class Transporter implements MoleculerComponent {
 			long newWhen = info.get("when", Long.MAX_VALUE);
 			if (currentWhen >= newWhen) {
 
-				// Not changed or the received info is older
+				// Not changed or the received info is older or same
 				return;
 			}
 

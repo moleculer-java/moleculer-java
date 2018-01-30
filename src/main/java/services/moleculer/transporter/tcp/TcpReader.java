@@ -296,19 +296,20 @@ public final class TcpReader implements Runnable {
 
 											// Clear attachment
 											key.attach(null);
+											
 										}
 
 										// Debug
 										if (debug) {
 											logger.info(
-													len + " bytes received from " + channel.getRemoteAddress() + ".");
+													packet.length + " bytes received from " + channel.getRemoteAddress() + ".");
 										}
-
+										
 										// Remove header
 										copy = new byte[len - 6];
 										System.arraycopy(packet, 6, copy, 0, copy.length);
 										packet = copy;
-
+										
 										// Process incoming message
 										transporter.received(type, packet);
 
