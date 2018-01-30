@@ -165,17 +165,15 @@ public final class CommonUtils {
 		if (name == null || name.isEmpty() || name.contains("localhost")) {
 			try {
 				name = System.getenv().get("COMPUTERNAME");
-				if (name != null) {
-					name = name.toLowerCase();
-				}
 			} catch (Exception ignored) {
 				name = null;
 			}
 		}
 		if (name == null || name.isEmpty()) {
-			name = "localhost";
+			cachedHostName = "localhost";
+		} else {
+			cachedHostName = name.toLowerCase();
 		}
-		cachedHostName = name;
 		return cachedHostName;
 	}
 

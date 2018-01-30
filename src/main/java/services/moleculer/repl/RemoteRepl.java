@@ -57,7 +57,16 @@ import services.moleculer.service.Name;
  * RemoteRepl r = new RemoteRepl();<br>
  * ServiceBroker broker = ServiceBroker.builder().repl(r).build();<br>
  * broker.start();<br>
- * broker.repl();
+ * broker.repl();<br>
+ * <br>
+ * ...then you can connect to the Service Broker using a standard telnet client:
+ * <br>
+ * <br>
+ * telnet localhost<br>
+ * <br>
+ * The telnet provides for logon with a password, the default username and
+ * password is "admin" / "admin". Nevertheless the telnet connection is not
+ * secure.
  * 
  * @see LocalRepl
  */
@@ -143,14 +152,14 @@ public class RemoteRepl extends LocalRepl {
 			selector = Selector.open();
 			serverChannel.register(selector, SelectionKey.OP_ACCEPT);
 			super.startReading();
-			
+
 		} catch (Exception cause) {
 			logger.error("Unable to start telnet!", cause);
 		}
 	}
 
 	protected void showStartMessage() {
-		logger.info(nameOf(this, true) + " started. Type \"telnet " + getHostName() + ' ' + port + "\" to connect.");		
+		logger.info(nameOf(this, true) + " started. Type \"telnet " + getHostName() + ' ' + port + "\" to connect.");
 	}
 
 	// --- COMMAND READER LOOP ---

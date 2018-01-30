@@ -79,7 +79,7 @@ public class MoleculerRunner {
 					}
 				}
 
-				// Third optional argument is stop cpuQueryCommand
+				// Third optional argument is stop command
 				if (args.length > 2) {
 					stopMessage = args[2];
 				}

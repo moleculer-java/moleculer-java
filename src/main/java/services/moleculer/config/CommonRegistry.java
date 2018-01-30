@@ -430,7 +430,7 @@ public abstract class CommonRegistry extends ComponentRegistry {
 			if (test.equals("jmx")) {
 				return newConfig("services.moleculer.monitor.JMXMonitor");
 			}
-			if (test.equals("cpuQueryCommand")) {
+			if (test.equals("command")) {
 				return newConfig("services.moleculer.monitor.CommandMonitor");
 			}
 			if (test.equals("constant")) {

@@ -62,9 +62,9 @@ public class LocalRepl extends Repl implements Runnable {
 	// --- PROPERTIES ---
 
 	/**
-	 * Java package(s) where the Command classes are located.
+	 * Java package(s) where the custom (user-defined) commands are located.
 	 */
-	private String[] packagesToScan = new String[] { "services.moleculer.repl.commands" };
+	private String[] packagesToScan = {};
 
 	// --- COMPONENTS ---
 
@@ -123,24 +123,32 @@ public class LocalRepl extends Repl implements Runnable {
 
 		// Find commands
 		commands.clear();
-		for (String packageName : packagesToScan) {
-			if (!packageName.isEmpty()) {
-				try {
-					LinkedList<String> classNames = scan(packageName);
-					for (String className : classNames) {
-						if (className.indexOf('$') > -1) {
-							continue;
+
+		// Load default commands
+		load("Actions", "Broadcast", "BroadcastLocal", "Call", "Clear", "Close", "DCall", "Emit", "Env", "Events",
+				"Exit", "Find", "Gc", "Info", "Memory", "Nodes", "Props", "Services", "Threads");
+
+		// Load custom commands
+		if (packagesToScan != null && packagesToScan.length > 0) {
+			for (String packageName : packagesToScan) {
+				if (!packageName.isEmpty()) {
+					try {
+						LinkedList<String> classNames = scan(packageName);
+						for (String className : classNames) {
+							if (className.indexOf('$') > -1) {
+								continue;
+							}
+							className = packageName + '.' + className;
+							Class<?> type = Class.forName(className);
+							if (Command.class.isAssignableFrom(type)) {
+								Command command = (Command) type.newInstance();
+								String name = nameOf(command, false).toLowerCase();
+								commands.put(name, command);
+							}
 						}
-						className = packageName + '.' + className;
-						Class<?> type = Class.forName(className);
-						if (Command.class.isAssignableFrom(type)) {
-							Command command = (Command) type.newInstance();
-							String name = nameOf(command, false).toLowerCase();
-							commands.put(name, command);
-						}
+					} catch (Throwable cause) {
+						logger.warn("Unable to scan Java package!", cause);
 					}
-				} catch (Throwable cause) {
-					logger.warn("Unable to scan Java package!", cause);
 				}
 			}
 		}
@@ -154,13 +162,26 @@ public class LocalRepl extends Repl implements Runnable {
 		}
 		executor = Executors.newSingleThreadExecutor();
 		executor.execute(this);
-		
+
 		// Log start
 		showStartMessage();
 	}
-	
+
+	protected void load(String... commands) {
+		try {
+			for (String command : commands) {
+				String className = "services.moleculer.repl.commands." + command;
+				Command impl = (Command) Class.forName(className).newInstance();
+				String name = nameOf(impl, false).toLowerCase();
+				this.commands.put(name, impl);
+			}
+		} catch (Throwable cause) {
+			logger.warn("Unable to load command!", cause);
+		}
+	}
+
 	protected void showStartMessage() {
-		logger.info(nameOf(this, true) + " started. Type \"help\" for list of commands.");		
+		logger.info(nameOf(this, true) + " started. Type \"help\" for list of commands.");
 	}
 
 	// --- COMMAND READER LOOP ---
@@ -242,13 +263,13 @@ public class LocalRepl extends Repl implements Runnable {
 				out.println("Commands:");
 				out.println();
 				out.println(table);
-				out.println("  Type \"repeat\" or \"r\"  to repeat the execution of the last cpuQueryCommand.");
+				out.println("  Type \"repeat\" or \"r\"  to repeat the execution of the last command.");
 				out.println();
 				return;
 			}
 			Command impl = commands.get(cmd);
 			if (impl == null) {
-				out.println("The \"" + cmd + "\" cpuQueryCommand is unknown!");
+				out.println("The \"" + cmd + "\" command is unknown!");
 				out.println("Type \"help\" for more information.");
 				out.println();
 				return;
@@ -256,8 +277,8 @@ public class LocalRepl extends Repl implements Runnable {
 			String[] args = new String[tokens.length - 1];
 			System.arraycopy(tokens, 1, args, 0, args.length);
 			if (impl.getNumberOfRequiredParameters() > args.length) {
-				out.println("Unable to call \"" + cmd + "\" cpuQueryCommand!");
-				out.println("Too few cpuQueryCommand parameters (" + args.length + " < " + impl.getNumberOfRequiredParameters()
+				out.println("Unable to call \"" + cmd + "\" command!");
+				out.println("Too few command parameters (" + args.length + " < " + impl.getNumberOfRequiredParameters()
 						+ ")!");
 				out.println();
 				printCommandHelp(out, cmd);
@@ -275,7 +296,7 @@ public class LocalRepl extends Repl implements Runnable {
 	protected void printCommandHelp(PrintStream out, String name) {
 		Command impl = commands.get(name);
 		if (impl == null) {
-			out.println("The \"" + name + "\" cpuQueryCommand is unknown!");
+			out.println("The \"" + name + "\" command is unknown!");
 			out.println("Type \"help\" for more information.");
 			return;
 		}

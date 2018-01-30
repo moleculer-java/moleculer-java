@@ -38,7 +38,7 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 
 /**
- * Interface of all interactive console cpuQueryCommand implementations.
+ * Interface of all interactive console command implementations.
  */
 public abstract class Command {
 

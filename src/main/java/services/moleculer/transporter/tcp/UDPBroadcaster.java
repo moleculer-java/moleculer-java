@@ -60,7 +60,7 @@ public final class UDPBroadcaster {
 	/**
 	 * TCP port (used by the Transporter and Gossiper services)
 	 */
-	protected final int port;
+	private final int port;
 	
 	/**
 	 * UDP multicast host of automatic discovery service
@@ -75,7 +75,7 @@ public final class UDPBroadcaster {
 	/**
 	 * UDP broadcast period in SECONDS
 	 */
-	protected final int broadcastPeriod;
+	private final int broadcastPeriod;
 
 	/**
 	 * Debug monde
@@ -86,7 +86,7 @@ public final class UDPBroadcaster {
 	 * Current NodeID
 	 */
 	private final String nodeID;
-
+	
 	// --- COMPONENTS ---
 
 	/**
@@ -202,7 +202,7 @@ public final class UDPBroadcaster {
 	private final void send() {
 		MulticastSocket udpSocket = null;
 		try {
-			String msg = nodeID + ':' + monitor.getTotalCpuPercent() + ':' + port;
+			String msg = nodeID + '|' + monitor.getTotalCpuPercent() + '|' + port;
 			byte[] bytes = msg.getBytes();
 			udpSocket = new MulticastSocket(broadcastPort);
 			InetAddress address = InetAddress.getByName(broadcastHost);
@@ -244,8 +244,9 @@ public final class UDPBroadcaster {
 				if (debug) {
 					logger.info("UDP message received: " + received);
 				}
-				String tokens[] = received.split(":");
+				String tokens[] = received.split("\\|");
 				if (tokens.length != 3) {
+					logger.warn("Malformed UDP message received (" + received + ")!");
 					continue;
 				}
 				if (nodeID.equals(tokens[0])) {
@@ -254,20 +255,47 @@ public final class UDPBroadcaster {
 				int cpu = 0;
 				try {
 					cpu = Integer.parseInt(tokens[1]);
+					if (cpu < 0  || cpu > 100) {
+						logger.warn("Invalid CPU usage (" + cpu + ")!");
+						continue;
+					}
 				} catch (Exception cause) {
 					logger.warn("Invalid CPU usage format (" + tokens[1] + ")!");
+					continue;
 				}
-				String host = packet.getAddress().getHostAddress();
+				String host;
+				String ip;
+				try {
+					InetAddress address = packet.getAddress();
+					host = address.getHostName();
+					if (host == null || host.isEmpty()) {
+						logger.warn("Unable to detect sender's hostname!");
+						continue;
+					}
+					ip = address.getHostAddress();
+					if (ip == null || (!ip.contains(".") && !ip.contains(":"))) {
+						logger.warn("Invalid IP address of sender (" + ip + ")!");
+						continue;
+					}
+				} catch (Exception cause) {
+					logger.warn("Unable to detect sender's IP address or hostname!", cause);
+					continue;
+				}				
 				int port = 0;
 				try {
 					port = Integer.parseInt(tokens[2]);
+					if (port < 1) {
+						logger.warn("Invalid port number (" + port + ")!");
+						continue;
+					}					
 				} catch (Exception cause) {
 					logger.warn("Invalid port number format (" + tokens[2] + ")!");
+					continue;
 				}
 				
 				// Notify TCP Transporter
-				transporter.udpPacketReceiver(tokens[0], cpu, host, port);
-			
+				transporter.udpPacketReceiver(tokens[0], cpu, host, ip, port);
+
 			} catch (Exception cause) {
 				String msg = cause == null ? null : cause.getMessage();
 				if (msg != null && msg.contains("closed")) {

@@ -39,7 +39,7 @@ import services.moleculer.repl.Command;
 import services.moleculer.service.Name;
 
 /**
- * Clear cacher's memory. Sample cpuQueryCommand:<br>
+ * Clear cacher's memory. Sample command:<br>
  * <pre>
  * clear users.*
  * </pre>

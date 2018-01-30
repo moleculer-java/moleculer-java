@@ -63,25 +63,32 @@ public final class TcpWriter implements Runnable {
 
 	// --- COMPONENTS ---
 
-	private ScheduledExecutorService scheduler;
+	private final ScheduledExecutorService scheduler;
 
 	// --- PROPERTIES ---
 
 	/**
 	 * Max number of opened connections
 	 */
-	private int maxConnections;
+	private final int maxConnections;
 
 	/**
 	 * Keep-alive timeout in MILLISECONDS
 	 */
-	private long keepAliveTimeout;
+	private final long keepAliveTimeout;
 
 	/**
 	 * Debug monde
 	 */
 	private final boolean debug;
 
+	/**
+	 * Use hostnames instead of IP addresses As the DHCP environment is dynamic,
+	 * any later attempt to use IPs instead hostnames would most likely yield
+	 * false results. Therefore, use hostnames if you are using DHCP.
+	 */
+	private final boolean useHostname;
+	
 	// --- NIO VARIABLES ---
 
 	private final TcpTransporter transporter;
@@ -98,7 +105,10 @@ public final class TcpWriter implements Runnable {
 	public TcpWriter(TcpTransporter transporter, ScheduledExecutorService scheduler) {
 		this.transporter = transporter;
 		this.scheduler = scheduler;
-		debug = transporter.isDebug();
+		this.debug = transporter.isDebug();
+		this.useHostname = transporter.isUseHostname();
+		this.maxConnections = transporter.getMaxKeepAliveConnections();
+		this.keepAliveTimeout = transporter.getKeepAliveTimeout() * 1000L;
 	}
 
 	// --- CONNECT ---
@@ -114,10 +124,6 @@ public final class TcpWriter implements Runnable {
 	private ExecutorService executor;
 
 	public final void connect() throws Exception {
-
-		// Set max number of connections
-		maxConnections = transporter.getMaxKeepAliveConnections();
-		keepAliveTimeout = transporter.getKeepAliveTimeout() * 1000L;
 
 		// Create selector
 		disconnect();
@@ -236,7 +242,10 @@ public final class TcpWriter implements Runnable {
 			if (buffer == null || !buffer.use()) {
 
 				// Create new attachment
-				String host = info.get("hostName", (String) null);
+				String host = null;
+				if (useHostname) {
+					host = info.get("hostName", (String) null);
+				}
 				if (host == null) {
 					Tree ipList = info.get("ipList");
 					if (ipList.size() > 0) {

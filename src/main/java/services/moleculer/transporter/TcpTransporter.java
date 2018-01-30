@@ -105,7 +105,7 @@ public class TcpTransporter extends Transporter {
 	 * List of URLs ("tcp://host:port/nodeID" or "host:port/nodeID" or
 	 * "host/nodeID"), when UDP discovery is disabled.
 	 */
-	protected String[] urls = new String[0];
+	protected String[] urls = {};
 
 	/**
 	 * UDP multicast host of automatic discovery service ("zero config" mode).
@@ -121,6 +121,13 @@ public class TcpTransporter extends Transporter {
 	 * UDP multicast period in SECONDS.
 	 */
 	protected int multicastPeriod = 60;
+
+	/**
+	 * Use hostnames instead of IP addresses As the DHCP environment is dynamic,
+	 * any later attempt to use IPs instead hostnames would most likely yield
+	 * false results. Therefore, use hostnames if you are using DHCP.
+	 */
+	protected boolean useHostname = true;
 
 	// --- COMPONENTS ---
 
@@ -169,17 +176,22 @@ public class TcpTransporter extends Transporter {
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
-		// TCP transporter uses Gossiping protocol instead of HEARTBEAT signals
+		// TCP transporter uses Gossip Protocol instead of HEARTBEAT signals
 		heartbeatInterval = 0;
 		heartbeatTimeout = 0;
+		if (gossipPeriod < 1) {
+			gossipPeriod = 1;
+		}
+
+		// Disable offline timeout when use host list
+		if (urls != null && urls.length > 0) {
+			offlineTimeout = 0;
+		} else if (offlineTimeout > 0 && offlineTimeout < 15) {
+			offlineTimeout = 15;
+		}
 
 		// Process basic properties (eg. "prefix")
 		super.start(broker, config);
-
-		// Disable heartbeat messages
-		if (urls != null && urls.length > 0) {
-			offlineTimeout = 0;
-		}
 
 		// TCP server's port
 		port = config.get("port", port);
@@ -204,6 +216,9 @@ public class TcpTransporter extends Transporter {
 		multicastHost = config.get("multicastHost", multicastHost);
 		multicastPort = config.get("multicastPort", multicastPort);
 		multicastPeriod = config.get("multicastPeriod", multicastPeriod);
+
+		// Use hostnames or IPs?
+		useHostname = config.get("useHostname", useHostname);
 	}
 
 	// --- CONNECT ---
@@ -300,17 +315,14 @@ public class TcpTransporter extends Transporter {
 			}
 
 			// Start gossiper
-			if (gossipPeriod < 1) {
-				gossipPeriod = 1;
-			}
 			timer = scheduler.scheduleWithFixedDelay(this::doGossiping, gossipPeriod, gossipPeriod, TimeUnit.SECONDS);
 
 			// Start offline timeout timer
 			if (checkTimeoutTimer == null && offlineTimeout > 0) {
-				checkTimeoutTimer = scheduler.scheduleAtFixedRate(this::checkInfos, offlineTimeout  / 2,
+				checkTimeoutTimer = scheduler.scheduleAtFixedRate(this::checkInfos, offlineTimeout / 2,
 						offlineTimeout / 2, TimeUnit.SECONDS);
 			}
-			
+
 			// Ok, transporter started
 			logger.info("Message receiver started on tcp://" + getHostName() + ':' + currentPort + ".");
 
@@ -440,10 +452,10 @@ public class TcpTransporter extends Transporter {
 							long now = System.currentTimeMillis();
 							for (Tree info : data.get("nodes")) {
 								ArrayList<String> row = new ArrayList<>(5);
-								
+
 								row.add(info.get("sender", "unknown"));
-								
-								Tree offline = info.get("offlineSince");							
+
+								Tree offline = info.get("offlineSince");
 								if (offline == null) {
 									row.add("ONLINE");
 									row.add("-");
@@ -451,10 +463,10 @@ public class TcpTransporter extends Transporter {
 									row.add("OFFLINE");
 									row.add(((now - offline.asLong()) / 1000) + " sec");
 								}
-								
+
 								row.add(info.get("hostName", "unknown"));
 								row.add(Integer.toString(info.get("port", 0)));
-								
+
 								table.addRow(row);
 							}
 							logger.info("Message received from channel #" + packetID + ":\r\n" + table.toString());
@@ -601,7 +613,7 @@ public class TcpTransporter extends Transporter {
 					packetID = PACKET_PONG_ID;
 					break;
 				default:
-					logger.warn("Unsupported cpuQueryCommand (" + command + ")!");
+					logger.warn("Unsupported command (" + command + ")!");
 					return;
 				}
 
@@ -739,11 +751,12 @@ public class TcpTransporter extends Transporter {
 
 	// --- UDP BROADCAST MESSAGE RECEIVEd ---
 
-	public void udpPacketReceiver(String nodeID, int cpu, String host, int port) {
+	public void udpPacketReceiver(String nodeID, int cpu, String host, String ip, int port) {
 
 		// Debug
 		if (debug) {
-			logger.info("UDP message received (node ID: " + nodeID + ", CPU usage: " + cpu + ").");
+			logger.info("UDP message received (node ID: " + nodeID + ", CPU usage: " + cpu + ", host: " + host
+					+ ", IP: " + ip + ", port: " + port + ").");
 		}
 
 		// Store data
@@ -756,6 +769,7 @@ public class TcpTransporter extends Transporter {
 			info.put("when", 0);
 			info.put("offlineSince", now);
 			info.put("hostName", host);
+			info.putList("ipList").add(ip);
 			info.put("port", port);
 			nodeInfos.put(nodeID, info);
 			logger.info("Node \"" + nodeID + "\" registered.");
@@ -763,15 +777,15 @@ public class TcpTransporter extends Transporter {
 	}
 
 	// --- UNUSED METHODS ---
-	
+
 	public void setHeartbeatInterval(int heartbeatInterval) {
 		throw new UnsupportedOperationException();
 	}
 
 	public void setHeartbeatTimeout(int heartbeatTimeout) {
-		throw new UnsupportedOperationException();	
+		throw new UnsupportedOperationException();
 	}
-	
+
 	// --- GETTERS AND SETTERS ---
 
 	public String[] getUrls() {
@@ -848,6 +862,14 @@ public class TcpTransporter extends Transporter {
 
 	public int getCurrentPort() {
 		return currentPort;
+	}
+
+	public boolean isUseHostname() {
+		return useHostname;
+	}
+
+	public void setUseHostname(boolean useHostname) {
+		this.useHostname = useHostname;
 	}
 
 }
