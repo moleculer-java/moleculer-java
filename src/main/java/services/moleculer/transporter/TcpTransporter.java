@@ -501,23 +501,23 @@ public class TcpTransporter extends Transporter {
 
 			// TODO process request
 			Tree nodes = data.get("nodes");
-			for (Tree node: nodes) {
+			for (Tree node : nodes) {
 				String sender = node.getName();
 				if (node.size() == 3) {
-					
+
 					// Online node
 					long when = node.get(0).asLong();
 					long cpuWhen = node.get(1).asLong();
 					long cpuValue = node.get(2).asInteger();
-					
+
 				} else if (node.size() == 2) {
-					
+
 					// Offline node
 					long when = node.get(0).asLong();
 					long offlineSince = node.get(1).asLong();
-					
+
 				} else {
-					logger.warn("Invalid block:"  + node.toString(false));
+					logger.warn("Invalid block:" + node.toString(false));
 				}
 			}
 		}
@@ -544,16 +544,12 @@ public class TcpTransporter extends Transporter {
 					}
 
 					// Mark endpoint as offline
-					Tree info = nodeInfos.get(buffer.nodeID);
-					long now = System.currentTimeMillis();
-					if (info != null) {
-						Tree copy = info.clone();
-						copy.put("when", now);
-						Tree offline = copy.get("offlineSince");
-						if (offline == null) {
-							copy.put("offlineSince", now);
-						}
-						updateNodeInfo(buffer.nodeID, copy);
+					writeLock.lock();
+					try {
+						offlineNodes.putIfAbsent(buffer.nodeID, System.currentTimeMillis());
+						nodeActivities.remove(buffer.nodeID);
+					} finally {
+						writeLock.unlock();
 					}
 
 					// Remove header
@@ -724,7 +720,7 @@ public class TcpTransporter extends Transporter {
 			node.add(when);
 			node.add(System.currentTimeMillis());
 			node.add(monitor.getTotalCpuPercent());
-			
+
 			// Create gossip request message
 			ArrayList<Tree> liveEndpoints = new ArrayList<>(size);
 			ArrayList<Tree> unreachableEndpoints = new ArrayList<>(size);
@@ -744,7 +740,7 @@ public class TcpTransporter extends Transporter {
 							NodeActivity activity = nodeActivities.get(nodeID);
 							if (activity == null) {
 								node.add(0);
-								node.add(0);								
+								node.add(0);
 							} else {
 								node.add(activity.when);
 								node.add(activity.cpu);
