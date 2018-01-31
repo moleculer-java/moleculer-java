@@ -105,5 +105,9 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 	// --- CLEAR CACHE ---
 
 	public abstract void clearCache();
+
+	// --- LAST MODIFICATION'S TIMESTAMP ---
+	
+	public abstract long getWhen();
 	
 }

@@ -63,6 +63,7 @@ import services.moleculer.serializer.Serializer;
 import services.moleculer.service.Name;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.transporter.tcp.NodeActivity;
+import services.moleculer.transporter.tcp.OfflineNode;
 
 /**
  * Base superclass of all Transporter implementations.
@@ -138,7 +139,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 	protected final HashMap<String, Tree> nodeInfos = new HashMap<>(128);
 	protected final HashMap<String, NodeActivity> nodeActivities = new HashMap<>(128);
-	protected final HashMap<String, Long> offlineNodes = new HashMap<>(128);
+	protected final HashMap<String, OfflineNode> offlineNodes = new HashMap<>(128);
 
 	// --- LOCKS ---
 
@@ -473,6 +474,7 @@ public abstract class Transporter implements MoleculerComponent {
 					boolean sendDiscover = false;
 					boolean offline;
 					Tree info;
+					
 					writeLock.lock();
 					try {
 						info = nodeInfos.get(sender);
@@ -515,23 +517,22 @@ public abstract class Transporter implements MoleculerComponent {
 				if (channel.equals(disconnectChannel)) {
 
 					// Get node info, then mark as removed
+					long now = System.currentTimeMillis();
 					Tree info;
+					
 					writeLock.lock();
 					try {
 
-						// Allready offline
+						// Allready offline?
+						OfflineNode offline = offlineNodes.get(nodeID);
+						offlineNodes.put(nodeID, new OfflineNode(now, offline == null ? now : offline.since));
 						info = nodeInfos.get(sender);
-						if (info == null || offlineNodes.containsKey(sender)) {
-
-							// Allready offline
+						if (info == null) {
 							return;
 						}
 
 						// Remove CPU usage and last heartbeat time
 						nodeActivities.remove(sender);
-
-						// Mark as offline
-						offlineNodes.put(sender, System.currentTimeMillis());
 
 						// Remove remote actions
 						registry.removeActions(sender);
@@ -711,18 +712,17 @@ public abstract class Transporter implements MoleculerComponent {
 			readLock.unlock();
 		}
 
+		// Remove timeoutedd entries
 		if (hasTimeoutedEntry) {
 			HashMap<String, Tree> removedNodes = new HashMap<>();
 			Map.Entry<String, NodeActivity> activityEntry;
-			long timestamp;
 
 			writeLock.lock();
 			try {
 				Iterator<Map.Entry<String, NodeActivity>> activityEntries = nodeActivities.entrySet().iterator();
 				while (activityEntries.hasNext()) {
 					activityEntry = activityEntries.next();
-					timestamp = activityEntry.getValue().when;
-					if (now - timestamp > timeoutMillis) {
+					if (now - activityEntry.getValue().when > timeoutMillis) {
 
 						// Get timeouted node's ID
 						String nodeID = activityEntry.getKey();
@@ -737,7 +737,8 @@ public abstract class Transporter implements MoleculerComponent {
 						activityEntries.remove();
 
 						// Add to offline nodes
-						offlineNodes.put(nodeID, now);
+						OfflineNode offline = offlineNodes.get(nodeID);
+						offlineNodes.put(nodeID, new OfflineNode(now, offline == null ? now : offline.since));
 
 						// Notify listeners (unexpected disconnection)
 						Tree info = nodeInfos.get(nodeID);
@@ -774,8 +775,8 @@ public abstract class Transporter implements MoleculerComponent {
 		boolean hasTimeoutedEntry = false;
 		readLock.lock();
 		try {
-			for (long when : offlineNodes.values()) {
-				if (now - when > timeoutMillis) {
+			for (OfflineNode node : offlineNodes.values()) {
+				if (now - node.when > timeoutMillis) {
 					hasTimeoutedEntry = true;
 					break;
 				}
@@ -784,18 +785,17 @@ public abstract class Transporter implements MoleculerComponent {
 			readLock.unlock();
 		}
 
+		// Remove timeoutedd entries
 		if (hasTimeoutedEntry) {
-			Map.Entry<String, Long> offlineEntry;
-			long timestamp;
+			Map.Entry<String, OfflineNode> offlineEntry;
 			String nodeID;
 
 			writeLock.lock();
 			try {
-				Iterator<Map.Entry<String, Long>> offlineEntries = offlineNodes.entrySet().iterator();
+				Iterator<Map.Entry<String, OfflineNode>> offlineEntries = offlineNodes.entrySet().iterator();
 				while (offlineEntries.hasNext()) {
 					offlineEntry = offlineEntries.next();
-					timestamp = offlineEntry.getValue();
-					if (now - timestamp > timeoutMillis) {
+					if (now - offlineEntry.getValue().when > timeoutMillis) {
 
 						// Remove entry
 						offlineEntries.remove();
@@ -873,7 +873,7 @@ public abstract class Transporter implements MoleculerComponent {
 		if (info == null) {
 			return null;
 		}
-		return info.clone();
+		return info;
 	}
 
 	// --- OPTIONAL ERROR HANDLER ---

@@ -36,8 +36,10 @@ import static services.moleculer.util.CommonUtils.parseURLs;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -49,6 +51,7 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.service.Name;
 import services.moleculer.transporter.tcp.NodeActivity;
+import services.moleculer.transporter.tcp.OfflineNode;
 import services.moleculer.transporter.tcp.SendBuffer;
 import services.moleculer.transporter.tcp.TcpReader;
 import services.moleculer.transporter.tcp.TcpWriter;
@@ -134,11 +137,6 @@ public class TcpTransporter extends Transporter {
 	 * false results. Therefore, use hostnames if you are using DHCP.
 	 */
 	protected boolean useHostname = true;
-
-	/**
-	 * Ignore incoming gossip messages until this time (MILLISECONDS).
-	 */
-	protected long ignoreGossipMessagesUntil = 500;
 
 	// --- COMPONENTS ---
 
@@ -231,13 +229,11 @@ public class TcpTransporter extends Transporter {
 		// Use hostnames or IPs?
 		useHostname = config.get("useHostname", useHostname);
 
-		// Max gossip processing timeframe
-		ignoreGossipMessagesUntil = config.get("ignoreGossipMessagesUntil", ignoreGossipMessagesUntil);
-
 		// Parse URLs (in "full TCP mode")
 		urls = parseURLs(config, urls);
 		if (urls != null && urls.length > 0) {
 			long now = System.currentTimeMillis();
+
 			writeLock.lock();
 			try {
 				for (String url : urls) {
@@ -270,12 +266,11 @@ public class TcpTransporter extends Transporter {
 					info.put("sender", targetNodeID);
 					info.put("when", 0);
 					info.putObject("hostname", parts[0]);
-					info.putList("ipList").add(parts[0]);
 					info.put("port", port);
 					nodeInfos.put(targetNodeID, info);
 
 					// Add to "offlineNodes"
-					offlineNodes.put(targetNodeID, now);
+					offlineNodes.put(nodeID, new OfflineNode(0, now));
 				}
 			} finally {
 				writeLock.unlock();
@@ -481,56 +476,6 @@ public class TcpTransporter extends Transporter {
 		});
 	}
 
-	// --- GOSSIP REQUEST MESSAGE RECEIVED ---
-
-	protected final AtomicLong lastRequest = new AtomicLong();
-
-	protected void processGossipRequest(Tree data) throws Exception {
-
-		// Check last processed gossip message's timestamp
-		long previous = lastRequest.get();
-		long now = System.currentTimeMillis();
-		if (now - previous < ignoreGossipMessagesUntil) {
-
-			// Ignore (protect CPU usage)
-			return;
-		}
-
-		// Process (or ignore) incoming gossip packet
-		if (lastRequest.compareAndSet(previous, now)) {
-
-			// TODO process request
-			Tree nodes = data.get("nodes");
-			for (Tree node : nodes) {
-				String sender = node.getName();
-				if (node.size() == 3) {
-
-					// Online node
-					long when = node.get(0).asLong();
-					long cpuWhen = node.get(1).asLong();
-					long cpuValue = node.get(2).asInteger();
-
-				} else if (node.size() == 2) {
-
-					// Offline node
-					long when = node.get(0).asLong();
-					long offlineSince = node.get(1).asLong();
-
-				} else {
-					logger.warn("Invalid block:" + node.toString(false));
-				}
-			}
-		}
-	}
-
-	// --- GOSSIP RESPONSE MESSAGE RECEIVED ---
-
-	protected void processGossipResponse(Tree data) throws Exception {
-
-		// TODO process response
-
-	}
-
 	// --- CONNECTION ERROR ---
 
 	public void unableToSend(SendBuffer buffer, Throwable error) {
@@ -544,9 +489,11 @@ public class TcpTransporter extends Transporter {
 					}
 
 					// Mark endpoint as offline
+					long now = System.currentTimeMillis();
 					writeLock.lock();
 					try {
-						offlineNodes.putIfAbsent(buffer.nodeID, System.currentTimeMillis());
+						OfflineNode offline = offlineNodes.get(buffer.nodeID);
+						offlineNodes.put(buffer.nodeID, new OfflineNode(now, offline == null ? now : offline.since));
 						nodeActivities.remove(buffer.nodeID);
 					} finally {
 						writeLock.unlock();
@@ -702,7 +649,7 @@ public class TcpTransporter extends Transporter {
 	protected void doGossiping() {
 		try {
 
-			// Create gossip message
+			// Create gossip request
 			Collection<Tree> values = nodeInfos.values();
 			int size = values.size();
 			if (size == 0) {
@@ -711,55 +658,76 @@ public class TcpTransporter extends Transporter {
 			Tree root = new Tree();
 			root.put("ver", ServiceBroker.PROTOCOL_VERSION);
 			root.put("sender", nodeID);
-			Tree nodes = root.putMap("nodes");
+			Tree current = registry.generateDescriptor();
+			String host = null;
+			if (useHostname) {
+				host = current.get("hostname", (String) null);
+			}
+			if (host == null || host.isEmpty()) {
+				Tree ipList = current.get("ipList");
+				if (ipList.size() > 0) {
+					host = ipList.get(0).asString();
+				}
+			}
+			root.put("host", host);
+			root.put("port", currentPort);
+			Tree online = root.putMap("online");
+			Tree offline = root.putMap("offline");
 
 			// Add current node
-			Tree current = registry.generateDescriptor();
-			Tree node = nodes.putList(nodeID);
-			long when = current.get("when", 0L);
-			node.add(when);
+			Tree node = online.putList(nodeID);
+			node.add(current.get("when").asLong());
 			node.add(System.currentTimeMillis());
 			node.add(monitor.getTotalCpuPercent());
 
 			// Create gossip request message
-			ArrayList<Tree> liveEndpoints = new ArrayList<>(size);
-			ArrayList<Tree> unreachableEndpoints = new ArrayList<>(size);
+			Tree[] liveEndpoints = new Tree[size];
+			Tree[] unreachableEndpoints = new Tree[size];
+			int liveEndpointCount = 0;
+			int unreachableEndpointCount = 0;
+			OfflineNode offlineNode;
+			NodeActivity activity;
+			String sender;
+
 			readLock.lock();
 			try {
 				for (Tree info : nodeInfos.values()) {
-					String sender = info.get("sender", (String) null);
+					sender = info.get("sender", (String) null);
 					if (sender == null || sender.isEmpty() || nodeID.equals(sender)) {
 						continue;
 					}
-					when = info.get("when", 0L);
-					Long offline = offlineNodes.get(sender);
-					if (when > 0) {
-						node = nodes.putList(sender);
-						node.add(when);
-						if (offline == null) {
-							NodeActivity activity = nodeActivities.get(nodeID);
-							if (activity == null) {
-								node.add(0);
-								node.add(0);
-							} else {
-								node.add(activity.when);
-								node.add(activity.cpu);
-							}
+					offlineNode = offlineNodes.get(sender);
+					if (offlineNode == null) {
+
+						// Online
+						liveEndpoints[liveEndpointCount++] = info;
+						node = online.putList(sender);
+						node.add(info.get("when").asLong());
+						activity = nodeActivities.get(sender);
+						if (activity == null) {
+							node.add(0).add(0);
 						} else {
-							node.add(offline);
+							node.add(activity.when).add(activity.cpu);
 						}
-					}
-					if (offline == null) {
-						liveEndpoints.add(info);
+
 					} else {
-						unreachableEndpoints.add(info);
+
+						// Offline
+						unreachableEndpoints[unreachableEndpointCount++] = info;
+						if (offlineNode.when > 0) {
+							node = offline.putList(sender);
+							node.add(offlineNode.when).add(offlineNode.since);
+						}
 					}
 				}
 			} finally {
 				readLock.unlock();
 			}
-			int liveEndpointCount = liveEndpoints.size();
-			int unreachableEndpointCount = unreachableEndpoints.size();
+
+			// Remove empty offline node
+			if (offline.isEmpty()) {
+				offline.remove();
+			}
 
 			// Create gossip packet
 			byte[] packet = serialize(PACKET_GOSSIP_REQ_ID, root);
@@ -790,23 +758,16 @@ public class TcpTransporter extends Transporter {
 		}
 	}
 
-	protected void sendGossipToRandomEndpoint(ArrayList<Tree> endpoints, int size, byte[] packet) {
-		for (int i = 0; i < size; i++) {
+	protected void sendGossipToRandomEndpoint(Tree[] endpoints, int size, byte[] packet) {
 
-			// Choose random endpoint
-			int index = rnd.nextInt(size);
-			Tree info = endpoints.get(index);
+		// Choose random endpoint
+		Tree info = endpoints[rnd.nextInt(size)];
 
-			// Send data
-			String targetNodeID = info.get("sender", (String) null);
-			if (nodeID.equals(targetNodeID)) {
-				continue;
-			}
+		// Send data
+		String targetNodeID = info.get("sender", (String) null);
 
-			// Send gossip message to node
-			writer.send(targetNodeID, info, packet);
-			break;
-		}
+		// Send gossip message to node
+		writer.send(targetNodeID, info, packet);
 	}
 
 	// --- UDP BROADCAST MESSAGE RECEIVEd ---
@@ -819,33 +780,454 @@ public class TcpTransporter extends Transporter {
 					+ ", IP: " + ip + ", port: " + port + ").");
 		}
 
+		// IP / host
+		String address = ip;
+		if (useHostname) {
+			address = host;
+		}
+		
 		// Store data
 		long now = System.currentTimeMillis();
 		writeLock.lock();
-		try {
-			if (!nodeInfos.containsKey(nodeID)) {
+		try {			
+			Tree current = nodeInfos.get(nodeID);
+			if (current == null) {
 
 				// Add to "nodeInfos" without services block
-				Tree info = new Tree();
-				info.put("sender", nodeID);
-				info.put("when", 0);
-				info.putObject("hostname", host);
-				info.putList("ipList").add(ip);
-				info.put("port", port);
-				nodeInfos.put(nodeID, info);
-
-				// Add to "offlineNodes"
-				offlineNodes.put(nodeID, now);
+				addOfflineNode(nodeID, address, port);			
+				
 			} else {
 
-				// Update node activity
-				nodeActivities.put(nodeID, new NodeActivity(now, cpu));
+				// Changed?
+				String prevHost = null;
+				if (useHostname) {
+					prevHost = current.get("hostname", (String) null);
+				}
+				if (prevHost == null || prevHost.isEmpty()) {
+					Tree ipList = current.get("ipList");
+					if (ipList.size() > 0) {
+						prevHost = ipList.get(0).asString();
+					}
+				}
+				int prevPort = current.get("port", 0);
+				if (!address.equalsIgnoreCase(prevHost) || prevPort != port) {
+
+					// Add to "nodeInfos" without services block
+					addOfflineNode(nodeID, address, port);
+					
+				} else {
+				
+					// Update node activity
+					nodeActivities.put(nodeID, new NodeActivity(now, cpu));
+				}
 			}
 		} finally {
 			writeLock.unlock();
 		}
 	}
 
+	protected void addOfflineNode(String nodeID, String host, int port) { 
+		
+		// Add to "nodeInfos" without services block
+		Tree info = new Tree();
+		info.put("sender", nodeID);
+		info.put("when", 0);
+		info.putObject("hostname", host);
+		info.put("port", port);
+		nodeInfos.put(nodeID, info);	
+		
+		// Add to "offlineNodes"
+		offlineNodes.put(nodeID, new OfflineNode(0, System.currentTimeMillis()));
+		
+		// Remove from activities
+		nodeActivities.remove(nodeID);
+	}
+	
+	// --- GOSSIP REQUEST MESSAGE RECEIVED ---
+
+	protected final AtomicLong lastRequest = new AtomicLong();
+
+	protected void processGossipRequest(Tree data) throws Exception {
+
+		// Get response
+		String sender = data.get("sender", (String) null);
+		if (sender == null || sender.isEmpty()) {
+			return;
+		}
+		Tree info;
+
+		// Create response node
+		Tree root = new Tree();
+		root.put("ver", ServiceBroker.PROTOCOL_VERSION);
+		root.put("sender", nodeID);
+
+		Tree onlineRsp = root.putMap("online");
+		Tree offlineRsp = root.putMap("offline");
+
+		Tree online = data.get("online");
+		Tree offline = data.get("offline");
+
+		// Processing variables
+		HashSet<String> enumeratedNodes = new HashSet<>(128);
+		OfflineNode offlineNode;
+		NodeActivity activity;
+		Tree current, update;
+		long thisWhen = 0;
+		String nodeID;
+		long when;
+		int cpu;
+
+		// Process config
+		readLock.lock();
+		try {
+			info = nodeInfos.get(sender);
+			if (info == null) {
+
+				// Add to "nodeInfos" without services block
+				info = new Tree();
+				info.put("sender", sender);
+				info.put("when", 0);
+				info.putObject("hostname", data.get("host", ""));
+				info.put("port", data.get("port", 0));
+				nodeInfos.put(sender, info);
+
+				// Add to "offlineNodes"
+				offlineNodes.put(sender, new OfflineNode(0, System.currentTimeMillis()));
+				return;
+			}
+
+			// Check online nodes
+			if (online != null) {
+				for (Tree node : online) {
+					if (node.size() == 3) {
+						nodeID = node.getName();
+						enumeratedNodes.add(nodeID);
+						when = node.get(0).asLong();
+						if (this.nodeID.equals(nodeID)) {
+							thisWhen = when;
+							continue;
+						}
+						offlineNode = offlineNodes.get(nodeID);
+						if (offlineNode == null) {
+							current = nodeInfos.get(nodeID);
+							if (current != null) {
+								update = null;
+								if (current.get("when", 0L) > when) {
+									update = onlineRsp.putList(nodeID);
+									update.addObject(current);
+								}
+								activity = nodeActivities.get(nodeID);
+								if (activity != null && activity.when > node.get(1).asLong()) {
+									if (update == null) {
+										update = onlineRsp.putList(nodeID);
+									}
+									update.add(activity.when).add(activity.cpu);
+								}
+							}
+						} else {
+							if (offlineNode.when > when) {
+								offlineRsp.putList(nodeID).add(offlineNode.when).add(offlineNode.since);
+							}
+						}
+					} else {
+						logger.warn("Invalid \"online\" block: " + node.toString(false));
+					}
+				}
+			} else {
+				logger.warn("Missing \"online\" block!");
+			}
+
+			// Check offline nodes
+			if (offline != null) {
+				for (Tree node : offline) {
+					if (node.size() == 2) {
+						nodeID = node.getName();
+						when = node.get(0).asLong();
+						if (this.nodeID.equals(nodeID)) {
+							thisWhen = when;
+							continue;
+						}
+						if (!enumeratedNodes.add(nodeID)) {
+							continue;
+						}
+						offlineNode = offlineNodes.get(nodeID);
+						if (offlineNode == null) {
+							current = nodeInfos.get(nodeID);
+							if (current != null) {
+								update = null;
+								if (current.get("when", 0L) > when) {
+									update = onlineRsp.putList(nodeID);
+									update.addObject(current);
+									activity = nodeActivities.get(nodeID);
+									if (activity != null && activity.when > when) {
+										update.add(activity.when).add(activity.cpu);
+									}
+								}
+							}
+						} else {
+							if (offlineNode.when > when) {
+								offlineRsp.putList(nodeID).add(offlineNode.when).add(offlineNode.since);
+							}
+						}
+					} else {
+						logger.warn("Invalid \"offline\" block: " + node.toString(false));
+					}
+				}
+			}
+
+			// Add unknown online nodes
+			for (Map.Entry<String, NodeActivity> entry : nodeActivities.entrySet()) {
+				nodeID = entry.getKey();
+				if (!enumeratedNodes.add(nodeID)) {
+					continue;
+				}
+				activity = entry.getValue();
+				current = nodeInfos.get(nodeID);
+				update = onlineRsp.putList(nodeID);
+				update.addObject(current);
+				update.add(activity.when).add(activity.cpu);
+			}
+
+			// Add unknown offline nodes
+			for (Map.Entry<String, OfflineNode> entry : offlineNodes.entrySet()) {
+				nodeID = entry.getKey();
+				if (!enumeratedNodes.add(nodeID)) {
+					continue;
+				}
+				offlineNode = entry.getValue();
+				if (offlineNode.when > 0) {
+					update = offlineRsp.putList(nodeID);
+					update.add(offlineNode.when).add(offlineNode.since);
+				}
+			}
+
+		} finally {
+			readLock.unlock();
+		}
+
+		// Add this to online block
+		update = onlineRsp.putList(this.nodeID);
+		when = registry.getWhen();
+		if (thisWhen != when) {
+			if (thisWhen > when) {
+				registry.clearCache();
+			}
+			current = registry.generateDescriptor();
+			current.put("port", currentPort);
+			update.addObject(current);
+		}
+		update.add(System.currentTimeMillis()).add(monitor.getTotalCpuPercent());
+
+		// Disconnected nodes
+		LinkedList<Tree> disconnectedNodes = new LinkedList<>();
+
+		// Update CPU registry and offline status
+		writeLock.lock();
+		try {
+
+			// Update CPU registry
+			if (online != null) {
+				for (Tree node : online) {
+					if (node.size() == 3) {
+						nodeID = node.getName();
+						activity = nodeActivities.get(nodeID);
+						when = node.get(1).asLong();
+						cpu = node.get(2).asInteger();
+						if (activity == null) {
+							if (!offlineNodes.containsKey(nodeID)) {
+								nodeActivities.put(nodeID, new NodeActivity(when, cpu));	
+							}
+						} else if (activity.when < when) {
+							nodeActivities.put(nodeID, new NodeActivity(when, cpu));
+						}
+					}
+				}
+			}
+
+			// Update offline status
+			if (offline != null) {
+				for (Tree node : offline) {
+					if (node.size() == 2) {
+						nodeID = node.getName();
+						if (this.nodeID.equals(nodeID)) {
+							continue;
+						}
+						when = node.get(0).asLong();
+						current = nodeInfos.get(nodeID);
+						if (current != null) {
+							if (current.get("when", 0L) < when) {
+
+								// Save new offline info
+								if (offlineNodes.put(nodeID, new OfflineNode(when, node.get(1).asLong())) != null) {
+
+									// Currently offline
+									continue;
+								}
+
+								// Remove CPU usage and last heartbeat time
+								nodeActivities.remove(nodeID);
+
+								// Remove remote actions
+								registry.removeActions(nodeID);
+
+								// Remove remote event listeners
+								eventbus.removeListeners(nodeID);
+
+								// Add to disconnected nodes
+								disconnectedNodes.add(current);
+							}
+						}
+					}
+				}
+			}
+
+		} finally {
+			writeLock.unlock();
+		}
+
+		// Notify listeners
+		if (!disconnectedNodes.isEmpty()) {
+			for (Tree node : disconnectedNodes) {
+
+				// Log
+				logger.info("Node \"" + node.get("sender", "") + "\" disconnected.");
+
+				// Notify listeners (unexpected disconnection)
+				broadcastNodeDisconnected(node, true);
+			}
+		}
+
+		// Remove empty "offline" block
+		if (offlineRsp.isEmpty()) {
+			offlineRsp.remove();
+		}
+
+		// Serialize response
+		byte[] packet = serialize(PACKET_GOSSIP_RSP_ID, root);
+
+		// Send response
+		writer.send(sender, info, packet);
+	}
+
+	// --- GOSSIP RESPONSE MESSAGE RECEIVED ---
+
+	protected void processGossipResponse(Tree data) throws Exception {
+
+		// Disconnected nodes
+		LinkedList<Tree> disconnectedNodes = new LinkedList<>();
+
+		Tree online = data.get("online");
+		Tree offline = data.get("offline");
+
+		// Processing variables
+		long when, cpuWhen, since;
+		OfflineNode offlineNode;
+		NodeActivity activity;
+		Tree current, info;
+		String nodeID;
+		int cpu;
+
+		// Process config
+		writeLock.lock();
+		try {
+
+			// Process "online" block
+			if (online != null) {
+				for (Tree node : online) {
+					info = null;
+					cpuWhen = 0;
+					cpu = 0;
+					if (node.size() == 1) {
+						info = node.get(0);
+					} else if (node.size() == 2) {
+						cpuWhen = node.get(0).asLong();
+						cpu = node.get(1).asInteger();
+					} else if (node.size() == 3) {
+						info = node.get(0);
+						cpuWhen = node.get(1).asLong();
+						cpu = node.get(2).asInteger();
+					} else {
+						logger.warn("Invalid \"online\" block: " + node.toString(false));
+						continue;
+					}
+					nodeID = node.getName();
+					if (this.nodeID.equals(nodeID)) {
+						continue;
+					}
+					if (info != null) {
+						when = info.get("when", 0L);
+						current = nodeInfos.get(nodeID);
+						if (current == null || when > current.get("when", 0)) {
+							updateNodeInfo(nodeID, info);
+						}
+					}
+					if (cpuWhen > 0) {
+						activity = nodeActivities.get(nodeID);
+						if (activity == null) {
+							if (!offlineNodes.containsKey(nodeID)) {
+								nodeActivities.put(nodeID, new NodeActivity(cpuWhen, cpu));	
+							}
+						} else if (activity.when < cpuWhen) {
+							nodeActivities.put(nodeID, new NodeActivity(cpuWhen, cpu));
+						}
+					}
+				}
+			}
+
+			// Process "offline" block
+			if (offline != null) {
+				for (Tree node : offline) {
+					if (node.size() == 2) {
+						when = node.get(0).asLong();
+						since = node.get(1).asLong();
+						nodeID = node.getName();
+						offlineNode = offlineNodes.get(nodeID);
+						if (offlineNode == null) {
+							current = nodeInfos.get(nodeID);
+							if (current != null) {
+
+								// Add to offline nodes
+								offlineNodes.put(nodeID, new OfflineNode(when, since));
+
+								// Remove CPU usage and last heartbeat time
+								nodeActivities.remove(nodeID);
+
+								// Remove remote actions
+								registry.removeActions(nodeID);
+
+								// Remove remote event listeners
+								eventbus.removeListeners(nodeID);
+
+								// Add to disconnected nodes
+								disconnectedNodes.add(current);
+							}
+						} else {
+							if (offlineNode.when < when) {
+								offlineNodes.put(nodeID, new OfflineNode(when, since));
+							}
+						}
+					} else {
+						logger.warn("Invalid \"offline\" block: " + node.toString(false));
+					}
+				}
+			}
+		} finally {
+			writeLock.unlock();
+		}
+
+		// Notify listeners
+		if (!disconnectedNodes.isEmpty()) {
+			for (Tree node : disconnectedNodes) {
+
+				// Log
+				logger.info("Node \"" + node.get("sender", "") + "\" disconnected.");
+
+				// Notify listeners (unexpected disconnection)
+				broadcastNodeDisconnected(node, true);
+			}
+		}
+	}
+	
 	// --- UNUSED METHODS ---
 
 	public void setHeartbeatInterval(int heartbeatInterval) {
@@ -940,14 +1322,6 @@ public class TcpTransporter extends Transporter {
 
 	public void setUseHostname(boolean useHostname) {
 		this.useHostname = useHostname;
-	}
-
-	public long getIgnoreGossipMessagesUntil() {
-		return ignoreGossipMessagesUntil;
-	}
-
-	public void setIgnoreGossipMessagesUntil(long ignoreGossipMessagesUntil) {
-		this.ignoreGossipMessagesUntil = ignoreGossipMessagesUntil;
 	}
 
 }

@@ -723,14 +723,17 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
+	protected volatile long when;
+	
 	protected AtomicReference<Tree> cachedDescriptor = new AtomicReference<>();
 
 	@Override
 	public Tree generateDescriptor() {
 		Tree root = cachedDescriptor.get();
 		if (root != null) {
-			return root.clone();
+			return root;
 		}
+		when = System.currentTimeMillis();
 		root = new Tree();
 
 		// Protocol version
@@ -741,7 +744,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		root.put("sender", nodeID);
 
 		// Generated at
-		root.put("when", System.currentTimeMillis());
+		root.put("when", when);
 
 		// Services array
 		Tree services = root.putList("services");
@@ -850,7 +853,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		// root.putMap("config");
 
 		cachedDescriptor.set(root);
-		return root.clone();
+		return root;
 	}
 
 	// --- CLEAR CACHE ---
@@ -860,6 +863,13 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		cachedDescriptor.set(null);
 	}
 	
+	// --- LAST MODIFICATION'S TIMESTAMP ---
+
+	@Override
+	public long getWhen() {
+		return when;
+	}
+
 	// --- GETTERS / SETTERS ---
 
 	public boolean isAsyncLocalInvocation() {

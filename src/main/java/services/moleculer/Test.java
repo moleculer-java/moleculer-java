@@ -54,7 +54,7 @@ public class Test {
 		TcpTransporter transporter = new TcpTransporter();
 		// KafkaTransporter transporter = new KafkaTransporter();
 		// transporter.setUrls(new String[] { "localhost:12002/node-2" });
-		transporter.setDebug(true);
+		// transporter.setDebug(true);
 		transporter.setOfflineTimeout(300);
 		// Transporter transporter = null;
 

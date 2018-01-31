@@ -88,7 +88,7 @@ public final class TcpWriter implements Runnable {
 	 * false results. Therefore, use hostnames if you are using DHCP.
 	 */
 	private final boolean useHostname;
-	
+
 	// --- NIO VARIABLES ---
 
 	private final TcpTransporter transporter;
@@ -234,7 +234,10 @@ public final class TcpWriter implements Runnable {
 	// --- WRITE TO SOCKET ---
 
 	public final void send(String nodeID, Tree info, byte[] packet) {
-
+		if (nodeID == null || info == null || packet == null) {
+			return;
+		}
+		
 		// Get or create buffer
 		SendBuffer buffer = null;
 		synchronized (buffers) {
@@ -246,13 +249,14 @@ public final class TcpWriter implements Runnable {
 				if (useHostname) {
 					host = info.get("hostname", (String) null);
 				}
-				if (host == null) {
+				if (host == null || host.isEmpty()) {
 					Tree ipList = info.get("ipList");
 					if (ipList.size() > 0) {
 						host = ipList.get(0).asString();
-					} else {
-						throw new IllegalArgumentException("Missing or empty \"ipList\" property!");
 					}
+				}
+				if (host == null || host.isEmpty()) {
+					throw new IllegalArgumentException("Missing or \"hostname\" or \"ipList\" property!");
 				}
 				int port = info.get("port", 7328);
 				buffer = new SendBuffer(nodeID, host, port, packet);
@@ -295,10 +299,11 @@ public final class TcpWriter implements Runnable {
 						for (SendBuffer writableBuffer : writable) {
 							key = writableBuffer.key();
 							if (key == null) {
-								
+
 								// Create new socket
 								try {
-									InetSocketAddress address = new InetSocketAddress(writableBuffer.host, writableBuffer.port);
+									InetSocketAddress address = new InetSocketAddress(writableBuffer.host,
+											writableBuffer.port);
 									channel = SocketChannel.open(address);
 									channel.configureBlocking(false);
 

@@ -31,18 +31,18 @@
  */
 package services.moleculer.transporter.tcp;
 
-public final class NodeActivity {
+public final class OfflineNode {
 
 	// --- PROPERTIES ---
 
 	public final long when;
-	public final int cpu;
+	public final long since;
 	
 	// --- CONSTRUCTOR ---
 	
-	public NodeActivity(long when, int cpu) {
+	public OfflineNode(long when, long since) {
 		this.when = when;
-		this.cpu = cpu;
+		this.since = since;
 	}
-
+	
 }

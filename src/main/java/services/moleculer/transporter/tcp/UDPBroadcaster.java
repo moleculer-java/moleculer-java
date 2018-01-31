@@ -288,7 +288,7 @@ public final class UDPBroadcaster {
 				}
 				
 				// Notify TCP Transporter
-				transporter.udpPacketReceiver(tokens[0], cpu, host, ip, port);
+				transporter.udpPacketReceiver(tokens[0], cpu, host.toLowerCase(), ip, port);
 
 			} catch (Exception cause) {
 				String msg = cause == null ? null : cause.getMessage();
