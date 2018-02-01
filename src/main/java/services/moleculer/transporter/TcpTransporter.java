@@ -491,7 +491,7 @@ public class TcpTransporter extends Transporter {
 
 					// Debug
 					if (debug) {
-						logger.info("Unable to send message to " + buffer.host + ":" + buffer.port + ".");
+						logger.warn("Unable to send message to " + buffer.host + ":" + buffer.port + ".", error);
 					}
 
 					// Mark endpoint as offline
@@ -1115,7 +1115,7 @@ public class TcpTransporter extends Transporter {
 						nodeID = node.getName();
 						when = node.get(0).asLong();
 						if (this.nodeID.equals(nodeID)) {
-							thisWhen = when;
+							thisWhen = Long.MAX_VALUE;
 							continue;
 						}
 						if (processedNodes.put(nodeID, info) != null) {

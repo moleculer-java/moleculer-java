@@ -157,7 +157,7 @@ public final class TcpReader implements Runnable {
 		// Close selector
 		if (selector != null) {
 			for (SelectionKey key : selector.keys()) {
-				close(key.channel());
+				close(key.channel(), null);
 			}
 			try {
 				selector.close();
@@ -168,7 +168,7 @@ public final class TcpReader implements Runnable {
 
 		// Close server socket
 		if (serverChannel != null) {
-			close(serverChannel);
+			close(serverChannel, null);
 			serverChannel = null;
 		}
 	}
@@ -231,7 +231,7 @@ public final class TcpReader implements Runnable {
 									}
 
 								} catch (Exception cause) {
-									close(channel);
+									close(channel, cause);
 								}
 							}
 						} else if (key.isReadable()) {
@@ -325,7 +325,7 @@ public final class TcpReader implements Runnable {
 									key.attach(packet);
 								}
 							} catch (Exception cause) {
-								close(key.channel());
+								close(key.channel(), cause);
 							}
 
 						}
@@ -338,7 +338,7 @@ public final class TcpReader implements Runnable {
 
 	// --- CLOSE CHANNEL ---
 	
-	private final void close(SelectableChannel channel) {
+	private final void close(SelectableChannel channel, Exception cause) {
 		if (channel != null) {
 
 			// Debug
@@ -346,7 +346,7 @@ public final class TcpReader implements Runnable {
 				try {
 					if (channel instanceof SocketChannel) {
 						SocketChannel socketChannel = (SocketChannel) channel;
-						logger.info("Server channel closed from " + socketChannel.getRemoteAddress() + ".");
+						logger.info("Server channel closed from " + socketChannel.getRemoteAddress() + ".", cause);
 					}
 				} catch (Exception ignored) {
 				}
