@@ -815,7 +815,7 @@ public class TcpTransporter extends Transporter {
 				// 1 dead / (9 live + 1) = 0.10
 				// 5 dead / (5 live + 1) = 0.83
 				// 9 dead / (1 live + 1) = 4.50
-				double ratio = unreachableEndpointCount / (liveEndpointCount + 1);
+				double ratio = (double) unreachableEndpointCount / ((double) liveEndpointCount + 1);
 
 				// Random number between 0.0 and 1.0
 				double random = rnd.nextDouble();

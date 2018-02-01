@@ -122,8 +122,7 @@ public final class SendBuffer {
 
 	final boolean write(SocketChannel channel) throws Exception {
 		shift();
-		int bytes = channel.write(first);
-		System.out.println(bytes + " bytes submitted.");
+		channel.write(first);
 		return shift();
 	}
 
