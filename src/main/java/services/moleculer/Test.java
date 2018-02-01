@@ -31,7 +31,6 @@
  */
 package services.moleculer;
 
-import io.datatree.Tree;
 import services.moleculer.cacher.Cache;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.cacher.MemoryCacher;
@@ -52,11 +51,9 @@ public class Test {
 
 		// Define transporter
 		TcpTransporter transporter = new TcpTransporter();
-		// KafkaTransporter transporter = new KafkaTransporter();
-		// transporter.setUrls(new String[] { "localhost:12002/node-2" });
-		// transporter.setDebug(true);
-		transporter.setOfflineTimeout(300);
-		// Transporter transporter = null;
+		transporter.setGossipPeriod(1115);
+		transporter.setDebug(true);
+		transporter.setOfflineTimeout(30);
 
 		// Define cacher
 		Cacher cacher = new MemoryCacher();

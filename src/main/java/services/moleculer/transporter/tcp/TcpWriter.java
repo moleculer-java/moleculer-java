@@ -237,7 +237,7 @@ public final class TcpWriter implements Runnable {
 		if (nodeID == null || info == null || packet == null) {
 			return;
 		}
-		
+
 		// Get or create buffer
 		SendBuffer buffer = null;
 		synchronized (buffers) {
@@ -247,15 +247,17 @@ public final class TcpWriter implements Runnable {
 				// Create new attachment
 				String host = null;
 				if (useHostname) {
-					host = info.get("hostname", (String) null);
-				}
-				if (host == null || host.isEmpty()) {
-					Tree ipList = info.get("ipList");
-					if (ipList.size() > 0) {
-						host = ipList.get(0).asString();
+					host = getHost(info);
+					if (host == null) {
+						host = getIP(info);	
 					}
+				} else {
+					host = getIP(info);
+					if (host == null) {
+						host = getHost(info);	
+					}					
 				}
-				if (host == null || host.isEmpty()) {
+				if (host == null) {
 					throw new IllegalArgumentException("Missing or \"hostname\" or \"ipList\" property!");
 				}
 				int port = info.get("port", 7328);
@@ -269,6 +271,25 @@ public final class TcpWriter implements Runnable {
 		}
 		hasWritable.set(true);
 		selector.wakeup();
+	}
+
+	private final String getHost(Tree info) {
+		String host = info.get("hostname", (String) null);
+		if (host != null && !host.isEmpty()) {
+			return host;
+		}
+		return null;
+	}
+	
+	private final String getIP(Tree info) {
+		Tree ipList = info.get("ipList");
+		if (ipList.size() > 0) {
+			String ip = ipList.get(0).asString();
+			if (ip != null && !ip.isEmpty()) {
+				return ip;
+			}
+		}
+		return null;
 	}
 
 	// --- WRITER LOOP ---
@@ -306,6 +327,9 @@ public final class TcpWriter implements Runnable {
 											writableBuffer.port);
 									channel = SocketChannel.open(address);
 									channel.configureBlocking(false);
+									if (debug) {
+										logger.info("Client channel opened to " + channel.getRemoteAddress() + ".");
+									}
 
 									// Register socket in selector
 									key = channel.register(selector, SelectionKey.OP_WRITE, writableBuffer);
@@ -385,7 +409,7 @@ public final class TcpWriter implements Runnable {
 			// Debug
 			if (debug) {
 				try {
-					logger.info("Client channel closed to " + channel.getRemoteAddress() + ".");
+					logger.info("Client channel closed from " + channel.getRemoteAddress() + ".");
 				} catch (Exception ignored) {
 				}
 			}

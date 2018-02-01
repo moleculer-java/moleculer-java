@@ -200,7 +200,7 @@ public final class TcpReader implements Runnable {
 			} catch (Exception anyError) {
 				break;
 			}
-			if (n != 0) {
+			if (n > 0) {
 				keys = selector.selectedKeys().iterator();
 				while (keys.hasNext()) {
 					key = keys.next();

@@ -429,7 +429,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 			// Debug
 			if (debug) {
-				logger.info("Message received from channel \"" + channel + "\":\r\n" + data.toString());
+				logger.info("Message received from channel \"" + channel + "\":\r\n" + data);
 			}
 
 			// Send message to proper component
@@ -766,7 +766,7 @@ public abstract class Transporter implements MoleculerComponent {
 		// Cleanup "nodeInfos" and "offlineNodes" maps
 		checkOfflineTimeouts();
 	}
-
+	
 	protected void checkOfflineTimeouts() {
 
 		// Check timeouted entries
