@@ -234,12 +234,10 @@ public final class TcpWriter implements Runnable {
 	// --- WRITE TO SOCKET ---
 
 	public final void send(String nodeID, Tree info, byte[] packet) {
-		if (nodeID == null || info == null || packet == null) {
-			return;
-		}
-
+		
 		// Get or create buffer
 		SendBuffer buffer = null;
+		int port = 0;
 		synchronized (buffers) {
 			buffer = buffers.get(nodeID);
 			if (buffer == null || !buffer.use()) {
@@ -260,12 +258,17 @@ public final class TcpWriter implements Runnable {
 				if (host == null) {
 					throw new IllegalArgumentException("Missing or \"hostname\" or \"ipList\" property!");
 				}
-				int port = info.get("port", 7328);
+				port = info.get("port", 0);
+				if (port == 0) {
+					throw new IllegalArgumentException("Missing or \"port\" property!");
+				}
 				buffer = new SendBuffer(nodeID, host, port, packet);
 				buffers.put(nodeID, buffer);
 			}
 		}
-		buffer.append(packet);
+		if (port == 0) {
+			buffer.append(packet);
+		}
 		synchronized (writable) {
 			writable.add(buffer);
 		}
@@ -313,7 +316,7 @@ public final class TcpWriter implements Runnable {
 					continue;
 				}
 				n = selector.select();
-
+				
 				// Set key status
 				if (hasWritable.compareAndSet(true, false)) {
 					synchronized (writable) {

@@ -893,9 +893,10 @@ public class TcpTransporter extends Transporter {
 		}
 	}
 
-	protected void registerAsOffline(String nodeID, String host, int port) {
+	protected Tree registerAsOffline(String nodeID, String host, int port) {
 		if (nodeID == null || host == null || nodeID.isEmpty() || host.isEmpty() || port < 1) {
-			return;
+			logger.warn("Missing parameters (node ID: " + nodeID + ", host: " + host + ", port: " + port + ")!");
+			return null;
 		}
 
 		// Add to "nodeInfos" without services block
@@ -911,6 +912,9 @@ public class TcpTransporter extends Transporter {
 
 		// Remove from activities
 		nodeActivities.remove(nodeID);
+
+		// The new info block
+		return info;
 	}
 
 	// --- GOSSIP REQUEST MESSAGE RECEIVED ---
@@ -922,6 +926,7 @@ public class TcpTransporter extends Transporter {
 		// Get sender nodeID
 		String sender = data.get("sender", (String) null);
 		if (sender == null || sender.isEmpty()) {
+			logger.warn("Sender property not found:\r\n" + data);
 			return;
 		}
 
@@ -939,7 +944,7 @@ public class TcpTransporter extends Transporter {
 		Tree info, current, update;
 		OfflineNode offlineNode;
 		NodeActivity activity;
-		long thisWhen = 0;
+		long thisWhen = -1;
 		String nodeID;
 		int cpu;
 
@@ -960,11 +965,7 @@ public class TcpTransporter extends Transporter {
 						activity = nodeActivities.get(nodeID);
 						when = node.get(1).asLong();
 						cpu = node.get(2).asInteger();
-						if (activity == null) {
-							if (!offlineNodes.containsKey(nodeID)) {
-								nodeActivities.put(nodeID, new NodeActivity(when, cpu));
-							}
-						} else if (activity.when < when) {
+						if (activity != null) {
 							nodeActivities.put(nodeID, new NodeActivity(when, cpu));
 						}
 					} else {
@@ -1053,7 +1054,11 @@ public class TcpTransporter extends Transporter {
 				}
 
 				// Add sender as offline node
-				registerAsOffline(sender, data.get("host", ""), data.get("port", 0));
+				info = registerAsOffline(sender, data.get("host", ""), data.get("port", 0));
+				if (info == null) {
+					logger.warn("Unable to create new info block!");
+					return;
+				}
 			}
 
 			// Check "online" entries in request
@@ -1213,6 +1218,7 @@ public class TcpTransporter extends Transporter {
 		// Debug
 		String sender = data.get("sender", (String) null);
 		if (sender == null || sender.isEmpty()) {
+			logger.warn("Sender property not found:\r\n" + data);
 			return;
 		}
 		if (debug) {
