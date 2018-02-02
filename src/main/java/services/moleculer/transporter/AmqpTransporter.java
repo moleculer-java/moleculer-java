@@ -106,18 +106,12 @@ public class AmqpTransporter extends Transporter {
 		super();
 	}
 
-	public AmqpTransporter(String prefix) {
-		super(prefix);
-	}
-
-	public AmqpTransporter(String prefix, String url) {
-		super(prefix);
+	public AmqpTransporter(String url) {
 		this.url = url;
 	}
 
-	public AmqpTransporter(String prefix, String username, String password, SslContextFactory sslContextFactory,
+	public AmqpTransporter(String username, String password, SslContextFactory sslContextFactory,
 			String url) {
-		super(prefix);
 		this.username = username;
 		this.password = password;
 		this.sslContextFactory = sslContextFactory;

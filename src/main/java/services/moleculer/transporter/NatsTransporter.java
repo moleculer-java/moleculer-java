@@ -92,20 +92,13 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 	// --- CONSTUCTORS ---
 
 	public NatsTransporter() {
-		super();
 	}
 
-	public NatsTransporter(String prefix) {
-		super(prefix);
-	}
-
-	public NatsTransporter(String prefix, String... urls) {
-		super(prefix);
+	public NatsTransporter(String... urls) {
 		this.urls = urls;
 	}
 
-	public NatsTransporter(String prefix, String username, String password, boolean secure, String... urls) {
-		super(prefix);
+	public NatsTransporter(String username, String password, boolean secure, String... urls) {
 		this.username = username;
 		this.password = password;
 		this.secure = secure;

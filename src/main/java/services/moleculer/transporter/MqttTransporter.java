@@ -94,20 +94,13 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 	// --- CONSTUCTORS ---
 
 	public MqttTransporter() {
-		super();
 	}
-
-	public MqttTransporter(String prefix) {
-		super(prefix);
-	}
-
-	public MqttTransporter(String prefix, String url) {
-		super(prefix);
+	
+	public MqttTransporter(String url) {
 		this.url = url;
 	}
 
-	public MqttTransporter(String prefix, String username, String password, String url) {
-		super(prefix);
+	public MqttTransporter(String username, String password, String url) {
 		this.username = username;
 		this.password = password;
 		this.url = url;

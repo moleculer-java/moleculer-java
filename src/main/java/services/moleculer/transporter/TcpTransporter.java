@@ -157,23 +157,13 @@ public class TcpTransporter extends Transporter {
 	 * discovery.
 	 */
 	public TcpTransporter() {
-		super();
-	}
-
-	/**
-	 * Start TCP Transporter in "zero config" mode, with automatic UDP service
-	 * discovery, with the specified prefix.
-	 */
-	public TcpTransporter(String prefix) {
-		super(prefix);
 	}
 
 	/**
 	 * Start TCP Transporter in full TCP mode, without UDP discovery. Valid URL
 	 * syntax is "tcp://host:port/nodeID" or "host:port/nodeID".
 	 */
-	public TcpTransporter(String prefix, String... urls) {
-		super(prefix);
+	public TcpTransporter(String... urls) {
 		this.urls = urls;
 	}
 
@@ -319,7 +309,7 @@ public class TcpTransporter extends Transporter {
 
 			// TCP + UDP mode ("zero config")
 			if (urls == null || urls.length == 0) {
-				broadcaster = new UDPBroadcaster(prefix, nodeID, this, scheduler);
+				broadcaster = new UDPBroadcaster(namespace, nodeID, this, scheduler);
 				broadcaster.connect();
 			}
 

@@ -70,15 +70,9 @@ public class KafkaTransporter extends Transporter {
 	// --- CONSTUCTORS ---
 
 	public KafkaTransporter() {
-		super();
 	}
 
-	public KafkaTransporter(String prefix) {
-		super(prefix);
-	}
-
-	public KafkaTransporter(String prefix, String... urls) {
-		super(prefix);
+	public KafkaTransporter(String... urls) {
 		this.urls = urls;
 	}
 

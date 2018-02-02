@@ -287,6 +287,7 @@ public final class TcpReader implements Runnable {
 											remaining = new byte[packet.length - len];
 											System.arraycopy(packet, len, remaining, 0, remaining.length);
 											key.attach(remaining);
+											
 											copy = new byte[len];
 											System.arraycopy(packet, 0, copy, 0, copy.length);
 											packet = copy;

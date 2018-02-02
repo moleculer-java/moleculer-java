@@ -98,14 +98,9 @@ public class GoogleTransporter extends Transporter {
 
 	protected final HashMap<String, Subscriber> subscribers = new HashMap<>(64);
 
-	// --- CONSTUCTORS ---
+	// --- CONSTUCTOR ---
 
 	public GoogleTransporter() {
-		super();
-	}
-
-	public GoogleTransporter(String prefix) {
-		super(prefix);
 	}
 
 	// --- START TRANSPORTER ---

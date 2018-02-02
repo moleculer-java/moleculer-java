@@ -111,7 +111,8 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- PROPERTIES ---
 
-	protected String prefix;
+	protected String namespace = "";
+	protected String prefix = "MOL";
 	protected ServiceBroker broker;
 	protected String nodeID;
 
@@ -149,15 +150,10 @@ public abstract class Transporter implements MoleculerComponent {
 	// --- CONSTUCTORS ---
 
 	public Transporter() {
-		this("MOL");
+		this(null);
 	}
 
-	public Transporter(String prefix) {
-		this(prefix, null);
-	}
-
-	public Transporter(String prefix, Serializer serializer) {
-		this.prefix = prefix;
+	public Transporter(Serializer serializer) {
 		this.serializer = serializer;
 
 		// Init locks
@@ -180,8 +176,7 @@ public abstract class Transporter implements MoleculerComponent {
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		prefix = config.get("prefix", prefix);
-		String namespace = config.get("namespace", "");
+		namespace = config.get("namespace", "");
 		if (namespace != null && !namespace.isEmpty()) {
 			prefix = prefix + '-' + namespace;
 		}
@@ -928,6 +923,22 @@ public abstract class Transporter implements MoleculerComponent {
 
 	public void setOfflineTimeout(int offlineTimeout) {
 		this.offlineTimeout = offlineTimeout;
+	}
+
+	public String getNamespace() {
+		return namespace;
+	}
+
+	public void setNamespace(String namespace) {
+		this.namespace = Objects.requireNonNull(namespace);
+	}
+
+	public String getPrefix() {
+		return prefix;
+	}
+
+	public void setPrefix(String prefix) {
+		this.prefix = prefix;
 	}
 
 }

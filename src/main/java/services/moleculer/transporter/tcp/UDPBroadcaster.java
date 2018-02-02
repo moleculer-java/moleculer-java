@@ -57,9 +57,9 @@ public final class UDPBroadcaster {
 	// --- PROPERTIES ---
 
 	/**
-	 * Current prefix (in "prefix-namespace" format)
+	 * Current namespace
 	 */
-	private final String prefix;
+	private final String namespace;
 
 	/**
 	 * TCP port (used by the Transporter and Gossiper services)
@@ -126,9 +126,9 @@ public final class UDPBroadcaster {
 
 	// --- CONSTRUCTOR ---
 
-	public UDPBroadcaster(String prefix, String nodeID, TcpTransporter transporter,
+	public UDPBroadcaster(String namespace, String nodeID, TcpTransporter transporter,
 			ScheduledExecutorService scheduler) {
-		this.prefix = prefix;
+		this.namespace = namespace;
 		this.nodeID = nodeID;
 		this.transporter = transporter;
 		this.scheduler = scheduler;
@@ -232,14 +232,14 @@ public final class UDPBroadcaster {
 		// Send packet
 		MulticastSocket udpSocket = null;
 		try {
-			String msg = prefix + '|' + nodeID + '|' + port;
+			String msg = namespace + '|' + nodeID + '|' + port;
 			byte[] bytes = msg.getBytes();
 			udpSocket = new MulticastSocket(multicastPort);
 			InetAddress address = InetAddress.getByName(multicastHost);
 			DatagramPacket packet = new DatagramPacket(bytes, bytes.length, address, multicastPort);
 			udpSocket.send(packet);
 			if (debug) {
-				logger.info("Discovery message submitted (prefix: " + prefix + ", node ID: " + nodeID + ", port: "
+				logger.info("Discovery message submitted (namespace: " + namespace + ", node ID: " + nodeID + ", port: "
 						+ port + ").");
 			}
 		} catch (Exception cause) {
@@ -275,7 +275,7 @@ public final class UDPBroadcaster {
 				}
 
 				// Check prefix and nodeID
-				if (!prefix.equals(tokens[0]) || nodeID.equals(tokens[1])) {
+				if (!namespace.equals(tokens[0]) || nodeID.equals(tokens[1])) {
 					continue;
 				}
 				if (tokens[1].isEmpty()) {

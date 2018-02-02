@@ -116,33 +116,23 @@ public class JmsTransporter extends Transporter {
 	// --- CONSTUCTORS ---
 
 	public JmsTransporter() {
-		super();
 	}
 
-	public JmsTransporter(TopicConnectionFactory connectionFactory) {
-		super();
-		this.factory = connectionFactory;
-	}
-
-	public JmsTransporter(String prefix, String connectionFactoryJndiName) {
-		super(prefix);
+	public JmsTransporter(String connectionFactoryJndiName) {
 		this.connectionFactoryJndiName = connectionFactoryJndiName;
 	}
 
-	public JmsTransporter(String prefix, TopicConnectionFactory connectionFactory) {
-		super(prefix);
+	public JmsTransporter(TopicConnectionFactory connectionFactory) {
 		this.factory = connectionFactory;
 	}
 
-	public JmsTransporter(String prefix, String username, String password, String connectionFactoryJndiName) {
-		super(prefix);
+	public JmsTransporter(String username, String password, String connectionFactoryJndiName) {
 		this.username = username;
 		this.password = password;
 		this.connectionFactoryJndiName = connectionFactoryJndiName;
 	}
 
-	public JmsTransporter(String prefix, String username, String password, TopicConnectionFactory connectionFactory) {
-		super(prefix);
+	public JmsTransporter(String username, String password, TopicConnectionFactory connectionFactory) {
 		this.username = username;
 		this.password = password;
 		this.factory = connectionFactory;

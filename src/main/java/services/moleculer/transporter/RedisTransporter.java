@@ -98,20 +98,13 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	// --- CONSTUCTORS ---
 
 	public RedisTransporter() {
-		super();
 	}
 
-	public RedisTransporter(String prefix) {
-		super(prefix);
-	}
-
-	public RedisTransporter(String prefix, String... urls) {
-		super(prefix);
+	public RedisTransporter(String... urls) {
 		this.urls = urls;
 	}
 
-	public RedisTransporter(String prefix, String password, boolean secure, String... urls) {
-		super(prefix);
+	public RedisTransporter(String password, boolean secure, String... urls) {
 		this.password = password;
 		this.secure = secure;
 		this.urls = urls;
