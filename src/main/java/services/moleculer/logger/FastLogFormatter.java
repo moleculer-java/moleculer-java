@@ -31,6 +31,14 @@
  */
 package services.moleculer.logger;
 
+import static services.moleculer.logger.AsyncFileLogger.CONFIG;
+import static services.moleculer.logger.AsyncFileLogger.FINE;
+import static services.moleculer.logger.AsyncFileLogger.FINER;
+import static services.moleculer.logger.AsyncFileLogger.FINEST;
+import static services.moleculer.logger.AsyncFileLogger.INFO;
+import static services.moleculer.logger.AsyncFileLogger.SEVERE;
+import static services.moleculer.logger.AsyncFileLogger.WARNING;
+
 import java.time.Instant;
 import java.util.LinkedList;
 import java.util.StringTokenizer;
@@ -46,17 +54,8 @@ public class FastLogFormatter extends Formatter {
 	
 	// --- CONSTANTS ---
 	
-	protected static final char[] SEVERE = "] SEVERE  ".toCharArray();
-	protected static final char[] WARNING = "] WARNING ".toCharArray();
-	protected static final char[] INFO = "] INFO    ".toCharArray();
-	protected static final char[] CONFIG = "] CONFIG  ".toCharArray();
-	protected static final char[] FINE = "] FINE    ".toCharArray();
-	protected static final char[] FINER = "] FINER   ".toCharArray();
-	protected static final char[] FINEST = "] FINEST  ".toCharArray();
-
 	protected static final char[] BREAK = System.getProperty("line.separator", "\r\n").toCharArray();
 	protected static final String BREAK_STRING = new String(BREAK);
-	
 	protected static final char[] AT = " at ".toCharArray();
 	protected static final char[] JAVA = ".java:".toCharArray();
 
@@ -65,17 +64,10 @@ public class FastLogFormatter extends Formatter {
 	protected final StringBuilder line = new StringBuilder(512);
 
 	protected volatile int position = 83;
-
-	protected final boolean shortClassNames;
 	
-	// --- CONSTRUCTORS ---
+	// --- CONSTRUCTOR ---
 	
 	public FastLogFormatter() {
-		this(false);
-	}
-
-	public FastLogFormatter(boolean shortClassNames) {
-		this.shortClassNames = shortClassNames;
 	}
 
 	// --- FORMATTER ---
@@ -86,6 +78,7 @@ public class FastLogFormatter extends Formatter {
 		line.append(Instant.ofEpochMilli(record.getMillis()).toString());
 
 		final Level l = record.getLevel();
+		line.append("] ");
 		if (l == Level.SEVERE) {
 			line.append(SEVERE);
 		} else if (l == Level.WARNING) {
@@ -111,12 +104,6 @@ public class FastLogFormatter extends Formatter {
 			if (n > -1) {
 				className = className.substring(0, n);
 			}
-		}
-		if (shortClassNames) {
-			n = className.lastIndexOf('.');
-			if (n > -1) {
-				className = className.substring(n + 1);
-			}			
 		}
 		line.append(className);
 		n = line.length();

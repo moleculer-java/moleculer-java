@@ -1,11 +1,15 @@
 apply plugin: 'java'
 apply plugin: 'maven'
+apply plugin: 'com.bmuschko.nexus'
 
 buildscript {
     repositories {
         maven {
             url "https://plugins.gradle.org/m2/"
         }
+    }
+    dependencies {
+        classpath 'com.bmuschko:gradle-nexus-plugin:2.3.1'
     }
 }
 
@@ -16,13 +20,14 @@ configurations.all {
 repositories {
     mavenCentral()
     jcenter()
-    // maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
+    maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
 }
 
 dependencies {
     compile 'org.slf4j:slf4j-api:1.7.21'
     testCompile 'junit:junit:4.12'
-	
+    
+			
 	// =============== LOGGING ===============
 	
 	
@@ -45,8 +50,9 @@ dependencies {
     // --- DATATREE ---
     	    
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-adapters
-	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.4'
-
+	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.5-SNAPSHOT'
+   
+   
 	// =============== MONITORING ===============
 	
 	

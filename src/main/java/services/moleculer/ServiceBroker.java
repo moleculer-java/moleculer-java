@@ -105,7 +105,7 @@ public class ServiceBroker {
 	// --- INERNAL AND USER-DEFINED COMPONENTS ---
 
 	/**
-	 * Component newChannels of the Service Broker instance. ComponentRegistry has
+	 * Component Registry of the Service Broker instance. ComponentRegistry has
 	 * similar functionality to Spring's ApplicationContext; stores "beans"
 	 * (MoleculerComponents), and by using the method "get(id)" you can retrieve
 	 * instances of your component.

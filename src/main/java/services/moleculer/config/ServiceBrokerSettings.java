@@ -44,6 +44,7 @@ import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
@@ -53,7 +54,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
+import io.datatree.dom.TreeReader;
 import io.datatree.dom.TreeReaderRegistry;
+import io.datatree.dom.TreeWriter;
+import io.datatree.dom.TreeWriterRegistry;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.cacher.MemoryCacher;
 import services.moleculer.context.ContextFactory;
@@ -97,7 +101,25 @@ public final class ServiceBrokerSettings {
 
 	private String namespace = "";
 	private String nodeID;
+
+	/**
+	 * Install internal ($node) services?
+	 */
 	private boolean internalServices = true;
+
+	// --- JSON API SERIALIZER / DESERIALIZER ---
+
+	/**
+	 * Name of the JSON deserializer API ("jackson", "boon", "builtin", "gson",
+	 * "fastjson", "genson", etc., null = autodetect)
+	 */
+	private String jsonReader;
+
+	/**
+	 * Name of the JSON serializer API ("jackson", "boon", "builtin", "gson",
+	 * "fast", "genson", "flex", "nano", etc., null = autodetect)
+	 */
+	private String jsonWriter;
 
 	// --- COMPONENT REGISTRY (STANDALONE/SPRING/GUICE) ---
 
@@ -149,7 +171,7 @@ public final class ServiceBrokerSettings {
 				monitor = new ConstantMonitor();
 			}
 		}
-		
+
 		// Set the default NodeID
 		nodeID = getHostName() + '-' + monitor.getPID();
 	}
@@ -219,6 +241,9 @@ public final class ServiceBrokerSettings {
 
 		internalServices = config.get("internalServices", internalServices);
 
+		// Set JSON API
+		applyJsonAPI();
+		 
 		// Create executor
 		String value = config.get(EXECUTOR_ID + '.' + "type", "");
 		if (!value.isEmpty()) {
@@ -252,6 +277,41 @@ public final class ServiceBrokerSettings {
 		}
 	}
 
+	private final void applyJsonAPI() {
+		
+		// Set the JSON deserializer API
+		jsonReader = config.get("jsonReader", jsonReader);
+		if (jsonReader != null && !jsonReader.isEmpty()) {
+			String test = jsonReader.toLowerCase();
+			Set<String> readers = TreeReaderRegistry.getReadersByFormat("json");
+			for (String reader : readers) {
+				if (reader.toLowerCase().contains(test)) {
+					try {
+						TreeReaderRegistry.setReader("json", (TreeReader) Class.forName(reader).newInstance());
+					} catch (Exception ignored) {
+					}
+					break;
+				}
+			}
+		}
+
+		// Set the JSON serializer API
+		jsonWriter = config.get("jsonWriter", jsonWriter);
+		if (jsonWriter != null && !jsonWriter.isEmpty()) {
+			String test = jsonReader.toLowerCase();
+			Set<String> writers = TreeWriterRegistry.getWritersByFormat("json");
+			for (String writer : writers) {
+				if (writer.toLowerCase().contains(test)) {
+					try {
+						TreeWriterRegistry.setWriter("json", (TreeWriter) Class.forName(writer).newInstance());
+					} catch (Exception ignored) {
+					}
+					break;
+				}
+			}
+		}
+	}
+	
 	// --- GETTERS AND SETTERS ---
 
 	public final String getNamespace() {
@@ -409,6 +469,24 @@ public final class ServiceBrokerSettings {
 
 	public final void setInternalServices(boolean internalServices) {
 		this.internalServices = internalServices;
+	}
+
+	public final String getJsonReader() {
+		return jsonReader;
+	}
+
+	public final void setJsonReader(String jsonReader) {
+		this.jsonReader = jsonReader;
+		applyJsonAPI();
+	}
+
+	public final String getJsonWriter() {
+		return jsonWriter;
+	}
+
+	public final void setJsonWriter(String jsonWriter) {
+		this.jsonWriter = jsonWriter;
+		applyJsonAPI();
 	}
 
 }

@@ -149,6 +149,16 @@ public final class ServiceBrokerBuilder {
 		return this;
 	}
 
+	public final ServiceBrokerBuilder jsonReader(String jsonReader) {
+		settings.setJsonReader(jsonReader);
+		return this;
+	}
+
+	public final ServiceBrokerBuilder jsonWriter(String jsonWriter) {
+		settings.setJsonWriter(jsonWriter);
+		return this;
+	}
+	
 	// --- ADD CUSTOM COMPONENT ---
 
 	public final ServiceBrokerBuilder add(MoleculerComponent component) {

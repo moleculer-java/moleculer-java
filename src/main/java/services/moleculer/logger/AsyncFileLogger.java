@@ -72,10 +72,20 @@ import java.util.zip.ZipOutputStream;
  */
 public class AsyncFileLogger extends Handler implements Runnable {
 
+	// --- CONSTANTS ---
+	
+	protected static final char[] SEVERE  = "SEVERE  ".toCharArray();
+	protected static final char[] WARNING = "WARNING ".toCharArray();
+	protected static final char[] INFO    = "INFO    ".toCharArray();
+	protected static final char[] CONFIG  = "CONFIG  ".toCharArray();
+	protected static final char[] FINE    = "FINE    ".toCharArray();
+	protected static final char[] FINER   = "FINER   ".toCharArray();
+	protected static final char[] FINEST  = "FINEST  ".toCharArray();
+	
 	// --- FILE NAME FORMATTER ---
 
 	protected DateFormat FILE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
-
+	
 	// --- PROPERTIES ---
 
 	protected String prefix;
@@ -94,10 +104,6 @@ public class AsyncFileLogger extends Handler implements Runnable {
 	// --- LOG DIRECTORY ---
 
 	protected File logDirectory;
-
-	// --- DISPLAY FORMATTER ---
-
-	protected Formatter displayFormatter;
 
 	// --- CONSTRUCTOR ---
 
@@ -139,8 +145,7 @@ public class AsyncFileLogger extends Handler implements Runnable {
 		LinkedList<LogRecord> records = new LinkedList<>();
 		try {
 			Formatter formatter = getFormatter();
-			StringBuilder fileLines = new StringBuilder(512);
-			StringBuilder displayLines = new StringBuilder(512);
+			StringBuilder lines = new StringBuilder(512);
 			while (true) {
 
 				// Get next records
@@ -153,7 +158,7 @@ public class AsyncFileLogger extends Handler implements Runnable {
 				}
 
 				// Write records to console and/or file
-				writeLines(records, fileLines, displayLines, formatter);
+				writeLines(records, lines, formatter);
 
 				// Waiting for other log records
 				Thread.sleep(400);
@@ -166,14 +171,14 @@ public class AsyncFileLogger extends Handler implements Runnable {
 		}
 	}
 
-	protected void writeLines(LinkedList<LogRecord> records, StringBuilder fileLines, StringBuilder displayLines,
-			Formatter formatter) throws Exception {
+	protected void writeLines(LinkedList<LogRecord> records, StringBuilder lines, Formatter formatter)
+			throws Exception {
 		try {
-			fileLines.setLength(0);
+			lines.setLength(0);
 			for (LogRecord record : records) {
-				fileLines.append(formatter.format(record));
+				lines.append(formatter.format(record));
 			}
-			String packet = fileLines.toString();
+			String packet = lines.toString();
 
 			// Write records to log file
 			if (logDirectory != null) {
@@ -183,14 +188,37 @@ public class AsyncFileLogger extends Handler implements Runnable {
 
 			// Write records to console
 			if (logToConsole) {
-				if (displayFormatter == null) {
-					System.out.println(packet.trim());
-				} else {
-					displayLines.setLength(0);
-					for (LogRecord record : records) {
-						displayLines.append(displayFormatter.format(record));
+				Throwable cause;
+				String msg;
+				for (LogRecord record : records) {
+					lines.setLength(0);
+					final Level l = record.getLevel();
+					if (l == Level.SEVERE) {
+						lines.append(SEVERE);
+					} else if (l == Level.WARNING) {
+						lines.append(WARNING);
+					} else if (l == Level.INFO) {
+						lines.append(INFO);
+					} else if (l == Level.CONFIG) {
+						lines.append(CONFIG);
+					} else if (l == Level.FINE) {
+						lines.append(FINE);
+					} else if (l == Level.FINER) {
+						lines.append(FINER);
+					} else {
+						lines.append(FINEST);
 					}
-					System.out.println(displayLines.toString().trim());
+					msg = record.getMessage();
+					if (msg == null) {
+						msg = "<null>";
+					} else {
+						msg = msg.trim();
+					}
+					System.out.println(lines.append(msg).toString());
+					cause = record.getThrown();
+					if (cause != null) {
+						cause.printStackTrace();
+					}
 				}
 			}
 		} finally {
@@ -334,7 +362,7 @@ public class AsyncFileLogger extends Handler implements Runnable {
 		}
 		if (!records.isEmpty()) {
 			try {
-				writeLines(records, new StringBuilder(), new StringBuilder(), getFormatter());
+				writeLines(records, new StringBuilder(), getFormatter());
 			} catch (Exception ignored) {
 			}
 		}
@@ -452,14 +480,11 @@ public class AsyncFileLogger extends Handler implements Runnable {
 		if (formatterName != null && !formatterName.isEmpty()) {
 			try {
 				setFormatter((Formatter) cl.loadClass(formatterName).newInstance());
-				displayFormatter = null;
 			} catch (Exception ignored) {
-				setFormatter(new FastLogFormatter());
-				displayFormatter = new FastLogFormatter(true);
 			}
-		} else {
+		}
+		if (getFormatter() == null) {
 			setFormatter(new FastLogFormatter());
-			displayFormatter = new FastLogFormatter(true);
 		}
 
 		// Set file encoding

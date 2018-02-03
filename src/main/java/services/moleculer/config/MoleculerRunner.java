@@ -154,7 +154,7 @@ public class MoleculerRunner {
 			udp.start();
 
 			// Start ServiceBroker
-			String configPath = "/moleculer.json";
+			String configPath = "/moleculer.config.json";
 			if (args != null && args.length > 0) {
 				configPath = args[0];
 			}

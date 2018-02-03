@@ -31,7 +31,7 @@
  */
 package services.moleculer.config;
 
-import static services.moleculer.util.CommonUtils.scan;
+import static io.datatree.dom.PackageScanner.scan;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
@@ -160,7 +160,7 @@ public final class GuiceComponentRegistry extends CommonRegistry {
 
 		// Process config
 		Tree packagesNode = config.get("packagesToScan");
-		if (packagesNode != null) {
+		if (packagesNode != null && !packagesNode.isNull()) {
 			if (packagesNode.isPrimitive()) {
 
 				// List of packages

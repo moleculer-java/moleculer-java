@@ -40,11 +40,12 @@ import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 import io.datatree.Tree;
-import io.datatree.dom.TreeWriter;
+import io.datatree.dom.TreeReaderRegistry;
 import io.datatree.dom.TreeWriterRegistry;
 import services.moleculer.ServiceBroker;
 import services.moleculer.repl.Command;
@@ -193,12 +194,14 @@ public class Info extends Command {
 			addType(table, "Serializer", s);
 			try {
 				if (s != null && "JSON".equalsIgnoreCase(s.format())) {
-					TreeWriter writer = TreeWriterRegistry.getWriter(s.format());
-					String api = nameOf(writer, false);
-					if (api.startsWith("json")) {
-						api = api.substring(4);
+					String readers = getAPIs(TreeReaderRegistry.getReader("json"), TreeReaderRegistry.getReadersByFormat("json"));
+					String writers = getAPIs(TreeWriterRegistry.getWriter("json"), TreeWriterRegistry.getWritersByFormat("json"));
+					if (readers.equals(writers)) {
+						table.addRow("JSON implementations", readers);			
+					} else {
+						table.addRow("JSON readers", readers);
+						table.addRow("JSON writers", writers);
 					}
-					table.addRow("JSON implementation", api);
 				}
 			} catch (Exception ignored) {
 			}
@@ -209,6 +212,28 @@ public class Info extends Command {
 		out.println(table);
 	}
 
+	protected String getAPIs(Object defaultAPI, Set<String> values) {
+		String api = nameOf(defaultAPI, false);
+		if (api.startsWith("json")) {
+			api = api.substring(4);
+		}
+		StringBuilder list = new StringBuilder(32);
+		for (String name : values) {
+			int i = name.lastIndexOf(".Json");
+			if (i > -1) {
+				if (list.length() > 0) {
+					list.append(", ");
+				}
+				name = name.substring(i + 5);
+				list.append(name);
+				if (name.equals(api)) {
+					list.append(" (*)");
+				}
+			}
+		}
+		return list.toString();
+	}
+	
 	protected void addType(TextTable table, String title, Object component) {
 		if (component == null) {
 			table.addRow(title, "<none>");

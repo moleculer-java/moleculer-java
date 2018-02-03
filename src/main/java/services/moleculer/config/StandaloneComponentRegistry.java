@@ -31,7 +31,7 @@
  */
 package services.moleculer.config;
 
-import static services.moleculer.util.CommonUtils.scan;
+import static io.datatree.dom.PackageScanner.scan;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -93,7 +93,7 @@ public final class StandaloneComponentRegistry extends CommonRegistry {
 
 		// Process config
 		Tree packagesNode = config.get("packagesToScan");
-		if (packagesNode != null) {
+		if (packagesNode != null && !packagesNode.isNull()) {
 			if (packagesNode.isPrimitive()) {
 
 				// List of packages

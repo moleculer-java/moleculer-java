@@ -32,7 +32,7 @@
 package services.moleculer.repl;
 
 import static services.moleculer.util.CommonUtils.nameOf;
-import static services.moleculer.util.CommonUtils.scan;
+import static io.datatree.dom.PackageScanner.scan;
 
 import java.io.PrintStream;
 import java.util.Arrays;

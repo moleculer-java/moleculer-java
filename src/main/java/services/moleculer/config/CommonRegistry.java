@@ -93,7 +93,7 @@ public abstract class CommonRegistry extends ComponentRegistry {
 	// --- START REGISTRY AND COMPONENTS ---
 
 	/**
-	 * Initializes newChannels instance.
+	 * Initializes registry instance.
 	 * 
 	 * @param broker
 	 *            parent ServiceBroker
