@@ -65,6 +65,7 @@ import services.moleculer.context.CallingOptions;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
+import services.moleculer.transporter.TcpTransporter;
 import services.moleculer.transporter.Transporter;
 
 /**
@@ -220,7 +221,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		} finally {
 
 			// Clear cache
-			cachedDescriptor.set(null);
+			cache.set(null);
 
 			writeLock.unlock();
 		}
@@ -583,7 +584,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		} finally {
 
 			// Clear cache
-			cachedDescriptor.set(null);
+			cache.set(null);
 
 			writeLock.unlock();
 		}
@@ -655,7 +656,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 				} finally {
 
 					// Clear cache
-					cachedDescriptor.set(null);
+					cache.set(null);
 				}
 
 				// Notify local listeners (LOCAL services changed)
@@ -723,31 +724,32 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
-	protected volatile long when;
-	
-	protected AtomicReference<Tree> cachedDescriptor = new AtomicReference<>();
+	protected AtomicReference<NodeDescriptor> cache = new AtomicReference<>();
 
 	@Override
-	public Tree generateDescriptor() {
-		Tree root = cachedDescriptor.get();
-		if (root != null) {
-			return root;
+	public NodeDescriptor getDescriptor(boolean useCache) {
+		
+		// Get previous / current descriptor from cache
+		NodeDescriptor node = cache.get();
+		if (useCache && node != null) {
+			return node;
 		}
-		when = System.currentTimeMillis();
-		root = new Tree();
+		
+		// Create info block
+		Tree info = new Tree();
 
 		// Protocol version
-		root.put("ver", ServiceBroker.PROTOCOL_VERSION);
+		info.put("ver", ServiceBroker.PROTOCOL_VERSION);
 
 		// NodeID
 		String nodeID = broker.nodeID();
-		root.put("sender", nodeID);
+		info.put("sender", nodeID);
 
 		// Generated at
-		root.put("when", when);
+		info.put("when", System.currentTimeMillis());
 
 		// Services array
-		Tree services = root.putList("services");
+		Tree services = info.putList("services");
 		Tree servicesMap = new Tree();
 		readLock.lock();
 		try {
@@ -813,10 +815,10 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		}
 
 		// Host name
-		root.put("hostname", getHostName());
+		info.put("hostname", getHostName());
 		
 		// IP array
-		Tree ipList = root.putList("ipList");
+		Tree ipList = info.putList("ipList");
 		HashSet<String> ips = new HashSet<>();
 		try {
 			InetAddress local = InetAddress.getLocalHost();
@@ -844,30 +846,37 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		}
 
 		// Client descriptor
-		Tree client = root.putMap("client");
+		Tree client = info.putMap("client");
 		client.put("type", "java");
 		client.put("version", ServiceBroker.SOFTWARE_VERSION);
 		client.put("langVersion", System.getProperty("java.version", "1.8"));
 
 		// Config (not used in this version)
 		// root.putMap("config");
-
-		cachedDescriptor.set(root);
-		return root;
-	}
-
-	// --- CLEAR CACHE ---
-
-	@Override
-	public void clearCache() {
-		cachedDescriptor.set(null);
-	}
-	
-	// --- LAST MODIFICATION'S TIMESTAMP ---
-
-	@Override
-	public long getWhen() {
-		return when;
+		
+		// Create node descriptor
+		CpuSnapshot c = null;
+		if (node != null) {
+			c = node.getCpuSnapshot();
+		}
+		if (c == null) {
+			c = new CpuSnapshot(0, 0);
+		}
+		boolean useHostname = true;
+		if (transporter != null && transporter instanceof TcpTransporter) {
+			TcpTransporter tcp = (TcpTransporter) transporter;
+			useHostname = tcp.isUseHostname();
+			info.put("port", tcp.getCurrentPort());
+		}
+		NodeDescriptor newNode = NodeDescriptor.local(nodeID, useHostname, info, c);
+		if (cache.compareAndSet(node, newNode)) {
+			return newNode;
+		}
+		NodeDescriptor updated = cache.get();
+		if (updated != null) {
+			return updated;
+		}
+		return newNode;
 	}
 
 	// --- GETTERS / SETTERS ---

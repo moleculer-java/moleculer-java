@@ -42,8 +42,8 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.repl.Command;
 import services.moleculer.repl.TextTable;
 import services.moleculer.service.Name;
+import services.moleculer.service.NodeDescriptor;
 import services.moleculer.transporter.Transporter;
-import services.moleculer.transporter.tcp.NodeActivity;
 
 /**
  * List of nodes.
@@ -151,16 +151,11 @@ public class Nodes extends Command {
 			if (transporter == null) {
 				row.add(broker.components().monitor().getTotalCpuPercent() + "%");
 			} else {
-				NodeActivity activity = transporter.getNodeActivity(nodeID);
-				int cpuUsage = 0;
-				if (activity == null) {
-					if (localNodeID.equals(nodeID)) {
-						cpuUsage = broker.components().monitor().getTotalCpuPercent();
-					} else {
-						cpuUsage = 0;
-					}
+				int cpuUsage;
+				if (localNodeID.equals(nodeID)) {
+					cpuUsage = broker.components().monitor().getTotalCpuPercent();
 				} else {
-					cpuUsage = activity.cpu;
+					cpuUsage = transporter.getCpuUsage(nodeID, 0);
 				}
 
 				// Draw gauge
@@ -200,15 +195,15 @@ public class Nodes extends Command {
 			nodeIDset.toArray(nodeIDarray);
 			Arrays.sort(nodeIDarray, String.CASE_INSENSITIVE_ORDER);
 			for (String nodeID : nodeIDarray) {
-				Tree info = transporter.getNodeInfo(nodeID);
-				if (info == null) {
+				NodeDescriptor node = transporter.getNodeDescriptor(nodeID);
+				if (node == null) {
 					continue;
 				}
-				infos.putObject(info.get("sender", "unknown"), info);
+				infos.putObject(node.nodeID, node.info);
 			}
 		}
 		if (infos.isEmpty()) {
-			infos.putObject(broker.nodeID(), broker.components().registry().generateDescriptor());
+			infos.putObject(broker.nodeID(), broker.components().registry().getDescriptor(true).info);
 		}
 		return infos;
 	}

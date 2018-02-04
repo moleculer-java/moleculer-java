@@ -33,7 +33,6 @@ package services.moleculer.strategy;
 
 import services.moleculer.service.Name;
 import services.moleculer.transporter.Transporter;
-import services.moleculer.transporter.tcp.NodeActivity;
 
 /**
  * Lowest CPU usage invocation strategy.
@@ -74,11 +73,11 @@ public class CpuUsageStrategy<T extends Endpoint> extends XORShiftRandomStrategy
 		Endpoint minEndpoint = null;
 		
 		// Processing variables
-		NodeActivity activity;
+		int tries = Math.min(maxTries, array.length);
 		Endpoint endpoint;
+		int cpu;
 		
 		// Find the lower CPU usage in sample
-		int tries = Math.min(maxTries, array.length);
 		for (int i = 0; i < tries; i++) {
 			
 			// Get random endpoint
@@ -89,18 +88,12 @@ public class CpuUsageStrategy<T extends Endpoint> extends XORShiftRandomStrategy
 			}
 			
 			// Check CPU usage
-			activity = transporter.getNodeActivity(endpoint.nodeID());
-			if (activity == null) {
-				if (minEndpoint == null) {
-					minEndpoint = endpoint;
-				}
-				continue;
-			}
-			if (activity.cpu <= lowCpuUsage) {
+			cpu = transporter.getCpuUsage(endpoint.nodeID(), Integer.MAX_VALUE);
+			if (cpu <= lowCpuUsage) {
 				return endpoint;
 			}
-			if (activity.cpu < minCPU) {
-				minCPU = activity.cpu;
+			if (minEndpoint == null || cpu < minCPU) {
+				minCPU = cpu;
 				minEndpoint = endpoint;
 			}			
 		}

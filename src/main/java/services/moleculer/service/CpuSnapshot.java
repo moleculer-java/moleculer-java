@@ -29,20 +29,20 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.transporter.tcp;
+package services.moleculer.service;
 
-public final class OfflineNode {
+public class CpuSnapshot {
 
 	// --- PROPERTIES ---
 
 	public final long when;
-	public final long since;
+	public final int value;
 	
 	// --- CONSTRUCTOR ---
 	
-	public OfflineNode(long when, long since) {
+	protected CpuSnapshot(long when, int value) {
 		this.when = when;
-		this.since = since;
+		this.value = value;
 	}
-	
+
 }

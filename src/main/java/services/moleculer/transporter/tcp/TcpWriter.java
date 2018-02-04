@@ -49,7 +49,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.datatree.Tree;
+import services.moleculer.service.NodeDescriptor;
 import services.moleculer.transporter.TcpTransporter;
 
 /**
@@ -82,19 +82,10 @@ public final class TcpWriter implements Runnable {
 	 */
 	private final boolean debug;
 
-	/**
-	 * Use hostnames instead of IP addresses As the DHCP environment is dynamic,
-	 * any later attempt to use IPs instead hostnames would most likely yield
-	 * false results. Therefore, use hostnames if you are using DHCP.
-	 */
-	private final boolean useHostname;
-
 	// --- NIO VARIABLES ---
 
 	private final TcpTransporter transporter;
-
 	private final LinkedHashMap<String, SendBuffer> buffers = new LinkedHashMap<>();
-
 	private final HashSet<SendBuffer> writable = new HashSet<>();
 	private final AtomicBoolean hasWritable = new AtomicBoolean();
 
@@ -106,7 +97,6 @@ public final class TcpWriter implements Runnable {
 		this.transporter = transporter;
 		this.scheduler = scheduler;
 		this.debug = transporter.isDebug();
-		this.useHostname = transporter.isUseHostname();
 		this.maxConnections = transporter.getMaxKeepAliveConnections();
 		this.keepAliveTimeout = transporter.getKeepAliveTimeout() * 1000L;
 	}
@@ -233,40 +223,20 @@ public final class TcpWriter implements Runnable {
 
 	// --- WRITE TO SOCKET ---
 
-	public final void send(String nodeID, Tree info, byte[] packet) {
+	public final void send(NodeDescriptor node, byte[] packet) {
 		
 		// Get or create buffer
 		SendBuffer buffer = null;
-		int port = 0;
+		boolean newBuffer = false;
 		synchronized (buffers) {
-			buffer = buffers.get(nodeID);
+			buffer = buffers.get(node.nodeID);
 			if (buffer == null || !buffer.use()) {
-
-				// Create new attachment
-				String host = null;
-				if (useHostname) {
-					host = getHost(info);
-					if (host == null) {
-						host = getIP(info);	
-					}
-				} else {
-					host = getIP(info);
-					if (host == null) {
-						host = getHost(info);	
-					}					
-				}
-				if (host == null) {
-					throw new IllegalArgumentException("Missing or \"hostname\" or \"ipList\" property!");
-				}
-				port = info.get("port", 0);
-				if (port == 0) {
-					throw new IllegalArgumentException("Missing or \"port\" property!");
-				}
-				buffer = new SendBuffer(nodeID, host, port, packet);
-				buffers.put(nodeID, buffer);
+				buffer = new SendBuffer(node.nodeID, node.host, node.port, packet);
+				buffers.put(node.nodeID, buffer);
+				newBuffer = true;
 			}
 		}
-		if (port == 0) {
+		if (!newBuffer) {
 			buffer.append(packet);
 		}
 		synchronized (writable) {
@@ -274,25 +244,6 @@ public final class TcpWriter implements Runnable {
 		}
 		hasWritable.set(true);
 		selector.wakeup();
-	}
-
-	private final String getHost(Tree info) {
-		String host = info.get("hostname", (String) null);
-		if (host != null && !host.isEmpty()) {
-			return host;
-		}
-		return null;
-	}
-	
-	private final String getIP(Tree info) {
-		Tree ipList = info.get("ipList");
-		if (ipList.size() > 0) {
-			String ip = ipList.get(0).asString();
-			if (ip != null && !ip.isEmpty()) {
-				return ip;
-			}
-		}
-		return null;
 	}
 
 	// --- WRITER LOOP ---

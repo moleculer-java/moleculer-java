@@ -298,7 +298,7 @@ public final class ServiceBrokerSettings {
 		// Set the JSON serializer API
 		jsonWriter = config.get("jsonWriter", jsonWriter);
 		if (jsonWriter != null && !jsonWriter.isEmpty()) {
-			String test = jsonReader.toLowerCase();
+			String test = jsonWriter.toLowerCase();
 			Set<String> writers = TreeWriterRegistry.getWritersByFormat("json");
 			for (String writer : writers) {
 				if (writer.toLowerCase().contains(test)) {

@@ -100,14 +100,6 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
-	public abstract Tree generateDescriptor();
-
-	// --- CLEAR CACHE ---
-
-	public abstract void clearCache();
-
-	// --- LAST MODIFICATION'S TIMESTAMP ---
-	
-	public abstract long getWhen();
+	public abstract NodeDescriptor getDescriptor(boolean useCache);
 	
 }

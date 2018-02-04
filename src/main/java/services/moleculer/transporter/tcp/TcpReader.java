@@ -34,6 +34,7 @@ package services.moleculer.transporter.tcp;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
@@ -53,10 +54,6 @@ import services.moleculer.transporter.TcpTransporter;
  * Packet receiver Thread of the TCP Transporter.
  */
 public final class TcpReader implements Runnable {
-
-	// --- SHARED BUFFER ---
-
-	private static final ByteBuffer requestBuffer = ByteBuffer.allocateDirect(16384);
 
 	// --- LOGGER ---
 
@@ -109,7 +106,7 @@ public final class TcpReader implements Runnable {
 
 		// Create selector
 		disconnect();
-				
+
 		// Open channel
 		serverChannel = ServerSocketChannel.open();
 		ServerSocket serverSocket = serverChannel.socket();
@@ -117,11 +114,11 @@ public final class TcpReader implements Runnable {
 		serverChannel.configureBlocking(false);
 		selector = Selector.open();
 		serverChannel.register(selector, SelectionKey.OP_ACCEPT);
-		
+
 		// Get current port
 		InetSocketAddress address = (InetSocketAddress) serverChannel.getLocalAddress();
 		currentPort = address.getPort();
-		
+
 		// Get properties
 		maxPacketSize = transporter.getMaxPacketSize();
 
@@ -131,11 +128,11 @@ public final class TcpReader implements Runnable {
 	}
 
 	// --- GET CURRENT PORT ---
-	
+
 	public int getCurrentPort() {
 		return currentPort;
 	}
-	
+
 	// --- DISCONNECT ---
 
 	@Override
@@ -157,7 +154,7 @@ public final class TcpReader implements Runnable {
 		// Close selector
 		if (selector != null) {
 			for (SelectionKey key : selector.keys()) {
-				close(key.channel(), null);
+				close(key, null);
 			}
 			try {
 				selector.close();
@@ -168,7 +165,10 @@ public final class TcpReader implements Runnable {
 
 		// Close server socket
 		if (serverChannel != null) {
-			close(serverChannel, null);
+			try {
+				serverChannel.close();
+			} catch (Exception ignored) {
+			}
 			serverChannel = null;
 		}
 	}
@@ -178,186 +178,178 @@ public final class TcpReader implements Runnable {
 	@Override
 	public final void run() {
 
-		// Variables
-		byte[] bytes, copy, packet, remaining;
-		SocketChannel channel = null;
-		Iterator<SelectionKey> keys;
-		SelectionKey key;
-		byte crc, type;
-		int n, len;
+		// Read buffer
+		ByteBuffer readBuffer = ByteBuffer.allocate(maxPacketSize);
 
 		// Loop
-		while (!Thread.currentThread().isInterrupted()) {
+		while (true) {
 
 			// Waiting for sockets
+			int n;
 			try {
-				if (null == selector) {
-					continue;
-				}
 				n = selector.select();
 			} catch (NullPointerException nullPointer) {
 				continue;
 			} catch (Exception anyError) {
 				break;
 			}
-			if (n > 0) {
-				keys = selector.selectedKeys().iterator();
-				while (keys.hasNext()) {
-					key = keys.next();
-					if (key == null) {
-						continue;
+			if (n < 1) {
+				continue;
+			}
+			Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
+			while (keys.hasNext()) {
+				SelectionKey key = keys.next();
+				if (key == null) {
+					continue;
+				}
+				if (!key.isValid()) {
+					keys.remove();
+					continue;
+				}
+				if (key.isAcceptable()) {
+
+					// Accept channel
+					try {
+
+						// Register socket
+						SocketChannel channel = serverChannel.accept();
+						channel.configureBlocking(false);
+						channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
+						channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
+						channel.setOption(StandardSocketOptions.SO_LINGER, -1);
+						channel.register(selector, SelectionKey.OP_READ);
+
+						// Debug
+						if (debug) {
+							logger.info("Client channel opened from " + channel.getRemoteAddress() + ".");
+						}
+
+					} catch (Exception cause) {
+						close(key, cause);
 					}
-					if (key.isValid()) {
-						if (key.isAcceptable()) {
-							try {
-								if (null != serverChannel) {
-									channel = serverChannel.accept();
-								}
-							} catch (IOException cause) {
-								keys.remove();
-								continue;
+
+				} else if (key.isReadable()) {
+
+					// Read data
+					try {
+						SocketChannel channel = (SocketChannel) key.channel();
+						readBuffer.rewind();
+						n = channel.read(readBuffer);
+						if (n < 0) {
+							throw new IOException();
+						}
+						if (n == 0) {
+							keys.remove();
+							continue;
+						}
+						readBuffer.flip();
+						byte[] packet = new byte[readBuffer.remaining()];
+						readBuffer.get(packet);
+						byte[] remaining = (byte[]) key.attachment();
+						if (remaining != null) {
+							byte[] tmp = new byte[remaining.length + packet.length];
+							System.arraycopy(remaining, 0, tmp, 0, remaining.length);
+							System.arraycopy(packet, 0, tmp, remaining.length, packet.length);
+							packet = tmp;
+						}
+						if (packet.length > 5) {
+
+							// Read header and check CRC
+							byte crc = (byte) (packet[1] ^ packet[2] ^ packet[3] ^ packet[4] ^ packet[5]);
+							if (crc != packet[0]) {
+								throw new Exception("Invalid CRC (" + crc + " != " + packet[0] + ")!");
 							}
-							if (channel != null) {
-								try {
+							int len = ((0xFF & packet[1]) << 24) | ((0xFF & packet[2]) << 16)
+									| ((0xFF & packet[3]) << 8) | (0xFF & packet[4]);
 
-									// Register socket
-									channel.configureBlocking(false);
-									key = channel.register(selector, 0);
-									key.interestOps(SelectionKey.OP_READ);
-
-									// Debug
-									if (debug) {
-										logger.info("Server channel opened from " + channel.getRemoteAddress() + ".");
-									}
-
-								} catch (Exception cause) {
-									close(channel, cause);
-								}
+							// Check size
+							if (maxPacketSize > 0 && len > maxPacketSize) {
+								throw new Exception("Incoming packet is larger than the \"maxPacketSize\" limit (" + len
+										+ " > " + maxPacketSize + ")!");
 							}
-						} else if (key.isReadable()) {
 
-							// Read data
-							try {
-								channel = (SocketChannel) key.channel();
-								n = channel.read(requestBuffer);
-								if (n < 0) {
-									throw new IOException();
+							// If all data present
+							if (packet.length >= len) {
+
+								byte type = packet[5];
+								if (type < 1 || type > 7) {
+
+									// Unknown packet type!
+									throw new Exception("Invalid packet type (" + type + ")!");
 								}
-								requestBuffer.flip();
-								packet = new byte[requestBuffer.remaining()];
-								requestBuffer.get(packet);
-								requestBuffer.rewind();
-								bytes = (byte[]) key.attachment();
-								if (bytes != null) {
-									copy = new byte[packet.length + bytes.length];
-									System.arraycopy(bytes, 0, copy, 0, bytes.length);
-									System.arraycopy(packet, 0, copy, bytes.length, packet.length);
-									packet = copy;
-								}
-								if (packet.length > 5) {
+								if (packet.length > len) {
 
-									// Check size
-									if (maxPacketSize > 0 && packet.length > maxPacketSize) {
-										throw new Exception(
-												"Incoming packet is larger than the \"maxPacketSize\" limit ("
-														+ packet.length + " > " + maxPacketSize + ")!");
-									}
-
-									// Read header and check CRC
-									crc = (byte) (packet[1] ^ packet[2] ^ packet[3] ^ packet[4] ^ packet[5]);
-									if (crc != packet[0]) {
-										throw new Exception("Invalid CRC (" + crc + " != " + packet[0] + ")!");
-									}
-									len = ((0xFF & packet[1]) << 24) | ((0xFF & packet[2]) << 16)
-											| ((0xFF & packet[3]) << 8) | (0xFF & packet[4]);
-
-									// Check length
-									if (packet.length >= len) {
-
-										// All of bytes received
-										type = packet[5];										
-										if (type < 1 || type > 7) {
-											
-											// Unknown packet type!
-											throw new Exception("Invalid packet type (" + type + ")!");
-										}
-										if (packet.length > len) {
-
-											// Get remaining bytes
-											remaining = new byte[packet.length - len];
-											System.arraycopy(packet, len, remaining, 0, remaining.length);
-											key.attach(remaining);
-											
-											copy = new byte[len];
-											System.arraycopy(packet, 0, copy, 0, copy.length);
-											packet = copy;
-											len = copy.length;
-
-										} else {
-
-											// Clear attachment
-											key.attach(null);
-											
-										}
-
-										// Debug
-										if (debug) {
-											logger.info(
-													packet.length + " bytes received from " + channel.getRemoteAddress() + ".");
-										}
-										
-										// Remove header
-										copy = new byte[len - 6];
-										System.arraycopy(packet, 6, copy, 0, copy.length);
-										packet = copy;
-										
-										// Process incoming message
-										transporter.received(type, packet);
-
-									} else {
-
-										// Waiting for data
-										key.attach(packet);
-									}
+									// Get remaining bytes
+									remaining = new byte[packet.length - len];
+									System.arraycopy(packet, len, remaining, 0, remaining.length);
+									key.attach(remaining);
 
 								} else {
 
-									// Waiting for data
-									key.attach(packet);
+									// Clear attachment
+									key.attach(null);
 								}
-							} catch (Exception cause) {
-								close(key.channel(), cause);
+
+								// Remove header
+								byte[] body = new byte[len - 6];
+								System.arraycopy(packet, 6, body, 0, body.length);
+								packet = body;
+
+								// Debug
+								if (debug) {
+									logger.info((6 + body.length) + " bytes received from " + channel.getRemoteAddress()
+											+ ".");
+								}
+
+								// Process incoming message
+								transporter.received(type, packet);
+
+							} else {
+
+								// Waiting for data
+								key.attach(packet);
 							}
 
+						} else {
+
+							// Waiting for data
+							key.attach(packet);
 						}
+					} catch (Exception cause) {
+						close(key, cause);
 					}
-					keys.remove();
 				}
+				keys.remove();
 			}
 		}
 	}
 
 	// --- CLOSE CHANNEL ---
-	
-	private final void close(SelectableChannel channel, Exception cause) {
-		if (channel != null) {
 
-			// Debug
-			if (debug) {
-				try {
-					if (channel instanceof SocketChannel) {
-						SocketChannel socketChannel = (SocketChannel) channel;
-						logger.info("Server channel closed from " + socketChannel.getRemoteAddress() + ".", cause);
-					}
-				} catch (Exception ignored) {
-				}
-			}
+	protected void close(SelectionKey key, Exception cause) {
+		if (key == null) {
+			return;
+		}
+		SelectableChannel channel = key.channel();
+		if (channel == null) {
+			return;
+		}
 
-			// Close channel
+		// Debug
+		if (debug) {
 			try {
-				channel.close();
+				if (channel instanceof SocketChannel) {
+					SocketChannel socketChannel = (SocketChannel) channel;
+					logger.info("Client channel closed from " + socketChannel.getRemoteAddress() + ".", cause);
+				}
 			} catch (Exception ignored) {
 			}
+		}
+
+		// Close channel
+		try {
+			channel.close();
+		} catch (Exception ignored) {
 		}
 	}
 

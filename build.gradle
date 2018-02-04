@@ -50,7 +50,7 @@ dependencies {
     // --- DATATREE ---
     	    
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-adapters
-	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.5-SNAPSHOT'
+	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.5'
    
    
 	// =============== MONITORING ===============
