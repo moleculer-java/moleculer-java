@@ -179,7 +179,7 @@ public final class TcpReader implements Runnable {
 	public final void run() {
 
 		// Read buffer
-		ByteBuffer readBuffer = ByteBuffer.allocate(maxPacketSize);
+		ByteBuffer readBuffer = ByteBuffer.allocate(Math.min(maxPacketSize, 1024 * 1024));
 
 		// Loop
 		while (true) {
@@ -254,23 +254,27 @@ public final class TcpReader implements Runnable {
 						}
 						if (packet.length > 5) {
 
-							// Read header and check CRC
-							byte crc = (byte) (packet[1] ^ packet[2] ^ packet[3] ^ packet[4] ^ packet[5]);
-							if (crc != packet[0]) {
-								throw new Exception("Invalid CRC (" + crc + " != " + packet[0] + ")!");
-							}
+							// Check packet's size
 							int len = ((0xFF & packet[1]) << 24) | ((0xFF & packet[2]) << 16)
-									| ((0xFF & packet[3]) << 8) | (0xFF & packet[4]);
-
-							// Check size
+									| ((0xFF & packet[3]) << 8) | (0xFF & packet[4]);							
 							if (maxPacketSize > 0 && len > maxPacketSize) {
 								throw new Exception("Incoming packet is larger than the \"maxPacketSize\" limit (" + len
 										+ " > " + maxPacketSize + ")!");
+							} else if (len < 6) {
+								throw new Exception(
+										"Incoming packet is smaller than the header's size (" + len + " < 6)!");
 							}
 
 							// If all data present
 							if (packet.length >= len) {
 
+								// Verify header's CRC
+								byte crc = (byte) (packet[1] ^ packet[2] ^ packet[3] ^ packet[4] ^ packet[5]);
+								if (crc != packet[0]) {
+									throw new Exception("Invalid CRC (" + crc + " != " + packet[0] + ")!");
+								}
+
+								// Verify type
 								byte type = packet[5];
 								if (type < 1 || type > 7) {
 
@@ -278,7 +282,7 @@ public final class TcpReader implements Runnable {
 									throw new Exception("Invalid packet type (" + type + ")!");
 								}
 								if (packet.length > len) {
-
+									
 									// Get remaining bytes
 									remaining = new byte[packet.length - len];
 									System.arraycopy(packet, len, remaining, 0, remaining.length);
@@ -330,6 +334,11 @@ public final class TcpReader implements Runnable {
 		if (key == null) {
 			return;
 		}
+
+		// Cancel key
+		key.cancel();
+
+		// Get channel
 		SelectableChannel channel = key.channel();
 		if (channel == null) {
 			return;

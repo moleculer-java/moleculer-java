@@ -106,7 +106,7 @@ public class TcpTransporter extends Transporter {
 	/**
 	 * Max enable packet size (BYTES).
 	 */
-	protected int maxPacketSize = 1024 * 1024 * 64;
+	protected int maxPacketSize = 1024 * 1024 * 16;
 
 	/**
 	 * List of URLs ("tcp://host:port/nodeID" or "host:port/nodeID" or
@@ -290,7 +290,7 @@ public class TcpTransporter extends Transporter {
 
 			// Start timers
 			connected();
-			
+
 			// Ok, transporter started
 			logger.info("Message receiver started on tcp://" + getHostName() + ':' + currentPort + ".");
 
@@ -309,7 +309,7 @@ public class TcpTransporter extends Transporter {
 	// --- DISCONNECT ---
 
 	protected void disconnect() {
-		
+
 		// Stop broadcaster
 		if (broadcaster != null) {
 			broadcaster.disconnect();
@@ -514,11 +514,12 @@ public class TcpTransporter extends Transporter {
 	}
 
 	// --- SEND HEARTBEAT (UNUSED) ---
-	
+
 	@Override
 	protected void sendHeartbeatPacket() {
+		registry.getDescriptor(true).updateCpu(System.currentTimeMillis(), monitor.getTotalCpuPercent());
 	}
-	
+
 	// --- SUBSCRIBE (UNUSED) ---
 
 	@Override
@@ -542,7 +543,7 @@ public class TcpTransporter extends Transporter {
 				}
 				int e = channel.indexOf('.', s + 1);
 				if (e == -1) {
-					
+
 					// Broadcast messaging is not supported
 					return;
 
@@ -582,7 +583,7 @@ public class TcpTransporter extends Transporter {
 						logger.info("Pong message submitting:\r\n" + message);
 					}
 					packetID = PACKET_PONG_ID;
-					break;				
+					break;
 				default:
 					logger.warn("Unsupported command (" + command + ")!");
 					return;
@@ -653,7 +654,7 @@ public class TcpTransporter extends Transporter {
 			}
 		}
 	}
-	
+
 	// --- UDP MULTICAST MESSAGE RECEIVED ---
 
 	public void udpPacketReceived(String nodeID, String host, int port) {
@@ -674,7 +675,7 @@ public class TcpTransporter extends Transporter {
 		} else {
 
 			// Check hostname and port
-			if (prevNode == null || !prevNode.host.equals(newNode.host) || prevNode.host != newNode.host) {
+			if (prevNode == null || !prevNode.host.equals(newNode.host) || prevNode.port != newNode.port) {
 
 				// Host or port number changed -> reregister as offline
 				nodes.put(nodeID, newNode);
@@ -714,7 +715,7 @@ public class TcpTransporter extends Transporter {
 			CpuSnapshot c = self.getCpuSnapshot();
 			if (c != null) {
 				thisNode.add(c.when);
-				thisNode.add(c.value);				
+				thisNode.add(c.value);
 			} else {
 				thisNode.add(System.currentTimeMillis());
 				thisNode.add(monitor.getTotalCpuPercent());
@@ -840,15 +841,15 @@ public class TcpTransporter extends Transporter {
 					continue;
 				}
 				when = offline.get(0).asLong();
-				since = offline.get(0).asLong();
+				since = offline.get(1).asLong();
 			} else if (online != null) {
 				if (!online.isEnumeration() || online.size() != 3) {
 					logger.warn("Invalid \"online\" block: " + online.toString(false));
 					continue;
 				}
 				when = online.get(0).asLong();
-				cpuWhen = online.get(0).asLong();
-				cpu = online.get(0).asInteger();
+				cpuWhen = online.get(1).asLong();
+				cpu = online.get(2).asInteger();
 			}
 			if (when == 0 || when < node.when) {
 
@@ -909,8 +910,8 @@ public class TcpTransporter extends Transporter {
 				if (when >= node.when) {
 					NodeDescriptor self = registry.getDescriptor(false);
 					Tree row = onlineRsp.putList(node.nodeID);
-					row.addObject(self.info);					
-					CpuSnapshot c = node.getCpuSnapshot();
+					row.addObject(self.info);
+					CpuSnapshot c = self.getCpuSnapshot();
 					if (c == null) {
 						row.add(System.currentTimeMillis()).add(monitor.getTotalCpuPercent());
 					} else {
@@ -952,7 +953,7 @@ public class TcpTransporter extends Transporter {
 		boolean emptyOnlineBlock = onlineRsp.isEmpty();
 		boolean emptyOfflineBlock = offlineRsp.isEmpty();
 		if (emptyOnlineBlock && emptyOfflineBlock) {
-			
+
 			// Message is empty
 			return;
 		}
@@ -962,7 +963,7 @@ public class TcpTransporter extends Transporter {
 		if (emptyOfflineBlock) {
 			offlineRsp.remove();
 		}
-		
+
 		// Debug
 		if (debug) {
 			logger.info("Gossip response submitting to \"" + sender + "\" node:\r\n" + root);
@@ -1020,7 +1021,8 @@ public class TcpTransporter extends Transporter {
 					logger.warn("Invalid \"online\" block: " + row.toString(false));
 					continue;
 				}
-
+				logger.info("CPU " + cpu);
+				
 				if (info != null) {
 
 					// Update "info" block,
