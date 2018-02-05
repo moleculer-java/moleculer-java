@@ -214,9 +214,11 @@ public final class TcpReader implements Runnable {
 						// Register socket
 						SocketChannel channel = serverChannel.accept();
 						channel.configureBlocking(false);
+						
 						channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
 						channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
 						channel.setOption(StandardSocketOptions.SO_LINGER, -1);
+						
 						channel.register(selector, SelectionKey.OP_READ);
 
 						// Debug

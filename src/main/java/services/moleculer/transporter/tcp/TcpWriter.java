@@ -204,10 +204,11 @@ public class TcpWriter implements Runnable {
 					InetSocketAddress address = new InetSocketAddress(buffer.host, buffer.port);
 					SocketChannel channel = SocketChannel.open(address);
 					channel.configureBlocking(false);
+
 					channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
 					channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
 					channel.setOption(StandardSocketOptions.SO_LINGER, -1);
-					channel.register(selector, SelectionKey.OP_CONNECT);
+
 					key = channel.register(selector, SelectionKey.OP_WRITE);
 					key.attach(buffer);
 					buffer.connected(key, channel);
