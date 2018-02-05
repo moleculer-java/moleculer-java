@@ -31,17 +31,27 @@
  */
 package services.moleculer.transporter.tcp;
 
+import java.io.EOFException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
-import java.util.LinkedList;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Attachment of TcpWriter's channels.
+ * Attachment of TcpWriter's SelectionKeys.
  */
-public final class SendBuffer {
+public class SendBuffer {
+
+	// --- OUTGOING QUEUE ---
+
+	protected final ConcurrentLinkedQueue<ByteBuffer> queue = new ConcurrentLinkedQueue<>();
+
+	// --- USED / NOT USED ---
+
+	protected static final ByteBuffer BUFFER_IS_CLOSED = ByteBuffer.allocate(1);
+
+	protected AtomicReference<ByteBuffer> blockerBuffer = new AtomicReference<>();
 
 	// --- PROPERTIES ---
 
@@ -49,140 +59,148 @@ public final class SendBuffer {
 	public final String host;
 	public final int port;
 
-	private ByteBuffer first;
-	private final LinkedList<ByteBuffer> buffers = new LinkedList<>();
-	private final AtomicLong lastUsed;
-	private final AtomicReference<SelectionKey> key = new AtomicReference<>();
-
 	// --- CONSTRUCTOR ---
 
-	SendBuffer(String nodeID, String host, int port, byte[] packet) {
+	protected SendBuffer(String nodeID, String host, int port) {
 		this.nodeID = nodeID;
 		this.host = host;
 		this.port = port;
-		this.first = ByteBuffer.wrap(packet);
-		this.lastUsed = new AtomicLong(System.currentTimeMillis());
 	}
 
-	// --- SELECTION KEY ---
+	// --- CONNECTED ---
 
-	final void key(SelectionKey registeredKey) {
-		key.compareAndSet(null, registeredKey);
-	}
+	protected SocketChannel channel;
+	protected SelectionKey key;
 
-	final SelectionKey key() {
-		return key.get();
-	}
-
-	// --- INVALIDATE / TOUCH ---
-
-	final boolean use() {
-		long current;
-		long now = System.currentTimeMillis();
-		while (true) {
-			current = lastUsed.get();
-			if (current == 0) {
-				return false;
-			}
-			if (current > now) {
-				return true;
-			}
-			if (lastUsed.compareAndSet(current, now)) {
-				return true;
-			}
-		}
-	}
-
-	final void invalidate() {
-		lastUsed.set(0);
-	}
-	
-	final boolean invalidate(long limit) {
-		long current = lastUsed.get();
-		if (current < limit && first == null) {
-			synchronized (buffers) {
-				if (buffers.isEmpty()) {
-					return lastUsed.compareAndSet(current, 0);
-				}
-			}
-		}
-		return false;
+	protected void connected(SelectionKey key, SocketChannel channel) {
+		this.channel = channel;
+		this.key = key;
 	}
 
 	// --- ADD BYTES ---
 
-	final void append(byte[] packet) {
+	/**
+	 * Adds a packet to the buffer's queue.
+	 * 
+	 * @param packet
+	 *            packet to write
+	 * 
+	 * @return true, if success (false = buffer is closed)
+	 */
+	protected boolean append(byte[] packet) {
 		ByteBuffer buffer = ByteBuffer.wrap(packet);
-		synchronized (buffers) {
-			buffers.addLast(buffer);
+		ByteBuffer blocker;
+		while (true) {
+			blocker = blockerBuffer.get();
+			if (blocker == BUFFER_IS_CLOSED) {
+				return false;
+			}
+			if (blockerBuffer.compareAndSet(blocker, buffer)) {
+				queue.add(buffer);
+				return true;
+			}
+		}
+	}
+
+	// --- CLOSE IF UNUSED ---
+
+	/**
+	 * Tries to close this buffer.
+	 * 
+	 * @return true, is closed (false = buffer is not empty)
+	 */
+	protected boolean tryClose() {
+		ByteBuffer blocker = blockerBuffer.get();
+		if (blocker == BUFFER_IS_CLOSED) {
+			return true;
+		}
+		if (blocker != null) {
+			return false;
+		}
+		boolean closed = blockerBuffer.compareAndSet(null, BUFFER_IS_CLOSED);
+		if (closed) {
+			closeResources();
+			return true;
+		}
+		return false;
+	}
+
+	// --- CLOSE BUFFER ---
+
+	void close() {
+		blockerBuffer.set(BUFFER_IS_CLOSED);
+		closeResources();
+	}
+
+	protected void closeResources() {
+		if (key != null) {
+			try {
+				key.cancel();
+			} catch (Exception ignored) {
+			}
+			key = null;
+		}
+		queue.clear();
+		if (channel != null) {
+			try {
+				channel.close();
+			} catch (Exception ignored) {
+			}
+			channel = null;
 		}
 	}
 
 	// --- WRITE BYTES ---
 
-	final boolean write(SocketChannel channel) throws Exception {
-		shift();
-		channel.write(first);
-		return shift();
-	}
-
-	private final boolean shift() {
-		if (first == null) {
-			synchronized (buffers) {
-				if (buffers.isEmpty()) {
-					return false;
+	/**
+	 * Writes N bytes to the target channel.
+	 * 
+	 * @throws Exception
+	 *             any I/O exception
+	 *             
+	 * @return unsuccessful write (false = wrote any bytes)
+	 */
+	protected boolean write() throws Exception {
+		ByteBuffer buffer = queue.peek();
+		if (buffer == null) {
+			if (key != null) {
+				key.interestOps(0);
+			}
+			return true;
+		}
+		if (channel != null) {
+			int count = channel.write(buffer);
+			if (count == 0 && buffer.hasRemaining()) {
+				if (key != null) {
+					key.interestOps(SelectionKey.OP_WRITE);
 				}
-				first = buffers.removeFirst();
+				return true;
+			} else if (count == -1) {
+				throw new EOFException();
 			}
-			return true;
-		}
-		if (first.hasRemaining()) {
-			return true;
-		}
-		first = null;
-		synchronized (buffers) {
-			if (buffers.isEmpty()) {
-				return false;
+			if (!buffer.hasRemaining()) {
+				queue.poll();
 			}
-			first = buffers.removeFirst();
+			if (queue.isEmpty()) {
+				if (blockerBuffer.compareAndSet(buffer, null)) {
+					if (key != null) {
+						key.interestOps(0);
+					}
+				}
+			}
+			return count == 0;
 		}
 		return true;
 	}
 
 	// --- GET CURRENT PACKET ---
 
-	public final byte[] getCurrentPacket() {
-		synchronized (buffers) {
-			if (first == null) {
-				if (buffers.isEmpty()) {
-					return null;
-				}
-				return buffers.getFirst().array();
-			}
-			return first.array();
+	public byte[] getCurrentPacket() {
+		ByteBuffer buffer = queue.peek();
+		if (buffer == null) {
+			return null;
 		}
+		return buffer.array();
 	}
-	
-	// --- COLLECTION HELPERS ---
-	
-	@Override
-	public final int hashCode() {
-		return nodeID.hashCode();
-	}
-
-	@Override
-	public final boolean equals(Object obj) {
-		if (this == obj) {
-			return true;
-		}
-		if (obj == null) {
-			return false;
-		}
-		if (getClass() != obj.getClass()) {
-			return false;
-		}
-		SendBuffer other = (SendBuffer) obj;
-		return nodeID.equals(other.nodeID);
-	}	
 
 }

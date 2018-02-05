@@ -50,7 +50,6 @@ import services.moleculer.service.CpuSnapshot;
 import services.moleculer.service.Name;
 import services.moleculer.service.NodeDescriptor;
 import services.moleculer.service.OfflineSnapshot;
-import services.moleculer.transporter.tcp.SendBuffer;
 import services.moleculer.transporter.tcp.TcpReader;
 import services.moleculer.transporter.tcp.TcpWriter;
 import services.moleculer.transporter.tcp.UDPBroadcaster;
@@ -97,11 +96,6 @@ public class TcpTransporter extends Transporter {
 	 * Max number of keep-alive connections (0 = unlimited).
 	 */
 	protected int maxKeepAliveConnections;
-
-	/**
-	 * Keep-alive timeout in SECONDS (0 = no timeout).
-	 */
-	protected int keepAliveTimeout = 60;
 
 	/**
 	 * Max enable packet size (BYTES).
@@ -189,7 +183,6 @@ public class TcpTransporter extends Transporter {
 
 		// TCP socket properties
 		maxKeepAliveConnections = config.get("maxKeepAliveConnections", maxKeepAliveConnections);
-		keepAliveTimeout = config.get("keepAliveTimeout", keepAliveTimeout);
 
 		// Maxiumum enabled size of a packet, in bytes
 		maxPacketSize = config.get("maxPacketSize", maxPacketSize);
@@ -269,7 +262,7 @@ public class TcpTransporter extends Transporter {
 			// Create reader and writer
 			disconnect();
 			reader = new TcpReader(this);
-			writer = new TcpWriter(this, scheduler);
+			writer = new TcpWriter(this);
 
 			// Start TCP server
 			reader.connect();
@@ -443,31 +436,30 @@ public class TcpTransporter extends Transporter {
 
 	// --- CONNECTION ERROR ---
 
-	public void unableToSend(SendBuffer buffer, Throwable error) {
-		if (buffer != null) {
+	public void unableToSend(String nodeID, byte[] packet, Throwable cause) {
+		if (nodeID != null && packet != null) {
 			executor.execute(() -> {
 				try {
 
 					// Debug
 					if (debug) {
-						logger.warn("Unable to send message to " + buffer.host + ":" + buffer.port + ".", error);
+						logger.warn("Unable to send message to \"" + nodeID + "\".", cause);
 					}
 
 					// Mark endpoint as offline
-					NodeDescriptor node = nodes.get(buffer.nodeID);
+					NodeDescriptor node = nodes.get(nodeID);
 					if (node != null && node.switchToOffline()) {
 
 						// Remove actions and listeners
-						registry.removeActions(buffer.nodeID);
-						eventbus.removeListeners(buffer.nodeID);
+						registry.removeActions(nodeID);
+						eventbus.removeListeners(nodeID);
 
 						// Notify listeners (unexpected disconnection)
-						logger.info("Node \"" + buffer.nodeID + "\" disconnected.");
+						logger.info("Node \"" + nodeID + "\" disconnected.");
 						broadcastNodeDisconnected(node.info, true);
 					}
 
 					// Remove header
-					byte[] packet = buffer.getCurrentPacket();
 					if (packet != null && packet.length > 6) {
 						byte[] copy = new byte[packet.length - 6];
 						System.arraycopy(packet, 6, copy, 0, copy.length);
@@ -487,27 +479,27 @@ public class TcpTransporter extends Transporter {
 						Tree response = new Tree();
 						response.put("id", id);
 						response.put("ver", ServiceBroker.PROTOCOL_VERSION);
-						response.put("sender", buffer.nodeID);
+						response.put("sender", nodeID);
 						response.put("success", false);
 						response.put("data", (String) null);
-						if (error != null) {
+						if (cause != null) {
 
 							// Add message
 							Tree errorMap = response.putMap("error");
-							errorMap.put("message", error.getMessage());
+							errorMap.put("message", cause.getMessage());
 
 							// Add trace
 							StringWriter sw = new StringWriter(128);
 							PrintWriter pw = new PrintWriter(sw);
-							error.printStackTrace(pw);
+							cause.printStackTrace(pw);
 							errorMap.put("trace", sw.toString());
 						}
 
 						// Send error response back to the source
 						registry.receiveResponse(response);
 					}
-				} catch (Exception cause) {
-					logger.warn("Unable to handle error!", cause);
+				} catch (Exception error) {
+					logger.warn("Unable to handle error!", error);
 				}
 			});
 		}
@@ -1021,7 +1013,6 @@ public class TcpTransporter extends Transporter {
 					logger.warn("Invalid \"online\" block: " + row.toString(false));
 					continue;
 				}
-				logger.info("CPU " + cpu);
 				
 				if (info != null) {
 
@@ -1121,14 +1112,6 @@ public class TcpTransporter extends Transporter {
 
 	public void setMaxKeepAliveConnections(int maxKeepAliveConnections) {
 		this.maxKeepAliveConnections = maxKeepAliveConnections;
-	}
-
-	public int getKeepAliveTimeout() {
-		return keepAliveTimeout;
-	}
-
-	public void setKeepAliveTimeout(int maxKeepAliveTimeout) {
-		this.keepAliveTimeout = maxKeepAliveTimeout;
 	}
 
 	public int getMaxPacketSize() {
