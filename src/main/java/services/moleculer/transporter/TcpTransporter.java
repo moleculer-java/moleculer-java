@@ -46,10 +46,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
-import services.moleculer.service.CpuSnapshot;
+import services.moleculer.service.CpuUsage;
 import services.moleculer.service.Name;
 import services.moleculer.service.NodeDescriptor;
-import services.moleculer.service.OfflineSnapshot;
+import services.moleculer.service.NodeStatus;
 import services.moleculer.transporter.tcp.TcpReader;
 import services.moleculer.transporter.tcp.TcpWriter;
 import services.moleculer.transporter.tcp.UDPBroadcaster;
@@ -141,13 +141,6 @@ public class TcpTransporter extends Transporter {
 	 */
 	protected int multicastPackets;
 
-	/**
-	 * Use hostnames instead of IP addresses As the DHCP environment is dynamic,
-	 * any later attempt to use IPs instead hostnames would most likely yield
-	 * false results. Therefore, use hostnames if you are using DHCP.
-	 */
-	protected boolean useHostname = true;
-
 	// --- CONSTUCTORS ---
 
 	/**
@@ -206,9 +199,6 @@ public class TcpTransporter extends Transporter {
 		multicastPeriod = config.get("multicastPeriod", multicastPeriod);
 		multicastPackets = config.get("multicastPackets", multicastPackets);
 
-		// Use hostnames or IPs?
-		useHostname = config.get("useHostname", useHostname);
-
 		// Parse URLs (in "full TCP mode")
 		urls = parseURLs(config, urls);
 		if (urls != null && urls.length > 0) {
@@ -236,7 +226,8 @@ public class TcpTransporter extends Transporter {
 							+ ")! Valid syntax is \"tcp://host:port/nodeID\" or \"host:port/nodeID\"!");
 					continue;
 				}
-				nodes.put(sender, NodeDescriptor.offline(sender, useHostname, parts[0], port));
+				String host = parts[0];
+				nodes.put(sender, new NodeDescriptor(sender, host, port));
 			}
 		}
 	}
@@ -286,7 +277,7 @@ public class TcpTransporter extends Transporter {
 
 			// TCP + UDP mode ("zero config")
 			if (urls == null || urls.length == 0) {
-				broadcaster = new UDPBroadcaster(namespace, nodeID, this, scheduler);
+				broadcaster = new UDPBroadcaster(namespace, nodeID, this, scheduler, preferHostname);
 				broadcaster.connect();
 			}
 
@@ -529,7 +520,7 @@ public class TcpTransporter extends Transporter {
 
 	@Override
 	protected void sendHeartbeatPacket() {
-		registry.currentDescriptor().updateCpu(System.currentTimeMillis(), monitor.getTotalCpuPercent());
+		registry.getDescriptor().setCpuUsage(monitor.getTotalCpuPercent());
 	}
 
 	// --- SUBSCRIBE (UNUSED) ---
@@ -712,7 +703,7 @@ public class TcpTransporter extends Transporter {
 		if (prevNode == null) {
 
 			// Add as new, offline node
-			nodes.put(sender, NodeDescriptor.offline(sender, useHostname, host, port));
+			nodes.put(sender, new NodeDescriptor(sender, host, port));
 			logger.info("Node \"" + sender + "\" registered.");
 		} else {
 
@@ -722,21 +713,22 @@ public class TcpTransporter extends Transporter {
 				// Host or port number changed -> reregister as offline,
 				// and keep the original info block
 				if (prevNode.info == null) {
-					nodes.put(sender, NodeDescriptor.offline(sender, useHostname, host, port));
+					nodes.put(sender, new NodeDescriptor(sender, host, port));
 				} else {
-					if (useHostname) {
-						prevNode.info.put("hostname", host);
+					Tree newInfo = prevNode.info.clone();
+					if (preferHostname) {
+						newInfo.put("hostname", host);
 					} else {
-						Tree ipList = prevNode.info.get("ipList");
+						Tree ipList = newInfo.get("ipList");
 						if (ipList == null) {
-							ipList = prevNode.info.putList("ipList");
+							ipList = newInfo.putList("ipList");
 						} else {
 							ipList.clear();
 						}
 						ipList.add(host);
 					}
-					prevNode.info.put("port", port);
-					nodes.put(sender, NodeDescriptor.offline(sender, useHostname, prevNode.info));
+					newInfo.put("port", port);
+					nodes.put(sender, new NodeDescriptor(newInfo, preferHostname, false, null, true));
 				}
 				writer.close(sender);
 			}
@@ -771,12 +763,12 @@ public class TcpTransporter extends Transporter {
 			Tree offline = root.putMap("offline");
 
 			// Add current node
-			NodeDescriptor self = registry.currentDescriptor();
+			NodeDescriptor self = registry.getDescriptor();
 			Tree thisNode = online.putList(nodeID);
-			thisNode.add(self.currentSequence());
-			CpuSnapshot c = self.getCpuSnapshot();
-			if (c != null) {
-				thisNode.add(c.when).add(c.value);
+			thisNode.add(self.getSequence());
+			CpuUsage c = self.getCpuUsage();
+			if (c.sequence > 0) {
+				thisNode.add(c.sequence).add(c.value);
 			}
 
 			// Separate online and offline nodes
@@ -789,26 +781,26 @@ public class TcpTransporter extends Transporter {
 
 			// Loop on registered nodes
 			for (NodeDescriptor node : nodes.values()) {
-				OfflineSnapshot o = node.getOfflineSnapshot();
-				if (o != null) {
+				NodeStatus status = node.getStatus();
+				if (status.offlineSince > 0) {
 
 					// Offline
-					unreachableEndpoints[unreachableEndpointCount++] = node;
-					if (o.sequence > 0) {
-						offline.put(node.nodeID, o.sequence);
+					if (unreachableEndpointCount < unreachableEndpoints.length) {
+						unreachableEndpoints[unreachableEndpointCount++] = node;
+					}
+					if (status.sequence > 0) {
+						offline.put(node.nodeID, status.sequence);
 					}
 				} else {
 					if (!node.local) {
 
 						// Online
-						liveEndpoints[liveEndpointCount++] = node;
-						if (node.isPublic()) {
-							c = node.getCpuSnapshot();
-							if (c == null) {
-								online.putList(node.nodeID).add(node.currentSequence()).add(0).add(0);
-							} else {
-								online.putList(node.nodeID).add(node.currentSequence()).add(c.when).add(c.value);
-							}
+						if (liveEndpointCount < liveEndpoints.length) {
+							liveEndpoints[liveEndpointCount++] = node;
+						}
+						if (status.sequence > 0) {
+							c = node.getCpuUsage();
+							online.putList(node.nodeID).add(node.getSequence()).add(c.sequence).add(c.value);
 						}
 					}
 				}
@@ -901,7 +893,7 @@ public class TcpTransporter extends Transporter {
 
 		// Loop in nodes
 		LinkedList<NodeDescriptor> allNodes = new LinkedList<>(nodes.values());
-		allNodes.add(registry.currentDescriptor());
+		allNodes.add(registry.getDescriptor());
 		for (NodeDescriptor node : allNodes) {
 			Tree online = onlineReq == null ? null : onlineReq.get(node.nodeID);
 			Tree offline = offlineReq == null ? null : offlineReq.get(node.nodeID);
@@ -910,7 +902,7 @@ public class TcpTransporter extends Transporter {
 			long seq = 0;
 
 			// CPU data
-			long cpuWhen = 0;
+			long cpuSeq = 0;
 			int cpu = 0;
 
 			if (offline != null) {
@@ -925,30 +917,30 @@ public class TcpTransporter extends Transporter {
 					continue;
 				}
 				seq = online.get(0).asLong();
-				cpuWhen = online.get(1).asLong();
+				cpuSeq = online.get(1).asLong();
 				cpu = online.get(2).asInteger();
 			}
-			if (seq == 0 || seq < node.currentSequence()) {
+
+			NodeStatus status = node.getStatus();
+			if (seq == 0 || seq < status.sequence) {
 
 				// We have newer info or requester doesn't know it
-				OfflineSnapshot o = node.getOfflineSnapshot();
-				if (o == null) {
+				if (status.offlineSince == 0) {
 					Tree row = onlineRsp.putList(node.nodeID);
 					row.addObject(node.info);
-					CpuSnapshot c = node.getCpuSnapshot();
-					if (c != null) {
-						row.add(c.when).add(c.value);
+					CpuUsage c = node.getCpuUsage();
+					if (c.sequence > 0) {
+						row.add(c.sequence).add(c.value);
 					}
 				} else {
-					offlineRsp.put(node.nodeID, o.sequence);
+					offlineRsp.put(node.nodeID, status.sequence);
 				}
 			}
 
-			OfflineSnapshot o = node.getOfflineSnapshot();
 			if (offline != null) {
 
 				// Requester said it is OFFLINE
-				if (o != null) {
+				if (status.offlineSince > 0) {
 
 					// We also knew it as offline
 					node.switchToOffline(seq);
@@ -957,7 +949,7 @@ public class TcpTransporter extends Transporter {
 				if (!node.local) {
 
 					// We know it is online, so we change it to offline
-					if (node.switchToOffline(seq)) {
+					if (status.offlineSince == 0 || node.switchToOffline(seq)) {
 
 						// Remove remote actions and listeners
 						registry.removeActions(node.nodeID);
@@ -973,29 +965,29 @@ public class TcpTransporter extends Transporter {
 
 				// We send back that we are online
 				// Update to a newer 'when' if my is older
-				if (seq >= node.currentSequence()) {
-					NodeDescriptor self = registry.newDescriptor(seq);
+				if (seq >= status.sequence) {
+					registry.incrementSequence(seq);
+					NodeDescriptor self = registry.getDescriptor();
 					Tree row = onlineRsp.putList(node.nodeID);
 					row.addObject(self.info);
-					CpuSnapshot c = self.getCpuSnapshot();
-					if (c != null) {
-						row.add(c.when).add(c.value);
+					CpuUsage c = self.getCpuUsage();
+					if (c.sequence > 0) {
+						row.add(c.sequence).add(c.value);
 					}
 				}
 			} else if (online != null) {
 
 				// Requester said it is ONLINE
-				if (o == null) {
-					CpuSnapshot c = node.getCpuSnapshot();
-					if (c == null || cpuWhen > c.when) {
+				if (status.offlineSince == 0) {
+					CpuUsage c = node.getCpuUsage();
 
-						// We update our CPU info
-						node.updateCpu(cpuWhen, cpu);
+					// We update our CPU info
+					node.setCpuUsage(cpuSeq, cpu);
 
-					} else if (cpuWhen < c.when) {
+					if (cpuSeq < c.sequence) {
 
 						// We have newer CPU value, send back
-						onlineRsp.putList(node.nodeID).add(c.when).add(c.value);
+						onlineRsp.putList(node.nodeID).add(c.sequence).add(c.value);
 					}
 				} else {
 
@@ -1063,16 +1055,17 @@ public class TcpTransporter extends Transporter {
 
 				// Get parameters from input
 				Tree info = null;
-				long cpuWhen = 0;
+				long cpuSeq = 0;
 				int cpu = 0;
+
 				if (row.size() == 1) {
 					info = row.get(0);
 				} else if (row.size() == 2) {
-					cpuWhen = row.get(0).asLong();
+					cpuSeq = row.get(0).asLong();
 					cpu = row.get(1).asInteger();
 				} else if (row.size() == 3) {
 					info = row.get(0);
-					cpuWhen = row.get(1).asLong();
+					cpuSeq = row.get(1).asLong();
 					cpu = row.get(2).asInteger();
 				} else {
 					logger.warn("Invalid \"online\" block: " + row.toString(false));
@@ -1085,13 +1078,12 @@ public class TcpTransporter extends Transporter {
 					// send updated, connected or reconnected event
 					updateNodeInfo(nodeID, info);
 				}
-				if (cpuWhen > 0) {
+				if (cpuSeq > 0) {
 
 					// We update our CPU info
 					NodeDescriptor node = nodes.get(nodeID);
-					CpuSnapshot c = node.getCpuSnapshot();
-					if (node != null && (c == null || c.when < cpuWhen)) {
-						node.updateCpu(cpuWhen, cpu);
+					if (node != null) {
+						node.setCpuUsage(cpuSeq, cpu);
 					}
 				}
 			}
@@ -1101,9 +1093,12 @@ public class TcpTransporter extends Transporter {
 		if (offline != null) {
 			for (Tree row : offline) {
 				String nodeID = row.getName();
-				if (nodeID.equals(nodeID)) {
-					continue;
+
+				NodeDescriptor node = nodes.get(nodeID);
+				if (node == null || node.local) {
+					return;
 				}
+
 				if (!row.isPrimitive()) {
 					logger.warn("Invalid \"offline\" block: " + row);
 					continue;
@@ -1112,24 +1107,17 @@ public class TcpTransporter extends Transporter {
 				// Get parameters from input
 				long seq = row.asLong();
 
-				NodeDescriptor node = nodes.get(nodeID);
-				if (node == null) {
-					return;
-				}
-				if (node.currentSequence() < seq) {
-					if (node.switchToOffline(seq)) {
+				if (node.getSequence() < seq && node.switchToOffline(seq)) {
 
-						// We know it is online, so we change it to offline
-						// Remove remote actions and listeners
-						registry.removeActions(node.nodeID);
-						eventbus.removeListeners(node.nodeID);
-						writer.close(node.nodeID);
+					// We know it is online, so we change it to offline
+					// Remove remote actions and listeners
+					registry.removeActions(node.nodeID);
+					eventbus.removeListeners(node.nodeID);
+					writer.close(node.nodeID);
 
-						// Notify listeners (not unexpected disconnection)
-						logger.info("Node \"" + node.nodeID + "\" disconnected.");
-						broadcastNodeDisconnected(node.info, false);
-
-					}
+					// Notify listeners (not unexpected disconnection)
+					logger.info("Node \"" + node.nodeID + "\" disconnected.");
+					broadcastNodeDisconnected(node.info, false);
 				}
 			}
 		}
@@ -1150,7 +1138,7 @@ public class TcpTransporter extends Transporter {
 		Tree root = new Tree();
 		root.put("ver", ServiceBroker.PROTOCOL_VERSION);
 		root.put("sender", nodeID);
-		NodeDescriptor node = registry.currentDescriptor();
+		NodeDescriptor node = registry.getDescriptor();
 		root.put("host", node.host);
 		root.put("port", node.port);
 		cachedHelloMessage = serialize(PACKET_GOSSIP_HELLO_ID, root);
@@ -1235,14 +1223,6 @@ public class TcpTransporter extends Transporter {
 
 	public int getCurrentPort() {
 		return currentPort;
-	}
-
-	public boolean isUseHostname() {
-		return useHostname;
-	}
-
-	public void setUseHostname(boolean useHostname) {
-		this.useHostname = useHostname;
 	}
 
 	public int getMulticastPackets() {

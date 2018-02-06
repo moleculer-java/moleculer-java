@@ -54,6 +54,43 @@ import services.moleculer.service.Name;
  */
 public final class CommonUtils {
 
+	// --- GET HOSTNAME OR IP FROM AN INFO STRUCTURE ---
+	
+	public static final String getHostOrIP(boolean preferHostname, Tree info) {
+		String hostOrIP = null;
+		if (preferHostname) {
+			hostOrIP = getHost(info);
+			if (hostOrIP == null) {
+				hostOrIP = getIP(info);
+			}
+		} else {
+			hostOrIP = getIP(info);
+			if (hostOrIP == null) {
+				hostOrIP = getHost(info);
+			}
+		}
+		return hostOrIP;
+	}
+
+	private static final String getHost(Tree info) {
+		String host = info.get("hostname", (String) null);
+		if (host != null && !host.isEmpty()) {
+			return host;
+		}
+		return null;
+	}
+
+	private static final String getIP(Tree info) {
+		Tree ipList = info.get("ipList");
+		if (ipList != null && ipList.size() > 0) {
+			String ip = ipList.get(0).asString();
+			if (ip != null && !ip.isEmpty()) {
+				return ip;
+			}
+		}
+		return null;
+	}
+	
 	// --- LOCAL HOST NAME ---
 
 	private static String cachedHostName;

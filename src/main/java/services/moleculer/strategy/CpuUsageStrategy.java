@@ -88,7 +88,7 @@ public class CpuUsageStrategy<T extends Endpoint> extends XORShiftRandomStrategy
 			}
 			
 			// Check CPU usage
-			cpu = transporter.getCpuUsage(endpoint.nodeID(), Integer.MAX_VALUE);
+			cpu = transporter.getCpuUsage(endpoint.nodeID());
 			if (cpu <= lowCpuUsage) {
 				return endpoint;
 			}

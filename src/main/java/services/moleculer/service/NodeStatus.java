@@ -31,22 +31,18 @@
  */
 package services.moleculer.service;
 
-public class OfflineSnapshot {
+public class NodeStatus {
 
 	// --- PROPERTIES ---
 
 	public final long sequence;
-	public final long since;
+	public final long offlineSince;
 	
 	// --- CONSTRUCTOR ---
 	
-	protected OfflineSnapshot() {
-		this(0);
-	}
-	
-	protected OfflineSnapshot(long sequence) {
+	protected NodeStatus(long sequence, long offlineSince) {
 		this.sequence = sequence;
-		this.since = System.currentTimeMillis();
+		this.offlineSince = offlineSince;
 	}
 	
 }

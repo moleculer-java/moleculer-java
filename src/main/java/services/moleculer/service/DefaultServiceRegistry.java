@@ -159,6 +159,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
+		super.start(broker, config);
 
 		// Process config
 		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
@@ -220,8 +221,8 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 		} finally {
 
-			// Clear cache
-			cache.set(null);
+			// Delete cached node descriptor
+			clearCache();
 
 			writeLock.unlock();
 		}
@@ -583,8 +584,8 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 		} finally {
 
-			// Clear cache
-			cache.set(null);
+			// Delete cached node descriptor
+			clearCache();
 
 			writeLock.unlock();
 		}
@@ -654,9 +655,9 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 				try {
 					stopAllLocalServices();
 				} finally {
-
-					// Clear cache
-					cache.set(null);
+					
+					// Delete cached node descriptor
+					clearCache();
 				}
 
 				// Notify local listeners (LOCAL services changed)
@@ -724,24 +725,62 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
-	// TODO Rewrite this part (store last sequence)
-	protected final AtomicReference<NodeDescriptor> cache = new AtomicReference<>();
+	protected final AtomicReference<CpuUsage> previousCpuUsage = new AtomicReference<>();
+	
+	protected final AtomicLong currentSequence = new AtomicLong();
+
+	protected final AtomicReference<NodeDescriptor> cachedDescriptor = new AtomicReference<>();
+
+	protected void clearCache() {
+		NodeDescriptor current = cachedDescriptor.get();
+		while (true) {
+			if (current == null) {
+				return;
+			}
+			previousCpuUsage.set(current.getCpuUsage());
+			if (cachedDescriptor.compareAndSet(current, null)) {
+				return;
+			}
+			current = cachedDescriptor.get();			
+		}
+	}
+	
+	@Override
+	public void incrementSequence(long minSequence) {
+		long current = currentSequence.get();
+		while (true) {
+			if (current >= minSequence) {
+				return;
+			}
+			if (currentSequence.compareAndSet(current, minSequence)) {
+				clearCache();
+				return;
+			}
+			current = currentSequence.get();
+		}
+	}
 
 	@Override
-	public NodeDescriptor currentDescriptor() {
-		NodeDescriptor node = cache.get();
+	public NodeDescriptor getDescriptor() {
+		NodeDescriptor node = cachedDescriptor.get();		
 		if (node == null) {
-			return newDescriptor(0);
+			CpuUsage usage = previousCpuUsage.get();
+			while (true) {
+				long next = currentSequence.incrementAndGet();
+				Tree info = generateInfo(next);
+				NodeDescriptor newNode = new NodeDescriptor(info, preferHostname, true, usage);
+				if (cachedDescriptor.compareAndSet(node, newNode)) {
+					return newNode;
+				}
+				node = cachedDescriptor.get();
+			}
 		}
 		return node;
 	}
 
-	@Override
-	public NodeDescriptor newDescriptor(long previousSequence) {
-		NodeDescriptor prev = cache.get();
-		if (prev != null && prev.sequence > previousSequence) {
-			return prev;
-		}
+	// --- INFO BLOCK GENERATOR ---
+
+	protected Tree generateInfo(long sequence) {
 
 		// Create info block
 		Tree info = new Tree();
@@ -850,6 +889,12 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		} catch (Exception ignored) {
 		}
 
+		// Add port
+		if (transporter != null && transporter instanceof TcpTransporter) {
+			TcpTransporter tcp = (TcpTransporter) transporter;
+			info.put("port", tcp.getCurrentPort());
+		}
+
 		// Client descriptor
 		Tree client = info.putMap("client");
 		client.put("type", "java");
@@ -859,35 +904,9 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		// Config (not used in this version)
 		// root.putMap("config");
 
-		// Create node descriptor
-		CpuSnapshot c = null;
-		if (prev != null) {
-			c = prev.getCpuSnapshot();
-		}
-		boolean useHostname = true;
-		if (transporter != null && transporter instanceof TcpTransporter) {
-			TcpTransporter tcp = (TcpTransporter) transporter;
-			useHostname = tcp.isUseHostname();
-			info.put("port", tcp.getCurrentPort());
-		}
-
-		// Generate new sequence
-		long seq;
-		if (prev == null) {
-			seq = previousSequence + 1;
-		} else {
-			seq = Math.max(previousSequence, prev.sequence) + 1;
-		}
-		info.put("seq", seq);
-		NodeDescriptor newNode = NodeDescriptor.local(nodeID, useHostname, info, c);
-		if (cache.compareAndSet(prev, newNode)) {
-			return newNode;
-		}
-		prev = cache.get();
-		if (prev == null) {
-			return newNode;
-		}
-		return prev;
+		// Add sequence
+		info.put("seq", sequence);
+		return info;
 	}
 
 	// --- GETTERS / SETTERS ---

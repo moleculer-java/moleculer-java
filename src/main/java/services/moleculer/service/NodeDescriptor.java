@@ -31,222 +31,196 @@
  */
 package services.moleculer.service;
 
+import static services.moleculer.util.CommonUtils.getHostOrIP;
+
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.datatree.Tree;
 
 public class NodeDescriptor {
 
-	// --- NODE INFO ---
+	// --- FINAL NODE PROPERTIES ---
 
 	public final String nodeID;
-	public final boolean useHostname;
 	public final Tree info;
 	public final String host;
 	public final int port;
 	public final boolean local;
 
-	protected final long sequence;
+	protected final boolean preferHostname;
 	
-	// --- OFFLINE STATUS ---
+	// --- CHANGING PROPERTIES ---
 
-	protected final AtomicReference<OfflineSnapshot> offline = new AtomicReference<>();
+	protected final AtomicReference<NodeStatus> status = new AtomicReference<>();
 
-	// --- CPU STATUS ---
+	protected final AtomicReference<CpuUsage> cpu = new AtomicReference<>(new CpuUsage(0, 0));
 
-	protected final AtomicReference<CpuSnapshot> cpu = new AtomicReference<>();
+	// --- CONSTRUCTORS ---
 
-	// --- STATIC CONSTRUCTORS ---
-
-	public static NodeDescriptor offline(String nodeID, boolean useHostname, String host, int port) {
-		NodeDescriptor node = byHost(nodeID, useHostname, host, port, null);
-		node.offline.set(new OfflineSnapshot());
-		return node;
+	public NodeDescriptor(Tree info, boolean preferHostname, boolean local) {
+		this(info, preferHostname, local, null, false);
 	}
-	
-	public static NodeDescriptor offline(String nodeID, boolean useHostname, Tree info) {
-		NodeDescriptor node = byInfo(nodeID, useHostname, info, null);
-		node.offline.set(new OfflineSnapshot());
-		return node;
+
+	public NodeDescriptor(Tree info, boolean preferHostname, boolean local, CpuUsage usage) {
+		this(info, preferHostname, local, usage, false);
 	}
 	
-	public static NodeDescriptor byHost(String nodeID, boolean useHostname, String host, int port) {
-		return byHost(nodeID, useHostname, host, port, null);
-	}
-
-	public static NodeDescriptor byHost(String nodeID, boolean useHostname, String host, int port, CpuSnapshot snapshot) {
-		return new NodeDescriptor(nodeID, useHostname, null, false, host, port, snapshot);
-	}
-
-	public static NodeDescriptor byInfo(String nodeID, boolean useHostname, Tree info) {
-		return byInfo(nodeID, useHostname, info, null);
-	}
-	
-	public static NodeDescriptor byInfo(String nodeID, boolean useHostname, Tree info, CpuSnapshot snapshot) {
-		return new NodeDescriptor(nodeID, useHostname, info, false, null, 0, snapshot);
-	}
-
-	public static NodeDescriptor local(String nodeID, boolean useHostname, Tree info) {
-		return local(nodeID, useHostname, info, null);
-	}
-
-	public static NodeDescriptor local(String nodeID, boolean useHostname, Tree info, CpuSnapshot snapshot) {
-		return new NodeDescriptor(nodeID, useHostname, info, true, null, 0, snapshot);
-	}
-	
-	// --- CONSTRUCTOR ---
-
-	protected NodeDescriptor(String nodeID, boolean useHostname, Tree info, boolean local, String host, int port, CpuSnapshot snapshot) {
-
-		// Set node info
-		this.nodeID = nodeID;
-		this.useHostname = useHostname;
+	public NodeDescriptor(Tree info, boolean preferHostname, boolean local, CpuUsage usage, boolean offline) {
+		this.nodeID = info.get("sender", "unknown");
 		this.info = info;
+		this.host = getHostOrIP(preferHostname, info);
+		this.port = info.get("port", 0);
 		this.local = local;
-		if (info == null) {
-			this.host = host;
-			this.port = port;
-			this.sequence = 0;
+		this.preferHostname = preferHostname;
+		if (offline) {
+			this.status.set(new NodeStatus(0, System.currentTimeMillis()));	
 		} else {
-			String hostOrIP = null;
-			if (useHostname) {
-				hostOrIP = getHost(info);
-				if (hostOrIP == null) {
-					hostOrIP = getIP(info);
-				}
-			} else {
-				hostOrIP = getIP(info);
-				if (hostOrIP == null) {
-					hostOrIP = getHost(info);
-				}
-			}
-			this.host = hostOrIP;
-			this.port = info.get("port", 0);
-			this.sequence = info.get("seq", 0L);
+			this.status.set(new NodeStatus(info.get("seq", 0L), 0));
 		}
-
-		// Store CPU data
-		cpu.set(snapshot);
+		this.cpu.set(usage == null ? new CpuUsage(0, 0) : usage);
 	}
 
-	protected String getHost(Tree info) {
-		String host = info.get("hostname", (String) null);
-		if (host != null && !host.isEmpty()) {
-			return host;
-		}
-		return null;
+	public NodeDescriptor(String nodeID, String host, int port) {
+		this.nodeID = nodeID;
+		this.info = null;
+		this.host = host;
+		this.port = port;
+		this.local = false;
+		this.preferHostname = true;
+		this.status.set(new NodeStatus(0, System.currentTimeMillis()));
 	}
 
-	protected String getIP(Tree info) {
-		Tree ipList = info.get("ipList");
-		if (ipList != null && ipList.size() > 0) {
-			String ip = ipList.get(0).asString();
-			if (ip != null && !ip.isEmpty()) {
-				return ip;
-			}
-		}
-		return null;
+	// --- STATUS ---
+	
+	public NodeStatus getStatus() {
+		return status.get();
 	}
-
-	// --- SWITCH TO OFFLINE (DISCONNECTED / NETWORK ERROR) ---
-
-	public boolean switchToOffline() {
-		OfflineSnapshot o = offline.get();
-		if (o == null) {
-			return offline.compareAndSet(o, new OfflineSnapshot(currentSequence() + 1));
-		}
-		return false;
+	
+	// --- ONLINE ---
+	
+	public boolean isOnline() {
+		return info != null && status.get().offlineSince == 0;
 	}
-
-	// --- SWITCH TO OFFLINE (NODE IS OFFLINE IN A GOSSIP MESSAGE) ---
-
-	public boolean switchToOffline(long seq) {
-		if (currentSequence() > seq) {
-			return false;
-		}
-		OfflineSnapshot o = offline.get();
-		if (o == null) {
-			return offline.compareAndSet(null, new OfflineSnapshot(seq));
-		}
-		return false;
-	}
-
-	// --- SWITCH TO ONLINE ---
-
+	
 	public NodeDescriptor switchToOnline(Tree info) {
-		if (info.get("seq", 0L) > currentSequence()) {
-			return new NodeDescriptor(nodeID, useHostname, info, local, host, port, cpu.get());
+		return switchToOnline(info, 0, 0);
+	}
+	
+	public NodeDescriptor switchToOnline(Tree info, long sequence, int value) {
+		NodeStatus current = status.get();
+		if (current.offlineSince == 0) {
+			return null;
 		}
-		return null;
+		CpuUsage usage = sequence == 0 ? cpu.get() : new CpuUsage(sequence, value);
+		return new NodeDescriptor(info, this.preferHostname, false, usage);
+	}
+	
+	// --- OFFLINE ---
+	
+	public boolean isOffline() {
+		return info == null || status.get().offlineSince > 0;
 	}
 
-	// --- SET CPU USAGE ---
-
-	public boolean updateCpu(long when, int value) {
-		CpuSnapshot c = cpu.get();
-		if (c == null || c.when < when) {
-			return cpu.compareAndSet(c, new CpuSnapshot(when, value));
-		}
-		return false;
+	public long getOfflineSince() {
+		return status.get().offlineSince;
 	}
-
-	// --- GET OFFLINE SNAPSHOT ---
-
-	public OfflineSnapshot getOfflineSnapshot() {
-		return offline.get();
-	}
-
-	// --- GET CPU SNAPSHOT ---
-
-	public CpuSnapshot getCpuSnapshot() {
-		return cpu.get();
-	}
-
-	// --- GET CPU USAGE ---
-
-	public int getCpuUsage(int defaultValue) {
-		CpuSnapshot c = cpu.get();
-		return c == null ? defaultValue : c.value;
-	}
-
-	// --- GET OFFLINE SINCE TIMESTAMP ---
 
 	public long getOfflineSince(long defaultValue) {
-		OfflineSnapshot o = offline.get();
-		return o == null ? defaultValue : o.since;
-	}
-
-	// --- GET HEARTBEAT TIMESTAMP ---
-
-	public long getHeartbeatWhen(long defaultValue) {
-		CpuSnapshot c = cpu.get();
-		return c == null ? defaultValue : c.when;
-	}
-
-	// --- PUBLIC NODE INFO ---
-
-	public boolean isPublic() {
-		return sequence > 0 || offline.get() != null;
-	}
-
-	// --- GET SEQUENCE ---
-	
-	public long currentSequence() {
-		OfflineSnapshot o = offline.get();
-		if (o == null) {
-			return sequence;
+		long offlineSince = status.get().offlineSince;
+		if (offlineSince == 0) {
+			return defaultValue;
 		}
-		return o.sequence;
+		return offlineSince;
 	}
 	
-	// --- IS ONLINE ---
-
-	public boolean isOnline() {
-		return offline.get() == null;
+	public boolean switchToOffline() {
+		NodeStatus next, current = status.get();
+		long now = System.currentTimeMillis();
+		while (true) {
+			if (current.offlineSince > 0) {
+				return false;
+			}
+			next = new NodeStatus(current.sequence + 1, now);
+			if (status.compareAndSet(current, next)) {
+				return true;
+			}
+			current = status.get();
+		}
+	}
+	
+	public boolean switchToOffline(long sequence) {
+		NodeStatus next, current = status.get();
+		long offlineSince, now = System.currentTimeMillis();
+		while (true) {
+			if (current.sequence >= sequence) {
+				return false;
+			}
+			offlineSince = current.offlineSince;
+			if (offlineSince == 0) {
+				offlineSince = now;
+			}
+			next = new NodeStatus(sequence, offlineSince);
+			if (status.compareAndSet(current, next)) {
+				return true;
+			}
+			current = status.get();
+		}		
 	}
 
-	public boolean isOffline() {
-		return offline.get() != null;
+	// --- GET CURRENT SEQUENCE ---
+
+	public long getSequence() {
+		return status.get().sequence;
+	}
+	
+	// --- GET CPU USAGE ---
+
+	public CpuUsage getCpuUsage() {
+		return cpu.get();
+	}
+	
+	// --- GET HEARTBEAT TIMESTAMP ---
+	
+	public long getLastHeartbeatTime() {
+		return cpu.get().when;
+	}
+
+	public long getLastHeartbeatTime(long defaultValue) {
+		long when = cpu.get().when;
+		if (when == 0) {
+			return defaultValue;
+		}
+		return when;
+	}
+
+	// --- UPDATE CPU USAGE ---
+
+	public void setCpuUsage(long sequence, int value) {
+		CpuUsage next, current = cpu.get();
+		while (true) {
+			if (current.sequence >= sequence) {
+				return;
+			}
+			next = new CpuUsage(sequence, value);
+			if (cpu.compareAndSet(current, next)) {
+				return;
+			}
+			current = cpu.get();
+		}
+	}
+
+	public void setCpuUsage(int value) {
+		CpuUsage next, current = cpu.get();
+		while (true) {
+			if (current.value == value) {
+				return;
+			}
+			next = new CpuUsage(current.sequence + 1, value);
+			if (cpu.compareAndSet(current, next)) {
+				return;
+			}
+			current = cpu.get();
+		}
 	}
 
 }

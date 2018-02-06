@@ -96,7 +96,7 @@ public class UDPBroadcaster {
 	 * any later attempt to use IPs instead hostnames would most likely yield
 	 * false results. Therefore, use hostnames if you are using DHCP.
 	 */
-	protected final boolean useHostname;
+	protected final boolean preferHostname;
 
 	/**
 	 * Maximum number of outgoing multicast packets (0 = runs forever)
@@ -127,7 +127,7 @@ public class UDPBroadcaster {
 	// --- CONSTRUCTOR ---
 
 	public UDPBroadcaster(String namespace, String nodeID, TcpTransporter transporter,
-			ScheduledExecutorService scheduler) {
+			ScheduledExecutorService scheduler, boolean preferHostname) {
 		this.namespace = namespace;
 		this.nodeID = nodeID;
 		this.transporter = transporter;
@@ -137,7 +137,7 @@ public class UDPBroadcaster {
 		this.multicastPort = transporter.getMulticastPort();
 		this.multicastPeriod = transporter.getMulticastPeriod();
 		this.port = transporter.getCurrentPort();
-		this.useHostname = transporter.isUseHostname();
+		this.preferHostname = preferHostname;
 		this.multicastPackets = transporter.getMulticastPackets();
 	}
 
@@ -287,14 +287,14 @@ public class UDPBroadcaster {
 				String host;
 				try {
 					InetAddress address = packet.getAddress();
-					if (useHostname) {
+					if (preferHostname) {
 						host = address.getHostName();
-						if (host == null || host.isEmpty()) {
+						if (host == null || host.isEmpty() || host.contains("localhost")) {
 							host = address.getHostAddress();
 						}
 					} else {
 						host = address.getHostAddress();
-						if (host == null || host.isEmpty()) {
+						if (host == null || host.isEmpty() || host.startsWith("127.")) {
 							host = address.getHostName();
 						}
 					}

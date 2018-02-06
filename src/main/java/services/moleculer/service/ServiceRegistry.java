@@ -50,6 +50,15 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
+	// --- PROPERTIES ---
+	
+	/**
+	 * Use hostnames instead of IP addresses As the DHCP environment is dynamic,
+	 * any later attempt to use IPs instead hostnames would most likely yield
+	 * false results. Therefore, use hostnames if you are using DHCP.
+	 */
+	protected boolean preferHostname = true;
+	
 	// --- INIT SERVICE REGISTRY ---
 
 	/**
@@ -62,6 +71,9 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
+		
+		// Process config
+		preferHostname = config.get("preferHostname", preferHostname);
 	}
 
 	// --- STOP SERVICE REGISTRY ---
@@ -100,8 +112,18 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
-	public abstract NodeDescriptor currentDescriptor();
+	public abstract void incrementSequence(long minSequence);
+
+	public abstract NodeDescriptor getDescriptor();
 	
-	public abstract NodeDescriptor newDescriptor(long previousSequence);
+	// --- GETTERS AND SETTERS ---
+	
+	public final boolean isPreferHostname() {
+		return preferHostname;
+	}
+
+	public final void setPreferHostname(boolean preferHostname) {
+		this.preferHostname = preferHostname;
+	}
 	
 }

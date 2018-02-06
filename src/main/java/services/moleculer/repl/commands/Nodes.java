@@ -155,7 +155,7 @@ public class Nodes extends Command {
 				if (localNodeID.equals(nodeID)) {
 					cpuUsage = broker.components().monitor().getTotalCpuPercent();
 				} else {
-					cpuUsage = transporter.getCpuUsage(nodeID, 0);
+					cpuUsage = transporter.getCpuUsage(nodeID);
 				}
 
 				// Draw gauge
@@ -203,7 +203,7 @@ public class Nodes extends Command {
 			}
 		}
 		if (infos.isEmpty()) {
-			infos.putObject(broker.nodeID(), broker.components().registry().currentDescriptor().info);
+			infos.putObject(broker.nodeID(), broker.components().registry().getDescriptor().info);
 		}
 		return infos;
 	}

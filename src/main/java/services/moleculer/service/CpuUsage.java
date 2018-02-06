@@ -31,18 +31,20 @@
  */
 package services.moleculer.service;
 
-public class CpuSnapshot {
+public class CpuUsage {
 
 	// --- PROPERTIES ---
 
+	public final long sequence;
 	public final int value;
 	public final long when;
 	
 	// --- CONSTRUCTOR ---
 	
-	protected CpuSnapshot(long when, int value) {
-		this.when = when;
+	protected CpuUsage(long sequence, int value) {
+		this.sequence = sequence;
 		this.value = value;
+		this.when = System.currentTimeMillis();
 	}
 
 }

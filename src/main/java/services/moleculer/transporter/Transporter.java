@@ -116,6 +116,13 @@ public abstract class Transporter implements MoleculerComponent {
 	protected int heartbeatTimeout = 30;
 	protected int offlineTimeout = 180;
 
+	/**
+	 * Use hostnames instead of IP addresses As the DHCP environment is dynamic,
+	 * any later attempt to use IPs instead hostnames would most likely yield
+	 * false results. Therefore, use hostnames if you are using DHCP.
+	 */
+	protected boolean preferHostname = true;
+
 	// --- DEBUG COMMUNICATION ---
 
 	protected boolean debug;
@@ -215,6 +222,9 @@ public abstract class Transporter implements MoleculerComponent {
 		// Start serializer
 		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
 		serializer.start(broker, serializerNode);
+
+		// Prefers hostname instead of IP
+		preferHostname = broker.components().registry().isPreferHostname();
 
 		// Get components
 		executor = broker.components().executor();
@@ -450,7 +460,7 @@ public abstract class Transporter implements MoleculerComponent {
 					}
 
 					// Update CPU info
-					node.updateCpu(System.currentTimeMillis(), data.get("cpu", 0));
+					node.setCpuUsage(data.get("cpu", 0));
 					return;
 				}
 
@@ -499,14 +509,13 @@ public abstract class Transporter implements MoleculerComponent {
 		boolean updated = false;
 
 		NodeDescriptor node = nodes.get(sender);
-		if (node == null || node.currentSequence() == 0) {
+		if (node == null || node.getSequence() == 0) {
 
 			// New, unknown node
 			connected = true;
-			// TODO useHostname
-			node = NodeDescriptor.byInfo(sender, true, info);
+			node = new NodeDescriptor(info, preferHostname, false);
 			nodes.put(sender, node);
-			
+
 		} else {
 
 			// Try to update current node
@@ -530,10 +539,10 @@ public abstract class Transporter implements MoleculerComponent {
 						}
 					}
 				}
-				if (node.isOnline()) {
-					updated = true;
-				} else {
+				if (node.isOffline()) {
 					reconnected = true;
+				} else {
+					updated = true;
 				}
 				node = newNode;
 			}
@@ -614,16 +623,17 @@ public abstract class Transporter implements MoleculerComponent {
 	}
 
 	protected void sendInfoPacket(String channel) {
-		publish(channel, registry.currentDescriptor().info);
+		publish(channel, registry.getDescriptor().info);
 	}
 
 	protected void sendHeartbeatPacket() {
+		int cpu = monitor.getTotalCpuPercent();
+		registry.getDescriptor().setCpuUsage(cpu);
+
 		Tree message = new Tree();
 		message.put("ver", PROTOCOL_VERSION);
 		message.put("sender", nodeID);
-		int cpu = monitor.getTotalCpuPercent();
 		message.put("cpu", cpu);
-		registry.currentDescriptor().updateCpu(System.currentTimeMillis(), cpu);
 		publish(heartbeatChannel, message);
 	}
 
@@ -652,7 +662,7 @@ public abstract class Transporter implements MoleculerComponent {
 				i.remove();
 				logger.info("Node \"" + nodeID + "\" is no longer registered because it was inactive for "
 						+ offlineTimeout + " seconds.");
-			} else if (now - node.getHeartbeatWhen(Long.MAX_VALUE) > heartbeatTimeoutMillis && node.switchToOffline()) {
+			} else if (now - node.getLastHeartbeatTime(Long.MAX_VALUE) > heartbeatTimeoutMillis && node.switchToOffline()) {
 
 				// Remove services and listeners
 				registry.removeActions(node.nodeID);
@@ -669,9 +679,9 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- GET CPU USAGE OF A REMOTE NODE ---
 
-	public int getCpuUsage(String nodeID, int defaultValue) {
+	public int getCpuUsage(String nodeID) {
 		NodeDescriptor node = nodes.get(nodeID);
-		return node == null ? defaultValue : node.getCpuUsage(defaultValue);
+		return node == null ? 0 : node.getCpuUsage().value;
 	}
 
 	// --- IS NODE ONLINE? ---
@@ -696,7 +706,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 	public NodeDescriptor getNodeDescriptor(String nodeID) {
 		if (this.nodeID.equals(nodeID)) {
-			return registry.currentDescriptor();
+			return registry.getDescriptor();
 		}
 		NodeDescriptor node = nodes.get(nodeID);
 		return node == null ? null : node;
