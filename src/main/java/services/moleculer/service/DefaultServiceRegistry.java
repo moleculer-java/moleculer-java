@@ -724,17 +724,25 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
-	protected AtomicReference<NodeDescriptor> cache = new AtomicReference<>();
+	// TODO Rewrite this part (store last sequence)
+	protected final AtomicReference<NodeDescriptor> cache = new AtomicReference<>();
 
 	@Override
-	public NodeDescriptor getDescriptor(boolean useCache) {
-		
-		// Get previous / current descriptor from cache
+	public NodeDescriptor currentDescriptor() {
 		NodeDescriptor node = cache.get();
-		if (useCache && node != null) {
-			return node;
+		if (node == null) {
+			return newDescriptor(0);
 		}
-		
+		return node;
+	}
+
+	@Override
+	public NodeDescriptor newDescriptor(long previousSequence) {
+		NodeDescriptor prev = cache.get();
+		if (prev != null && prev.sequence > previousSequence) {
+			return prev;
+		}
+
 		// Create info block
 		Tree info = new Tree();
 
@@ -744,9 +752,6 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		// NodeID
 		String nodeID = broker.nodeID();
 		info.put("sender", nodeID);
-
-		// Generated at
-		info.put("when", System.currentTimeMillis());
 
 		// Services array
 		Tree services = info.putList("services");
@@ -816,7 +821,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 		// Host name
 		info.put("hostname", getHostName());
-		
+
 		// IP array
 		Tree ipList = info.putList("ipList");
 		HashSet<String> ips = new HashSet<>();
@@ -853,14 +858,11 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 		// Config (not used in this version)
 		// root.putMap("config");
-		
+
 		// Create node descriptor
 		CpuSnapshot c = null;
-		if (node != null) {
-			c = node.getCpuSnapshot();
-		}
-		if (c == null) {
-			c = new CpuSnapshot(0, 0);
+		if (prev != null) {
+			c = prev.getCpuSnapshot();
 		}
 		boolean useHostname = true;
 		if (transporter != null && transporter instanceof TcpTransporter) {
@@ -868,15 +870,24 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			useHostname = tcp.isUseHostname();
 			info.put("port", tcp.getCurrentPort());
 		}
+
+		// Generate new sequence
+		long seq;
+		if (prev == null) {
+			seq = previousSequence + 1;
+		} else {
+			seq = Math.max(previousSequence, prev.sequence) + 1;
+		}
+		info.put("seq", seq);
 		NodeDescriptor newNode = NodeDescriptor.local(nodeID, useHostname, info, c);
-		if (cache.compareAndSet(node, newNode)) {
+		if (cache.compareAndSet(prev, newNode)) {
 			return newNode;
 		}
-		NodeDescriptor updated = cache.get();
-		if (updated != null) {
-			return updated;
+		prev = cache.get();
+		if (prev == null) {
+			return newNode;
 		}
-		return newNode;
+		return prev;
 	}
 
 	// --- GETTERS / SETTERS ---

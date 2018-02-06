@@ -66,9 +66,14 @@ public class TcpWriter implements Runnable {
 	protected final int maxConnections;
 
 	/**
-	 * Debug monde
+	 * Debug mode
 	 */
 	protected final boolean debug;
+
+	/**
+	 * Send HELLO message?
+	 */
+	protected final boolean sendHello;
 
 	// --- PARENT TRANSPORTER ---
 
@@ -87,7 +92,10 @@ public class TcpWriter implements Runnable {
 	public TcpWriter(TcpTransporter transporter) {
 		this.transporter = transporter;
 		this.debug = transporter.isDebug();
-		this.maxConnections = transporter.getMaxKeepAliveConnections();
+		this.maxConnections = transporter.getMaxConnections();
+
+		String[] urls = transporter.getUrls();
+		this.sendHello = urls == null || urls.length == 0;
 	}
 
 	// --- CONNECT ---
@@ -95,9 +103,9 @@ public class TcpWriter implements Runnable {
 	/**
 	 * Writer thread
 	 */
-	private ExecutorService executor;
+	protected ExecutorService executor;
 
-	public final void connect() throws Exception {
+	public void connect() throws Exception {
 
 		// Create selector
 		disconnect();
@@ -111,11 +119,11 @@ public class TcpWriter implements Runnable {
 	// --- DISCONNECT ---
 
 	@Override
-	protected final void finalize() throws Throwable {
+	protected void finalize() throws Throwable {
 		disconnect();
 	}
 
-	public final void disconnect() {
+	public void disconnect() {
 
 		// Close selector thread
 		if (executor != null) {
@@ -154,26 +162,65 @@ public class TcpWriter implements Runnable {
 		}
 	}
 
+	// --- CLOSE SOCKET BY NODE ID ---
+
+	public void close(String nodeID) {
+		SendBuffer buffer;
+		synchronized (buffers) {
+			buffer = buffers.remove(nodeID);
+		}
+		if (buffer != null) {
+			buffer.close();
+		}
+	}
+
 	// --- WRITE TO SOCKET ---
 
-	public final void send(NodeDescriptor node, byte[] packet) {
+	public void send(NodeDescriptor node, byte[] packet) {
 		try {
 
 			// Get or create buffer
 			SendBuffer buffer = null;
+			boolean newBuffer = false;
 			synchronized (buffers) {
 				buffer = buffers.get(node.nodeID);
 				if (buffer == null) {
-					buffer = new SendBuffer(node.nodeID, node.host, node.port);
+					buffer = new SendBuffer(node.nodeID, node.host, node.port, debug);
 					buffers.put(node.nodeID, buffer);
-					opened.add(buffer);
+					newBuffer = true;
 				}
 			}
+			if (newBuffer) {
+
+				// Add HELLO first
+				if (sendHello) {
+					if (debug) {
+						logger.info("Send \"hello\" message to \"" + node.nodeID + "\".");
+					}
+					buffer.append(transporter.generateGossipHello());
+				}
+
+				// Add as new, opened connection
+				opened.add(buffer);
+
+				// Close older connections
+				if (maxConnections > 0) {
+					cleanup();
+				}
+			}
+
+			// Add this packet to the buffer's queue
 			buffer.append(packet);
+
+			// Try to write immediately
 			if (buffer.write()) {
 				selector.wakeup();
 			}
-		} catch (Exception cause) {
+
+		} catch (Throwable cause) {
+			synchronized (buffers) {
+				buffers.remove(node.nodeID);
+			}			
 			transporter.unableToSend(node.nodeID, packet, cause);
 		}
 	}
@@ -181,85 +228,114 @@ public class TcpWriter implements Runnable {
 	// --- WRITER LOOP ---
 
 	@Override
-	public final void run() {
+	public void run() {
+		try {
 
-		// Loop
-		while (true) {
+			// Loop
+			while (true) {
 
-			// Waiting for sockets
-			int n;
-			try {
-				n = selector.select();
-			} catch (NullPointerException nullPointer) {
-				continue;
-			} catch (Exception cause) {
-				break;
-			}
-
-			// Open new connections
-			SendBuffer buffer = opened.poll();
-			SelectionKey key = null;			
-			while (buffer != null) {
+				// Waiting for sockets
+				int n;
 				try {
-					InetSocketAddress address = new InetSocketAddress(buffer.host, buffer.port);
-					SocketChannel channel = SocketChannel.open(address);
-					channel.configureBlocking(false);
-
-					channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
-					channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
-					channel.setOption(StandardSocketOptions.SO_LINGER, -1);
-
-					key = channel.register(selector, SelectionKey.OP_WRITE);
-					key.attach(buffer);
-					buffer.connected(key, channel);
-					if (debug) {
-						logger.info("Client channel opened to \"" + buffer.nodeID + "\".");
-					}
+					n = selector.select(3000);
+				} catch (NullPointerException nullPointer) {
+					continue;
 				} catch (Exception cause) {
-					if (buffer != null) {
-						synchronized (buffers) {
-							buffers.remove(buffer.nodeID);
-						}
-						transporter.unableToSend(buffer.nodeID, buffer.getCurrentPacket(), cause);
-					}
-					continue;
+					break;
 				}
-				buffer = opened.poll();
-			}
 
-			if (n < 1) {
-				continue;
-			}
-			Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
-			while (keys.hasNext()) {
-				key = keys.next();
-				if (key == null) {
-					continue;
-				}
-				if (!key.isValid()) {
-					keys.remove();
-					continue;
-				}
-				if (key.isWritable()) {
-
-					// Write data
-					buffer = null;
+				// Open new connections
+				SendBuffer buffer = opened.poll();
+				SelectionKey key = null;
+				while (buffer != null) {
 					try {
-						buffer = (SendBuffer) key.attachment();
-						if (buffer != null) {
-							buffer.write();
+						InetSocketAddress address = new InetSocketAddress(buffer.host, buffer.port);
+						SocketChannel channel = SocketChannel.open(address);
+						channel.configureBlocking(false);
+
+						channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
+						channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
+						channel.setOption(StandardSocketOptions.SO_LINGER, -1);
+
+						key = channel.register(selector, SelectionKey.OP_WRITE);
+						key.attach(buffer);
+						buffer.connected(key, channel);
+						if (debug) {
+							logger.info("Client channel opened to \"" + buffer.nodeID + "\".");
 						}
-					} catch (Exception cause) {
+
+					} catch (Throwable cause) {
 						if (buffer != null) {
 							synchronized (buffers) {
 								buffers.remove(buffer.nodeID);
 							}
 							transporter.unableToSend(buffer.nodeID, buffer.getCurrentPacket(), cause);
 						}
-						close(key, cause);
+					}
+					buffer = opened.poll();
+				}
+
+				if (n < 1) {
+					continue;
+				}
+				Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
+				while (keys.hasNext()) {
+					key = keys.next();
+					if (key == null) {
+						continue;
+					}
+					if (!key.isValid()) {
+						keys.remove();
+						continue;
+					}
+					if (key.isWritable()) {
+
+						// Write data
+						buffer = null;
+						try {
+							buffer = (SendBuffer) key.attachment();
+							if (buffer != null) {
+								buffer.write();
+							}
+						} catch (Exception cause) {
+							if (buffer != null) {
+								synchronized (buffers) {
+									buffers.remove(buffer.nodeID);
+								}
+								transporter.unableToSend(buffer.nodeID, buffer.getCurrentPacket(), cause);
+							}
+							close(key, cause);
+						}
+					}
+					keys.remove();
+				}
+			}
+
+		} catch (Exception fatal) {
+			logger.error("TCP writer closed!", fatal);
+		}
+	}
+
+	// --- CLEANUP CONNECTIONS ---
+
+	protected void cleanup() {
+		int closed = 0;
+		SendBuffer buffer;
+		synchronized (buffers) {
+			int buffersToClose = buffers.size() - maxConnections;
+			if (buffersToClose < 1) {
+				return;
+			}
+			Iterator<SendBuffer> i = buffers.values().iterator();
+			while (i.hasNext()) {
+				buffer = i.next();
+				if (buffer.tryToClose()) {
+					i.remove();
+					closed++;
+					if (closed >= buffersToClose) {
+						return;
 					}
 				}
-				keys.remove();
 			}
 		}
 	}

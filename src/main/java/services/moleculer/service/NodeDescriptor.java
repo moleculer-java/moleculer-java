@@ -44,9 +44,10 @@ public class NodeDescriptor {
 	public final Tree info;
 	public final String host;
 	public final int port;
-	public final long when;
 	public final boolean local;
 
+	protected final long sequence;
+	
 	// --- OFFLINE STATUS ---
 
 	protected final AtomicReference<OfflineSnapshot> offline = new AtomicReference<>();
@@ -105,7 +106,7 @@ public class NodeDescriptor {
 		if (info == null) {
 			this.host = host;
 			this.port = port;
-			this.when = 0;
+			this.sequence = 0;
 		} else {
 			String hostOrIP = null;
 			if (useHostname) {
@@ -121,7 +122,7 @@ public class NodeDescriptor {
 			}
 			this.host = hostOrIP;
 			this.port = info.get("port", 0);
-			this.when = info.get("when", 0L);
+			this.sequence = info.get("seq", 0L);
 		}
 
 		// Store CPU data
@@ -151,28 +152,21 @@ public class NodeDescriptor {
 
 	public boolean switchToOffline() {
 		OfflineSnapshot o = offline.get();
-		long now = System.currentTimeMillis();
 		if (o == null) {
-			return offline.compareAndSet(null, new OfflineSnapshot(now, now));
+			return offline.compareAndSet(o, new OfflineSnapshot(currentSequence() + 1));
 		}
-		return offline.compareAndSet(o, new OfflineSnapshot(now, o.since));
+		return false;
 	}
 
 	// --- SWITCH TO OFFLINE (NODE IS OFFLINE IN A GOSSIP MESSAGE) ---
 
-	public boolean switchToOffline(long when, long since) {
-		if (this.when > when) {
+	public boolean switchToOffline(long seq) {
+		if (currentSequence() > seq) {
 			return false;
 		}
 		OfflineSnapshot o = offline.get();
 		if (o == null) {
-			return offline.compareAndSet(null, new OfflineSnapshot(when, since));
-		}
-		if (o.when >= when) {
-			return false;
-		}
-		if (o.since > since) {
-			offline.compareAndSet(o, new OfflineSnapshot(o.when, since));
+			return offline.compareAndSet(null, new OfflineSnapshot(seq));
 		}
 		return false;
 	}
@@ -180,7 +174,7 @@ public class NodeDescriptor {
 	// --- SWITCH TO ONLINE ---
 
 	public NodeDescriptor switchToOnline(Tree info) {
-		if (info.get("when", 0L) > when || offline.get() != null) {
+		if (info.get("seq", 0L) > currentSequence()) {
 			return new NodeDescriptor(nodeID, useHostname, info, local, host, port, cpu.get());
 		}
 		return null;
@@ -229,6 +223,22 @@ public class NodeDescriptor {
 		return c == null ? defaultValue : c.when;
 	}
 
+	// --- PUBLIC NODE INFO ---
+
+	public boolean isPublic() {
+		return sequence > 0 || offline.get() != null;
+	}
+
+	// --- GET SEQUENCE ---
+	
+	public long currentSequence() {
+		OfflineSnapshot o = offline.get();
+		if (o == null) {
+			return sequence;
+		}
+		return o.sequence;
+	}
+	
 	// --- IS ONLINE ---
 
 	public boolean isOnline() {

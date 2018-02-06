@@ -203,7 +203,7 @@ public class Nodes extends Command {
 			}
 		}
 		if (infos.isEmpty()) {
-			infos.putObject(broker.nodeID(), broker.components().registry().getDescriptor(true).info);
+			infos.putObject(broker.nodeID(), broker.components().registry().currentDescriptor().info);
 		}
 		return infos;
 	}

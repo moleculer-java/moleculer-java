@@ -53,30 +53,30 @@ import services.moleculer.transporter.TcpTransporter;
 /**
  * Packet receiver Thread of the TCP Transporter.
  */
-public final class TcpReader implements Runnable {
+public class TcpReader implements Runnable {
 
 	// --- LOGGER ---
 
-	private static final Logger logger = LoggerFactory.getLogger(TcpReader.class);
+	protected static final Logger logger = LoggerFactory.getLogger(TcpReader.class);
 
 	// --- PROPERTIES ---
 
 	/**
 	 * Maximum size of an incoming packet
 	 */
-	private int maxPacketSize;
+	protected int maxPacketSize;
 
 	/**
 	 * Debug mode
 	 */
-	private final boolean debug;
+	protected final boolean debug;
 
 	// --- COMPONENTS ---
 
 	/**
 	 * Parent transporter
 	 */
-	private final TcpTransporter transporter;
+	protected final TcpTransporter transporter;
 
 	// --- CONSTRUCTOR ---
 
@@ -87,22 +87,22 @@ public final class TcpReader implements Runnable {
 
 	// --- NIO VARIABLES ---
 
-	private ServerSocketChannel serverChannel;
-	private Selector selector;
+	protected ServerSocketChannel serverChannel;
+	protected Selector selector;
 
 	// --- CONNECT ---
 
 	/**
 	 * Server's executor
 	 */
-	private ExecutorService executor;
+	protected ExecutorService executor;
 
 	/**
 	 * Current TPC port
 	 */
-	private int currentPort;
+	protected int currentPort;
 
-	public final void connect() throws Exception {
+	public void connect() throws Exception {
 
 		// Create selector
 		disconnect();
@@ -136,11 +136,11 @@ public final class TcpReader implements Runnable {
 	// --- DISCONNECT ---
 
 	@Override
-	protected final void finalize() throws Throwable {
+	protected void finalize() throws Throwable {
 		disconnect();
 	}
 
-	public final void disconnect() {
+	public void disconnect() {
 
 		// Close selector thread
 		if (executor != null) {
@@ -176,7 +176,7 @@ public final class TcpReader implements Runnable {
 	// --- READER LOOP ---
 
 	@Override
-	public final void run() {
+	public void run() {
 
 		// Read buffer
 		ByteBuffer readBuffer = ByteBuffer.allocate(Math.min(maxPacketSize, 1024 * 1024));
@@ -187,7 +187,7 @@ public final class TcpReader implements Runnable {
 			// Waiting for sockets
 			int n;
 			try {
-				n = selector.select();
+				n = selector.select(3000);
 			} catch (NullPointerException nullPointer) {
 				continue;
 			} catch (Exception anyError) {
@@ -278,7 +278,7 @@ public final class TcpReader implements Runnable {
 
 								// Verify type
 								byte type = packet[5];
-								if (type < 1 || type > 7) {
+								if (type < 1 || type > 8) {
 
 									// Unknown packet type!
 									throw new Exception("Invalid packet type (" + type + ")!");

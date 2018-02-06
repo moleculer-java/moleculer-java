@@ -100,6 +100,8 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
-	public abstract NodeDescriptor getDescriptor(boolean useCache);
+	public abstract NodeDescriptor currentDescriptor();
+	
+	public abstract NodeDescriptor newDescriptor(long previousSequence);
 	
 }

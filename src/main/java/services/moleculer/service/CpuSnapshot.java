@@ -35,8 +35,8 @@ public class CpuSnapshot {
 
 	// --- PROPERTIES ---
 
-	public final long when;
 	public final int value;
+	public final long when;
 	
 	// --- CONSTRUCTOR ---
 	

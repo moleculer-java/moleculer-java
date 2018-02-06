@@ -38,10 +38,17 @@ import java.nio.channels.SocketChannel;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Attachment of TcpWriter's SelectionKeys.
  */
 public class SendBuffer {
+
+	// --- LOGGER ---
+
+	protected static final Logger logger = LoggerFactory.getLogger(SendBuffer.class);
 
 	// --- OUTGOING QUEUE ---
 
@@ -59,12 +66,18 @@ public class SendBuffer {
 	public final String host;
 	public final int port;
 
+	/**
+	 * Debug mode
+	 */
+	protected final boolean debug;
+
 	// --- CONSTRUCTOR ---
 
-	protected SendBuffer(String nodeID, String host, int port) {
+	protected SendBuffer(String nodeID, String host, int port, boolean debug) {
 		this.nodeID = nodeID;
 		this.host = host;
 		this.port = port;
+		this.debug = debug;
 	}
 
 	// --- CONNECTED ---
@@ -109,7 +122,7 @@ public class SendBuffer {
 	 * 
 	 * @return true, is closed (false = buffer is not empty)
 	 */
-	protected boolean tryClose() {
+	protected boolean tryToClose() {
 		ByteBuffer blocker = blockerBuffer.get();
 		if (blocker == BUFFER_IS_CLOSED) {
 			return true;
@@ -127,7 +140,7 @@ public class SendBuffer {
 
 	// --- CLOSE BUFFER ---
 
-	void close() {
+	protected void close() {
 		blockerBuffer.set(BUFFER_IS_CLOSED);
 		closeResources();
 	}
@@ -142,6 +155,16 @@ public class SendBuffer {
 		}
 		queue.clear();
 		if (channel != null) {
+
+			// Debug
+			if (debug) {
+				try {
+					logger.info("Client channel closed to " + channel.getRemoteAddress() + ".");
+				} catch (Exception ignored) {
+				}
+			}
+
+			// Close channel
 			try {
 				channel.close();
 			} catch (Exception ignored) {
@@ -157,7 +180,7 @@ public class SendBuffer {
 	 * 
 	 * @throws Exception
 	 *             any I/O exception
-	 *             
+	 * 
 	 * @return unsuccessful write (false = wrote any bytes)
 	 */
 	protected boolean write() throws Exception {
@@ -170,6 +193,14 @@ public class SendBuffer {
 		}
 		if (channel != null) {
 			int count = channel.write(buffer);
+			
+			// Debug
+			if (debug) {
+				logger.info(count + " bytes submitted to " + channel.getRemoteAddress()
+						+ ".");
+			}
+			
+			// Switch to write mode
 			if (count == 0 && buffer.hasRemaining()) {
 				if (key != null) {
 					key.interestOps(SelectionKey.OP_WRITE);
@@ -178,9 +209,13 @@ public class SendBuffer {
 			} else if (count == -1) {
 				throw new EOFException();
 			}
+			
+			// Remove the submitted buffer from the queue
 			if (!buffer.hasRemaining()) {
 				queue.poll();
 			}
+			
+			// Turn off write mode (if the queue is empty)
 			if (queue.isEmpty()) {
 				if (blockerBuffer.compareAndSet(buffer, null)) {
 					if (key != null) {

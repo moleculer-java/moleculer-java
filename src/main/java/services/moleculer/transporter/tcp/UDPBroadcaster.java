@@ -48,55 +48,55 @@ import services.moleculer.transporter.TcpTransporter;
 /**
  * UDP broadcaster / receiver of the TCP Transporter.
  */
-public final class UDPBroadcaster {
+public class UDPBroadcaster {
 
 	// --- LOGGER ---
 
-	private static final Logger logger = LoggerFactory.getLogger(UDPBroadcaster.class);
+	protected static final Logger logger = LoggerFactory.getLogger(UDPBroadcaster.class);
 
 	// --- PROPERTIES ---
 
 	/**
 	 * Current namespace
 	 */
-	private final String namespace;
+	protected final String namespace;
 
 	/**
 	 * TCP port (used by the Transporter and Gossiper services)
 	 */
-	private final int port;
+	protected final int port;
 
 	/**
 	 * UDP multicast host of automatic discovery service
 	 */
-	private final String multicastHost;
+	protected final String multicastHost;
 
 	/**
 	 * UDP multicast port of automatic discovery service
 	 */
-	private final int multicastPort;
+	protected final int multicastPort;
 
 	/**
 	 * UDP multicast period in SECONDS
 	 */
-	private final int multicastPeriod;
+	protected final int multicastPeriod;
 
 	/**
 	 * Debug mode
 	 */
-	private final boolean debug;
+	protected final boolean debug;
 
 	/**
 	 * Current NodeID
 	 */
-	private final String nodeID;
+	protected final String nodeID;
 
 	/**
 	 * Use hostnames instead of IP addresses As the DHCP environment is dynamic,
 	 * any later attempt to use IPs instead hostnames would most likely yield
 	 * false results. Therefore, use hostnames if you are using DHCP.
 	 */
-	private final boolean useHostname;
+	protected final boolean useHostname;
 
 	/**
 	 * Maximum number of outgoing multicast packets (0 = runs forever)
@@ -108,21 +108,21 @@ public final class UDPBroadcaster {
 	/**
 	 * Sender's executor
 	 */
-	private final ScheduledExecutorService scheduler;
+	protected final ScheduledExecutorService scheduler;
 
 	// --- RECEIVER'S EXECUTOR ---
 
 	/**
 	 * Receiver's executor
 	 */
-	private ExecutorService executor;
+	protected ExecutorService executor;
 
 	// --- COMPONENTS ---
 
 	/**
 	 * Parent transporter
 	 */
-	private final TcpTransporter transporter;
+	protected final TcpTransporter transporter;
 
 	// --- CONSTRUCTOR ---
 
@@ -146,14 +146,14 @@ public final class UDPBroadcaster {
 	/**
 	 * Cancelable timer of sender
 	 */
-	private volatile ScheduledFuture<?> timer;
+	protected volatile ScheduledFuture<?> timer;
 
 	/**
 	 * Multicast receiver
 	 */
-	private MulticastSocket udpReceiver;
+	protected MulticastSocket udpReceiver;
 
-	public final void connect() throws Exception {
+	public void connect() throws Exception {
 
 		// Join UDP group
 		disconnect();
@@ -172,11 +172,11 @@ public final class UDPBroadcaster {
 	// --- DISCONNECT ---
 
 	@Override
-	protected final void finalize() throws Throwable {
+	protected void finalize() throws Throwable {
 		disconnect();
 	}
 
-	public final void disconnect() {
+	public void disconnect() {
 
 		// Close timer
 		if (timer != null) {
@@ -212,9 +212,9 @@ public final class UDPBroadcaster {
 
 	// --- UDP SENDER'S LOOP ---
 
-	private int numberOfSubmittedPackets = 0;
+	protected int numberOfSubmittedPackets = 0;
 
-	private final void send() {
+	protected void send() {
 
 		// Check number of packets
 		if (multicastPackets > 0) {
@@ -257,7 +257,7 @@ public final class UDPBroadcaster {
 
 	// --- UDP SENDER'S LOOP ---
 
-	private final void receive() {
+	protected void receive() {
 
 		// Loop
 		while (!Thread.currentThread().isInterrupted()) {
@@ -349,4 +349,5 @@ public final class UDPBroadcaster {
 			}
 		}
 	}
+	
 }

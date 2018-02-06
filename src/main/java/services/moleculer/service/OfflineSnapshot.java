@@ -35,19 +35,18 @@ public class OfflineSnapshot {
 
 	// --- PROPERTIES ---
 
-	public final long when;
+	public final long sequence;
 	public final long since;
 	
 	// --- CONSTRUCTOR ---
 	
 	protected OfflineSnapshot() {
-		this.when = 0;
-		this.since = System.currentTimeMillis();
+		this(0);
 	}
 	
-	protected OfflineSnapshot(long when, long since) {
-		this.when = when;
-		this.since = since;
+	protected OfflineSnapshot(long sequence) {
+		this.sequence = sequence;
+		this.since = System.currentTimeMillis();
 	}
 	
 }

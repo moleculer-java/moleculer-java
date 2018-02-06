@@ -499,10 +499,11 @@ public abstract class Transporter implements MoleculerComponent {
 		boolean updated = false;
 
 		NodeDescriptor node = nodes.get(sender);
-		if (node == null) {
+		if (node == null || node.currentSequence() == 0) {
 
 			// New, unknown node
 			connected = true;
+			// TODO useHostname
 			node = NodeDescriptor.byInfo(sender, true, info);
 			nodes.put(sender, node);
 			
@@ -613,7 +614,7 @@ public abstract class Transporter implements MoleculerComponent {
 	}
 
 	protected void sendInfoPacket(String channel) {
-		publish(channel, registry.getDescriptor(true).info);
+		publish(channel, registry.currentDescriptor().info);
 	}
 
 	protected void sendHeartbeatPacket() {
@@ -622,7 +623,7 @@ public abstract class Transporter implements MoleculerComponent {
 		message.put("sender", nodeID);
 		int cpu = monitor.getTotalCpuPercent();
 		message.put("cpu", cpu);
-		registry.getDescriptor(true).updateCpu(System.currentTimeMillis(), cpu);
+		registry.currentDescriptor().updateCpu(System.currentTimeMillis(), cpu);
 		publish(heartbeatChannel, message);
 	}
 
@@ -695,7 +696,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 	public NodeDescriptor getNodeDescriptor(String nodeID) {
 		if (this.nodeID.equals(nodeID)) {
-			return registry.getDescriptor(true);
+			return registry.currentDescriptor();
 		}
 		NodeDescriptor node = nodes.get(nodeID);
 		return node == null ? null : node;
