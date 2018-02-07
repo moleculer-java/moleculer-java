@@ -180,7 +180,16 @@ public class TcpReader implements Runnable {
 
 		// Read buffer
 		ByteBuffer readBuffer = ByteBuffer.allocate(Math.min(maxPacketSize, 1024 * 1024));
+		byte[] readArray = readBuffer.array();
 
+		// Processing variables
+		Iterator<SelectionKey> keys;
+		SocketChannel channel;
+		SelectionKey key;
+		
+		byte[] bytes, remaining;
+		int processed, pos;
+		
 		// Loop
 		while (true) {
 
@@ -196,9 +205,9 @@ public class TcpReader implements Runnable {
 			if (n < 1) {
 				continue;
 			}
-			Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
+			keys = selector.selectedKeys().iterator();
 			while (keys.hasNext()) {
-				SelectionKey key = keys.next();
+				key = keys.next();
 				if (key == null) {
 					continue;
 				}
@@ -212,13 +221,13 @@ public class TcpReader implements Runnable {
 					try {
 
 						// Register socket
-						SocketChannel channel = serverChannel.accept();
+						channel = serverChannel.accept();
 						channel.configureBlocking(false);
-						
+
 						channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
 						channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
 						channel.setOption(StandardSocketOptions.SO_LINGER, -1);
-						
+
 						channel.register(selector, SelectionKey.OP_READ);
 
 						// Debug
@@ -228,14 +237,16 @@ public class TcpReader implements Runnable {
 
 					} catch (Exception cause) {
 						close(key, cause);
+					} finally {
+						keys.remove();
 					}
 
 				} else if (key.isReadable()) {
-
-					// Read data
 					try {
-						SocketChannel channel = (SocketChannel) key.channel();
-						readBuffer.rewind();
+
+						// Read bytes into the read buffer
+						channel = (SocketChannel) key.channel();
+						readBuffer.clear();
 						n = channel.read(readBuffer);
 						if (n < 0) {
 							throw new IOException();
@@ -244,90 +255,98 @@ public class TcpReader implements Runnable {
 							keys.remove();
 							continue;
 						}
-						readBuffer.flip();
-						byte[] packet = new byte[readBuffer.remaining()];
-						readBuffer.get(packet);
-						byte[] remaining = (byte[]) key.attachment();
+
+						// Debug
+						if (debug) {
+							logger.info(n + " bytes received from " + channel.getRemoteAddress() + ".");
+						}
+
+						// Get the incoming bytes
+						bytes = new byte[n];
+						System.arraycopy(readArray, 0, bytes, 0, n);
+
+						// Add remaining bytes
+						remaining = (byte[]) key.attachment();
 						if (remaining != null) {
-							byte[] tmp = new byte[remaining.length + packet.length];
+							byte[] tmp = new byte[remaining.length + bytes.length];
 							System.arraycopy(remaining, 0, tmp, 0, remaining.length);
-							System.arraycopy(packet, 0, tmp, remaining.length, packet.length);
-							packet = tmp;
+							System.arraycopy(bytes, 0, tmp, remaining.length, bytes.length);
+							bytes = tmp;
+							key.attach(null);
 						}
-						if (packet.length > 5) {
 
-							// Check packet's size
-							int len = ((0xFF & packet[1]) << 24) | ((0xFF & packet[2]) << 16)
-									| ((0xFF & packet[3]) << 8) | (0xFF & packet[4]);							
-							if (maxPacketSize > 0 && len > maxPacketSize) {
-								throw new Exception("Incoming packet is larger than the \"maxPacketSize\" limit (" + len
-										+ " > " + maxPacketSize + ")!");
-							} else if (len < 6) {
-								throw new Exception(
-										"Incoming packet is smaller than the header's size (" + len + " < 6)!");
-							}
+						// Split data
+						pos = 0;
+						while ((processed = processPacket(bytes, pos)) > 0) {
+							pos += processed;
+						}
 
-							// If all data present
-							if (packet.length >= len) {
-
-								// Verify header's CRC
-								byte crc = (byte) (packet[1] ^ packet[2] ^ packet[3] ^ packet[4] ^ packet[5]);
-								if (crc != packet[0]) {
-									throw new Exception("Invalid CRC (" + crc + " != " + packet[0] + ")!");
-								}
-
-								// Verify type
-								byte type = packet[5];
-								if (type < 1 || type > 8) {
-
-									// Unknown packet type!
-									throw new Exception("Invalid packet type (" + type + ")!");
-								}
-								if (packet.length > len) {
-									
-									// Get remaining bytes
-									remaining = new byte[packet.length - len];
-									System.arraycopy(packet, len, remaining, 0, remaining.length);
-									key.attach(remaining);
-
-								} else {
-
-									// Clear attachment
-									key.attach(null);
-								}
-
-								// Remove header
-								byte[] body = new byte[len - 6];
-								System.arraycopy(packet, 6, body, 0, body.length);
-								packet = body;
-
-								// Debug
-								if (debug) {
-									logger.info((6 + body.length) + " bytes received from " + channel.getRemoteAddress()
-											+ ".");
-								}
-
-								// Process incoming message
-								transporter.received(type, packet);
-
+						// Has remaining?
+						if (pos < bytes.length) {
+							if (pos == 0) {
+								remaining = bytes;
 							} else {
-
-								// Waiting for data
-								key.attach(packet);
+								remaining = new byte[bytes.length - pos];
+								System.arraycopy(bytes, pos, remaining, 0, remaining.length);
 							}
-
-						} else {
-
-							// Waiting for data
-							key.attach(packet);
+							key.attach(remaining);
 						}
+
 					} catch (Exception cause) {
 						close(key, cause);
+					} finally {
+						keys.remove();
 					}
 				}
-				keys.remove();
 			}
 		}
+	}
+
+	protected int processPacket(byte[] bytes, int pos) throws Exception {
+
+		// Too short packet
+		if (bytes.length - pos < 6) {
+			return 0;
+		}
+
+		// Check packet's size
+		int len = ((0xFF & bytes[pos + 1]) << 24) | ((0xFF & bytes[pos + 2]) << 16) | ((0xFF & bytes[pos + 3]) << 8)
+				| (0xFF & bytes[pos + 4]);
+
+		if (maxPacketSize > 0 && len > maxPacketSize) {
+			throw new Exception("Incoming packet is larger than the \"maxPacketSize\" limit (" + len + " > "
+					+ maxPacketSize + ")!");
+		} else if (len < 6) {
+			throw new Exception("Incoming packet is smaller than the header's size (" + len + " < 6)!");
+		}
+
+		// If all data present
+		if (bytes.length >= pos + len) {
+
+			// Verify header's CRC
+			byte crc = (byte) (bytes[pos + 1] ^ bytes[pos + 2] ^ bytes[pos + 3] ^ bytes[pos + 4] ^ bytes[pos + 5]);
+			if (crc != bytes[pos]) {
+				throw new Exception("Invalid CRC (" + crc + " != " + bytes[pos] + ")!");
+			}
+
+			// Verify type
+			byte type = bytes[pos + 5];
+			if (type < 1 || type > 8) {
+
+				// Unknown packet type!
+				throw new Exception("Invalid packet type (" + type + ")!");
+			}
+
+			// Remove header
+			byte[] body = new byte[len - 6];
+			System.arraycopy(bytes, pos + 6, body, 0, body.length);
+
+			// Process incoming message
+			transporter.received(type, body);
+		}
+
+		// Byte array is smaller than the packet length
+		return 0;
 	}
 
 	// --- CLOSE CHANNEL ---
