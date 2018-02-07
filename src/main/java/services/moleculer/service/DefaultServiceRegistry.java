@@ -726,54 +726,37 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
 	protected final AtomicReference<CpuUsage> previousCpuUsage = new AtomicReference<>();
-	
 	protected final AtomicLong currentSequence = new AtomicLong();
-
 	protected final AtomicReference<NodeDescriptor> cachedDescriptor = new AtomicReference<>();
 
-	protected void clearCache() {
+	protected synchronized void clearCache() {
 		NodeDescriptor current = cachedDescriptor.get();
-		while (true) {
-			if (current == null) {
-				return;
-			}
-			previousCpuUsage.set(current.getCpuUsage());
-			if (cachedDescriptor.compareAndSet(current, null)) {
-				return;
-			}
-			current = cachedDescriptor.get();			
+		if (current == null) {
+			return;
 		}
+		previousCpuUsage.set(current.getCpuUsage());
+		cachedDescriptor.set(null);
 	}
 	
 	@Override
-	public void incrementSequence(long minSequence) {
+	public synchronized void incrementSequence(long minSequence) {
 		long current = currentSequence.get();
-		while (true) {
-			if (current >= minSequence) {
-				return;
-			}
-			if (currentSequence.compareAndSet(current, minSequence)) {
-				clearCache();
-				return;
-			}
-			current = currentSequence.get();
+		if (current >= minSequence) {
+			return;
 		}
+		currentSequence.set(minSequence);
+		clearCache();
 	}
 
 	@Override
-	public NodeDescriptor getDescriptor() {
+	public synchronized NodeDescriptor getDescriptor() {
 		NodeDescriptor node = cachedDescriptor.get();		
 		if (node == null) {
 			CpuUsage usage = previousCpuUsage.get();
-			while (true) {
-				long next = currentSequence.incrementAndGet();
-				Tree info = generateInfo(next);
-				NodeDescriptor newNode = new NodeDescriptor(info, preferHostname, true, usage);
-				if (cachedDescriptor.compareAndSet(node, newNode)) {
-					return newNode;
-				}
-				node = cachedDescriptor.get();
-			}
+			long next = currentSequence.incrementAndGet();			
+			Tree info = generateInfo(next);
+			node = new NodeDescriptor(info, preferHostname, true, usage);
+			cachedDescriptor.set(node);
 		}
 		return node;
 	}

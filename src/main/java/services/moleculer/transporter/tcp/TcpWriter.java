@@ -176,17 +176,22 @@ public class TcpWriter implements Runnable {
 
 	// --- WRITE TO SOCKET ---
 
-	public void send(NodeDescriptor node, byte[] packet) {
+	public void send(String nodeID, byte[] packet) {
 		try {
 
 			// Get or create buffer
 			SendBuffer buffer = null;
 			boolean newBuffer = false;
 			synchronized (buffers) {
-				buffer = buffers.get(node.nodeID);
+				buffer = buffers.get(nodeID);
 				if (buffer == null) {
-					buffer = new SendBuffer(node.nodeID, node.host, node.port, debug);
-					buffers.put(node.nodeID, buffer);
+					NodeDescriptor node = transporter.getNodeDescriptor(nodeID);
+					if (node == null) {
+						logger.warn("Unknown node ID (" + nodeID + ")!");
+						return;
+					}					
+					buffer = new SendBuffer(nodeID, node.host, node.port, debug);
+					buffers.put(nodeID, buffer);
 					newBuffer = true;
 				}
 			}
@@ -195,7 +200,7 @@ public class TcpWriter implements Runnable {
 				// Add HELLO first
 				if (sendHello) {
 					if (debug) {
-						logger.info("Send \"hello\" message to \"" + node.nodeID + "\".");
+						logger.info("Send \"hello\" message to \"" + nodeID + "\".");
 					}
 					buffer.append(transporter.generateGossipHello());
 				}
@@ -219,9 +224,9 @@ public class TcpWriter implements Runnable {
 
 		} catch (Throwable cause) {
 			synchronized (buffers) {
-				buffers.remove(node.nodeID);
+				buffers.remove(nodeID);
 			}			
-			transporter.unableToSend(node.nodeID, packet, cause);
+			transporter.unableToSend(nodeID, packet, cause);
 		}
 	}
 
@@ -250,18 +255,13 @@ public class TcpWriter implements Runnable {
 				while (buffer != null) {
 					try {
 						InetSocketAddress address = new InetSocketAddress(buffer.host, buffer.port);
-						SocketChannel channel = SocketChannel.open();
-						
-						// TODO test
-						channel.socket().connect(address, 3000);
-						logger.info("Connected: " + channel.isConnected());
-						
+						SocketChannel channel = SocketChannel.open(address);
 						channel.configureBlocking(false);
 
 						channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
 						channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
 						channel.setOption(StandardSocketOptions.SO_LINGER, -1);
-
+						
 						key = channel.register(selector, SelectionKey.OP_WRITE);
 						key.attach(buffer);
 						buffer.connected(key, channel);

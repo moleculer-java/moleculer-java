@@ -608,12 +608,7 @@ public class TcpTransporter extends Transporter {
 				}
 
 				// Send packet to endpoint
-				NodeDescriptor node = nodes.get(nodeID);
-				if (node == null) {
-					logger.warn("Unknown node ID (" + nodeID + ")!");
-					return;
-				}
-				writer.send(node, packet);
+				writer.send(nodeID, packet);
 
 			} catch (Exception cause) {
 				logger.warn("Unable to send message!", cause);
@@ -777,9 +772,9 @@ public class TcpTransporter extends Transporter {
 			thisNode.add(c.sequence).add(c.value);
 
 			// Separate online and offline nodes
-			int size = nodes.size() * 3 / 2;
-			NodeDescriptor[] liveEndpoints = new NodeDescriptor[size];
-			NodeDescriptor[] unreachableEndpoints = new NodeDescriptor[size];
+			int size = nodes.size() * 2;
+			String[] liveEndpoints = new String[size];
+			String[] unreachableEndpoints = new String[size];
 
 			int liveEndpointCount = 0;
 			int unreachableEndpointCount = 0;
@@ -791,7 +786,7 @@ public class TcpTransporter extends Transporter {
 
 					// Offline
 					if (unreachableEndpointCount < unreachableEndpoints.length) {
-						unreachableEndpoints[unreachableEndpointCount++] = node;
+						unreachableEndpoints[unreachableEndpointCount++] = node.nodeID;
 					}
 					if (status.sequence > 0) {
 						offline.put(node.nodeID, status.sequence);
@@ -801,7 +796,7 @@ public class TcpTransporter extends Transporter {
 
 						// Online
 						if (liveEndpointCount < liveEndpoints.length) {
-							liveEndpoints[liveEndpointCount++] = node;
+							liveEndpoints[liveEndpointCount++] = node.nodeID;
 						}
 						if (status.sequence > 0) {
 							c = node.getCpuUsage();
@@ -846,23 +841,23 @@ public class TcpTransporter extends Transporter {
 		}
 	}
 
-	protected void sendGossipToRandomEndpoint(NodeDescriptor[] endpoints, int size, byte[] packet, Tree message) {
+	protected void sendGossipToRandomEndpoint(String[] endpoints, int size, byte[] packet, Tree message) {
 
 		// Choose a random endpoint
-		NodeDescriptor node;
+		String nodeID;
 		if (endpoints.length == 1) {
-			node = endpoints[0];
+			nodeID = endpoints[0];
 		} else {
-			node = endpoints[rnd.nextInt(size)];
+			nodeID = endpoints[rnd.nextInt(size)];
 		}
 
 		// Debug
 		if (debug) {
-			logger.info("Gossip request submitting to \"" + node.nodeID + "\" node:\r\n" + message);
+			logger.info("Gossip request submitting to \"" + nodeID + "\" node:\r\n" + message);
 		}
 
 		// Send gossip request to node
-		writer.send(node, packet);
+		writer.send(nodeID, packet);
 	}
 
 	// --- GOSSIP REQUEST MESSAGE RECEIVED ---
@@ -875,13 +870,6 @@ public class TcpTransporter extends Transporter {
 		String sender = data.get("sender", (String) null);
 		if (debug) {
 			logger.info("Gossip request received from \"" + sender + "\" node:\r\n" + data);
-		}
-
-		// Whether we know the sender
-		NodeDescriptor senderNode = nodes.get(sender);
-		if (senderNode == null) {
-			logger.warn("Sender's node ID is unknown: " + sender);
-			return;
 		}
 
 		// Create gossip response
@@ -1027,7 +1015,7 @@ public class TcpTransporter extends Transporter {
 		byte[] packet = serialize(PACKET_GOSSIP_RSP_ID, root);
 
 		// Send response
-		writer.send(senderNode, packet);
+		writer.send(sender, packet);
 	}
 
 	// --- GOSSIP RESPONSE MESSAGE RECEIVED ---
