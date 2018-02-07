@@ -643,6 +643,9 @@ public class TcpTransporter extends Transporter {
 	protected synchronized void checkTimeouts() {
 
 		// Check offline timeout
+		if (offlineTimeout < 1)
+			return;
+		
 		long now = System.currentTimeMillis();
 		long offlineTimeoutMillis = offlineTimeout * 1000L;
 		NodeDescriptor node;
@@ -668,7 +671,7 @@ public class TcpTransporter extends Transporter {
 
 		// Debug
 		if (debug) {
-			logger.info("Discovery message received from \"" + nodeID + "\" node (host: " + host + ", port: " + port
+			logger.info("Discovery message received from \"" + sender + "\" node (host: " + host + ", port: " + port
 					+ ").");
 		}
 
@@ -709,7 +712,7 @@ public class TcpTransporter extends Transporter {
 		} else {
 
 			// Check hostname and port
-			if (!prevNode.host.equals(host) || prevNode.port != port) {
+			if (!prevNode.host.equalsIgnoreCase(host) || prevNode.port != port) {
 
 				// Host or port number changed -> reregister as offline,
 				// and keep the original info block
@@ -1066,7 +1069,7 @@ public class TcpTransporter extends Transporter {
 				}
 
 				if (info != null) {
-
+					info.put("sender", nodeID);
 					// Update "info" block,
 					// send updated, connected or reconnected event
 					updateNodeInfo(nodeID, info);
