@@ -250,7 +250,12 @@ public class TcpWriter implements Runnable {
 				while (buffer != null) {
 					try {
 						InetSocketAddress address = new InetSocketAddress(buffer.host, buffer.port);
-						SocketChannel channel = SocketChannel.open(address);
+						SocketChannel channel = SocketChannel.open();
+						
+						// TODO test
+						channel.socket().connect(address, 3000);
+						logger.info("Connected: " + channel.isConnected());
+						
 						channel.configureBlocking(false);
 
 						channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);

@@ -483,16 +483,18 @@ public abstract class Transporter implements MoleculerComponent {
 				if (channel.equals(disconnectChannel)) {
 
 					// Get node container
-					NodeDescriptor node = nodes.get(sender);
-					if (node != null && node.switchToOffline()) {
+					synchronized (this) {
+						NodeDescriptor node = nodes.get(sender);
+						if (node != null && node.switchToOffline()) {
 
-						// Remove remote actions and listeners
-						registry.removeActions(sender);
-						eventbus.removeListeners(sender);
+							// Remove remote actions and listeners
+							registry.removeActions(sender);
+							eventbus.removeListeners(sender);
 
-						// Notify listeners (not unexpected disconnection)
-						logger.info("Node \"" + sender + "\" disconnected.");
-						broadcastNodeDisconnected(node.info, false);
+							// Notify listeners (not unexpected disconnection)
+							logger.info("Node \"" + sender + "\" disconnected.");
+							broadcastNodeDisconnected(node.info, false);
+						}
 					}
 				}
 
@@ -502,7 +504,7 @@ public abstract class Transporter implements MoleculerComponent {
 		});
 	}
 
-	protected void updateNodeInfo(String sender, Tree info) throws Exception {
+	protected synchronized void updateNodeInfo(String sender, Tree info) throws Exception {
 
 		boolean connected = false;
 		boolean reconnected = false;
@@ -645,7 +647,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- TIMEOUT PROCESS ---
 
-	protected void checkTimeouts() {
+	protected synchronized void checkTimeouts() {
 
 		// Check heartbeat timeout
 		long now = System.currentTimeMillis();
@@ -662,7 +664,8 @@ public abstract class Transporter implements MoleculerComponent {
 				i.remove();
 				logger.info("Node \"" + nodeID + "\" is no longer registered because it was inactive for "
 						+ offlineTimeout + " seconds.");
-			} else if (now - node.getLastHeartbeatTime(Long.MAX_VALUE) > heartbeatTimeoutMillis && node.switchToOffline()) {
+			} else if (now - node.getLastHeartbeatTime(Long.MAX_VALUE) > heartbeatTimeoutMillis
+					&& node.switchToOffline()) {
 
 				// Remove services and listeners
 				registry.removeActions(node.nodeID);

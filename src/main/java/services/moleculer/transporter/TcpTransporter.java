@@ -516,13 +516,19 @@ public class TcpTransporter extends Transporter {
 		}
 	}
 
-	// --- SEND HEARTBEAT (UNUSED) ---
+	// --- STORE CPU USAGE ---
 
 	@Override
 	protected void sendHeartbeatPacket() {
 		registry.getDescriptor().setCpuUsage(monitor.getTotalCpuPercent());
 	}
 
+	// --- SEND DISCONNECT (UNUSED) ---
+	
+	@Override
+	protected void sendDisconnectPacket() {
+	}
+	
 	// --- SUBSCRIBE (UNUSED) ---
 
 	@Override
@@ -639,7 +645,7 @@ public class TcpTransporter extends Transporter {
 	// --- TIMEOUT PROCESS ---
 
 	@Override
-	protected void checkTimeouts() {
+	protected synchronized void checkTimeouts() {
 
 		// Check offline timeout
 		long now = System.currentTimeMillis();
@@ -693,7 +699,7 @@ public class TcpTransporter extends Transporter {
 		registerAsNewNode(sender, host, port);
 	}
 
-	protected final void registerAsNewNode(String sender, String host, int port) {
+	protected synchronized void registerAsNewNode(String sender, String host, int port) {
 
 		// Check node
 		if (nodeID.equals(sender)) {
@@ -730,6 +736,7 @@ public class TcpTransporter extends Transporter {
 					newInfo.put("port", port);
 					newInfo.put("seq",  prevNode.getSequence());
 					nodes.put(sender, new NodeDescriptor(newInfo, preferHostname, false, null, true));
+					writer.close(sender);
 				}
 			}
 		}
@@ -862,7 +869,7 @@ public class TcpTransporter extends Transporter {
 
 	protected final AtomicLong lastRequest = new AtomicLong();
 
-	protected void processGossipRequest(Tree data) throws Exception {
+	protected synchronized void processGossipRequest(Tree data) throws Exception {
 
 		// Debug
 		String sender = data.get("sender", (String) null);
@@ -1025,7 +1032,7 @@ public class TcpTransporter extends Transporter {
 
 	// --- GOSSIP RESPONSE MESSAGE RECEIVED ---
 
-	protected void processGossipResponse(Tree data) throws Exception {
+	protected synchronized void processGossipResponse(Tree data) throws Exception {
 
 		// Debug
 		if (debug) {
