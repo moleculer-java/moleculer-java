@@ -72,11 +72,7 @@ public class NodeDescriptor {
 		this.port = info.get("port", 0);
 		this.local = local;
 		this.preferHostname = preferHostname;
-		if (offline) {
-			this.status.set(new NodeStatus(0, System.currentTimeMillis()));	
-		} else {
-			this.status.set(new NodeStatus(info.get("seq", 0L), 0));
-		}
+		this.status.set(new NodeStatus(info.get("seq", 0L), offline ? System.currentTimeMillis() : 0));
 		this.cpu.set(usage == null ? new CpuUsage(0, 0) : usage);
 	}
 
@@ -108,7 +104,7 @@ public class NodeDescriptor {
 	
 	public NodeDescriptor switchToOnline(Tree info, long sequence, int value) {
 		NodeStatus current = status.get();
-		if (current.offlineSince == 0) {
+		if (current.offlineSince == 0 || current.sequence >= info.get("seq", 0L)) {
 			return null;
 		}
 		CpuUsage usage = sequence == 0 ? cpu.get() : new CpuUsage(sequence, value);

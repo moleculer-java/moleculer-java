@@ -728,9 +728,9 @@ public class TcpTransporter extends Transporter {
 						ipList.add(host);
 					}
 					newInfo.put("port", port);
+					newInfo.put("seq",  prevNode.getSequence());
 					nodes.put(sender, new NodeDescriptor(newInfo, preferHostname, false, null, true));
 				}
-				writer.close(sender);
 			}
 		}
 	}
@@ -767,9 +767,7 @@ public class TcpTransporter extends Transporter {
 			Tree thisNode = online.putList(nodeID);
 			thisNode.add(self.getSequence());
 			CpuUsage c = self.getCpuUsage();
-			if (c.sequence > 0) {
-				thisNode.add(c.sequence).add(c.value);
-			}
+			thisNode.add(c.sequence).add(c.value);
 
 			// Separate online and offline nodes
 			int size = nodes.size() * 3 / 2;
