@@ -343,6 +343,8 @@ public class TcpReader implements Runnable {
 
 			// Process incoming message
 			transporter.received(type, body);
+			
+			return len;
 		}
 
 		// Byte array is smaller than the packet length

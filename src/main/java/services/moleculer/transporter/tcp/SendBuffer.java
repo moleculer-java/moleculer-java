@@ -192,38 +192,41 @@ public class SendBuffer {
 			return true;
 		}
 		if (channel != null) {
-			int count = channel.write(buffer);
-			
-			// Debug
-			if (debug) {
-				logger.info(count + " bytes submitted to " + channel.getRemoteAddress()
-						+ ".");
-			}
-			
-			// Switch to write mode
-			if (count == 0 && buffer.hasRemaining()) {
-				if (key != null) {
-					key.interestOps(SelectionKey.OP_WRITE);
+			while (true) {
+				int count = channel.write(buffer);
+
+				// Debug
+				if (debug) {
+					logger.info(count + " bytes submitted to " + channel.getRemoteAddress() + ".");
 				}
-				return true;
-			} else if (count == -1) {
-				throw new EOFException();
-			}
-			
-			// Remove the submitted buffer from the queue
-			if (!buffer.hasRemaining()) {
-				queue.poll();
-			}
-			
-			// Turn off write mode (if the queue is empty)
-			if (queue.isEmpty()) {
-				if (blockerBuffer.compareAndSet(buffer, null)) {
+
+				// Switch to write mode
+				if (count == 0 && buffer.hasRemaining()) {
 					if (key != null) {
-						key.interestOps(0);
+						key.interestOps(SelectionKey.OP_WRITE);
 					}
+					return true;
+				} else if (count == -1) {
+					throw new EOFException();
+				}
+
+				// Remove the submitted buffer from the queue
+				if (!buffer.hasRemaining()) {
+					queue.poll();
+				}
+
+				// Turn off write mode (if the queue is empty)
+				if (queue.isEmpty()) {
+					if (blockerBuffer.compareAndSet(buffer, null)) {
+						if (key != null) {
+							key.interestOps(0);
+						}
+					}
+					return false;
+				} else {
+					buffer = queue.peek();
 				}
 			}
-			return count == 0;
 		}
 		return true;
 	}
