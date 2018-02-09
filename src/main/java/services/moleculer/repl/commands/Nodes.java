@@ -195,15 +195,15 @@ public class Nodes extends Command {
 			nodeIDset.toArray(nodeIDarray);
 			Arrays.sort(nodeIDarray, String.CASE_INSENSITIVE_ORDER);
 			for (String nodeID : nodeIDarray) {
-				NodeDescriptor node = transporter.getNodeDescriptor(nodeID);
-				if (node == null) {
+				Tree info = transporter.getDescriptor(nodeID);
+				if (info == null) {
 					continue;
 				}
-				infos.putObject(node.nodeID, node.info);
+				infos.putObject(nodeID, info);
 			}
 		}
 		if (infos.isEmpty()) {
-			infos.putObject(broker.nodeID(), broker.components().registry().getDescriptor().info);
+			infos.putObject(broker.nodeID(), broker.components().registry().getDescriptor());
 		}
 		return infos;
 	}

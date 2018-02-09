@@ -180,33 +180,27 @@ public class SendBuffer {
 	 * 
 	 * @throws Exception
 	 *             any I/O exception
-	 * 
-	 * @return unsuccessful write (false = wrote any bytes)
 	 */
-	protected boolean write() throws Exception {
+	protected void write() throws Exception {
 		ByteBuffer buffer = queue.peek();
 		if (buffer == null) {
 			if (key != null) {
 				key.interestOps(0);
 			}
-			return true;
+			return;
 		}
 		if (channel != null) {
+			int count;
 			while (true) {
-				int count = channel.write(buffer);
+				count = channel.write(buffer);
 
 				// Debug
 				if (debug) {
 					logger.info(count + " bytes submitted to " + channel.getRemoteAddress() + ".");
 				}
 
-				// Switch to write mode
-				if (count == 0 && buffer.hasRemaining()) {
-					if (key != null) {
-						key.interestOps(SelectionKey.OP_WRITE);
-					}
-					return true;
-				} else if (count == -1) {
+				// EOF?
+				if (count == -1) {
 					throw new EOFException();
 				}
 
@@ -222,13 +216,12 @@ public class SendBuffer {
 							key.interestOps(0);
 						}
 					}
-					return false;
+					return;
 				} else {
 					buffer = queue.peek();
 				}
 			}
 		}
-		return true;
 	}
 
 	// --- GET CURRENT PACKET ---

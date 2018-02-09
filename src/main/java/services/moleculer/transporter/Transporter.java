@@ -58,8 +58,8 @@ import services.moleculer.monitor.Monitor;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
 import services.moleculer.service.Name;
-import services.moleculer.service.NodeDescriptor;
 import services.moleculer.service.ServiceRegistry;
+import services.moleculer.transporter.tcp.NodeDescriptor;
 
 /**
  * Base superclass of all Transporter implementations.
@@ -224,7 +224,7 @@ public abstract class Transporter implements MoleculerComponent {
 		serializer.start(broker, serializerNode);
 
 		// Prefers hostname instead of IP
-		preferHostname = broker.components().registry().isPreferHostname();
+		preferHostname = config.get("preferHostname", preferHostname);
 
 		// Get components
 		executor = broker.components().executor();
@@ -458,9 +458,15 @@ public abstract class Transporter implements MoleculerComponent {
 						sendDiscoverPacket(channel(PACKET_DISCOVER, sender));
 						return;
 					}
+					int cpu = data.get("cpu", 0);
 
 					// Update CPU info
-					node.setCpuUsage(data.get("cpu", 0));
+					node.writeLock.lock();
+					try {
+						node.updateCpu(cpu);
+					} finally {
+						node.writeLock.unlock();
+					}
 					return;
 				}
 
@@ -482,10 +488,14 @@ public abstract class Transporter implements MoleculerComponent {
 				// Disconnect packet
 				if (channel.equals(disconnectChannel)) {
 
-					// Get node container
-					synchronized (this) {
-						NodeDescriptor node = nodes.get(sender);
-						if (node != null && node.switchToOffline()) {
+					// Switch to offline
+					NodeDescriptor node = nodes.get(sender);
+					if (node == null) {
+						return;
+					}
+					node.writeLock.lock();
+					try {
+						if (node.markAsOffline()) {
 
 							// Remove remote actions and listeners
 							registry.removeActions(sender);
@@ -495,58 +505,73 @@ public abstract class Transporter implements MoleculerComponent {
 							logger.info("Node \"" + sender + "\" disconnected.");
 							broadcastNodeDisconnected(node.info, false);
 						}
+					} finally {
+						node.writeLock.unlock();
 					}
 				}
-
 			} catch (Exception cause) {
 				logger.warn("Unable to process incoming message!", cause);
 			}
 		});
 	}
 
-	protected synchronized void updateNodeInfo(String sender, Tree info) throws Exception {
-
+	protected void updateNodeInfo(String sender, Tree info) throws Exception {
 		boolean connected = false;
 		boolean reconnected = false;
 		boolean updated = false;
-
 		NodeDescriptor node = nodes.get(sender);
-		if (node == null || node.getSequence() == 0) {
+		if (node == null) {
 
-			// New, unknown node
+			// New, unknown node (register as offline)
 			connected = true;
-			node = new NodeDescriptor(info, preferHostname, false);
+			node = new NodeDescriptor(sender, preferHostname, false, info);			
 			nodes.put(sender, node);
 
 		} else {
+			node.writeLock.lock();
+			try {
 
-			// Try to update current node
-			NodeDescriptor newNode = node.switchToOnline(info);
-			if (newNode == null) {
+				// Node is registered
+				if (node.seq == 0) {
 
-				// New info block is older
-				return;
-			} else {
+					// Node connected (it was offline)
+					connected = true;
+					node.markAsOnline(info);
 
-				// Store new node info
-				nodes.put(sender, newNode);
-				if (updated) {
-					Tree s1 = newNode.info.get("services");
-					if (s1 != null) {
-						Tree s2 = node.info.get("services");
-						if (s2 != null && s1.equals(s2)) {
+				} else {
 
-							// Service blocks are equal
-							return;
+					// Try to update current node
+					Tree prevInfo = node.info;
+					boolean wasOnline = node.offlineSince == 0;
+					if (node.markAsOnline(info)) {
+
+						// Store new node info
+						if (prevInfo != null && wasOnline) {
+							Tree s1 = prevInfo.get("services");
+							if (s1 != null) {
+								Tree s2 = node.info.get("services");
+								if (s2 != null && s1.equals(s2)) {
+
+									// Service blocks are equal
+									return;
+								}
+							}
 						}
+						if (wasOnline) {
+							updated = true;
+						} else {
+							reconnected = true;
+						}
+
+					} else {
+
+						// New info block is older than ours
+						return;
 					}
 				}
-				if (node.isOffline()) {
-					reconnected = true;
-				} else {
-					updated = true;
-				}
-				node = newNode;
+
+			} finally {
+				node.writeLock.unlock();
 			}
 		}
 
@@ -625,17 +650,17 @@ public abstract class Transporter implements MoleculerComponent {
 	}
 
 	protected void sendInfoPacket(String channel) {
-		publish(channel, registry.getDescriptor().info);
+		Tree message = registry.getDescriptor();
+		message.put("ver", PROTOCOL_VERSION);
+		message.put("sender", nodeID);
+		publish(channel, message);
 	}
 
 	protected void sendHeartbeatPacket() {
-		int cpu = monitor.getTotalCpuPercent();
-		registry.getDescriptor().setCpuUsage(cpu);
-
 		Tree message = new Tree();
 		message.put("ver", PROTOCOL_VERSION);
 		message.put("sender", nodeID);
-		message.put("cpu", cpu);
+		message.put("cpu", monitor.getTotalCpuPercent());
 		publish(heartbeatChannel, message);
 	}
 
@@ -647,35 +672,54 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- TIMEOUT PROCESS ---
 
-	protected synchronized void checkTimeouts() {
+	protected void checkTimeouts() {
 
-		// Check heartbeat timeout
+		// Compute timeout limits
 		long now = System.currentTimeMillis();
 		long offlineTimeoutMillis = offlineTimeout * 1000L;
 		long heartbeatTimeoutMillis = heartbeatTimeout * 1000L;
 		NodeDescriptor node;
 
+		// Check offline timeout
 		Iterator<NodeDescriptor> i = nodes.values().iterator();
 		while (i.hasNext()) {
 			node = i.next();
-			if (now - node.getOfflineSince(Long.MAX_VALUE) > offlineTimeoutMillis) {
+			node.readLock.lock();
+			try {
+				if (node.offlineSince > 0 && now - node.offlineSince > offlineTimeoutMillis) {
 
-				// Remove node from Map
-				i.remove();
-				logger.info("Node \"" + nodeID + "\" is no longer registered because it was inactive for "
-						+ offlineTimeout + " seconds.");
-			} else if (now - node.getLastHeartbeatTime(Long.MAX_VALUE) > heartbeatTimeoutMillis
-					&& node.switchToOffline()) {
+					// Remove node from Map
+					i.remove();
+					logger.info("Node \"" + nodeID + "\" is no longer registered because it was inactive for "
+							+ offlineTimeout + " seconds.");
 
-				// Remove services and listeners
-				registry.removeActions(node.nodeID);
-				eventbus.removeListeners(node.nodeID);
+				}
+			} finally {
+				node.readLock.unlock();
+			}
+		}
 
-				// Notify listeners
-				logger.info("Node \"" + node.nodeID
-						+ "\" is no longer available because it hasn't submitted heartbeat signal for "
-						+ heartbeatTimeout + " seconds.");
-				broadcastNodeDisconnected(node.info, true);
+		// Check heartbeat timeout
+		i = nodes.values().iterator();
+		while (i.hasNext()) {
+			node = i.next();
+			node.writeLock.lock();
+			try {
+				if (node.cpuWhen > 0 && now - node.cpuWhen > heartbeatTimeoutMillis && node.markAsOffline()) {
+
+					// Remove services and listeners
+					registry.removeActions(node.nodeID);
+					eventbus.removeListeners(node.nodeID);
+
+					// Notify listeners
+					logger.info("Node \"" + node.nodeID
+							+ "\" is no longer available because it hasn't submitted heartbeat signal for "
+							+ heartbeatTimeout + " seconds.");
+					broadcastNodeDisconnected(node.info, true);
+
+				}
+			} finally {
+				node.writeLock.unlock();
 			}
 		}
 	}
@@ -684,7 +728,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 	public int getCpuUsage(String nodeID) {
 		NodeDescriptor node = nodes.get(nodeID);
-		return node == null ? 0 : node.getCpuUsage().value;
+		return node == null ? 0 : node.cpu;
 	}
 
 	// --- IS NODE ONLINE? ---
@@ -694,7 +738,7 @@ public abstract class Transporter implements MoleculerComponent {
 			return true;
 		}
 		NodeDescriptor node = nodes.get(nodeID);
-		return node != null && node.isOnline();
+		return node != null && node.offlineSince == 0;
 	}
 
 	// --- GET NODE IDS OF ALL NODES ---
@@ -707,12 +751,12 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- GET NODE DESCRIPTOR ---
 
-	public NodeDescriptor getNodeDescriptor(String nodeID) {
+	public Tree getNodeDescriptor(String nodeID) {
 		if (this.nodeID.equals(nodeID)) {
 			return registry.getDescriptor();
 		}
 		NodeDescriptor node = nodes.get(nodeID);
-		return node == null ? null : node;
+		return node == null ? null : node.info;
 	}
 
 	// --- OPTIONAL ERROR HANDLER ---
@@ -783,6 +827,14 @@ public abstract class Transporter implements MoleculerComponent {
 
 	public void setPrefix(String prefix) {
 		this.prefix = prefix;
+	}
+
+	public boolean isPreferHostname() {
+		return preferHostname;
+	}
+
+	public void setPreferHostname(boolean preferHostname) {
+		this.preferHostname = preferHostname;
 	}
 
 }

@@ -185,42 +185,48 @@ public class TcpWriter implements Runnable {
 			synchronized (buffers) {
 				buffer = buffers.get(nodeID);
 				if (buffer == null) {
+					
+					// Create new connection
 					NodeDescriptor node = transporter.getNodeDescriptor(nodeID);
 					if (node == null) {
 						logger.warn("Unknown node ID (" + nodeID + ")!");
 						return;
 					}					
 					buffer = new SendBuffer(nodeID, node.host, node.port, debug);
+					append(nodeID, buffer, packet);
 					buffers.put(nodeID, buffer);
 					newBuffer = true;
+				} else {
+					
+					// Try to append to buffer
+					if (!append(nodeID, buffer, packet)) {
+						
+						// Buffer is closed
+						buffer = new SendBuffer(nodeID, node.host, node.port, debug);
+						append(nodeID, buffer, packet);
+						buffers.put(nodeID, buffer);
+						newBuffer = true;
+					}
 				}
 			}
 			if (newBuffer) {
-
-				// Add HELLO first
-				if (sendHello) {
-					if (debug) {
-						logger.info("Send \"hello\" message to \"" + nodeID + "\".");
-					}
-					buffer.append(transporter.generateGossipHello());
-				}
-
-				// Add as new, opened connection
-				opened.add(buffer);
 
 				// Close older connections
 				if (maxConnections > 0) {
 					cleanup();
 				}
+				
+				// Add to opened buffers
+				opened.add(buffer);
+				
+			} else {
+
+				// Mark as writable
+				buffer.key.interestOps(SelectionKey.OP_WRITE);
 			}
 
-			// Add this packet to the buffer's queue
-			buffer.append(packet);
-
-			// Try to write immediately
-			if (buffer.write()) {
-				selector.wakeup();
-			}
+			// Wake up selector
+			selector.wakeup();
 
 		} catch (Throwable cause) {
 			synchronized (buffers) {
@@ -230,6 +236,22 @@ public class TcpWriter implements Runnable {
 		}
 	}
 
+	protected boolean append(String nodeID, SendBuffer buffer, byte[] packet) {
+
+		// Add HELLO first
+		if (sendHello) {
+			if (debug) {
+				logger.info("Send \"hello\" message to \"" + nodeID + "\".");
+			}
+			if (!buffer.append(transporter.generateGossipHello())) {
+				return false;
+			}
+		}
+
+		// Add message
+		return buffer.append(packet);
+	}
+	
 	// --- WRITER LOOP ---
 
 	@Override

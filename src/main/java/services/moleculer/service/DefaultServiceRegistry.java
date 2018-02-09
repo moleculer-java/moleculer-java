@@ -222,7 +222,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		} finally {
 
 			// Delete cached node descriptor
-			clearCache();
+			clearDescriptorCache();
 
 			writeLock.unlock();
 		}
@@ -585,7 +585,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		} finally {
 
 			// Delete cached node descriptor
-			clearCache();
+			clearDescriptorCache();
 
 			writeLock.unlock();
 		}
@@ -655,9 +655,9 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 				try {
 					stopAllLocalServices();
 				} finally {
-					
+
 					// Delete cached node descriptor
-					clearCache();
+					clearDescriptorCache();
 				}
 
 				// Notify local listeners (LOCAL services changed)
@@ -725,171 +725,139 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
-	protected final AtomicReference<CpuUsage> previousCpuUsage = new AtomicReference<>();
-	protected final AtomicLong currentSequence = new AtomicLong();
-	protected final AtomicReference<NodeDescriptor> cachedDescriptor = new AtomicReference<>();
+	private volatile Tree descriptor;
 
-	protected synchronized void clearCache() {
-		NodeDescriptor current = cachedDescriptor.get();
-		if (current == null) {
-			return;
-		}
-		previousCpuUsage.set(current.getCpuUsage());
-		cachedDescriptor.set(null);
+	@Override
+	public Tree getDescriptor() {
+		Tree current = currentDescriptor();
+		return current.clone();
 	}
 	
-	@Override
-	public synchronized void incrementSequence(long minSequence) {
-		long current = currentSequence.get();
-		if (current >= minSequence) {
-			return;
-		}
-		currentSequence.set(minSequence);
-		clearCache();
+	protected synchronized void clearDescriptorCache() {
+		descriptor = null;
 	}
 
-	@Override
-	public synchronized NodeDescriptor getDescriptor() {
-		NodeDescriptor node = cachedDescriptor.get();		
-		if (node == null) {
-			CpuUsage usage = previousCpuUsage.get();
-			long next = currentSequence.incrementAndGet();			
-			Tree info = generateInfo(next);
-			node = new NodeDescriptor(info, preferHostname, true, usage);
-			cachedDescriptor.set(node);
-		}
-		return node;
-	}
+	protected synchronized Tree currentDescriptor() {
+		if (descriptor == null) {
 
-	// --- INFO BLOCK GENERATOR ---
+			// Create new descriptor block
+			descriptor = new Tree();
 
-	protected Tree generateInfo(long sequence) {
+			// Services array
+			Tree services = descriptor.putList("services");
+			Tree servicesMap = new Tree();
+			readLock.lock();
+			try {
+				for (Map.Entry<String, Strategy<ActionEndpoint>> entry : strategies.entrySet()) {
 
-		// Create info block
-		Tree info = new Tree();
+					// Split into parts ("math.add" -> "math" and "add")
+					String name = entry.getKey();
+					int i = name.lastIndexOf('.');
+					String service = name.substring(0, i);
 
-		// Protocol version
-		info.put("ver", ServiceBroker.PROTOCOL_VERSION);
+					// Get endpoint
+					ActionEndpoint endpoint = entry.getValue().getEndpoint(nodeID);
+					if (endpoint == null) {
+						continue;
+					}
 
-		// NodeID
-		String nodeID = broker.nodeID();
-		info.put("sender", nodeID);
+					// Service block
+					Tree serviceMap = servicesMap.putMap(service, true);
+					serviceMap.put("name", service);
 
-		// Services array
-		Tree services = info.putList("services");
-		Tree servicesMap = new Tree();
-		readLock.lock();
-		try {
-			for (Map.Entry<String, Strategy<ActionEndpoint>> entry : strategies.entrySet()) {
+					// Not used
+					// serviceMap.putMap("settings");
+					// serviceMap.putMap("metadata");
 
-				// Split into parts ("math.add" -> "math" and "add")
-				String name = entry.getKey();
-				int i = name.lastIndexOf('.');
-				String service = name.substring(0, i);
+					// Node ID
+					serviceMap.put("nodeID", nodeID);
 
-				// Get endpoint
-				ActionEndpoint endpoint = entry.getValue().getEndpoint(nodeID);
-				if (endpoint == null) {
-					continue;
+					// Action block
+					@SuppressWarnings("unchecked")
+					Map<String, Object> actionBlock = (Map<String, Object>) serviceMap.putMap("actions", true)
+							.asObject();
+					LinkedHashMap<String, Object> map = new LinkedHashMap<>();
+					actionBlock.put(name, map);
+					Tree actionMap = new Tree(map);
+
+					actionMap.put("name", name);
+					boolean cached = endpoint.cached();
+					actionMap.put("cache", cached);
+					if (cached) {
+						String[] keys = endpoint.cacheKeys();
+						if (keys != null) {
+							Tree cacheKeys = actionMap.putList("cacheKeys");
+							for (String key : keys) {
+								cacheKeys.add(key);
+							}
+						}
+					}
+
+					// Listener block
+					Tree listeners = eventbus.generateListenerDescriptor(service);
+					if (listeners != null && !listeners.isEmpty()) {
+						serviceMap.putMap("events").assign(listeners);
+					}
+
+					// Not used
+					// actionMap.putMap("params");
+
 				}
+			} finally {
+				readLock.unlock();
+			}
+			for (Tree service : servicesMap) {
+				services.addObject(service);
+			}
 
-				// Service block
-				Tree serviceMap = servicesMap.putMap(service, true);
-				serviceMap.put("name", service);
+			// Host name
+			descriptor.put("hostname", getHostName());
 
-				// Not used
-				// serviceMap.putMap("settings");
-				// serviceMap.putMap("metadata");
-
-				// Node ID
-				serviceMap.put("nodeID", nodeID);
-
-				// Action block
-				@SuppressWarnings("unchecked")
-				Map<String, Object> actionBlock = (Map<String, Object>) serviceMap.putMap("actions", true).asObject();
-				LinkedHashMap<String, Object> map = new LinkedHashMap<>();
-				actionBlock.put(name, map);
-				Tree actionMap = new Tree(map);
-
-				actionMap.put("name", name);
-				boolean cached = endpoint.cached();
-				actionMap.put("cache", cached);
-				if (cached) {
-					String[] keys = endpoint.cacheKeys();
-					if (keys != null) {
-						Tree cacheKeys = actionMap.putList("cacheKeys");
-						for (String key : keys) {
-							cacheKeys.add(key);
+			// IP array
+			Tree ipList = descriptor.putList("ipList");
+			HashSet<String> ips = new HashSet<>();
+			try {
+				InetAddress local = InetAddress.getLocalHost();
+				String defaultAddress = local.getHostAddress();
+				ips.add(defaultAddress);
+				ipList.add(defaultAddress);
+			} catch (Exception ignored) {
+			}
+			try {
+				Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
+				while (e.hasMoreElements()) {
+					NetworkInterface n = (NetworkInterface) e.nextElement();
+					Enumeration<InetAddress> ee = n.getInetAddresses();
+					while (ee.hasMoreElements()) {
+						InetAddress i = (InetAddress) ee.nextElement();
+						if (!i.isLoopbackAddress()) {
+							String test = i.getHostAddress();
+							if (ips.add(test)) {
+								ipList.add(test);
+							}
 						}
 					}
 				}
-
-				// Listener block
-				Tree listeners = eventbus.generateListenerDescriptor(service);
-				if (listeners != null && !listeners.isEmpty()) {
-					serviceMap.putMap("events").assign(listeners);
-				}
-
-				// Not used
-				// actionMap.putMap("params");
-
+			} catch (Exception ignored) {
 			}
-		} finally {
-			readLock.unlock();
-		}
-		for (Tree service : servicesMap) {
-			services.addObject(service);
-		}
 
-		// Host name
-		info.put("hostname", getHostName());
-
-		// IP array
-		Tree ipList = info.putList("ipList");
-		HashSet<String> ips = new HashSet<>();
-		try {
-			InetAddress local = InetAddress.getLocalHost();
-			String defaultAddress = local.getHostAddress();
-			ips.add(defaultAddress);
-			ipList.add(defaultAddress);
-		} catch (Exception ignored) {
-		}
-		try {
-			Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
-			while (e.hasMoreElements()) {
-				NetworkInterface n = (NetworkInterface) e.nextElement();
-				Enumeration<InetAddress> ee = n.getInetAddresses();
-				while (ee.hasMoreElements()) {
-					InetAddress i = (InetAddress) ee.nextElement();
-					if (!i.isLoopbackAddress()) {
-						String test = i.getHostAddress();
-						if (ips.add(test)) {
-							ipList.add(test);
-						}
-					}
-				}
+			// Add port
+			if (transporter != null && transporter instanceof TcpTransporter) {
+				TcpTransporter tcp = (TcpTransporter) transporter;
+				descriptor.put("port", tcp.getCurrentPort());
 			}
-		} catch (Exception ignored) {
+
+			// Client descriptor
+			Tree client = descriptor.putMap("client");
+			client.put("type", "java");
+			client.put("version", ServiceBroker.SOFTWARE_VERSION);
+			client.put("langVersion", System.getProperty("java.version", "1.8"));
+
+			// Config (not used in this version)
+			// root.putMap("config");
+			
 		}
-
-		// Add port
-		if (transporter != null && transporter instanceof TcpTransporter) {
-			TcpTransporter tcp = (TcpTransporter) transporter;
-			info.put("port", tcp.getCurrentPort());
-		}
-
-		// Client descriptor
-		Tree client = info.putMap("client");
-		client.put("type", "java");
-		client.put("version", ServiceBroker.SOFTWARE_VERSION);
-		client.put("langVersion", System.getProperty("java.version", "1.8"));
-
-		// Config (not used in this version)
-		// root.putMap("config");
-
-		// Add sequence
-		info.put("seq", sequence);
-		return info;
+		return descriptor;
 	}
 
 	// --- GETTERS / SETTERS ---

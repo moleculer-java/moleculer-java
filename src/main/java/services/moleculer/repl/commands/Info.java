@@ -141,7 +141,7 @@ public class Info extends Command {
 		table = new TextTable(false, "Name", "Value");
 		table.addRow("Node ID", broker.nodeID());
 
-		Tree info = broker.components().registry().getDescriptor().info;
+		Tree info = broker.components().registry().getDescriptor();
 		Tree services = info.get("services");
 		if (services != null && !services.isNull()) {
 			int actionCounter = 0;

@@ -141,6 +141,13 @@ public class TcpTransporter extends Transporter {
 	 */
 	protected int multicastPackets;
 
+	/**
+	 * Use hostnames instead of IP addresses As the DHCP environment is dynamic,
+	 * any later attempt to use IPs instead hostnames would most likely yield
+	 * false results. Therefore, use hostnames if you are using DHCP.
+	 */
+	protected boolean preferHostname = true;
+	
 	// --- CONSTUCTORS ---
 
 	/**
@@ -199,6 +206,9 @@ public class TcpTransporter extends Transporter {
 		multicastPeriod = config.get("multicastPeriod", multicastPeriod);
 		multicastPackets = config.get("multicastPackets", multicastPackets);
 
+		// Use hostname instead of IP address
+		preferHostname = config.get("preferHostname", preferHostname);
+		
 		// Parse URLs (in "full TCP mode")
 		urls = parseURLs(config, urls);
 		if (urls != null && urls.length > 0) {
@@ -1229,4 +1239,12 @@ public class TcpTransporter extends Transporter {
 		this.multicastPackets = multicastPackets;
 	}
 
+	public boolean isPreferHostname() {
+		return preferHostname;
+	}
+
+	public void setPreferHostname(boolean preferHostname) {
+		this.preferHostname = preferHostname;
+	}
+	
 }
