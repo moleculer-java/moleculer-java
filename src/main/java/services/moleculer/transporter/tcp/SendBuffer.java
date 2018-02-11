@@ -229,10 +229,10 @@ public class SendBuffer {
 
 	public LinkedList<byte[]> getUnsentPackets() {
 		LinkedList<byte[]> list = new LinkedList<>();
-		ByteBuffer buffer = queue.peek();
+		ByteBuffer buffer = queue.poll();
 		while (buffer != null) {
 			list.addLast(buffer.array());
-			buffer = queue.peek();
+			buffer = queue.poll();
 		}
 		return list;
 	}

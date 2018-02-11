@@ -495,6 +495,7 @@ public abstract class Transporter implements MoleculerComponent {
 					if (node == null) {
 						return;
 					}
+					boolean disconnected = false;
 					node.writeLock.lock();
 					try {
 						if (node.markAsOffline()) {
@@ -502,15 +503,13 @@ public abstract class Transporter implements MoleculerComponent {
 							// Remove remote actions and listeners
 							registry.removeActions(sender);
 							eventbus.removeListeners(sender);
-						} else {
-
-							// Clear pointer (do not notify listeners)
-							node = null;
+							disconnected = true;
+							
 						}
 					} finally {
 						node.writeLock.unlock();
 					}
-					if (node != null) {
+					if (node != null && disconnected) {
 
 						// Notify listeners (not unexpected disconnection)
 						logger.info("Node \"" + sender + "\" disconnected.");
@@ -761,7 +760,15 @@ public abstract class Transporter implements MoleculerComponent {
 			return true;
 		}
 		NodeDescriptor node = nodes.get(nodeID);
-		return node != null && node.offlineSince == 0;
+		if (node == null) {
+			return false;
+		}
+		node.readLock.lock();
+		try {
+			return node.offlineSince == 0 && node.seq > 0;
+		} finally {
+			node.readLock.unlock();
+		}
 	}
 
 	// --- GET NODE IDS OF ALL NODES ---
@@ -779,7 +786,19 @@ public abstract class Transporter implements MoleculerComponent {
 			return registry.getDescriptor();
 		}
 		NodeDescriptor node = nodes.get(nodeID);
-		return node == null ? null : node.info.clone();
+		if (node == null) {
+			return null;
+		}
+		Tree info = null;
+		node.readLock.lock();
+		try {
+			if (node.info != null) {
+				info = node.info.clone();
+			}
+		} finally {
+			node.readLock.unlock();
+		}
+		return info;
 	}
 
 	// --- GET SOCKET ADDRESS ---
@@ -791,7 +810,7 @@ public abstract class Transporter implements MoleculerComponent {
 		}
 		RemoteAddress address;
 		node.readLock.lock();
-		try {
+		try {			
 			address = new RemoteAddress(node.host, node.port);
 		} finally {
 			node.readLock.unlock();

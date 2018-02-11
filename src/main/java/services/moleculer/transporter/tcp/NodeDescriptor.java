@@ -33,6 +33,7 @@ package services.moleculer.transporter.tcp;
 
 import static services.moleculer.util.CommonUtils.getHostOrIP;
 
+import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -87,16 +88,22 @@ public class NodeDescriptor {
 		this(nodeID, preferHostname, false);
 
 		// Set non-final properties
-		this.host = host;
-		this.port = port;
+		if (port < 1) {
+			throw new IllegalArgumentException("Invalid port number (" + port + ")!");
+		}
+		this.host = Objects.requireNonNull(host, "Hostname can't be null!");
+		this.port = port;		
 	}
 
 	public NodeDescriptor(String nodeID, boolean preferHostname, boolean local, Tree info) {
 		this(nodeID, preferHostname, local);
 
 		// Set non-final properties
-		host = getHostOrIP(preferHostname, info);
+		host = Objects.requireNonNull(getHostOrIP(preferHostname, info), "Hostname can't be null!");
 		port = info.get("port", 0);
+		if (port < 1) {
+			throw new IllegalArgumentException("Invalid port number (" + port + ")!");
+		}		
 		seq = info.get("seq", 0L);
 	}
 

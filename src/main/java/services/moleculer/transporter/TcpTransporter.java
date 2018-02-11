@@ -466,6 +466,10 @@ public class TcpTransporter extends Transporter {
 	// --- CONNECTION ERROR ---
 
 	public void unableToSend(String nodeID, LinkedList<byte[]> packets, Throwable cause) {
+		if (cause != null) {
+			cause.printStackTrace();
+		}
+
 		if (nodeID != null) {
 			executor.execute(() -> {
 
@@ -476,26 +480,26 @@ public class TcpTransporter extends Transporter {
 
 				// Mark endpoint as offline
 				NodeDescriptor node = nodes.get(nodeID);
-				node.writeLock.lock();
-				try {
-					if (node != null && node.markAsOffline()) {
-
-						// Remove actions and listeners
-						registry.removeActions(nodeID);
-						eventbus.removeListeners(nodeID);
-						writer.close(node.nodeID);
-
-					} else {
-
-						// Clear pointer (do not notify listeners)
-						node = null;
-					}
-				} catch (Exception error) {
-					logger.warn("Unable to turn off node!", error);
-				} finally {
-					node.writeLock.unlock();
-				}
+				boolean disconnected = false;
 				if (node != null) {
+					node.writeLock.lock();
+					try {
+						if (node != null && node.markAsOffline()) {
+
+							// Remove actions and listeners
+							registry.removeActions(nodeID);
+							eventbus.removeListeners(nodeID);
+							writer.close(node.nodeID);
+							disconnected = true;
+
+						}
+					} catch (Exception error) {
+						logger.warn("Unable to turn off node!", error);
+					} finally {
+						node.writeLock.unlock();
+					}
+				}
+				if (node != null && disconnected) {
 
 					// Notify listeners (unexpected disconnection)
 					logger.info("Node \"" + nodeID + "\" disconnected.");
@@ -507,7 +511,7 @@ public class TcpTransporter extends Transporter {
 					Tree errorMap = null;
 					if (cause != null) {
 						Tree error = new Tree();
-						
+
 						// Add message
 						errorMap = error.putMap("error");
 						errorMap.put("message", cause.getMessage());
@@ -517,7 +521,7 @@ public class TcpTransporter extends Transporter {
 						PrintWriter pw = new PrintWriter(sw);
 						cause.printStackTrace(pw);
 						errorMap.put("trace", sw.toString());
-					}					
+					}
 					for (byte[] packet : packets) {
 						try {
 
@@ -703,6 +707,7 @@ public class TcpTransporter extends Transporter {
 				}
 				cachedDescriptor.seq++;
 				cachedDescriptor.info.put("seq", cachedDescriptor.seq);
+				cachedDescriptor.info.put("port", reader.getCurrentPort());
 			}
 
 		} finally {
@@ -736,25 +741,29 @@ public class TcpTransporter extends Transporter {
 		}
 
 		// Get previous parameters
-		String host = data.get("host", "unknown");
+		String host = data.get("host", (String) null);
 		int port = data.get("port", 0);
 
 		// Register as offline node (if unknown)
 		registerAsNewNode(sender, host, port);
 	}
 
-	protected synchronized void registerAsNewNode(String sender, String host, int port) {
+	protected void registerAsNewNode(String sender, String host, int port) {
 
 		// Check node
-		if (nodeID.equals(sender)) {
+		if (sender == null || host == null || port < 1 || nodeID.equals(sender)) {
 			return;
 		}
 		NodeDescriptor node = nodes.get(sender);
 		if (node == null) {
 
 			// Add as new, offline node
-			nodes.put(sender, new NodeDescriptor(sender, preferHostname, host, port));
-			logger.info("Node \"" + sender + "\" registered.");
+			try {
+				nodes.put(sender, new NodeDescriptor(sender, preferHostname, host, port));
+				logger.info("Node \"" + sender + "\" registered.");
+			} catch (Exception cause) {
+				logger.warn("Unable to register new node!", cause);
+			}
 
 		} else {
 			node.writeLock.lock();
@@ -797,7 +806,7 @@ public class TcpTransporter extends Transporter {
 	/**
 	 * Create and send a Gossip request packet.
 	 */
-	protected void sendGossipRequest() {
+	protected Tree sendGossipRequest() {
 		try {
 
 			// Update CPU
@@ -812,7 +821,7 @@ public class TcpTransporter extends Transporter {
 
 			// Are we alone?
 			if (nodes.isEmpty()) {
-				return;
+				return null;
 			}
 
 			// Create gossip request
@@ -902,9 +911,12 @@ public class TcpTransporter extends Transporter {
 				}
 			}
 
+			// For unit testing
+			return root;
 		} catch (Exception cause) {
 			logger.error("Unable to send gossip message to peer!", cause);
 		}
+		return null;
 	}
 
 	protected void sendGossipToRandomEndpoint(String[] endpoints, int size, byte[] packet, Tree message) {
@@ -928,7 +940,7 @@ public class TcpTransporter extends Transporter {
 
 	// --- GOSSIP REQUEST MESSAGE RECEIVED ---
 
-	protected synchronized void processGossipRequest(Tree data) throws Exception {
+	protected void processGossipRequest(Tree data) throws Exception {
 
 		// Debug
 		String sender = data.get("sender", (String) null);
@@ -987,9 +999,13 @@ public class TcpTransporter extends Transporter {
 
 					// We have newer info or requester doesn't know it
 					if (node.offlineSince == 0) {
-						Tree row = onlineRsp.putList(node.nodeID);
-						row.addObject(node.info);
-						row.add(node.cpuSeq).add(node.cpu);
+						if (!node.info.isEmpty()) {
+							Tree row = onlineRsp.putList(node.nodeID);
+							row.addObject(node.info);
+							if (cpuSeq == 0 || cpuSeq < node.cpuSeq) {
+								row.add(node.cpuSeq).add(node.cpu);
+							}
+						}
 					} else {
 						offlineRsp.put(node.nodeID, node.seq);
 					}
@@ -1087,7 +1103,7 @@ public class TcpTransporter extends Transporter {
 
 	// --- GOSSIP RESPONSE MESSAGE RECEIVED ---
 
-	protected synchronized void processGossipResponse(Tree data) throws Exception {
+	protected void processGossipResponse(Tree data) throws Exception {
 
 		// Debug
 		if (debug) {
@@ -1171,6 +1187,7 @@ public class TcpTransporter extends Transporter {
 				}
 
 				// Get parameters from input
+				boolean disconnected = false;
 				node.writeLock.lock();
 				try {
 					long seq = row.asLong();
@@ -1181,16 +1198,13 @@ public class TcpTransporter extends Transporter {
 						registry.removeActions(node.nodeID);
 						eventbus.removeListeners(node.nodeID);
 						writer.close(node.nodeID);
+						disconnected = true;
 
-					} else {
-
-						// Clear pointer (do not notify listeners)
-						node = null;
 					}
 				} finally {
 					node.writeLock.unlock();
 				}
-				if (node != null) {
+				if (node != null && disconnected) {
 
 					// Notify listeners (not unexpected disconnection)
 					logger.info("Node \"" + node.nodeID + "\" disconnected.");

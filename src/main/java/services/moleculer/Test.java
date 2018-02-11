@@ -45,7 +45,7 @@ public class Test {
 
 	public static void main(String[] args) throws Exception {
 
-		// Test sigar
+		// Load Sigar DLLs
 		String nativeDir = "./native";
 		System.setProperty("java.library.path", nativeDir);
 	
