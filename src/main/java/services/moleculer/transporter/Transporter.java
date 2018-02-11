@@ -37,6 +37,7 @@ import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -60,6 +61,7 @@ import services.moleculer.serializer.Serializer;
 import services.moleculer.service.Name;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.transporter.tcp.NodeDescriptor;
+import services.moleculer.transporter.tcp.RemoteAddress;
 
 /**
  * Base superclass of all Transporter implementations.
@@ -500,13 +502,19 @@ public abstract class Transporter implements MoleculerComponent {
 							// Remove remote actions and listeners
 							registry.removeActions(sender);
 							eventbus.removeListeners(sender);
+						} else {
 
-							// Notify listeners (not unexpected disconnection)
-							logger.info("Node \"" + sender + "\" disconnected.");
-							broadcastNodeDisconnected(node.info, false);
+							// Clear pointer (do not notify listeners)
+							node = null;
 						}
 					} finally {
 						node.writeLock.unlock();
+					}
+					if (node != null) {
+
+						// Notify listeners (not unexpected disconnection)
+						logger.info("Node \"" + sender + "\" disconnected.");
+						broadcastNodeDisconnected(node.info, false);
 					}
 				}
 			} catch (Exception cause) {
@@ -524,7 +532,7 @@ public abstract class Transporter implements MoleculerComponent {
 
 			// New, unknown node (register as offline)
 			connected = true;
-			node = new NodeDescriptor(sender, preferHostname, false, info);			
+			node = new NodeDescriptor(sender, preferHostname, false, info);
 			nodes.put(sender, node);
 
 		} else {
@@ -614,6 +622,8 @@ public abstract class Transporter implements MoleculerComponent {
 		}
 	}
 
+	// --- INTERNAL MOLECULER EVENTS ---
+
 	protected void broadcastNodeConnected(Tree info, boolean reconnected) {
 		if (info != null) {
 			Tree message = new Tree();
@@ -676,50 +686,60 @@ public abstract class Transporter implements MoleculerComponent {
 
 		// Compute timeout limits
 		long now = System.currentTimeMillis();
-		long offlineTimeoutMillis = offlineTimeout * 1000L;
-		long heartbeatTimeoutMillis = heartbeatTimeout * 1000L;
+		Iterator<NodeDescriptor> i;
 		NodeDescriptor node;
 
 		// Check offline timeout
-		Iterator<NodeDescriptor> i = nodes.values().iterator();
-		while (i.hasNext()) {
-			node = i.next();
-			node.readLock.lock();
-			try {
-				if (node.offlineSince > 0 && now - node.offlineSince > offlineTimeoutMillis) {
+		if (offlineTimeout > 0) {
+			i = nodes.values().iterator();
+			long offlineTimeoutMillis = offlineTimeout * 1000L;
+			while (i.hasNext()) {
+				node = i.next();
+				node.readLock.lock();
+				try {
+					if (node.offlineSince > 0 && now - node.offlineSince > offlineTimeoutMillis) {
 
-					// Remove node from Map
-					i.remove();
-					logger.info("Node \"" + nodeID + "\" is no longer registered because it was inactive for "
-							+ offlineTimeout + " seconds.");
+						// Remove node from Map
+						i.remove();
+						logger.info("Node \"" + nodeID + "\" is no longer registered because it was inactive for "
+								+ offlineTimeout + " seconds.");
 
+					}
+				} finally {
+					node.readLock.unlock();
 				}
-			} finally {
-				node.readLock.unlock();
 			}
 		}
 
 		// Check heartbeat timeout
-		i = nodes.values().iterator();
-		while (i.hasNext()) {
-			node = i.next();
-			node.writeLock.lock();
-			try {
-				if (node.cpuWhen > 0 && now - node.cpuWhen > heartbeatTimeoutMillis && node.markAsOffline()) {
+		if (heartbeatTimeout > 0) {
+			long heartbeatTimeoutMillis = heartbeatTimeout * 1000L;
+			i = nodes.values().iterator();
+			LinkedList<NodeDescriptor> disconnectedNodes = new LinkedList<>();
+			while (i.hasNext()) {
+				node = i.next();
+				node.writeLock.lock();
+				try {
+					if (node.cpuWhen > 0 && now - node.cpuWhen > heartbeatTimeoutMillis && node.markAsOffline()) {
 
-					// Remove services and listeners
-					registry.removeActions(node.nodeID);
-					eventbus.removeListeners(node.nodeID);
-
-					// Notify listeners
-					logger.info("Node \"" + node.nodeID
-							+ "\" is no longer available because it hasn't submitted heartbeat signal for "
-							+ heartbeatTimeout + " seconds.");
-					broadcastNodeDisconnected(node.info, true);
-
+						// Remove services and listeners
+						registry.removeActions(node.nodeID);
+						eventbus.removeListeners(node.nodeID);
+						disconnectedNodes.add(node);
+					}
+				} finally {
+					node.writeLock.unlock();
 				}
-			} finally {
-				node.writeLock.unlock();
+			}
+			i = disconnectedNodes.iterator();
+			while (i.hasNext()) {
+				node = i.next();
+
+				// Notify listeners
+				logger.info("Node \"" + node.nodeID
+						+ "\" is no longer available because it hasn't submitted heartbeat signal for "
+						+ heartbeatTimeout + " seconds.");
+				broadcastNodeDisconnected(node.info, true);
 			}
 		}
 	}
@@ -727,6 +747,9 @@ public abstract class Transporter implements MoleculerComponent {
 	// --- GET CPU USAGE OF A REMOTE NODE ---
 
 	public int getCpuUsage(String nodeID) {
+		if (this.nodeID.equals(nodeID)) {
+			return monitor.getTotalCpuPercent();
+		}
 		NodeDescriptor node = nodes.get(nodeID);
 		return node == null ? 0 : node.cpu;
 	}
@@ -744,19 +767,36 @@ public abstract class Transporter implements MoleculerComponent {
 	// --- GET NODE IDS OF ALL NODES ---
 
 	public Set<String> getAllNodeIDs() {
-		HashSet<String> nodeIDs = new HashSet<>(nodes.keySet());
-		nodeIDs.add(nodeID);
-		return nodeIDs;
+		HashSet<String> ids = new HashSet<>(nodes.keySet());
+		ids.add(nodeID);
+		return ids;
 	}
 
 	// --- GET NODE DESCRIPTOR ---
 
-	public Tree getNodeDescriptor(String nodeID) {
+	public Tree getDescriptor(String nodeID) {
 		if (this.nodeID.equals(nodeID)) {
 			return registry.getDescriptor();
 		}
 		NodeDescriptor node = nodes.get(nodeID);
-		return node == null ? null : node.info;
+		return node == null ? null : node.info.clone();
+	}
+
+	// --- GET SOCKET ADDRESS ---
+
+	public RemoteAddress getAddress(String nodeID) {
+		NodeDescriptor node = nodes.get(nodeID);
+		if (node == null) {
+			return null;
+		}
+		RemoteAddress address;
+		node.readLock.lock();
+		try {
+			address = new RemoteAddress(node.host, node.port);
+		} finally {
+			node.readLock.unlock();
+		}
+		return address;
 	}
 
 	// --- OPTIONAL ERROR HANDLER ---

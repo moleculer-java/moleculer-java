@@ -39,6 +39,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -46,7 +47,6 @@ import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import services.moleculer.service.NodeDescriptor;
 import services.moleculer.transporter.TcpTransporter;
 
 /**
@@ -177,22 +177,22 @@ public class TcpWriter implements Runnable {
 	// --- WRITE TO SOCKET ---
 
 	public void send(String nodeID, byte[] packet) {
+		SendBuffer buffer = null;
 		try {
 
 			// Get or create buffer
-			SendBuffer buffer = null;
 			boolean newBuffer = false;
 			synchronized (buffers) {
 				buffer = buffers.get(nodeID);
 				if (buffer == null) {
 					
 					// Create new connection
-					NodeDescriptor node = transporter.getNodeDescriptor(nodeID);
-					if (node == null) {
+					RemoteAddress address = transporter.getAddress(nodeID);
+					if (address == null) {
 						logger.warn("Unknown node ID (" + nodeID + ")!");
 						return;
 					}					
-					buffer = new SendBuffer(nodeID, node.host, node.port, debug);
+					buffer = new SendBuffer(nodeID, address.host, address.port, debug);
 					append(nodeID, buffer, packet);
 					buffers.put(nodeID, buffer);
 					newBuffer = true;
@@ -202,7 +202,8 @@ public class TcpWriter implements Runnable {
 					if (!append(nodeID, buffer, packet)) {
 						
 						// Buffer is closed
-						buffer = new SendBuffer(nodeID, node.host, node.port, debug);
+						RemoteAddress address = transporter.getAddress(nodeID);
+						buffer = new SendBuffer(nodeID, address.host, address.port, debug);
 						append(nodeID, buffer, packet);
 						buffers.put(nodeID, buffer);
 						newBuffer = true;
@@ -232,7 +233,16 @@ public class TcpWriter implements Runnable {
 			synchronized (buffers) {
 				buffers.remove(nodeID);
 			}			
-			transporter.unableToSend(nodeID, packet, cause);
+			LinkedList<byte[]> packets;
+			if (buffer != null) {
+				packets = buffer.getUnsentPackets();
+			} else {
+				packets = new LinkedList<>();
+			}
+			if (packets.isEmpty() && packet != null) {
+				packets.addLast(packet);
+			}
+			transporter.unableToSend(nodeID, packets, cause);
 		}
 	}
 
@@ -296,7 +306,7 @@ public class TcpWriter implements Runnable {
 							synchronized (buffers) {
 								buffers.remove(buffer.nodeID);
 							}
-							transporter.unableToSend(buffer.nodeID, buffer.getCurrentPacket(), cause);
+							transporter.unableToSend(buffer.nodeID, buffer.getUnsentPackets(), cause);
 						}
 					}
 					buffer = opened.poll();
@@ -329,7 +339,7 @@ public class TcpWriter implements Runnable {
 								synchronized (buffers) {
 									buffers.remove(buffer.nodeID);
 								}
-								transporter.unableToSend(buffer.nodeID, buffer.getCurrentPacket(), cause);
+								transporter.unableToSend(buffer.nodeID, buffer.getUnsentPackets(), cause);
 							}
 							close(key, cause);
 						}

@@ -42,7 +42,6 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.repl.Command;
 import services.moleculer.repl.TextTable;
 import services.moleculer.service.Name;
-import services.moleculer.service.NodeDescriptor;
 import services.moleculer.transporter.Transporter;
 
 /**
@@ -201,9 +200,6 @@ public class Nodes extends Command {
 				}
 				infos.putObject(nodeID, info);
 			}
-		}
-		if (infos.isEmpty()) {
-			infos.putObject(broker.nodeID(), broker.components().registry().getDescriptor());
 		}
 		return infos;
 	}

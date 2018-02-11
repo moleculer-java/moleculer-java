@@ -35,6 +35,7 @@ import java.io.EOFException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.util.LinkedList;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -226,12 +227,14 @@ public class SendBuffer {
 
 	// --- GET CURRENT PACKET ---
 
-	public byte[] getCurrentPacket() {
+	public LinkedList<byte[]> getUnsentPackets() {
+		LinkedList<byte[]> list = new LinkedList<>();
 		ByteBuffer buffer = queue.peek();
-		if (buffer == null) {
-			return null;
+		while (buffer != null) {
+			list.addLast(buffer.array());
+			buffer = queue.peek();
 		}
-		return buffer.array();
+		return list;
 	}
 
 }

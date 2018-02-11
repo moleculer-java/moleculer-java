@@ -65,7 +65,6 @@ import services.moleculer.context.CallingOptions;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
-import services.moleculer.transporter.TcpTransporter;
 import services.moleculer.transporter.Transporter;
 
 /**
@@ -723,6 +722,14 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		return endpoint;
 	}
 
+	// --- TIMESTAMP OF SERVICE DESCRIPTOR ---
+	
+	private AtomicLong timestamp = new AtomicLong();
+	
+	public long getTimestamp() {
+		return timestamp.get();
+	}
+
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
 	private volatile Tree descriptor;
@@ -732,7 +739,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		Tree current = currentDescriptor();
 		return current.clone();
 	}
-	
+
 	protected synchronized void clearDescriptorCache() {
 		descriptor = null;
 	}
@@ -819,8 +826,10 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			try {
 				InetAddress local = InetAddress.getLocalHost();
 				String defaultAddress = local.getHostAddress();
-				ips.add(defaultAddress);
-				ipList.add(defaultAddress);
+				if (!defaultAddress.startsWith("127.")) {
+					ips.add(defaultAddress);
+					ipList.add(defaultAddress);
+				}
 			} catch (Exception ignored) {
 			}
 			try {
@@ -841,12 +850,6 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			} catch (Exception ignored) {
 			}
 
-			// Add port
-			if (transporter != null && transporter instanceof TcpTransporter) {
-				TcpTransporter tcp = (TcpTransporter) transporter;
-				descriptor.put("port", tcp.getCurrentPort());
-			}
-
 			// Client descriptor
 			Tree client = descriptor.putMap("client");
 			client.put("type", "java");
@@ -856,6 +859,8 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			// Config (not used in this version)
 			// root.putMap("config");
 			
+			// Set timestamp
+			timestamp.set(System.currentTimeMillis());
 		}
 		return descriptor;
 	}
