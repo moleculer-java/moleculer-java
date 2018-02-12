@@ -33,10 +33,12 @@ package services.moleculer.transporter;
 
 import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.parseURLs;
+import static services.moleculer.util.CommonUtils.readTree;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.InetAddress;
+import java.net.URL;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.concurrent.ScheduledFuture;
@@ -161,6 +163,23 @@ public class TcpTransporter extends Transporter {
 	 */
 	public TcpTransporter(String... urls) {
 		this.urls = urls;
+	}
+
+	/**
+	 * Start TCP Transporter in full TCP mode, without UDP discovery. Loads node
+	 * list from an URL (as an http or file resource in JSON/XML/YAML format).
+	 * Sample JSON file:<br>
+	 * <br>
+	 * {<br>
+	 * "nodes":[<br>
+	 * "tcp://host1:port1/nodeID1",<br>
+	 * "tcp://host2:port2/nodeID2",<br>
+	 * "tcp://host3:port3/nodeID3"<br>
+	 * ]<br>
+	 * }
+	 */
+	public TcpTransporter(URL urlList) throws Exception {
+		this.urls = parseURLs(readTree(urlList.toString()), "nodes", null);
 	}
 
 	// --- START TRANSPORTER ---
@@ -1060,10 +1079,10 @@ public class TcpTransporter extends Transporter {
 					// Requester said it is ONLINE
 					if (node.offlineSince == 0) {
 						if (cpuSeq > node.cpuSeq) {
-							
+
 							// We update our CPU info
 							node.updateCpu(cpuSeq, cpu);
-							
+
 						} else if (cpuSeq < node.cpuSeq && node.cpuSeq > 0) {
 
 							// We have newer CPU value, send back

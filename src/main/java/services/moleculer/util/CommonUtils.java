@@ -32,9 +32,12 @@
 package services.moleculer.util;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -127,7 +130,11 @@ public final class CommonUtils {
 	// --- PARSE URL LIST OR URL ARRAY ---
 
 	public static final String[] parseURLs(Tree config, String[] defaultURLs) {
-		Tree urlNode = config.get("url");
+		return parseURLs(config, "url", defaultURLs);
+	}
+	
+	public static final String[] parseURLs(Tree config, String name, String[] defaultURLs) {
+		Tree urlNode = config.get(name);
 		List<String> urlList;
 		if (urlNode == null) {
 			return defaultURLs;
@@ -272,6 +279,25 @@ public final class CommonUtils {
 		return type;
 	}
 
+	public static final Tree readTree(String resourceURL) throws Exception {
+		String format = getFormat(resourceURL);
+		if (resourceURL.startsWith("http:") || resourceURL.startsWith("https:") || resourceURL.startsWith("file:")) {
+			return readTree(new URL(resourceURL).openStream(), format);
+		}
+		URL url = Thread.currentThread().getContextClassLoader().getResource(resourceURL);
+		if (url == null) {
+			url = Thread.currentThread().getContextClassLoader().getResource('/' + resourceURL);
+		}
+		if (url != null) {
+			return readTree(url.openStream(), format);
+		}
+		File file = new File(resourceURL);
+		if (file.isFile()) {
+			return readTree(new FileInputStream(file), format);
+		}
+		throw new IOException("Resource not found (" + resourceURL + ")!");
+	}
+	
 	public static final Tree readTree(InputStream in, String format) throws Exception {
 		return new Tree(readFully(in), format);
 	}

@@ -34,13 +34,9 @@ package services.moleculer.config;
 import static services.moleculer.config.ComponentRegistry.COMPONENTS_ID;
 import static services.moleculer.config.ComponentRegistry.EXECUTOR_ID;
 import static services.moleculer.config.ComponentRegistry.SCHEDULER_ID;
-import static services.moleculer.util.CommonUtils.getFormat;
 import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.readTree;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -200,30 +196,8 @@ public final class ServiceBrokerSettings {
 		if (configPath == null || configPath.isEmpty()) {
 			return;
 		}
-		String format = getFormat(configPath.toString());
-		logger.info("Loading configuration from \"" + configPath + "\" in "
-				+ (format == null ? "JSON" : format.toUpperCase()) + " format...");
-		if (configPath.startsWith("http:") || configPath.startsWith("https:") || configPath.startsWith("file:")) {
-			config = readTree(new URL(configPath).openStream(), format);
-			applyConfiguration();
-			return;
-		}
-		URL url = getClass().getResource(configPath);
-		if (url == null) {
-			url = getClass().getResource('/' + configPath);
-		}
-		if (url != null) {
-			config = readTree(url.openStream(), format);
-			applyConfiguration();
-			return;
-		}
-		File file = new File(configPath);
-		if (file.isFile()) {
-			config = readTree(new FileInputStream(file), format);
-			applyConfiguration();
-			return;
-		}
-		throw new IllegalArgumentException("Resource \"" + configPath + "\" not found!");
+		config = readTree(configPath);
+		applyConfiguration();
 	}
 
 	// --- INTERNAL SETTERS ---

@@ -70,11 +70,6 @@ public class TcpWriter implements Runnable {
 	 */
 	protected final boolean debug;
 
-	/**
-	 * Send HELLO message?
-	 */
-	protected final boolean sendHello;
-
 	// --- PARENT TRANSPORTER ---
 
 	protected final TcpTransporter transporter;
@@ -93,9 +88,6 @@ public class TcpWriter implements Runnable {
 		this.transporter = transporter;
 		this.debug = transporter.isDebug();
 		this.maxConnections = transporter.getMaxConnections();
-
-		String[] urls = transporter.getUrls();
-		this.sendHello = urls == null || urls.length == 0;
 	}
 
 	// --- CONNECT ---
@@ -193,22 +185,22 @@ public class TcpWriter implements Runnable {
 			synchronized (buffers) {
 				buffer = buffers.get(nodeID);
 				if (buffer == null) {
-					
+
 					// Create new connection
 					RemoteAddress address = transporter.getAddress(nodeID);
 					if (address == null) {
 						logger.warn("Unknown node ID (" + nodeID + ")!");
 						return;
-					}					
+					}
 					buffer = new SendBuffer(nodeID, address.host, address.port, debug);
 					append(nodeID, buffer, packet);
 					buffers.put(nodeID, buffer);
 					newBuffer = true;
 				} else {
-					
+
 					// Try to append to buffer
 					if (!append(nodeID, buffer, packet)) {
-						
+
 						// Buffer is closed
 						RemoteAddress address = transporter.getAddress(nodeID);
 						buffer = new SendBuffer(nodeID, address.host, address.port, debug);
@@ -224,10 +216,10 @@ public class TcpWriter implements Runnable {
 				if (maxConnections > 0) {
 					cleanup();
 				}
-				
+
 				// Add to opened buffers
 				opened.add(buffer);
-				
+
 			} else if (buffer.key != null) {
 
 				// Mark as writable
@@ -242,7 +234,7 @@ public class TcpWriter implements Runnable {
 		} catch (Throwable cause) {
 			synchronized (buffers) {
 				buffers.remove(nodeID);
-			}			
+			}
 			LinkedList<byte[]> packets;
 			if (buffer != null) {
 				packets = buffer.getUnsentPackets();
@@ -259,19 +251,17 @@ public class TcpWriter implements Runnable {
 	protected boolean append(String nodeID, SendBuffer buffer, byte[] packet) {
 
 		// Add HELLO first
-		if (sendHello) {
-			if (debug) {
-				logger.info("Send \"hello\" message to \"" + nodeID + "\".");
-			}
-			if (!buffer.append(transporter.generateGossipHello())) {
-				return false;
-			}
+		if (debug) {
+			logger.info("Send \"hello\" message to \"" + nodeID + "\".");
+		}
+		if (!buffer.append(transporter.generateGossipHello())) {
+			return false;
 		}
 
 		// Add message
 		return buffer.append(packet);
 	}
-	
+
 	// --- WRITER LOOP ---
 
 	@Override
@@ -303,7 +293,7 @@ public class TcpWriter implements Runnable {
 						channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
 						channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
 						channel.setOption(StandardSocketOptions.SO_LINGER, -1);
-						
+
 						key = channel.register(selector, SelectionKey.OP_WRITE);
 						key.attach(buffer);
 						buffer.connected(key, channel);
