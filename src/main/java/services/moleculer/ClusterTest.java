@@ -7,7 +7,7 @@ import services.moleculer.transporter.TcpTransporter;
 
 public class ClusterTest {
 
-	private static final int NODES = 100;
+	private static final int NODES = 20;
 
 	public static void main(String[] args) throws Exception {
 		System.out.println("START");

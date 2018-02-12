@@ -43,8 +43,10 @@ import services.moleculer.service.Name;
  * long-term preservation of business data which can survive multiple
  * generations of software evolution. Ion was built to solve the rapid
  * development, decoupling, and efficiency challenges faced every day while
- * engineering large-scale, service-oriented architectures. This serializer is
- * NOT compatible with the JavaScript/Node version of Moleculer.<br>
+ * engineering large-scale, service-oriented architectures.<br>
+ * <br>
+ * This serializer is NOT compatible with the JavaScript/Node version of
+ * Moleculer.<br>
  * <br>
  * <b>Required dependency:</b><br>
  * <br>

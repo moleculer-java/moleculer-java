@@ -41,8 +41,10 @@ import services.moleculer.service.Name;
  * and null. One of the major practical wins of JSON is that successful data
  * interchange is possible without casting a schema in concrete. This works much
  * better in a world where both ends of a communication relationship may be
- * evolving at high speed. This serializer is NOT compatible with the
- * JavaScript/Node version of Moleculer.<br>
+ * evolving at high speed.<br>
+ * <br>
+ * This serializer is NOT compatible with the JavaScript/Node version of
+ * Moleculer.<br>
  * <br>
  * <b>Required dependency:</b><br>
  * <br>

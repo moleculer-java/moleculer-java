@@ -751,7 +751,16 @@ public class TcpTransporter extends Transporter {
 	protected void registerAsNewNode(String sender, String host, int port) {
 
 		// Check node
-		if (sender == null || host == null || port < 1 || nodeID.equals(sender)) {
+		if (sender == null || sender.isEmpty()) {
+			throw new IllegalArgumentException("Empty sender field!");
+		}
+		if (host == null || host.isEmpty()) {
+			throw new IllegalArgumentException("Empty host field!");
+		}
+		if (port < 1) {
+			throw new IllegalArgumentException("Invalid port value (" + port + ")!");
+		}
+		if (nodeID.equalsIgnoreCase(sender)) {
 			return;
 		}
 		NodeDescriptor node = nodes.get(sender);
@@ -913,6 +922,7 @@ public class TcpTransporter extends Transporter {
 
 			// For unit testing
 			return root;
+
 		} catch (Exception cause) {
 			logger.error("Unable to send gossip message to peer!", cause);
 		}
@@ -940,7 +950,7 @@ public class TcpTransporter extends Transporter {
 
 	// --- GOSSIP REQUEST MESSAGE RECEIVED ---
 
-	protected void processGossipRequest(Tree data) throws Exception {
+	protected Tree processGossipRequest(Tree data) throws Exception {
 
 		// Debug
 		String sender = data.get("sender", (String) null);
@@ -995,14 +1005,14 @@ public class TcpTransporter extends Transporter {
 					cpu = online.get(2).asInteger();
 				}
 
-				if (seq == 0 || seq < node.seq) {
+				if ((seq == 0 || seq < node.seq) && node.seq > 0) {
 
 					// We have newer info or requester doesn't know it
 					if (node.offlineSince == 0) {
 						if (!node.info.isEmpty()) {
 							Tree row = onlineRsp.putList(node.nodeID);
 							row.addObject(node.info);
-							if (cpuSeq == 0 || cpuSeq < node.cpuSeq) {
+							if ((cpuSeq == 0 || cpuSeq < node.cpuSeq) && node.cpuSeq > 0) {
 								row.add(node.cpuSeq).add(node.cpu);
 							}
 						}
@@ -1041,17 +1051,20 @@ public class TcpTransporter extends Transporter {
 						node.info.put("seq", node.seq);
 						Tree row = onlineRsp.putList(node.nodeID);
 						row.addObject(node.info);
-						row.add(node.cpuSeq).add(node.cpu);
+						if (cpuSeq < node.cpuSeq && node.cpuSeq > 0) {
+							row.add(node.cpuSeq).add(node.cpu);
+						}
 					}
 				} else if (online != null) {
 
 					// Requester said it is ONLINE
 					if (node.offlineSince == 0) {
-
-						// We update our CPU info
-						node.updateCpu(cpuSeq, cpu);
-
-						if (cpuSeq < node.cpuSeq) {
+						if (cpuSeq > node.cpuSeq) {
+							
+							// We update our CPU info
+							node.updateCpu(cpuSeq, cpu);
+							
+						} else if (cpuSeq < node.cpuSeq && node.cpuSeq > 0) {
 
 							// We have newer CPU value, send back
 							onlineRsp.putList(node.nodeID).add(node.cpuSeq).add(node.cpu);
@@ -1080,7 +1093,7 @@ public class TcpTransporter extends Transporter {
 		if (emptyOnlineBlock && emptyOfflineBlock) {
 
 			// Message is empty
-			return;
+			return root;
 		}
 		if (emptyOnlineBlock) {
 			onlineRsp.remove();
@@ -1099,6 +1112,9 @@ public class TcpTransporter extends Transporter {
 
 		// Send response
 		writer.send(sender, packet);
+
+		// For unit testing
+		return root;
 	}
 
 	// --- GOSSIP RESPONSE MESSAGE RECEIVED ---

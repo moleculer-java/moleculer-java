@@ -177,6 +177,14 @@ public class TcpWriter implements Runnable {
 	// --- WRITE TO SOCKET ---
 
 	public void send(String nodeID, byte[] packet) {
+		if (nodeID == null) {
+			logger.warn("Unable to send (missing nodeID)!");
+			return;
+		}
+		if (packet == null || packet.length < 6) {
+			logger.warn("Cannot send empty packet to node " + nodeID + "!");
+			return;
+		}
 		SendBuffer buffer = null;
 		try {
 
@@ -220,14 +228,16 @@ public class TcpWriter implements Runnable {
 				// Add to opened buffers
 				opened.add(buffer);
 				
-			} else {
+			} else if (buffer.key != null) {
 
 				// Mark as writable
 				buffer.key.interestOps(SelectionKey.OP_WRITE);
 			}
 
 			// Wake up selector
-			selector.wakeup();
+			if (selector != null) {
+				selector.wakeup();
+			}
 
 		} catch (Throwable cause) {
 			synchronized (buffers) {

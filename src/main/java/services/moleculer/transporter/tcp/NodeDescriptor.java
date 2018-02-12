@@ -92,35 +92,48 @@ public class NodeDescriptor {
 			throw new IllegalArgumentException("Invalid port number (" + port + ")!");
 		}
 		this.host = Objects.requireNonNull(host, "Hostname can't be null!");
-		this.port = port;		
+		this.port = port;
 	}
 
 	public NodeDescriptor(String nodeID, boolean preferHostname, boolean local, Tree info) {
 		this(nodeID, preferHostname, local);
 
+		// Store info
+		if (info == null || info.isEmpty()) {
+			throw new IllegalArgumentException("Info block is required!");
+		}
+		this.info = info;
+		
 		// Set non-final properties
 		host = Objects.requireNonNull(getHostOrIP(preferHostname, info), "Hostname can't be null!");
 		port = info.get("port", 0);
 		if (port < 1) {
 			throw new IllegalArgumentException("Invalid port number (" + port + ")!");
-		}		
+		}
 		seq = info.get("seq", 0L);
 	}
 
 	// --- UPDATE CPU ---
 
 	public void updateCpu(int cpu) {
-		if (cpu >= 0 && cpu <= 100) {
-			if (this.cpu != cpu) {
-				this.cpu = cpu;
-				cpuSeq++;
-			}
-			cpuWhen = System.currentTimeMillis();
+		if (cpu < 0 || cpu > 100) {
+			throw new IllegalArgumentException("Invalid CPU value (" + cpu + ")!");
 		}
+		if (this.cpu != cpu) {
+			this.cpu = cpu;
+			cpuSeq++;
+		}
+		cpuWhen = System.currentTimeMillis();
 	}
 
 	public void updateCpu(long cpuSeq, int cpu) {
-		if (cpu >= 0 && cpu <= 100 && cpuSeq > 0 && this.cpuSeq < cpuSeq) {
+		if (cpu < 0 || cpu > 100) {
+			throw new IllegalArgumentException("Invalid CPU value (" + cpu + ")!");
+		}
+		if (cpuSeq < 1) {
+			throw new IllegalArgumentException("Invalid CPU sequence number (" + cpuSeq + ")!");
+		}
+		if (this.cpuSeq < cpuSeq) {
 			this.cpuSeq = cpuSeq;
 			this.cpu = cpu;
 			cpuWhen = System.currentTimeMillis();
@@ -140,6 +153,9 @@ public class NodeDescriptor {
 	}
 
 	public boolean markAsOffline(long seq) {
+		if (seq < 1) {
+			throw new IllegalArgumentException("Invalid sequence number (" + seq + ")!");
+		}
 		if (this.seq < seq) {
 			this.seq = seq;
 			info.put("seq", seq);
@@ -155,6 +171,12 @@ public class NodeDescriptor {
 
 	public boolean markAsOnline(Tree info) {
 		long seq = info.get("seq", 0L);
+		if (seq < 1) {
+			throw new IllegalArgumentException("Invalid sequence number (" + seq + ")!");
+		}
+		if (info == null || info.isEmpty()) {
+			throw new IllegalArgumentException("Empty or undefined info block (" + info.toString(false) + ")!");
+		}
 		if (this.seq < seq) {
 			this.seq = seq;
 			this.info = info;
@@ -162,6 +184,12 @@ public class NodeDescriptor {
 			this.host = getHostOrIP(preferHostname, info);
 			this.port = info.get("port", 0);
 		}
+		if (host == null || host.isEmpty()) {
+			throw new IllegalArgumentException("Empty or undefined hostname (" + host + ")!");
+		}		
+		if (port < 1) {
+			throw new IllegalArgumentException("Invalid port number (" + port + ")!");
+		}		
 		return false;
 	}
 
