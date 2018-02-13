@@ -11,7 +11,6 @@ import java.util.HashMap;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledExecutorService;
 
 import javax.swing.JFrame;
@@ -29,9 +28,9 @@ public class ClusterTest extends JFrame implements Runnable {
 
 	// --- CONSTANTS ---
 
-	private static final int NODES = 100;
+	private static int NODES = 50;
 
-	private static final int PIXEL_SIZE = 10;
+	private static int PIXEL_SIZE = 20;
 
 	// --- ENTRY POINT ---
 
@@ -94,10 +93,19 @@ public class ClusterTest extends JFrame implements Runnable {
 			g.setColor(color);
 			int rx = x * PIXEL_SIZE;
 			int ry = y * PIXEL_SIZE;
-			g.fill3DRect(rx, ry, PIXEL_SIZE - 1, PIXEL_SIZE - 1, true);
-			if (seq != null) {
-				g.setColor(Color.BLACK);
-				g.drawString(Long.toString(seq), rx, ry + PIXEL_SIZE - 3);
+			if (PIXEL_SIZE < 10) {
+
+				// Small boxes wihout "seq" number
+				g.fillRect(rx, ry, PIXEL_SIZE, PIXEL_SIZE);
+				
+			} else {
+				
+				// Larger boxes with "seq" number
+				g.fill3DRect(rx, ry, PIXEL_SIZE - 1, PIXEL_SIZE - 1, true);
+				if (seq != null) {
+					g.setColor(Color.BLACK);
+					g.drawString(Long.toString(seq), rx, ry + PIXEL_SIZE - 3);
+				}
 			}
 			repaint(200);
 		}
@@ -116,24 +124,23 @@ public class ClusterTest extends JFrame implements Runnable {
 			String nativeDir = "./native";
 			System.setProperty("java.library.path", nativeDir);
 
-			ExecutorService executor = Executors.newFixedThreadPool(Math.min(NODES * 2, 150));
-			ScheduledExecutorService scheduler = Executors
-					.newScheduledThreadPool(ForkJoinPool.commonPool().getParallelism());
+			ExecutorService executor = Executors.newFixedThreadPool(Math.min(NODES, 100));
+			ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Math.min(NODES, 100));
 
 			String[] urls = new String[NODES];
 			for (int i = 0; i < NODES; i++) {
 				int port = 6000 + i;
 				urls[i] = "tcp://127.0.0.1:" + port + "/node-" + i;
 			}
-			
+
 			ServiceBroker[] brokers = new ServiceBroker[NODES];
 			for (int i = 0; i < NODES; i++) {
 
-				TcpTransporter transporter = new TcpTransporter(urls);
+				TcpTransporter transporter = new TcpTransporter(); // urls
 				transporter.setGossipPeriod(2);
 				transporter.setDebug(false);
 				transporter.setOfflineTimeout(0);
-				
+
 				ServiceBrokerSettings settings = new ServiceBrokerSettings();
 				settings.setShutDownThreadPools(false);
 				settings.setExecutor(executor);

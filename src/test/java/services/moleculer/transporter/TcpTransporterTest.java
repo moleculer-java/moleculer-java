@@ -299,19 +299,6 @@ public class TcpTransporterTest extends TestCase {
 		assertEquals(5, rsp.get("online.node4[1]", 0));
 		assertEquals(5, tr.getCpuUsage("node4"));
 		assertEquals(1, tr.getDescriptor().seq);
-		
-		// Target is offline
-		req = createGossipOfflineMessage("node1", 1);
-		rsp = tr.processGossipRequest(req);
-		assertEquals(2, rsp.get("online.node1[0].seq", 0));
-
-		req = createGossipOfflineMessage("node1", 1);
-		rsp = tr.processGossipRequest(req);
-		assertEquals(2, rsp.get("online.node1[0].seq", 0));
-
-		req = createGossipOfflineMessage("node1", 20);
-		rsp = tr.processGossipRequest(req);
-		assertEquals(21, rsp.get("online.node1[0].seq", 0));
 	}
 	
 	// --- GOSSIP RESPONSE PROCESSING ---

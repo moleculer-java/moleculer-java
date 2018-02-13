@@ -174,22 +174,25 @@ public class NodeDescriptor {
 		if (seq < 1) {
 			throw new IllegalArgumentException("Invalid sequence number (" + seq + ")!");
 		}
-		if (info == null || info.isEmpty()) {
-			throw new IllegalArgumentException("Empty or undefined info block (" + info.toString(false) + ")!");
-		}
 		if (this.seq < seq) {
+			if (info == null || info.isEmpty()) {
+				throw new IllegalArgumentException("Empty or undefined info block (" + info.toString(false) + ")!");
+			}
+			String host = getHostOrIP(preferHostname, info);
+			if (host == null || host.isEmpty()) {
+				throw new IllegalArgumentException("Empty or undefined hostname (" + host + ")!");
+			}		
+			int port = info.get("port", 0);
+			if (port < 1) {
+				throw new IllegalArgumentException("Invalid port number (" + port + ")!");
+			}
 			this.seq = seq;
 			this.info = info;
 			this.offlineSince = 0;
-			this.host = getHostOrIP(preferHostname, info);
-			this.port = info.get("port", 0);
+			this.host = host;
+			this.port = port;
+			return true;
 		}
-		if (host == null || host.isEmpty()) {
-			throw new IllegalArgumentException("Empty or undefined hostname (" + host + ")!");
-		}		
-		if (port < 1) {
-			throw new IllegalArgumentException("Invalid port number (" + port + ")!");
-		}		
 		return false;
 	}
 

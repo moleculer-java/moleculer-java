@@ -37,6 +37,7 @@ import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -129,11 +130,16 @@ public class TcpWriter implements Runnable {
 
 		// Close other sockets
 		if (selector != null) {
-			for (SelectionKey key : new HashSet<SelectionKey>(selector.keys())) {
+			HashSet<SelectionKey> keys = new HashSet<>();
+			for (int i = 0; i < 5; i++) {
 				try {
-					key.cancel();
-				} catch (Exception ignored) {
+					keys.addAll(selector.keys());
+					break;
+				} catch (ConcurrentModificationException ignored) {
 				}
+			}
+			for (SelectionKey key : keys) {
+				close(key, null);
 			}
 
 			// Close selector

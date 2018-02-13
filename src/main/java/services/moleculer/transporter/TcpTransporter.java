@@ -947,7 +947,7 @@ public class TcpTransporter extends Transporter {
 		return null;
 	}
 
-	protected void sendGossipToRandomEndpoint(String[] endpoints, int size, byte[] packet, Tree message) {
+	protected void sendGossipToRandomEndpoint(String[] endpoints, int size, byte[] packet, Tree message) throws Exception {
 
 		// Choose a random endpoint
 		String nodeID;
@@ -956,7 +956,7 @@ public class TcpTransporter extends Transporter {
 		} else {
 			nodeID = endpoints[rnd.nextInt(size)];
 		}
-
+	
 		// Debug
 		if (debug) {
 			logger.info("Gossip request submitting to \"" + nodeID + "\" node:\r\n" + message);
@@ -975,12 +975,12 @@ public class TcpTransporter extends Transporter {
 		if (debug) {
 			logger.info("Gossip request received from \"" + sender + "\" node:\r\n" + data);
 		}
-
+		
 		// Create gossip response
 		Tree root = new Tree();
 		root.put("ver", ServiceBroker.PROTOCOL_VERSION);
 		root.put("sender", this.nodeID);
-
+		
 		Tree onlineRsp = root.putMap("online");
 		Tree offlineRsp = root.putMap("offline");
 
@@ -1074,17 +1074,6 @@ public class TcpTransporter extends Transporter {
 						}
 						continue;
 					}
-
-					// We send back that we are online
-					if (seq >= node.seq) {
-						node.seq = seq + 1;
-						node.info.put("seq", node.seq);
-						Tree row = onlineRsp.putList(node.nodeID);
-						row.addObject(node.info);
-						if (cpuSeq < node.cpuSeq && node.cpuSeq > 0) {
-							row.add(node.cpuSeq).add(node.cpu);
-						}
-					}
 				} else if (online != null) {
 
 					// Requester said it is ONLINE
@@ -1153,9 +1142,10 @@ public class TcpTransporter extends Transporter {
 
 		// Debug
 		if (debug) {
-			logger.info("Gossip response received from \"" + data.get("sender", "unknown") + "\" node:\r\n" + data);
+			String sender = data.get("sender", (String) null);
+			logger.info("Gossip response received from \"" + sender + "\" node:\r\n" + data);
 		}
-
+		
 		// Online / offline nodes in responnse
 		Tree online = data.get("online");
 		Tree offline = data.get("offline");
