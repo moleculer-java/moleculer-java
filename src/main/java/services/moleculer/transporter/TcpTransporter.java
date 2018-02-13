@@ -1049,21 +1049,33 @@ public class TcpTransporter extends Transporter {
 						continue;
 					}
 					if (!node.local) {
+						if (node.offlineSince == 0) {
+							
+							// We know it is online, so we change it to offline
+							if (node.markAsOffline(seq)) {
 
-						// We know it is online, so we change it to offline
-						if (node.offlineSince == 0 || node.markAsOffline(seq)) {
-
-							// Remove remote actions and listeners
-							registry.removeActions(node.nodeID);
-							eventbus.removeListeners(node.nodeID);
-							writer.close(node.nodeID);
-							disconnectedNodes.add(node);
+								// Remove remote actions and listeners
+								registry.removeActions(node.nodeID);
+								eventbus.removeListeners(node.nodeID);
+								writer.close(node.nodeID);
+								disconnectedNodes.add(node);
+								
+							} else if (seq == node.seq) {
+								
+								// We send back that this node is online
+								node.seq = seq + 1;
+								node.info.put("seq", node.seq);
+								Tree row = onlineRsp.putList(node.nodeID);
+								row.addObject(node.info);
+								if (cpuSeq < node.cpuSeq && node.cpuSeq > 0) {
+									row.add(node.cpuSeq).add(node.cpu);
+								}								
+							}
 						}
 						continue;
 					}
 
 					// We send back that we are online
-					// Update to a newer 'when' if my is older
 					if (seq >= node.seq) {
 						node.seq = seq + 1;
 						node.info.put("seq", node.seq);

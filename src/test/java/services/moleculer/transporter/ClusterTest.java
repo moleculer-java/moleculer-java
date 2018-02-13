@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
@@ -28,7 +29,7 @@ public class ClusterTest extends JFrame implements Runnable {
 
 	// --- CONSTANTS ---
 
-	private static final int NODES = 50;
+	private static final int NODES = 10;
 
 	private static final int PIXEL_SIZE = 20;
 
@@ -81,6 +82,7 @@ public class ClusterTest extends JFrame implements Runnable {
 			g = image.getGraphics();
 			g.setColor(Color.BLACK);
 			g.fillRect(0, 0, size.width, size.height);
+			g.setFont(new Font("Dialog", Font.BOLD, PIXEL_SIZE - 2));
 		}
 
 		@Override
@@ -88,9 +90,15 @@ public class ClusterTest extends JFrame implements Runnable {
 			g.drawImage(image, 0, 0, this);
 		}
 
-		public void draw(int x, int y, Color color) {
+		public void draw(int x, int y, Color color, Long seq) {
 			g.setColor(color);
-			g.fill3DRect(x * PIXEL_SIZE, y * PIXEL_SIZE, PIXEL_SIZE - 1, PIXEL_SIZE - 1, true);
+			int rx = x * PIXEL_SIZE;
+			int ry = y * PIXEL_SIZE;
+			g.fill3DRect(rx, ry, PIXEL_SIZE - 1, PIXEL_SIZE - 1, true);
+			if (seq != null) {
+				g.setColor(Color.BLACK);
+				g.drawString(Long.toString(seq), rx, ry + PIXEL_SIZE - 3);
+			}
 			repaint(200);
 		}
 
@@ -112,14 +120,20 @@ public class ClusterTest extends JFrame implements Runnable {
 			ScheduledExecutorService scheduler = Executors
 					.newScheduledThreadPool(ForkJoinPool.commonPool().getParallelism());
 
+			String[] urls = new String[NODES];
+			for (int i = 0; i < NODES; i++) {
+				int port = 6000 + i;
+				urls[i] = "tcp://127.0.0.1:" + port + "/node-" + i;
+			}
+			
 			ServiceBroker[] brokers = new ServiceBroker[NODES];
 			for (int i = 0; i < NODES; i++) {
 
-				TcpTransporter transporter = new TcpTransporter();
+				TcpTransporter transporter = new TcpTransporter(urls);
 				transporter.setGossipPeriod(2);
 				transporter.setDebug(false);
 				transporter.setOfflineTimeout(0);
-
+				
 				ServiceBrokerSettings settings = new ServiceBrokerSettings();
 				settings.setShutDownThreadPools(false);
 				settings.setExecutor(executor);
@@ -135,7 +149,7 @@ public class ClusterTest extends JFrame implements Runnable {
 				System.out.println("node-" + i + " started.");
 			}
 
-			boolean turnOn = false;
+			boolean turnOn = true;
 
 			HashMap<String, Long> maxSeqs = new HashMap<>();
 			ServiceBroker broker;
@@ -145,23 +159,23 @@ public class ClusterTest extends JFrame implements Runnable {
 				Thread.sleep(500);
 
 				counter++;
-				if (counter % 50 == 0) {
-					int i = rnd.nextInt(NODES);
-					broker = brokers[i];
-					transporter = (TcpTransporter) broker.components().transporter();
-					if (transporter.writer != null) {
-						transporter.nodes.clear();
-						transporter.disconnect();
-					}
+				if (counter % 70 == 0) {
 					if (turnOn) {
 						for (int n = 0; n < NODES / 3; n++) {
-							i = rnd.nextInt(NODES);
+							int i = rnd.nextInt(NODES);
 							broker = brokers[i];
 							transporter = (TcpTransporter) broker.components().transporter();
 							if (transporter.writer == null) {
 								transporter.connect();
 							}
 						}
+					}
+					int i = rnd.nextInt(NODES);
+					broker = brokers[i];
+					transporter = (TcpTransporter) broker.components().transporter();
+					if (transporter.writer != null) {
+						transporter.nodes.clear();
+						transporter.disconnect();
 					}
 				}
 
@@ -176,10 +190,11 @@ public class ClusterTest extends JFrame implements Runnable {
 					broker = brokers[i];
 					transporter = (TcpTransporter) broker.components().transporter();
 					for (int n = 0; n < NODES; n++) {
+						NodeDescriptor d = transporter.nodes.get("node-" + n);
 						boolean online = transporter.isOnline("node-" + n);
 						Color color;
+						Long seq = null;
 						if (online) {
-							NodeDescriptor d = transporter.nodes.get("node-" + n);
 							if (d != null) {
 								long cpuSeq = d.cpuSeq;
 								long maxSeq = maxSeqs.get("node-" + n);
@@ -193,13 +208,17 @@ public class ClusterTest extends JFrame implements Runnable {
 								} else {
 									color = Color.WHITE;
 								}
+								seq = d.seq;
 							} else {
 								color = Color.YELLOW;
 							}
 						} else {
 							color = Color.RED;
+							if (d != null) {
+								seq = d.seq;
+							}
 						}
-						image.draw(n, i, color);
+						image.draw(n, i, color, seq);
 					}
 				}
 			}
