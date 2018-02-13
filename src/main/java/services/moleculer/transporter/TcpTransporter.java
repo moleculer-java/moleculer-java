@@ -205,9 +205,6 @@ public class TcpTransporter extends Transporter {
 		// Process basic properties (eg. "prefix")
 		super.start(broker, config);
 
-		// TCP server's port
-		port = config.get("port", port);
-
 		// Gossiper's gossiping period in seconds
 		gossipPeriod = config.get("gossipPeriod", gossipPeriod);
 
@@ -241,10 +238,6 @@ public class TcpTransporter extends Transporter {
 							+ ")! Valid syntax is \"tcp://host:port/nodeID\" or \"host:port/nodeID\"!");
 					continue;
 				}
-				String sender = parts[2];
-				if (sender.equals(nodeID)) {
-					continue;
-				}
 				int port;
 				try {
 					port = Integer.parseInt(parts[1]);
@@ -253,10 +246,20 @@ public class TcpTransporter extends Transporter {
 							+ ")! Valid syntax is \"tcp://host:port/nodeID\" or \"host:port/nodeID\"!");
 					continue;
 				}
+				String sender = parts[2];
+				if (sender.equals(nodeID)) {
+
+					// TCP server's port (port in URL list)
+					this.port = port;
+					continue;
+				}
 				String host = parts[0];
 				nodes.put(sender, new NodeDescriptor(sender, preferHostname, host, port));
 			}
 		}
+
+		// TCP server's port (port in a particular property)
+		port = config.get("port", port);
 	}
 
 	// --- CONNECT ---
@@ -485,10 +488,6 @@ public class TcpTransporter extends Transporter {
 	// --- CONNECTION ERROR ---
 
 	public void unableToSend(String nodeID, LinkedList<byte[]> packets, Throwable cause) {
-		if (cause != null) {
-			cause.printStackTrace();
-		}
-
 		if (nodeID != null) {
 			executor.execute(() -> {
 
@@ -1066,7 +1065,7 @@ public class TcpTransporter extends Transporter {
 					// We send back that we are online
 					// Update to a newer 'when' if my is older
 					if (seq >= node.seq) {
-						node.seq++;
+						node.seq = seq + 1;
 						node.info.put("seq", node.seq);
 						Tree row = onlineRsp.putList(node.nodeID);
 						row.addObject(node.info);
@@ -1184,7 +1183,6 @@ public class TcpTransporter extends Transporter {
 				}
 
 				if (info != null) {
-					info.put("sender", nodeID);
 
 					// Update "info" block,
 					// send updated, connected or reconnected event
@@ -1211,11 +1209,27 @@ public class TcpTransporter extends Transporter {
 			for (Tree row : offline) {
 				String nodeID = row.getName();
 
-				NodeDescriptor node = nodes.get(nodeID);
-				if (node == null || node.local) {
-					return;
+				NodeDescriptor node;
+				if (this.nodeID.equals(nodeID)) {
+					long seq = row.asLong();
+					node = getDescriptor();
+					node.writeLock.lock();
+					try {
+						long newSeq = Math.max(node.seq, seq + 1);
+						if (node.seq < newSeq) {
+							node.seq = newSeq;
+							node.info.put("seq", newSeq);
+						}
+					} finally {
+						node.writeLock.unlock();
+					}
+					continue;
 				}
 
+				node = nodes.get(nodeID);
+				if (node == null) {
+					return;
+				}
 				if (!row.isPrimitive()) {
 					logger.warn("Invalid \"offline\" block: " + row);
 					continue;

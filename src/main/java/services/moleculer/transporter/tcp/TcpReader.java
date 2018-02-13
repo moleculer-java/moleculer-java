@@ -41,6 +41,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -153,7 +154,7 @@ public class TcpReader implements Runnable {
 
 		// Close selector
 		if (selector != null) {
-			for (SelectionKey key : selector.keys()) {
+			for (SelectionKey key : new HashSet<SelectionKey>(selector.keys())) {
 				close(key, null);
 			}
 			try {

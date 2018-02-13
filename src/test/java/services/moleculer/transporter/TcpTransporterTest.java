@@ -298,31 +298,100 @@ public class TcpTransporterTest extends TestCase {
 		assertEquals(3, rsp.get("online.node4[0]", 0));
 		assertEquals(5, rsp.get("online.node4[1]", 0));
 		assertEquals(5, tr.getCpuUsage("node4"));
-
-		// TODO Move into "createGossipRequest"! Add new info block to "node4"
-		req = createGossipRequest(null, 0, 0, 0);
-		Tree info = createOnlineDescriptorWithInfo(false, "node4").info;
-		info.put("seq", 4);
-		info.putList("services").putMap("test2");
-		Tree list = req.get("online").putList("node4");
-		list.addObject(info);
-		list.add(0).add(0);
+		assertEquals(1, tr.getDescriptor().seq);
 		
+		// Target is offline
+		req = createGossipOfflineMessage("node1", 1);
 		rsp = tr.processGossipRequest(req);
-		assertEquals(1, rsp.get("online").size());
-		assertNull(rsp.get("offline"));
-		
-		System.out.println(tr.nodes.get("node4").info.get("services[0]").getName());
-		
-		System.out.println(rsp);
+		assertEquals(2, rsp.get("online.node1[0].seq", 0));
+
+		req = createGossipOfflineMessage("node1", 1);
+		rsp = tr.processGossipRequest(req);
+		assertEquals(2, rsp.get("online.node1[0].seq", 0));
+
+		req = createGossipOfflineMessage("node1", 20);
+		rsp = tr.processGossipRequest(req);
+		assertEquals(21, rsp.get("online.node1[0].seq", 0));
 	}
 	
 	// --- GOSSIP RESPONSE PROCESSING ---
 	
-	// TODO
+	@Test
+	public void testProcessGossipResponse() throws Exception {
+		
+		// Target is offline
+		Tree rsp = createGossipOfflineMessage("node1", 1);
+		tr.processGossipResponse(rsp);
+		
+		assertEquals(0, tr.getDescriptor().offlineSince);
+		assertEquals(0, tr.nodes.size());
+		assertEquals(2, tr.getDescriptor().seq);
+		
+		// Unknown node is offline
+		rsp = createGossipOfflineMessage("node2", 1);
+		
+		tr.processGossipResponse(rsp);
+		assertEquals(0, tr.nodes.size());
+
+		// Add new info block to "node4"
+		tr.nodes.put("node4", createOnlineDescriptorWithInfo(false, "node4"));
+		Tree info = new Tree().put("x", "y");
+		info.put("seq", 2);
+		info.put("hostname", "aaa");
+		info.put("port", 11);
+		rsp = createGossipOnlineResponse("node4", info, 1, 1);
+		tr.processGossipResponse(rsp);
+		
+		assertEquals(1, rsp.get("online").size());	
+		assertEquals("y", tr.nodes.get("node4").info.get("x", "?"));
+		
+		// Seq not changed
+		info = info.clone().put("x", "z");
+		rsp = createGossipOnlineResponse("node4", info, 2, 3);
+		tr.processGossipResponse(rsp);
+		assertEquals(1, rsp.get("online").size());	
+		assertEquals("y", tr.nodes.get("node4").info.get("x", "?"));
+		assertEquals(3, tr.getCpuUsage("node4"));
+		
+		// Seq changed
+		info.put("seq", "4");
+		rsp = createGossipOnlineResponse("node4", info, 1, 1);
+		tr.processGossipResponse(rsp);
+		assertEquals("z", tr.nodes.get("node4").info.get("x", "?"));
+		assertEquals(3, tr.getCpuUsage("node4"));
+		
+		// Target is offline
+		rsp = createGossipOfflineMessage("node1", 1);		
+		tr.processGossipResponse(rsp);
+		assertEquals(2, tr.getDescriptor().seq);
+		
+		rsp = createGossipOfflineMessage("node1", 2);		
+		tr.processGossipResponse(rsp);
+		assertEquals(3, tr.getDescriptor().seq);
+	}
 	
 	// --- UTILITIES --
 
+	protected Tree createGossipOfflineMessage(String nodeID, int seq) {
+		Tree rsp = new Tree();
+		rsp.put("sender", nodeID);
+		rsp.put("ver", ServiceBroker.PROTOCOL_VERSION);
+		Tree offline = rsp.putList("offline");
+		offline.put(nodeID, seq);
+		return rsp;
+	}
+	
+	protected Tree createGossipOnlineResponse(String nodeID, Tree info, int cpuSeq, int cpu) {
+		Tree rsp = new Tree();
+		rsp.put("sender", nodeID);
+		rsp.put("ver", ServiceBroker.PROTOCOL_VERSION);
+		Tree online = rsp.putList("online");
+		Tree list = online.putList(nodeID);
+		list.addObject(info);
+		list.add(cpuSeq).add(cpu);
+		return rsp;
+	}
+	
 	protected Tree createGossipRequest(String nodeID, int seq, int cpuSeq, int cpu) {
 		Tree req = new Tree();
 		req.put("sender", nodeID);

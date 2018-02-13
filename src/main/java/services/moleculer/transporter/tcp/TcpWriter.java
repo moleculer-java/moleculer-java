@@ -37,6 +37,7 @@ import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -128,7 +129,7 @@ public class TcpWriter implements Runnable {
 
 		// Close sockets
 		if (selector != null) {
-			for (SelectionKey key : selector.keys()) {
+			for (SelectionKey key : new HashSet<SelectionKey>(selector.keys())) {
 				try {
 					if (key != null) {
 						SendBuffer buffer = (SendBuffer) key.attachment();
