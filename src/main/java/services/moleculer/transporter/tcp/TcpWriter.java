@@ -127,16 +127,11 @@ public class TcpWriter implements Runnable {
 			executor = null;
 		}
 
-		// Close sockets
+		// Close other sockets
 		if (selector != null) {
 			for (SelectionKey key : new HashSet<SelectionKey>(selector.keys())) {
 				try {
-					if (key != null) {
-						SendBuffer buffer = (SendBuffer) key.attachment();
-						if (buffer != null) {
-							buffer.close();
-						}
-					}
+					key.cancel();
 				} catch (Exception ignored) {
 				}
 			}
@@ -149,9 +144,14 @@ public class TcpWriter implements Runnable {
 			selector = null;
 		}
 
-		// Clear buffers
+		// Close sockets and clear buffers
 		synchronized (buffers) {
-			buffers.clear();
+			if (!buffers.isEmpty()) {
+				for (SendBuffer buffer: buffers.values()) {
+					buffer.close();
+				}
+				buffers.clear();
+			}
 		}
 	}
 

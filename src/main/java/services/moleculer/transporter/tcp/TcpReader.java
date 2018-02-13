@@ -152,6 +152,15 @@ public class TcpReader implements Runnable {
 			executor = null;
 		}
 
+		// Close server socket
+		if (serverChannel != null) {
+			try {
+				serverChannel.close();
+			} catch (Exception ignored) {
+			}
+			serverChannel = null;
+		}
+		
 		// Close selector
 		if (selector != null) {
 			for (SelectionKey key : new HashSet<SelectionKey>(selector.keys())) {
@@ -162,15 +171,6 @@ public class TcpReader implements Runnable {
 			} catch (Exception ignored) {
 			}
 			selector = null;
-		}
-
-		// Close server socket
-		if (serverChannel != null) {
-			try {
-				serverChannel.close();
-			} catch (Exception ignored) {
-			}
-			serverChannel = null;
 		}
 	}
 

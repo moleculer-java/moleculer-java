@@ -29,9 +29,9 @@ public class ClusterTest extends JFrame implements Runnable {
 
 	// --- CONSTANTS ---
 
-	private static final int NODES = 10;
+	private static final int NODES = 100;
 
-	private static final int PIXEL_SIZE = 20;
+	private static final int PIXEL_SIZE = 10;
 
 	// --- ENTRY POINT ---
 
