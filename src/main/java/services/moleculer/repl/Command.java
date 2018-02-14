@@ -66,6 +66,34 @@ public abstract class Command {
 		options.add(new String[] { option, description });
 	}
 
+	// --- FLAG PARSER ---
+
+	protected Tree parseFlags(String[] parameters) throws Exception {
+		return parseFlags(1, parameters);
+	}
+
+	protected Tree parseFlags(int from, String[] parameters) {
+		Tree flags = new Tree();
+		String name = null;
+		if (from < parameters.length) {
+			String param;
+			for (int i = from; i < parameters.length; i++) {
+				param = parameters[i];
+				if (name == null) {
+					if (param.startsWith("--") && param.length() > 2) {
+						name = param.substring(2).toLowerCase();
+						flags.put("lastIndex", i);
+					}
+				} else {
+					flags.put(name, param);
+					flags.put("lastIndex", i);
+					name = null;
+				}
+			}
+		}
+		return flags;
+	}
+
 	// --- CONCATENATE ARGUMENTS ---
 
 	protected Tree getPayload(String[] parameters) throws Exception {
@@ -128,11 +156,11 @@ public abstract class Command {
 	}
 
 	// --- FORMATTERS ---
-	
+
 	protected void printChars(StringBuilder out, char c, int repeats) {
 		for (int i = 0; i < repeats; i++) {
 			out.append(c);
 		}
 	}
-		
+
 }

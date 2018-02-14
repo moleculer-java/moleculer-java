@@ -126,7 +126,7 @@ public class LocalRepl extends Repl implements Runnable {
 
 		// Load default commands
 		load("Actions", "Broadcast", "BroadcastLocal", "Call", "Clear", "Close", "DCall", "Emit", "Env", "Events",
-				"Exit", "Find", "Gc", "Info", "Memory", "Nodes", "Props", "Services", "Threads");
+				"Exit", "Find", "Gc", "Info", "Memory", "Nodes", "Props", "Services", "Threads", "Bench");
 
 		// Load custom commands
 		if (packagesToScan != null && packagesToScan.length > 0) {
