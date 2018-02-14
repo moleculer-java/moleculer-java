@@ -45,9 +45,23 @@ import services.moleculer.service.Name;
 @Name("Sigar System Monitor")
 public class SigarMonitor extends Monitor {
 
-	// --- PROPERTIES ---
+	// --- SIGAR INSTANCE ---
 
-	protected Sigar sigar;
+	protected static Sigar sigar;
+	
+	protected static Exception initialException;
+	
+	static {
+		try {
+			sigar = new Sigar();
+		} catch (Throwable cause) {
+			if (cause instanceof Exception) {
+				initialException = (Exception) cause;
+			} else {
+				initialException = new Exception(cause);
+			}
+		}
+	}
 
 	// --- START MONITOR ---
 
@@ -61,8 +75,11 @@ public class SigarMonitor extends Monitor {
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
+		if (initialException != null) {
+			throw initialException;
+		}
 		super.start(broker, config);
-		sigar = new Sigar();
+		
 	}
 
 	// --- SYSTEM MONITORING METHODS ---

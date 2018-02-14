@@ -140,15 +140,41 @@ public final class ServiceBrokerSettings {
 
 	// --- INSTALL JS PARSER ---
 
+	private static Monitor defaultMonitor;
+	
 	static {
+		
+		// Load Tree reader for JavaScript syntax
 		try {
 			if (!TreeReaderRegistry.isAvailable("js")) {
 				TreeReaderRegistry.setReader("js", new JSReader());
 			}
 		} catch (Exception ignored) {
 		}
+		
+		// Set the default System Monitor
+		defaultMonitor = tryToLoadMonitor("Sigar");
+		if (defaultMonitor == null) {
+			defaultMonitor = tryToLoadMonitor("Command");
+			if (defaultMonitor == null) {
+				defaultMonitor = tryToLoadMonitor("JMX");
+				if (defaultMonitor == null) {
+					defaultMonitor = new ConstantMonitor();
+				}
+			}
+		}
 	}
 
+	private static final Monitor tryToLoadMonitor(String type) {
+		try {
+			Class<?> c = ServiceBrokerSettings.class.getClassLoader()
+					.loadClass("services.moleculer.monitor." + type + "Monitor");
+			return (Monitor) c.newInstance();
+		} catch (Throwable ignored) {
+		}
+		return null;
+	}
+	
 	// --- CONSTRUCTORS ---
 
 	public ServiceBrokerSettings() {
@@ -158,31 +184,10 @@ public final class ServiceBrokerSettings {
 		scheduler = Executors.newScheduledThreadPool(ForkJoinPool.commonPool().getParallelism());
 
 		// Set the default System Monitor
-		monitor = tryToLoadMonitor("Sigar");
-		if (monitor == null) {
-			logger.info("Sigar System Monitoring API not available.");
-			monitor = tryToLoadMonitor("JMX");
-			if (monitor == null) {
-				logger.info("JMX Monitoring API not available.");
-				monitor = new ConstantMonitor();
-			}
-		}
+		monitor = defaultMonitor;
 
 		// Set the default NodeID
 		nodeID = getHostName() + '-' + monitor.getPID();
-	}
-
-	private static final Monitor tryToLoadMonitor(String type) {
-		try {
-			Class<?> c = ServiceBrokerSettings.class.getClassLoader()
-					.loadClass("services.moleculer.monitor." + type + "Monitor");
-			Monitor m = (Monitor) c.newInstance();
-			m.start(null, new Tree());
-			m.getTotalCpuPercent();
-			return m;
-		} catch (Throwable ignored) {
-		}
-		return null;
 	}
 
 	public ServiceBrokerSettings(String nodeID, Transporter transporter, Cacher cacher) {

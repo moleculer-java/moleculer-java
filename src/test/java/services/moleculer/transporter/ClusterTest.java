@@ -28,9 +28,9 @@ public class ClusterTest extends JFrame implements Runnable {
 
 	// --- CONSTANTS ---
 
-	private static int NODES = 50;
+	private static int NODES = 200;
 
-	private static int PIXEL_SIZE = 20;
+	private static int PIXEL_SIZE = 5;
 
 	// --- ENTRY POINT ---
 
@@ -137,7 +137,7 @@ public class ClusterTest extends JFrame implements Runnable {
 			for (int i = 0; i < NODES; i++) {
 
 				TcpTransporter transporter = new TcpTransporter(); // urls
-				transporter.setGossipPeriod(2);
+				transporter.setGossipPeriod(3);
 				transporter.setDebug(false);
 				transporter.setOfflineTimeout(0);
 
@@ -163,7 +163,7 @@ public class ClusterTest extends JFrame implements Runnable {
 			TcpTransporter transporter;
 			int counter = 0;
 			while (true) {
-				Thread.sleep(500);
+				Thread.sleep(1000);
 
 				counter++;
 				if (counter % 70 == 0) {

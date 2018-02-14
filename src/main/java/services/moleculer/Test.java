@@ -48,7 +48,7 @@ public class Test {
 		// Load Sigar DLLs
 		String nativeDir = "./native";
 		System.setProperty("java.library.path", nativeDir);
-	
+
 		// Define transporter
 		TcpTransporter transporter = new TcpTransporter();
 		// transporter.setGossipPeriod(5);
@@ -57,18 +57,21 @@ public class Test {
 
 		// RedisTransporter transporter = new RedisTransporter();
 		transporter.setDebug(false);
-		
+
 		// Define cacher
 		Cacher cacher = new MemoryCacher();
-		
+
 		// Create broker
-		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).cacher(cacher).nodeID("node-1")
-				.build();
+		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).cacher(cacher).nodeID("node-1").build();
+
+		// ServiceBroker broker = new
+		// ServiceBroker("c:\\temp\\moleculer-test\\conf\\moleculer.config.js");
+
 		// .repl(new RemoteRepl())
 
 		broker.createService(new Service("math") {
 
-			//@Cache(keys = { "a", "b" })
+			// @Cache(keys = { "a", "b" })
 			public Action add = ctx -> {
 				int a = ctx.params.get("a", 0);
 				int b = ctx.params.get("b", 0);

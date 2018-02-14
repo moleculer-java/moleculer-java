@@ -57,24 +57,26 @@ public abstract class Monitor implements MoleculerComponent {
 	// --- PROPERTIES ---
 
 	/**
-	 * Cached process ID
-	 */
-	protected AtomicLong cachedPID = new AtomicLong();
-	
-	/**
 	 * CPU cache timeout in MILLISECONDS
 	 */
 	protected long cacheTimeout = 1000;
 
+	// --- JVM'S SHARED CACHES ---
+
+	/**
+	 * Cached process ID
+	 */
+	protected static AtomicLong cachedPID = new AtomicLong();
+
 	/**
 	 * Cached CPU usage
 	 */
-	protected volatile int cachedCPU;
+	protected static int cachedCPU;
 
 	/**
 	 * Timestamp of CPU detection
 	 */
-	protected volatile long cpuDetectedAt;
+	protected static long cpuDetectedAt;
 
 	// --- START MONITOR INSTANCE ---
 
@@ -88,7 +90,7 @@ public abstract class Monitor implements MoleculerComponent {
 	 */
 	@Override
 	public void start(ServiceBroker broker, Tree config) throws Exception {
-		
+
 		// Process config
 		cacheTimeout = config.get("cacheTimeout", cacheTimeout);
 	}
@@ -103,7 +105,7 @@ public abstract class Monitor implements MoleculerComponent {
 	}
 
 	// --- PUBLIC SYSTEM MONITORING METHODS ---
-	
+
 	/**
 	 * Returns the cached system CPU usage, in percents, between 0 and 100.
 	 * 
@@ -111,11 +113,15 @@ public abstract class Monitor implements MoleculerComponent {
 	 */
 	public int getTotalCpuPercent() {
 		long now = System.currentTimeMillis();
-		if (now - cpuDetectedAt > cacheTimeout) {
-			cachedCPU = detectTotalCpuPercent();
-			cpuDetectedAt = now;
+		int cpu;
+		synchronized (Monitor.class) {
+			if (now - cpuDetectedAt > cacheTimeout) {
+				cachedCPU = detectTotalCpuPercent();
+				cpuDetectedAt = now;
+			}
+			cpu = cachedCPU;
 		}
-		return cachedCPU;
+		return cpu;
 	}
 
 	/**
@@ -139,7 +145,7 @@ public abstract class Monitor implements MoleculerComponent {
 		}
 		return currentPID;
 	}
-	
+
 	// --- ABSTRACT SYSTEM MONITORING METHODS ---
 
 	/**
@@ -148,12 +154,12 @@ public abstract class Monitor implements MoleculerComponent {
 	 * @return total CPU usage of the current OS
 	 */
 	protected abstract int detectTotalCpuPercent();
-	
+
 	/**
 	 * Returns the system CPU usage, in percents, between 0 and 100.
 	 * 
 	 * @return total CPU usage of the current OS
 	 */
 	protected abstract long detectPID();
-	
+
 }
