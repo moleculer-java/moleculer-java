@@ -51,10 +51,13 @@ public class Test {
 	
 		// Define transporter
 		TcpTransporter transporter = new TcpTransporter();
-		transporter.setGossipPeriod(5);
-		transporter.setDebug(true);
-		transporter.setOfflineTimeout(600);
+		// transporter.setGossipPeriod(5);
+		// transporter.setDebug(true);
+		// transporter.setOfflineTimeout(600);
 
+		// RedisTransporter transporter = new RedisTransporter();
+		transporter.setDebug(false);
+		
 		// Define cacher
 		Cacher cacher = new MemoryCacher();
 		

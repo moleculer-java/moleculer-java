@@ -476,6 +476,8 @@ public abstract class Transporter implements MoleculerComponent {
 				if (channel.equals(infoChannel) || channel.equals(infoBroadcastChannel)) {
 
 					// Register services and listeners
+					data.put("seq", System.currentTimeMillis());
+					data.put("port", 1);
 					updateNodeInfo(sender, data);
 					return;
 				}
@@ -529,7 +531,7 @@ public abstract class Transporter implements MoleculerComponent {
 		NodeDescriptor node = nodes.get(sender);
 		if (node == null) {
 
-			// New, unknown node (register as offline)
+			// New, unknown node
 			connected = true;
 			node = new NodeDescriptor(sender, preferHostname, false, info);
 			nodes.put(sender, node);

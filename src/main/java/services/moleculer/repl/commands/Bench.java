@@ -32,9 +32,13 @@
 package services.moleculer.repl.commands;
 
 import java.io.PrintStream;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
+import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -47,7 +51,7 @@ import services.moleculer.repl.Command;
 import services.moleculer.service.Name;
 
 /**
- * Benchmark a service.
+ * Measures the response time of a service.
  */
 @Name("bench")
 public class Bench extends Command {
@@ -56,6 +60,7 @@ public class Bench extends Command {
 		option("num <number>", "number of iterates");
 		option("time <seconds>", "time of bench");
 		option("nodeID <nodeID>", "nodeID (direct call)");
+		option("threads <number>", "number of threads (default is 1)");
 	}
 
 	@Override
@@ -75,7 +80,7 @@ public class Bench extends Command {
 
 	protected ScheduledFuture<?> timer;
 
-	protected ExecutorService executor;
+	protected LinkedList<ExecutorService> executors = new LinkedList<>();
 
 	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
@@ -87,7 +92,9 @@ public class Bench extends Command {
 		long time = flags.get("time", 0);
 		String nodeID = flags.get("nodeID", "");
 		int lastIndex = flags.get("lastIndex", 0);
+		int threads = flags.get("threads", 1);
 		Tree params = getPayload(lastIndex + 1, parameters);
+
 		if (num < 1 && time < 1) {
 			time = 5;
 		}
@@ -101,31 +108,45 @@ public class Bench extends Command {
 		if (timer != null) {
 			timer.cancel(true);
 		}
+		for (ExecutorService executor : executors) {
+			executor.shutdownNow();
+		}
+		executors.clear();
 		timer = broker.components().scheduler().schedule(() -> {
 			data.timeout.set(true);
 		}, time < 1 ? 60 : time, TimeUnit.SECONDS);
 
 		// Start benchmark...
-		out.println(num > 0 ? "Running " + num + " times..." : "Running for " + humanize(time * 1000000000) + "...");
+		String msg = num > 0 ? num + " times" : "for " + humanize(time * 1000000000);
+		out.println("Calling service " + msg + ", please wait...");
 
-		executor = broker.components().executor();
-		for (int i = 0; i < 99; i++) {
-			executor.execute(() -> {
-				doRequest(broker, data);
-			});
+		if (threads < 2) {
+			doRequest(broker, data, broker.components().executor());
+		} else {
+			for (int i = 0; i < threads; i++) {
+				ExecutorService executor = Executors.newSingleThreadExecutor();
+				doRequest(broker, data, executor);
+				executors.addLast(executor);
+			}
+		}
+		if (num == 0 && time > 0 && time < 10) {
+			Thread.sleep(500L + (1000L * time));
+		} else {
+			out.println("The measurement is running in the background.");
 		}
 	}
 
-	protected void doRequest(ServiceBroker broker, BenchData data) {
+	protected void doRequest(ServiceBroker broker, BenchData data, ExecutorService executor) {
 		long startTime = System.nanoTime();
 		broker.call(data.action, data.params, data.opts).then(res -> {
-			handleResponse(broker, data, startTime, null);
+			handleResponse(broker, data, startTime, null, executor);
 		}).Catch(cause -> {
-			handleResponse(broker, data, startTime, cause);
+			handleResponse(broker, data, startTime, cause, executor);
 		});
 	}
 
-	protected void handleResponse(ServiceBroker broker, BenchData data, long startTime, Throwable cause) {
+	protected void handleResponse(ServiceBroker broker, BenchData data, long startTime, Throwable cause,
+			ExecutorService executor) {
 		if (data.finished.get()) {
 			return;
 		}
@@ -171,10 +192,10 @@ public class Bench extends Command {
 		}
 
 		if (count % 100 > 0) {
-			doRequest(broker, data);
+			doRequest(broker, data, executor);
 		} else {
 			executor.execute(() -> {
-				doRequest(broker, data);
+				doRequest(broker, data, executor);
 			});
 		}
 	}
@@ -182,29 +203,52 @@ public class Bench extends Command {
 	protected NumberFormat numberFormatter = DecimalFormat.getInstance();
 
 	protected void printResult(BenchData data) {
-		long now = System.nanoTime();
-		long totalTime = now - data.startTime;
 		PrintStream out = data.out;
-		String errStr;
-		if (data.errorCount.get() > 0) {
-			errStr = numberFormatter.format(data.errorCount) + " error(s) "
-					+ (100 * data.errorCount.get() / data.resCount.get()) + "%";
-		} else {
-			errStr = "0 error";
+		try {
+			long now = System.nanoTime();
+
+			BigDecimal errorCount = new BigDecimal(data.errorCount.get());
+			BigDecimal resCount = new BigDecimal(data.resCount.get());
+			BigDecimal sumTime = new BigDecimal(data.sumTime.get());
+
+			long total = now - data.startTime;
+			BigDecimal totalTime = new BigDecimal(total);
+
+			BigDecimal nano = new BigDecimal(1000000000);
+			BigDecimal reqPerSec = nano.multiply(resCount).divide(totalTime, RoundingMode.HALF_UP);
+			long reqPer = Long.parseLong(reqPerSec.toBigInteger().toString());
+
+			BigDecimal duration = sumTime.divide(resCount, RoundingMode.HALF_UP);
+			long dur = Long.parseLong(duration.toBigInteger().toString());
+			BigDecimal inSec = duration.divide(nano);
+
+			String errStr;
+			if (errorCount.compareTo(BigDecimal.ZERO) == 1) {
+				String percent = errorCount.multiply(new BigDecimal(100)).divide(resCount, RoundingMode.HALF_UP)
+						.toBigInteger().toString();
+				errStr = numberFormatter.format(data.errorCount) + " error(s) " + percent + "%";
+			} else {
+				errStr = "0 error";
+			}
+			out.println("Benchmark results:");
+			out.println(
+					"  " + numberFormatter.format(data.resCount) + " requests in " + humanize(total) + ", " + errStr);
+			out.println("  Requests per second: " + numberFormatter.format(reqPer));
+			out.println("  Latency: ");
+			    out.println("    Average: " + humanize(dur) + " (" + inSec.toPlainString() + " second)");
+			if (data.minTime.get() != Long.MAX_VALUE) {
+				out.println("    Minimum: " + humanize(data.minTime.get()));
+			}
+			if (data.maxTime.get() != Long.MIN_VALUE) {
+				out.println("    Maximum: " + humanize(data.maxTime.get()));
+			}
+		} catch (Exception e) {
+			e.printStackTrace(out);
 		}
-		long duration = data.sumTime.get() / data.resCount.get();
-		out.println("Benchmark result:");
-		out.println(
-				"  " + numberFormatter.format(data.resCount) + " requests in " + humanize(totalTime) + ", " + errStr);
-		out.println("  Requests/sec: " + numberFormatter.format((1000000000 * data.resCount.get() / totalTime)));
-		out.println("  Latency: ");
-		out.println("    Avg: " + humanize(duration));
-		if (data.minTime.get() != Long.MAX_VALUE) {
-			out.println("    Min: " + humanize(data.minTime.get()));
+		for (ExecutorService executor : executors) {
+			executor.shutdown();
 		}
-		if (data.maxTime.get() != Long.MIN_VALUE) {
-			out.println("    Max: " + humanize(data.maxTime.get()));
-		}
+		executors.clear();
 	}
 
 	protected String humanize(long nanoSec) {

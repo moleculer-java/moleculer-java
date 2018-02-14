@@ -203,6 +203,8 @@ public class TcpTransporter extends Transporter {
 		}
 
 		// Process basic properties (eg. "prefix")
+		heartbeatTimeout = 0;
+		heartbeatInterval = 0;
 		super.start(broker, config);
 
 		// Gossiper's gossiping period in seconds
@@ -322,7 +324,6 @@ public class TcpTransporter extends Transporter {
 					TimeUnit.SECONDS);
 
 			// Start timeout checker's timer
-			heartbeatInterval = 0;
 			if (checkTimeoutTimer == null && offlineTimeout > 0) {
 				int period = Math.max(offlineTimeout / 3, 10);
 				checkTimeoutTimer = scheduler.scheduleAtFixedRate(this::checkTimeouts, period, period,

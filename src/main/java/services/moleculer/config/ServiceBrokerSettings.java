@@ -209,7 +209,7 @@ public final class ServiceBrokerSettings {
 			logger.debug("Apply configuration:\r\n" + config);
 		}
 
-		// TODO Set base proeprties
+		// Set base properties
 		setNamespace(config.get("namespace", namespace));
 		setNodeID(config.get("nodeID", nodeID));
 

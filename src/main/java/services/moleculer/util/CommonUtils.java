@@ -284,9 +284,9 @@ public final class CommonUtils {
 		if (resourceURL.startsWith("http:") || resourceURL.startsWith("https:") || resourceURL.startsWith("file:")) {
 			return readTree(new URL(resourceURL).openStream(), format);
 		}
-		URL url = Thread.currentThread().getContextClassLoader().getResource(resourceURL);
-		if (url == null) {
-			url = Thread.currentThread().getContextClassLoader().getResource('/' + resourceURL);
+		URL url = CommonUtils.class.getResource(resourceURL);
+		if (url == null && !resourceURL.startsWith("/")) {
+			url = CommonUtils.class.getResource('/' + resourceURL);
 		}
 		if (url != null) {
 			return readTree(url.openStream(), format);

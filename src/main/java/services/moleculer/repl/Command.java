@@ -81,7 +81,7 @@ public abstract class Command {
 				param = parameters[i];
 				if (name == null) {
 					if (param.startsWith("--") && param.length() > 2) {
-						name = param.substring(2).toLowerCase();
+						name = param.substring(2);
 						flags.put("lastIndex", i);
 					}
 				} else {
