@@ -206,7 +206,7 @@ public class TcpWriter implements Runnable {
 				} else {
 
 					// Try to append to buffer
-					if (!append(nodeID, buffer, packet)) {
+					if (!buffer.append(packet)) {
 
 						// Buffer is closed
 						RemoteAddress address = transporter.getAddress(nodeID);
