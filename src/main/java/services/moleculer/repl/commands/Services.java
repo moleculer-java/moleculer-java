@@ -51,7 +51,7 @@ import services.moleculer.transporter.Transporter;
 public class Services extends Nodes {
 
 	public Services() {
-		options.clear();		
+		options.clear();
 		option("local, -l", "only local services");
 		option("skipinternal, -i", "skip internal services");
 		option("details, -d", "print endpoints");
@@ -77,7 +77,7 @@ public class Services extends Nodes {
 		boolean skipinternal = params.contains("--skipinternal") || params.contains("-i");
 		boolean details = params.contains("--details") || params.contains("-d");
 		boolean all = params.contains("--all") || params.contains("-a");
-		
+
 		// Collect data
 		Transporter transporter = broker.components().transporter();
 		Tree infos = getNodeInfos(broker, transporter);
@@ -85,12 +85,12 @@ public class Services extends Nodes {
 
 		HashMap<String, HashMap<String, Tree>> serviceMap = new HashMap<>();
 		for (Tree info : infos) {
+			String nodeID = info.getName();
 			Tree services = info.get("services");
 			if (services == null || services.isNull()) {
 				continue;
 			}
 			for (Tree service : services) {
-				String nodeID = info.get("sender", "unknown");
 				String serviceName = service.get("name", "unknown");
 				HashMap<String, Tree> configs = serviceMap.get(serviceName);
 				if (configs == null) {
@@ -121,7 +121,7 @@ public class Services extends Nodes {
 			if (configs == null) {
 				continue;
 			}
-			
+
 			// Add "Service" cell
 			row.add(serviceName);
 
@@ -152,7 +152,7 @@ public class Services extends Nodes {
 			for (Tree config : configs.values()) {
 				Tree actions = config.get("actions");
 				if (actions != null) {
-					for (Tree action: actions) {
+					for (Tree action : actions) {
 						actionNames.add(action.get("name", "unknown"));
 					}
 				}
@@ -164,7 +164,7 @@ public class Services extends Nodes {
 			for (Tree config : configs.values()) {
 				Tree events = config.get("events");
 				if (events != null) {
-					for (Tree action: events) {
+					for (Tree action : events) {
 						eventNames.add(action.get("name", "unknown"));
 					}
 				}
@@ -181,7 +181,7 @@ public class Services extends Nodes {
 				continue;
 			}
 			row.add(nodes);
-			
+
 			// Add row
 			table.addRow(row);
 

@@ -36,9 +36,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
-import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -60,7 +58,7 @@ public class Bench extends Command {
 		option("num <number>", "number of iterates");
 		option("time <seconds>", "time of bench");
 		option("nodeID <nodeID>", "nodeID (direct call)");
-		option("threads <number>", "number of threads (default is 1)");
+		option("max <number>", "max number of pending requests");
 	}
 
 	@Override
@@ -80,10 +78,11 @@ public class Bench extends Command {
 
 	protected ScheduledFuture<?> timer;
 
-	protected LinkedList<ExecutorService> executors = new LinkedList<>();
+	protected ExecutorService executor;
 
 	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
+		executor = broker.components().executor();
 
 		// Parse parameters
 		String action = parameters[0];
@@ -92,11 +91,14 @@ public class Bench extends Command {
 		long time = flags.get("time", 0);
 		String nodeID = flags.get("nodeID", "");
 		int lastIndex = flags.get("lastIndex", 0);
-		int threads = flags.get("threads", 1);
+		int max = flags.get("max", 100);		
 		Tree params = getPayload(lastIndex + 1, parameters);
 
 		if (num < 1 && time < 1) {
 			time = 5;
+		}
+		if (max < 1) {
+			max = 1;
 		}
 		CallingOptions.Options opts = null;
 		if (nodeID != null && !nodeID.isEmpty()) {
@@ -108,10 +110,6 @@ public class Bench extends Command {
 		if (timer != null) {
 			timer.cancel(true);
 		}
-		for (ExecutorService executor : executors) {
-			executor.shutdownNow();
-		}
-		executors.clear();
 		timer = broker.components().scheduler().schedule(() -> {
 			data.timeout.set(true);
 		}, time < 1 ? 60 : time, TimeUnit.SECONDS);
@@ -119,16 +117,18 @@ public class Bench extends Command {
 		// Start benchmark...
 		String msg = num > 0 ? num + " times" : "for " + humanize(time * 1000000000);
 		out.println("Calling service " + msg + ", please wait...");
-
-		if (threads < 2) {
-			doRequest(broker, data, broker.components().executor());
-		} else {
-			for (int i = 0; i < threads; i++) {
-				ExecutorService executor = Executors.newSingleThreadExecutor();
-				doRequest(broker, data, executor);
-				executors.addLast(executor);
+		
+		long req, res;
+		while (!data.finished.get()) {
+			req = data.reqCount.get();
+			res = data.resCount.get();
+			if (req - res < max) {
+				doRequest(broker, data);
+			} else {
+				Thread.sleep(1);
 			}
 		}
+		
 		if (num == 0 && time > 0 && time < 10) {
 			Thread.sleep(500L + (1000L * time));
 		} else {
@@ -136,17 +136,17 @@ public class Bench extends Command {
 		}
 	}
 
-	protected void doRequest(ServiceBroker broker, BenchData data, ExecutorService executor) {
-		long startTime = System.nanoTime();
+	protected void doRequest(ServiceBroker broker, BenchData data) {
+		data.reqCount.incrementAndGet();
+		long startTime = System.nanoTime();		
 		broker.call(data.action, data.params, data.opts).then(res -> {
-			handleResponse(broker, data, startTime, null, executor);
+			handleResponse(broker, data, startTime, null);
 		}).Catch(cause -> {
-			handleResponse(broker, data, startTime, cause, executor);
+			handleResponse(broker, data, startTime, cause);
 		});
 	}
 
-	protected void handleResponse(ServiceBroker broker, BenchData data, long startTime, Throwable cause,
-			ExecutorService executor) {
+	protected void handleResponse(ServiceBroker broker, BenchData data, long startTime, Throwable cause) {
 		if (data.finished.get()) {
 			return;
 		}
@@ -192,10 +192,10 @@ public class Bench extends Command {
 		}
 
 		if (count % 100 > 0) {
-			doRequest(broker, data, executor);
+			doRequest(broker, data);
 		} else {
 			executor.execute(() -> {
-				doRequest(broker, data, executor);
+				doRequest(broker, data);
 			});
 		}
 	}
@@ -235,7 +235,7 @@ public class Bench extends Command {
 					"  " + numberFormatter.format(data.resCount) + " requests in " + humanize(total) + ", " + errStr);
 			out.println("  Requests per second: " + numberFormatter.format(reqPer));
 			out.println("  Latency: ");
-			    out.println("    Average: " + humanize(dur) + " (" + inSec.toPlainString() + " second)");
+			out.println("    Average: " + humanize(dur) + " (" + inSec.toPlainString() + " second)");
 			if (data.minTime.get() != Long.MAX_VALUE) {
 				out.println("    Minimum: " + humanize(data.minTime.get()));
 			}
@@ -245,10 +245,6 @@ public class Bench extends Command {
 		} catch (Exception e) {
 			e.printStackTrace(out);
 		}
-		for (ExecutorService executor : executors) {
-			executor.shutdown();
-		}
-		executors.clear();
 	}
 
 	protected String humanize(long nanoSec) {
@@ -293,6 +289,7 @@ public class Bench extends Command {
 		protected final Tree params;
 		protected final long num;
 
+		protected final AtomicLong reqCount = new AtomicLong();
 		protected final AtomicLong resCount = new AtomicLong();
 		protected final AtomicLong errorCount = new AtomicLong();
 		protected final AtomicLong sumTime = new AtomicLong();

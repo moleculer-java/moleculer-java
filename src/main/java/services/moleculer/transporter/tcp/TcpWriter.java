@@ -31,12 +31,14 @@
  */
 package services.moleculer.transporter.tcp;
 
+import static services.moleculer.util.CommonUtils.getHostOrIP;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.nio.channels.UnresolvedAddressException;
 import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -49,6 +51,7 @@ import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.datatree.Tree;
 import services.moleculer.transporter.TcpTransporter;
 
 /**
@@ -153,7 +156,7 @@ public class TcpWriter implements Runnable {
 		// Close sockets and clear buffers
 		synchronized (buffers) {
 			if (!buffers.isEmpty()) {
-				for (SendBuffer buffer: buffers.values()) {
+				for (SendBuffer buffer : buffers.values()) {
 					buffer.close();
 				}
 				buffers.clear();
@@ -293,7 +296,26 @@ public class TcpWriter implements Runnable {
 				SelectionKey key = null;
 				while (buffer != null) {
 					try {
-						InetSocketAddress address = new InetSocketAddress(buffer.host, buffer.port);
+						InetSocketAddress address;
+						try {
+							address = new InetSocketAddress(buffer.host, buffer.port);
+						} catch (UnresolvedAddressException dnsError) {
+
+							// Workaround: unable to resolve host name
+							Tree info = transporter.getDescriptor(buffer.nodeID);
+							if (info == null) {
+								throw dnsError;
+							}
+							String ip = getHostOrIP(false, info);
+							if (ip == null || buffer.host.equalsIgnoreCase(ip)) {
+								throw dnsError;
+							}
+							if (debug) {
+								logger.info("Unable to resolve hostname \"" + buffer.host + "\", trying with \"" + ip
+										+ "\"...");
+							}
+							address = new InetSocketAddress(ip, buffer.port);
+						}
 						SocketChannel channel = SocketChannel.open(address);
 						channel.configureBlocking(false);
 

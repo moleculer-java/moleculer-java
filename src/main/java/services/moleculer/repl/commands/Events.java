@@ -85,6 +85,7 @@ public class Events extends Nodes {
 
 		HashMap<String, HashSet<String>> eventMap = new HashMap<>();
 		for (Tree info : infos) {
+			String nodeID = info.getName();
 			Tree services = info.get("services");
 			if (services == null || services.isNull()) {
 				continue;
@@ -94,7 +95,6 @@ public class Events extends Nodes {
 				if (events == null || events.isNull()) {
 					continue;
 				}
-				String nodeID = info.get("sender", "unknown");
 				for (Tree event : events) {
 					String eventName = event.get("name", "unknown");
 					HashSet<String> nodeSet = eventMap.get(eventName);

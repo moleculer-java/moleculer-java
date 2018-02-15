@@ -67,7 +67,7 @@ public class UDPLocator {
 	/**
 	 * Use UDP broadcast WITH UDP multicast (false = use UDP multicast only)
 	 */
-	protected boolean udpBroadcast = true;
+	protected final boolean udpBroadcast;
 
 	/**
 	 * Maximum number of outgoing multicast packets (0 = runs forever)
@@ -103,6 +103,7 @@ public class UDPLocator {
 		this.scheduler = scheduler;
 		this.udpMaxDiscovery = transporter.getUdpMaxDiscovery();
 		this.udpPeriod = transporter.getUdpPeriod();
+		this.udpBroadcast = transporter.isUdpBroadcast();
 	}
 
 	// --- CONNECT ---

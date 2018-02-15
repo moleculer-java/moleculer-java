@@ -56,7 +56,7 @@ public class Test {
 		// transporter.setOfflineTimeout(600);
 
 		// RedisTransporter transporter = new RedisTransporter();
-		transporter.setDebug(true);
+		// transporter.setDebug(true);
 
 		// Define cacher
 		Cacher cacher = new MemoryCacher();

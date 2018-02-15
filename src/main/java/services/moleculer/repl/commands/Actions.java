@@ -86,6 +86,7 @@ public class Actions extends Nodes {
 
 		HashMap<String, HashMap<String, Tree>> actionMap = new HashMap<>();
 		for (Tree info : infos) {
+			String nodeID = info.getName();
 			Tree services = info.get("services");
 			if (services == null || services.isNull()) {
 				continue;
@@ -95,7 +96,6 @@ public class Actions extends Nodes {
 				if (actions == null || actions.isNull()) {
 					continue;
 				}
-				String nodeID = info.get("sender", "unknown");
 				for (Tree action : actions) {
 					String actionName = action.get("name", "unknown");
 					HashMap<String, Tree> configs = actionMap.get(actionName);
