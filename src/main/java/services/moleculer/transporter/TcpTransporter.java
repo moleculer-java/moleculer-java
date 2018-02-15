@@ -38,13 +38,8 @@ import static services.moleculer.util.CommonUtils.readTree;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.InetAddress;
-import java.net.InterfaceAddress;
-import java.net.NetworkInterface;
 import java.net.URL;
-import java.util.Enumeration;
-import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -57,7 +52,7 @@ import services.moleculer.service.Name;
 import services.moleculer.transporter.tcp.NodeDescriptor;
 import services.moleculer.transporter.tcp.TcpReader;
 import services.moleculer.transporter.tcp.TcpWriter;
-import services.moleculer.transporter.tcp.UDPBroadcaster;
+import services.moleculer.transporter.tcp.UDPLocator;
 
 /**
  * TCP Transporter with optional UDP discovery ("zero configuration") module.
@@ -127,9 +122,9 @@ public class TcpTransporter extends Transporter {
 	protected String[] urls = {};
 
 	/**
-	 * Use UDP multicast or UDP broadcast
+	 * Use UDP broadcast WITH UDP multicast (false = use UDP multicast only)
 	 */
-	protected boolean udpMulticast = false;
+	protected boolean udpBroadcast = true;
 
 	/**
 	 * Maximum number of outgoing multicast packets (0 = runs forever)
@@ -142,11 +137,9 @@ public class TcpTransporter extends Transporter {
 	protected int udpPeriod = 60;
 
 	/**
-	 * UDP broadcast/multicast address of automatic discovery service. The
-	 * preferred broadcast address is "255.255.255.255", use "230.0.0.0" in
-	 * multicast mode.
+	 * UDP multicast address of automatic discovery service.
 	 */
-	protected String udpAddress;
+	protected String udpAddress = "230.0.0.0";
 
 	/**
 	 * Resuse addresses
@@ -239,7 +232,7 @@ public class TcpTransporter extends Transporter {
 		maxPacketSize = config.get("maxPacketSize", maxPacketSize);
 
 		// UDP discovery ("zero config" mode)
-		udpMulticast = config.get("udpMulticast", udpMulticast);
+		udpBroadcast = config.get("udpBroadcast", udpBroadcast);
 		udpMaxDiscovery = config.get("udpMaxDiscovery", udpMaxDiscovery);
 		udpPeriod = config.get("udpPeriod", udpPeriod);
 		udpAddress = config.get("udpAddress", udpAddress);
@@ -309,7 +302,7 @@ public class TcpTransporter extends Transporter {
 	/**
 	 * UDP broadcaster
 	 */
-	protected UDPBroadcaster broadcaster;
+	protected UDPLocator locator;
 
 	/**
 	 * Current TCP port
@@ -340,35 +333,8 @@ public class TcpTransporter extends Transporter {
 
 			// TCP + UDP mode ("zero config")
 			if (urls == null || urls.length == 0) {
-				if (udpAddress == null) {
-					if (udpMulticast) {
-						udpAddress = "230.0.0.0";
-					} else {
-						Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces();
-						while (en.hasMoreElements()) {
-							NetworkInterface ni = en.nextElement();
-							List<InterfaceAddress> list = ni.getInterfaceAddresses();
-							Iterator<InterfaceAddress> it = list.iterator();
-							while (it.hasNext()) {
-								InterfaceAddress ia = it.next();
-								if (ia == null) {
-									continue;
-								}
-								InetAddress address = ia.getBroadcast();
-								if (address == null || address.isLoopbackAddress()) {
-									continue;
-								}
-								udpAddress = address.getHostAddress();
-								break;
-							}
-							if (udpAddress != null) {
-								break;
-							}
-						}
-					}
-				}
-				broadcaster = new UDPBroadcaster(nodeID, this, scheduler);
-				broadcaster.connect();
+				locator = new UDPLocator(nodeID, this, scheduler);
+				locator.connect();
 			}
 
 			// Start gossiper
@@ -402,9 +368,9 @@ public class TcpTransporter extends Transporter {
 	protected void disconnect() {
 
 		// Stop broadcaster
-		if (broadcaster != null) {
-			broadcaster.disconnect();
-			broadcaster = null;
+		if (locator != null) {
+			locator.disconnect();
+			locator = null;
 		}
 
 		// Stop gossiper's timer
@@ -1412,12 +1378,12 @@ public class TcpTransporter extends Transporter {
 		this.useHostname = preferHostname;
 	}
 
-	public boolean isUdpMulticast() {
-		return udpMulticast;
+	public boolean isUdpBroadcast() {
+		return udpBroadcast;
 	}
 
-	public void setUdpMulticast(boolean udpMulticast) {
-		this.udpMulticast = udpMulticast;
+	public void setUdpBroadcast(boolean udpBroadcast) {
+		this.udpBroadcast = udpBroadcast;
 	}
 
 	public int getUdpMaxDiscovery() {
