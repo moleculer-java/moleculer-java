@@ -38,8 +38,13 @@ import static services.moleculer.util.CommonUtils.readTree;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.InetAddress;
+import java.net.InterfaceAddress;
+import java.net.NetworkInterface;
 import java.net.URL;
+import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -102,7 +107,7 @@ public class TcpTransporter extends Transporter {
 	/**
 	 * Gossiping period time, in SECONDS.
 	 */
-	protected int gossipPeriod = 1;
+	protected int gossipPeriod = 2;
 
 	/**
 	 * Max number of keep-alive connections (-1 = unlimited, 0 = disable
@@ -113,7 +118,7 @@ public class TcpTransporter extends Transporter {
 	/**
 	 * Max enable packet size (BYTES).
 	 */
-	protected int maxPacketSize = 1024 * 1024 * 16;
+	protected int maxPacketSize = 1024 * 1024;
 
 	/**
 	 * List of URLs ("tcp://host:port/nodeID" or "host:port/nodeID" or
@@ -122,31 +127,48 @@ public class TcpTransporter extends Transporter {
 	protected String[] urls = {};
 
 	/**
-	 * UDP multicast host of automatic discovery service ("zero config" mode).
+	 * Use UDP multicast or UDP broadcast
 	 */
-	protected String multicastHost = "230.0.0.0";
-
-	/**
-	 * UDP multicast port of automatic discovery service.
-	 */
-	protected int multicastPort = 4445;
-
-	/**
-	 * UDP multicast period in SECONDS.
-	 */
-	protected int multicastPeriod = 60;
+	protected boolean udpMulticast = false;
 
 	/**
 	 * Maximum number of outgoing multicast packets (0 = runs forever)
 	 */
-	protected int multicastPackets;
+	protected int udpMaxDiscovery = 0;
+
+	/**
+	 * UDP broadcast/multicast period in SECONDS
+	 */
+	protected int udpPeriod = 60;
+
+	/**
+	 * UDP broadcast/multicast address of automatic discovery service. The
+	 * preferred broadcast address is "255.255.255.255", use "230.0.0.0" in
+	 * multicast mode.
+	 */
+	protected String udpAddress;
+
+	/**
+	 * Resuse addresses
+	 */
+	protected boolean udpReuseAddr = true;
+
+	/**
+	 * UDP broadcast/multicast port
+	 */
+	protected int udpPort = 4445;
+
+	/**
+	 * TTL of UDP packets
+	 */
+	protected int udpTTL = 1;
 
 	/**
 	 * Use hostnames instead of IP addresses As the DHCP environment is dynamic,
 	 * any later attempt to use IPs instead hostnames would most likely yield
 	 * false results. Therefore, use hostnames if you are using DHCP.
 	 */
-	protected boolean preferHostname = true;
+	protected boolean useHostname = true;
 
 	// --- CONSTUCTORS ---
 
@@ -217,13 +239,16 @@ public class TcpTransporter extends Transporter {
 		maxPacketSize = config.get("maxPacketSize", maxPacketSize);
 
 		// UDP discovery ("zero config" mode)
-		multicastHost = config.get("multicastHost", multicastHost);
-		multicastPort = config.get("multicastPort", multicastPort);
-		multicastPeriod = config.get("multicastPeriod", multicastPeriod);
-		multicastPackets = config.get("multicastPackets", multicastPackets);
+		udpMulticast = config.get("udpMulticast", udpMulticast);
+		udpMaxDiscovery = config.get("udpMaxDiscovery", udpMaxDiscovery);
+		udpPeriod = config.get("udpPeriod", udpPeriod);
+		udpAddress = config.get("udpAddress", udpAddress);
+		udpReuseAddr = config.get("udpReuseAddr", udpReuseAddr);
+		udpPort = config.get("udpPort", udpPort);
+		udpTTL = config.get("udpTTL", udpTTL);
 
 		// Use hostname instead of IP address
-		preferHostname = config.get("preferHostname", preferHostname);
+		useHostname = config.get("useHostname", useHostname);
 
 		// Parse URLs (in "full TCP mode")
 		urls = parseURLs(config, urls);
@@ -256,7 +281,7 @@ public class TcpTransporter extends Transporter {
 					continue;
 				}
 				String host = parts[0];
-				nodes.put(sender, new NodeDescriptor(sender, preferHostname, host, port));
+				nodes.put(sender, new NodeDescriptor(sender, useHostname, host, port));
 			}
 		}
 
@@ -308,14 +333,41 @@ public class TcpTransporter extends Transporter {
 			Tree info = registry.getDescriptor();
 			info.put("port", currentPort);
 			info.put("seq", "0");
-			cachedDescriptor = new NodeDescriptor(nodeID, preferHostname, true, info);
+			cachedDescriptor = new NodeDescriptor(nodeID, useHostname, true, info);
 
 			// Start data writer (TCP client)
 			writer.connect();
 
 			// TCP + UDP mode ("zero config")
 			if (urls == null || urls.length == 0) {
-				broadcaster = new UDPBroadcaster(namespace, nodeID, this, scheduler, preferHostname);
+				if (udpAddress == null) {
+					if (udpMulticast) {
+						udpAddress = "230.0.0.0";
+					} else {
+						Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces();
+						while (en.hasMoreElements()) {
+							NetworkInterface ni = en.nextElement();
+							List<InterfaceAddress> list = ni.getInterfaceAddresses();
+							Iterator<InterfaceAddress> it = list.iterator();
+							while (it.hasNext()) {
+								InterfaceAddress ia = it.next();
+								if (ia == null) {
+									continue;
+								}
+								InetAddress address = ia.getBroadcast();
+								if (address == null || address.isLoopbackAddress()) {
+									continue;
+								}
+								udpAddress = address.getHostAddress();
+								break;
+							}
+							if (udpAddress != null) {
+								break;
+							}
+						}
+					}
+				}
+				broadcaster = new UDPBroadcaster(nodeID, this, scheduler);
 				broadcaster.connect();
 			}
 
@@ -787,7 +839,7 @@ public class TcpTransporter extends Transporter {
 
 			// Add as new, offline node
 			try {
-				nodes.put(sender, new NodeDescriptor(sender, preferHostname, host, port));
+				nodes.put(sender, new NodeDescriptor(sender, useHostname, host, port));
 				logger.info("Node \"" + sender + "\" registered.");
 			} catch (Exception cause) {
 				logger.warn("Unable to register new node!", cause);
@@ -802,7 +854,7 @@ public class TcpTransporter extends Transporter {
 					node.host = host;
 					node.port = port;
 					if (node.info != null) {
-						if (preferHostname) {
+						if (useHostname) {
 							node.info.put("hostname", host);
 						} else {
 							Tree ipList = node.info.get("ipList");
@@ -948,7 +1000,8 @@ public class TcpTransporter extends Transporter {
 		return null;
 	}
 
-	protected void sendGossipToRandomEndpoint(String[] endpoints, int size, byte[] packet, Tree message) throws Exception {
+	protected void sendGossipToRandomEndpoint(String[] endpoints, int size, byte[] packet, Tree message)
+			throws Exception {
 
 		// Choose a random endpoint
 		String nodeID;
@@ -957,7 +1010,7 @@ public class TcpTransporter extends Transporter {
 		} else {
 			nodeID = endpoints[rnd.nextInt(size)];
 		}
-	
+
 		// Debug
 		if (debug) {
 			logger.info("Gossip request submitting to \"" + nodeID + "\" node:\r\n" + message);
@@ -976,12 +1029,12 @@ public class TcpTransporter extends Transporter {
 		if (debug) {
 			logger.info("Gossip request received from \"" + sender + "\" node:\r\n" + data);
 		}
-		
+
 		// Create gossip response
 		Tree root = new Tree();
 		root.put("ver", ServiceBroker.PROTOCOL_VERSION);
 		root.put("sender", this.nodeID);
-		
+
 		Tree onlineRsp = root.putMap("online");
 		Tree offlineRsp = root.putMap("offline");
 
@@ -1051,7 +1104,7 @@ public class TcpTransporter extends Transporter {
 					}
 					if (!node.local) {
 						if (node.offlineSince == 0) {
-							
+
 							// We know it is online, so we change it to offline
 							if (node.markAsOffline(seq)) {
 
@@ -1060,9 +1113,9 @@ public class TcpTransporter extends Transporter {
 								eventbus.removeListeners(node.nodeID);
 								writer.close(node.nodeID);
 								disconnectedNodes.add(node);
-								
+
 							} else if (seq == node.seq) {
-								
+
 								// We send back that this node is online
 								node.seq = seq + 1;
 								node.info.put("seq", node.seq);
@@ -1070,7 +1123,7 @@ public class TcpTransporter extends Transporter {
 								row.addObject(node.info);
 								if (cpuSeq < node.cpuSeq && node.cpuSeq > 0) {
 									row.add(node.cpuSeq).add(node.cpu);
-								}								
+								}
 							}
 						}
 						continue;
@@ -1146,7 +1199,7 @@ public class TcpTransporter extends Transporter {
 			String sender = data.get("sender", (String) null);
 			logger.info("Gossip response received from \"" + sender + "\" node:\r\n" + data);
 		}
-		
+
 		// Online / offline nodes in responnse
 		Tree online = data.get("online");
 		Tree offline = data.get("offline");
@@ -1282,7 +1335,7 @@ public class TcpTransporter extends Transporter {
 			Tree root = new Tree();
 			root.put("ver", ServiceBroker.PROTOCOL_VERSION);
 			root.put("sender", nodeID);
-			if (preferHostname) {
+			if (useHostname) {
 				root.put("host", getHostName());
 			} else {
 				root.put("host", InetAddress.getLocalHost().getHostAddress());
@@ -1347,48 +1400,72 @@ public class TcpTransporter extends Transporter {
 		this.maxPacketSize = maxPacketSize;
 	}
 
-	public String getMulticastHost() {
-		return multicastHost;
-	}
-
-	public void setMulticastHost(String broadcastHost) {
-		this.multicastHost = broadcastHost;
-	}
-
-	public int getMulticastPort() {
-		return multicastPort;
-	}
-
-	public void setMulticastPort(int broadcastPort) {
-		this.multicastPort = broadcastPort;
-	}
-
-	public int getMulticastPeriod() {
-		return multicastPeriod;
-	}
-
-	public void setMulticastPeriod(int broadcastPeriod) {
-		this.multicastPeriod = broadcastPeriod;
-	}
-
 	public int getCurrentPort() {
 		return currentPort;
 	}
 
-	public int getMulticastPackets() {
-		return multicastPackets;
+	public boolean isUseHostname() {
+		return useHostname;
 	}
 
-	public void setMulticastPackets(int multicastPackets) {
-		this.multicastPackets = multicastPackets;
+	public void setUseHostname(boolean preferHostname) {
+		this.useHostname = preferHostname;
 	}
 
-	public boolean isPreferHostname() {
-		return preferHostname;
+	public boolean isUdpMulticast() {
+		return udpMulticast;
 	}
 
-	public void setPreferHostname(boolean preferHostname) {
-		this.preferHostname = preferHostname;
+	public void setUdpMulticast(boolean udpMulticast) {
+		this.udpMulticast = udpMulticast;
+	}
+
+	public int getUdpMaxDiscovery() {
+		return udpMaxDiscovery;
+	}
+
+	public void setUdpMaxDiscovery(int udpMaxDiscovery) {
+		this.udpMaxDiscovery = udpMaxDiscovery;
+	}
+
+	public int getUdpPeriod() {
+		return udpPeriod;
+	}
+
+	public void setUdpPeriod(int udpPeriod) {
+		this.udpPeriod = udpPeriod;
+	}
+
+	public String getUdpAddress() {
+		return udpAddress;
+	}
+
+	public void setUdpAddress(String udpAddress) {
+		this.udpAddress = udpAddress;
+	}
+
+	public boolean isUdpReuseAddr() {
+		return udpReuseAddr;
+	}
+
+	public void setUdpReuseAddr(boolean udpReuseAddr) {
+		this.udpReuseAddr = udpReuseAddr;
+	}
+
+	public int getUdpPort() {
+		return udpPort;
+	}
+
+	public void setUdpPort(int udpPort) {
+		this.udpPort = udpPort;
+	}
+
+	public int getUdpTTL() {
+		return udpTTL;
+	}
+
+	public void setUdpTTL(int udpTTL) {
+		this.udpTTL = udpTTL;
 	}
 
 }

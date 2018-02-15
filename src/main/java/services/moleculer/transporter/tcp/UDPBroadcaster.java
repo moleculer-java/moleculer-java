@@ -32,6 +32,7 @@
 package services.moleculer.transporter.tcp;
 
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.concurrent.ExecutorService;
@@ -46,7 +47,8 @@ import org.slf4j.LoggerFactory;
 import services.moleculer.transporter.TcpTransporter;
 
 /**
- * UDP broadcaster / receiver of the TCP Transporter.
+ * UDP multicast / broadcast discovery service of the TCP Transporter. Use the
+ * "udpMulticast" boolean parameter, to switch to multicast from broadcast.
  */
 public class UDPBroadcaster {
 
@@ -67,19 +69,41 @@ public class UDPBroadcaster {
 	protected final int port;
 
 	/**
-	 * UDP multicast host of automatic discovery service
+	 * Use UDP multicast or UDP broadcast
 	 */
-	protected final String multicastHost;
+	protected final boolean udpMulticast;
 
 	/**
-	 * UDP multicast port of automatic discovery service
+	 * Maximum number of outgoing multicast packets (0 = runs forever)
 	 */
-	protected final int multicastPort;
+	protected final int udpMaxDiscovery;
 
 	/**
-	 * UDP multicast period in SECONDS
+	 * UDP broadcast/multicast period in SECONDS
 	 */
-	protected final int multicastPeriod;
+	protected final int udpPeriod;
+
+	/**
+	 * UDP broadcast/multicast address of automatic discovery service. The
+	 * preferred broadcast address is "255.255.255.255", use "230.0.0.0" in
+	 * multicast mode.
+	 */
+	protected final String udpAddress;
+
+	/**
+	 * Resuse addresses
+	 */
+	protected final boolean udpReuseAddr;
+
+	/**
+	 * UDP broadcast/multicast port
+	 */
+	protected final int udpPort;
+
+	/**
+	 * TTL of UDP packets
+	 */
+	protected final int udpTTL;
 
 	/**
 	 * Debug mode
@@ -96,12 +120,7 @@ public class UDPBroadcaster {
 	 * any later attempt to use IPs instead hostnames would most likely yield
 	 * false results. Therefore, use hostnames if you are using DHCP.
 	 */
-	protected final boolean preferHostname;
-
-	/**
-	 * Maximum number of outgoing multicast packets (0 = runs forever)
-	 */
-	protected final int multicastPackets;
+	protected final boolean useHostname;
 
 	// --- COMPONENTS ---
 
@@ -126,19 +145,21 @@ public class UDPBroadcaster {
 
 	// --- CONSTRUCTOR ---
 
-	public UDPBroadcaster(String namespace, String nodeID, TcpTransporter transporter,
-			ScheduledExecutorService scheduler, boolean preferHostname) {
-		this.namespace = namespace;
+	public UDPBroadcaster(String nodeID, TcpTransporter transporter, ScheduledExecutorService scheduler) {
 		this.nodeID = nodeID;
 		this.transporter = transporter;
 		this.scheduler = scheduler;
+		this.namespace = transporter.getNamespace();
 		this.debug = transporter.isDebug();
-		this.multicastHost = transporter.getMulticastHost();
-		this.multicastPort = transporter.getMulticastPort();
-		this.multicastPeriod = transporter.getMulticastPeriod();
 		this.port = transporter.getCurrentPort();
-		this.preferHostname = preferHostname;
-		this.multicastPackets = transporter.getMulticastPackets();
+		this.useHostname = transporter.isUseHostname();
+		this.udpMulticast = transporter.isUdpMulticast();
+		this.udpMaxDiscovery = transporter.getUdpMaxDiscovery();
+		this.udpPeriod = transporter.getUdpPeriod();
+		this.udpAddress = transporter.getUdpAddress();
+		this.udpReuseAddr = transporter.isUdpReuseAddr();
+		this.udpPort = transporter.getUdpPort();
+		this.udpTTL = transporter.getUdpTTL();
 	}
 
 	// --- CONNECT ---
@@ -151,22 +172,37 @@ public class UDPBroadcaster {
 	/**
 	 * Multicast receiver
 	 */
-	protected MulticastSocket udpReceiver;
+	protected MulticastSocket multicastReceiver;
+
+	/**
+	 * Broadcast receiver
+	 */
+	protected DatagramSocket broadcastReceiver;
 
 	public void connect() throws Exception {
-
-		// Join UDP group
 		disconnect();
-		udpReceiver = new MulticastSocket(multicastPort);
-		udpReceiver.joinGroup(InetAddress.getByName(multicastHost));
-		logger.info("Discovery service started on udp://" + multicastHost + ':' + multicastPort + '.');
 
 		// Start packet receiver
 		executor = Executors.newSingleThreadExecutor();
-		executor.execute(this::receive);
+		if (udpMulticast) {
 
-		// Start packet sender
-		timer = scheduler.scheduleAtFixedRate(this::send, 1, multicastPeriod, TimeUnit.SECONDS);
+			// Start multicast receiver
+			multicastReceiver = new MulticastSocket(udpPort);
+			multicastReceiver.joinGroup(InetAddress.getByName(udpAddress));
+			executor.execute(this::receiveMulticast);
+			logger.info("Multicast discovery service started on udp://" + udpAddress + ':' + udpPort + '.');
+		} else {
+
+			// Start broadcast receiver
+			broadcastReceiver = new DatagramSocket();
+			broadcastReceiver.setBroadcast(true);
+			broadcastReceiver.connect(InetAddress.getByName(udpAddress), udpPort);
+			executor.execute(this::receiveBroadcast);
+			logger.info("Broadcast discovery service started on udp://" + udpAddress + ':' + udpPort + '.');
+		}
+
+		// Start multicast / broadcast sender
+		timer = scheduler.scheduleAtFixedRate(this::send, 1, udpPeriod, TimeUnit.SECONDS);
 	}
 
 	// --- DISCONNECT ---
@@ -193,34 +229,43 @@ public class UDPBroadcaster {
 			executor = null;
 		}
 
-		// Stop receiver
-		if (udpReceiver != null) {
+		// Stop multicast receiver
+		if (multicastReceiver != null) {
 			try {
-				InetAddress address = InetAddress.getByName(multicastHost);
-				udpReceiver.leaveGroup(address);
+				InetAddress address = InetAddress.getByName(udpAddress);
+				multicastReceiver.leaveGroup(address);
 			} catch (Exception ignored) {
 			}
 			try {
-				udpReceiver.close();
+				multicastReceiver.close();
 			} catch (Exception ignored) {
 			}
-			udpReceiver = null;
-			logger.info("Discovery service stopped.");
+			multicastReceiver = null;
+			logger.info("Multicast discovery service stopped.");
 		}
 
+		// Stop broadcast receiver
+		if (broadcastReceiver != null) {
+			try {
+				broadcastReceiver.close();
+			} catch (Exception ignored) {
+			}
+			broadcastReceiver = null;
+			logger.info("Broadcast discovery service stopped.");
+		}
 	}
 
-	// --- UDP SENDER'S LOOP ---
+	// --- UDP BROADCAST / MULTICAST SENDER ---
 
 	protected int numberOfSubmittedPackets = 0;
 
 	protected void send() {
 
 		// Check number of packets
-		if (multicastPackets > 0) {
-			if (numberOfSubmittedPackets >= multicastPackets) {
+		if (udpMaxDiscovery > 0) {
+			if (numberOfSubmittedPackets >= udpMaxDiscovery) {
 				if (timer != null) {
-					logger.info("Discovery sender stopped successfully, " + multicastPackets + " packets sent.");
+					logger.info("Discovery service stopped successfully, " + udpMaxDiscovery + " packets sent.");
 					timer.cancel(false);
 					timer = null;
 				}
@@ -228,98 +273,75 @@ public class UDPBroadcaster {
 			}
 			numberOfSubmittedPackets++;
 		}
+		String msg = namespace + '|' + nodeID + '|' + port;
+		if (udpMulticast) {
 
-		// Send packet
-		MulticastSocket udpSocket = null;
-		try {
-			String msg = namespace + '|' + nodeID + '|' + port;
-			byte[] bytes = msg.getBytes();
-			udpSocket = new MulticastSocket(multicastPort);
-			InetAddress address = InetAddress.getByName(multicastHost);
-			DatagramPacket packet = new DatagramPacket(bytes, bytes.length, address, multicastPort);
-			udpSocket.send(packet);
-			if (debug) {
-				logger.info("Discovery message submitted (namespace: " + namespace + ", node ID: " + nodeID + ", port: "
-						+ port + ").");
-			}
-		} catch (Exception cause) {
-			logger.error("Unable to send discovery packet!", cause);
-		} finally {
+			// Send multicast packet
+			MulticastSocket udpSocket = null;
 			try {
-				if (udpSocket != null) {
-					udpSocket.close();
+				byte[] bytes = msg.getBytes();
+				udpSocket = new MulticastSocket(udpPort);
+				udpSocket.setTimeToLive(udpTTL);
+				udpSocket.setReuseAddress(udpReuseAddr);
+				InetAddress address = InetAddress.getByName(udpAddress);
+				DatagramPacket packet = new DatagramPacket(bytes, bytes.length, address, udpPort);
+				udpSocket.send(packet);
+				if (debug) {
+					logger.info("Multicast message submitted (namespace: " + namespace + ", node ID: " + nodeID
+							+ ", port: " + port + ").");
 				}
-				udpSocket = null;
-			} catch (Exception ignored) {
+			} catch (Exception cause) {
+				logger.error("Unable to send multicast packet!", cause);
+			} finally {
+				try {
+					if (udpSocket != null) {
+						udpSocket.close();
+					}
+					udpSocket = null;
+				} catch (Exception ignored) {
+				}
+			}
+		} else {
+
+			// Send broadcast packet
+			DatagramSocket udpSocket = null;
+			try {
+				byte[] bytes = msg.getBytes();
+				udpSocket = new DatagramSocket();
+				udpSocket.setBroadcast(true);
+				udpSocket.setReuseAddress(udpReuseAddr);
+				InetAddress address = InetAddress.getByName(udpAddress);
+				DatagramPacket packet = new DatagramPacket(bytes, bytes.length, address, udpPort);
+				udpSocket.send(packet);
+				if (debug) {
+					logger.info("Broadcast message submitted (namespace: " + namespace + ", node ID: " + nodeID
+							+ ", port: " + port + ").");
+				}
+			} catch (Exception cause) {
+				logger.error("Unable to send broadcast packet!", cause);
+			} finally {
+				try {
+					if (udpSocket != null) {
+						udpSocket.close();
+					}
+					udpSocket = null;
+				} catch (Exception ignored) {
+				}
 			}
 		}
 	}
 
-	// --- UDP SENDER'S LOOP ---
+	// --- UDP BROADCAST RECEIVER ---
 
-	protected void receive() {
-
-		// Loop
+	protected void receiveBroadcast() {
 		while (!Thread.currentThread().isInterrupted()) {
 			try {
 
 				// Waiting for packet...
 				byte[] buffer = new byte[512];
 				DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-				udpReceiver.receive(packet);
-				String received = new String(buffer).trim();
-				String tokens[] = received.split("\\|");
-				if (tokens.length != 3) {
-					logger.warn("Malformed UDP message received (" + received + ")!");
-					continue;
-				}
-
-				// Check prefix and nodeID
-				if (!namespace.equals(tokens[0]) || nodeID.equals(tokens[1])) {
-					continue;
-				}
-				if (tokens[1].isEmpty()) {
-					logger.warn("Empty nodeID received!");
-					continue;
-				}
-
-				// Get source hostname or IP
-				String host;
-				try {
-					InetAddress address = packet.getAddress();
-					if (preferHostname) {
-						host = address.getHostName();
-						if (host == null || host.isEmpty() || host.contains("localhost")) {
-							host = address.getHostAddress();
-						}
-					} else {
-						host = address.getHostAddress();
-						if (host == null || host.isEmpty() || host.startsWith("127.")) {
-							host = address.getHostName();
-						}
-					}
-					if (host == null || host.isEmpty()) {
-						logger.warn("Unable to detect sender's hostname!");
-						continue;
-					}
-				} catch (Exception cause) {
-					logger.warn("Unable to detect sender's IP address or hostname!", cause);
-					continue;
-				}
-				int port = 0;
-				try {
-					port = Integer.parseInt(tokens[2]);
-					if (port < 1) {
-						logger.warn("Invalid port number (" + port + ")!");
-						continue;
-					}
-				} catch (Exception cause) {
-					logger.warn("Invalid port number format (" + tokens[2] + ")!");
-					continue;
-				}
-
-				// Notify TCP Transporter
-				transporter.udpPacketReceived(tokens[1], host.toLowerCase(), port);
+				broadcastReceiver.receive(packet);
+				processReceivedMessage(packet, buffer);
 
 			} catch (Exception cause) {
 				String msg = cause == null ? null : cause.getMessage();
@@ -327,27 +349,123 @@ public class UDPBroadcaster {
 					return;
 				}
 				logger.warn("Unexpected error occured in UDP broadcaster!", cause);
-				if (udpReceiver != null) {
+				if (broadcastReceiver != null) {
 					try {
-						InetAddress address = InetAddress.getByName(multicastHost);
-						udpReceiver.leaveGroup(address);
-					} catch (Exception ignored) {
-					}
-					try {
-						udpReceiver.close();
+						broadcastReceiver.close();
 					} catch (Exception ignored) {
 					}
 				}
 				try {
 					Thread.sleep(1000);
-					udpReceiver = new MulticastSocket(multicastPort);
-					udpReceiver.joinGroup(InetAddress.getByName(multicastHost));
-					logger.info("UDP broadcaster reconnected.");
+					broadcastReceiver = new DatagramSocket();
+					broadcastReceiver.setBroadcast(true);
+					broadcastReceiver.connect(InetAddress.getByName(udpAddress), udpPort);
+					logger.info("UDP broadcast discovery service reconnected.");
 				} catch (Exception interrupt) {
 					return;
 				}
 			}
 		}
 	}
-	
+
+	// --- UDP MULTICAST RECEIVER ---
+
+	protected void receiveMulticast() {
+		while (!Thread.currentThread().isInterrupted()) {
+			try {
+
+				// Waiting for packet...
+				byte[] buffer = new byte[512];
+				DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+				multicastReceiver.receive(packet);
+				processReceivedMessage(packet, buffer);
+
+			} catch (Exception cause) {
+				String msg = cause == null ? null : cause.getMessage();
+				if (msg != null && msg.contains("closed")) {
+					return;
+				}
+				logger.warn("Unexpected error occured in UDP broadcaster!", cause);
+				if (multicastReceiver != null) {
+					try {
+						InetAddress address = InetAddress.getByName(udpAddress);
+						multicastReceiver.leaveGroup(address);
+					} catch (Exception ignored) {
+					}
+					try {
+						multicastReceiver.close();
+					} catch (Exception ignored) {
+					}
+				}
+				try {
+					Thread.sleep(1000);
+					multicastReceiver = new MulticastSocket(udpPort);
+					multicastReceiver.joinGroup(InetAddress.getByName(udpAddress));
+					logger.info("UDP multicast discovery service reconnected.");
+				} catch (Exception interrupt) {
+					return;
+				}
+			}
+		}
+	}
+
+	// --- COMMON MESSAGE PROCESSOR ---
+
+	protected void processReceivedMessage(DatagramPacket packet, byte[] buffer) {
+
+		String received = new String(buffer).trim();
+		String tokens[] = received.split("\\|");
+		if (tokens.length != 3) {
+			logger.warn("Malformed UDP message received (" + received + ")!");
+			return;
+		}
+
+		// Check prefix and nodeID
+		if (!namespace.equals(tokens[0]) || nodeID.equals(tokens[1])) {
+			return;
+		}
+		if (tokens[1].isEmpty()) {
+			logger.warn("Empty nodeID received!");
+			return;
+		}
+
+		// Get source hostname or IP
+		String host;
+		try {
+			InetAddress address = packet.getAddress();
+			if (useHostname) {
+				host = address.getHostName();
+				if (host == null || host.isEmpty() || host.contains("localhost")) {
+					host = address.getHostAddress();
+				}
+			} else {
+				host = address.getHostAddress();
+				if (host == null || host.isEmpty() || host.startsWith("127.")) {
+					host = address.getHostName();
+				}
+			}
+			if (host == null || host.isEmpty()) {
+				logger.warn("Unable to detect sender's hostname!");
+				return;
+			}
+		} catch (Exception cause) {
+			logger.warn("Unable to detect sender's IP address or hostname!", cause);
+			return;
+		}
+		int port = 0;
+		try {
+			port = Integer.parseInt(tokens[2]);
+			if (port < 1) {
+				logger.warn("Invalid port number (" + port + ")!");
+				return;
+			}
+		} catch (Exception cause) {
+			logger.warn("Invalid port number format (" + tokens[2] + ")!");
+			return;
+		}
+
+		// Notify TCP Transporter
+		transporter.udpPacketReceived(tokens[1], host.toLowerCase(), port);
+	}
+
 }

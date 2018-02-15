@@ -169,7 +169,7 @@ public abstract class Transporter implements MoleculerComponent {
 	public void start(ServiceBroker broker, Tree config) throws Exception {
 
 		// Process config
-		namespace = config.get("namespace", "");
+		namespace = config.get("namespace", namespace);
 		if (namespace != null && !namespace.isEmpty()) {
 			prefix = prefix + '-' + namespace;
 		}
@@ -226,7 +226,7 @@ public abstract class Transporter implements MoleculerComponent {
 		serializer.start(broker, serializerNode);
 
 		// Prefers hostname instead of IP
-		preferHostname = config.get("preferHostname", preferHostname);
+		preferHostname = config.get("useHostname", preferHostname);
 
 		// Get components
 		executor = broker.components().executor();

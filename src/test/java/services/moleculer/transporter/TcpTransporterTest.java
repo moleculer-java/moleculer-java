@@ -402,7 +402,7 @@ public class TcpTransporterTest extends TestCase {
 	protected void setUp() throws Exception {
 		tr = new TcpTransporter();
 		tr.setGossipPeriod(Integer.MAX_VALUE);
-		tr.setMulticastPeriod(Integer.MAX_VALUE);
+		tr.setUdpPeriod(Integer.MAX_VALUE);
 		br = ServiceBroker.builder().transporter(tr).monitor(new ConstantMonitor()).nodeID("node1").build();
 		br.start();
 		tr.writer.disconnect();
