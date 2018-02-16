@@ -626,6 +626,7 @@ public class DefaultEventBus extends EventBus {
 							LinkedHashMap<String, Object> map = new LinkedHashMap<>();
 							descriptor.put(endpoint.subscribe, map);
 							map.put("name", endpoint.subscribe);
+							map.put("group", endpoint.group);
 						}
 					}
 				}
