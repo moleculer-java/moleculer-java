@@ -31,10 +31,18 @@
  */
 package services.moleculer.internal;
 
+import static services.moleculer.util.CommonUtils.getNodeInfos;
+
+import java.util.Arrays;
+import java.util.HashMap;
+
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
+import services.moleculer.transporter.TcpTransporter;
+import services.moleculer.transporter.Transporter;
 
 /**
  * The broker contains some internal services to check the health of node or get
@@ -44,58 +52,141 @@ import services.moleculer.service.Service;
 @Name("$node")
 public class NodeService extends Service {
 
+	// --- PARENT BROKER ---
+	
+	protected ServiceBroker broker;
+	
+	// --- VARIABLES ---
+	
+	protected String localNodeID;
+	
+	// --- COMPONENTS ---
+	
+	protected Transporter transporter;
+	
+	// --- START SERVICE ---
+
+	@Override
+	public void start(ServiceBroker broker, Tree config) throws Exception {
+		this.broker = broker;
+		this.transporter = broker.components().transporter();
+		this.localNodeID = broker.nodeID();
+	}
+
 	// --- ACTIONS ---
 
 	/**
 	 * Implementation of the "$node.actions" action
 	 */
-	@Name("actions")	
-	public ActionsAction actionsAction = new ActionsAction();
+	public Action actions = (ctx) -> {
+		Tree root = new Tree();
+		Tree list = root.putList("list");
+		
+		// Collect data
+		Tree infos = getNodeInfos(broker, transporter);
+		
+		return list;
+	};
 	
 	/**
 	 * Implementation of the "$node.events" action
 	 */
-	@Name("events")	
-	public EventsAction eventsAction = new EventsAction();
+	public Action events = (ctx) -> {
+		Tree root = new Tree();
+		Tree list = root.putList("list");
+		
+		// Collect data
+		Tree infos = getNodeInfos(broker, transporter);
+		
+		return list;
+	};
 	
 	/**
 	 * Implementation of the "$node.health" action
 	 */
-	@Name("health")	
-	public HealthAction healthAction = new HealthAction();
+	public Action health = (ctx) -> {
+		return null;
+	};
 	
 	/**
 	 * Implementation of the "$node.list" action
 	 */
-	@Name("list")	
-	public ListAction listAction = new ListAction();
+	public Action list = (ctx) -> {
+		Tree root = new Tree();
+		Tree list = root.putList("list");
+		
+		// Collect data
+		Tree infos = getNodeInfos(broker, transporter);
+		for (Tree info: infos) {
+			Tree map = list.addMap();
+			String nodeID = info.getName();
+			map.put("id", nodeID);
+			if (nodeID.equals(localNodeID)) {
+				map.put("available", true);
+				map.put("lastHeartbeatTime", System.currentTimeMillis());
+				map.put("cpu", broker.components().monitor().getTotalCpuPercent());
+				if (transporter != null && transporter instanceof TcpTransporter) {
+					TcpTransporter tt = (TcpTransporter) transporter;
+					map.put("port", tt.getCurrentPort());	
+				} else {
+					map.put("port", 0);
+				}
+			} else {
+				map.put("available", transporter.isOnline(nodeID));
+				map.put("lastHeartbeatTime", transporter.getLastHeartbeatTime(nodeID));
+				map.put("cpu", transporter.getCpuUsage(nodeID));
+				map.put("port", info.get("port", 0));
+			}
+			map.copyFrom(info, (child) -> {
+				String name = child.getName();
+				return "hostname".equals(name) || "ipList".equals(name) || "client".equals(name);
+			});
+		}
+		return list;
+	};
 	
 	/**
 	 * Implementation of the "$node.services" action
 	 */
-	@Name("services")	
-	public ServicesAction servicesAction = new ServicesAction();
-
-	// --- START ---
-
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-		actionsAction.start(broker, config);
-		eventsAction.start(broker, config);
-		healthAction.start(broker, config);
-		listAction.start(broker, config);
-		servicesAction.start(broker, config);
-	}
-
-	// --- STOP ---
-
-	@Override
-	public void stop() {
-		actionsAction.stop();
-		eventsAction.stop();
-		healthAction.stop();
-		listAction.stop();
-		servicesAction.stop();
-	}
+	public Action services = (ctx) -> {
+		Tree root = new Tree();
+		Tree list = root.putList("list");
+		
+		// Collect data
+		Tree infos = getNodeInfos(broker, transporter);
+		
+		HashMap<String, HashMap<String, Tree>> serviceMap = new HashMap<>();
+		for (Tree info : infos) {
+			String nodeID = info.getName();
+			Tree services = info.get("services");
+			if (services == null || services.isNull()) {
+				continue;
+			}
+			for (Tree service : services) {
+				String serviceName = service.get("name", "unknown");
+				HashMap<String, Tree> configs = serviceMap.get(serviceName);
+				if (configs == null) {
+					configs = new HashMap<String, Tree>();
+					serviceMap.put(serviceName, configs);
+				}
+				configs.put(nodeID, service);
+			}
+		}
+		
+		// Sort names
+		String[] serviceNames = new String[serviceMap.size()];
+		serviceMap.keySet().toArray(serviceNames);
+		Arrays.sort(serviceNames, String.CASE_INSENSITIVE_ORDER);
+		
+		for (String serviceName : serviceNames) {
+			HashMap<String, Tree> configs = serviceMap.get(serviceName);
+			if (configs == null) {
+				continue;
+			}
+			
+			
+		}
+		return list;
+	};
 	
 }
