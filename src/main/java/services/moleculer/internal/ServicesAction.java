@@ -31,74 +31,59 @@
  */
 package services.moleculer.internal;
 
+import static services.moleculer.util.CommonUtils.getNodeInfos;
+
+import java.util.Arrays;
+import java.util.HashMap;
+
 import io.datatree.Tree;
-import services.moleculer.service.Action;
-import services.moleculer.service.Name;
-import services.moleculer.service.Service;
+import services.moleculer.context.Context;
 
 /**
- * The broker contains some internal services to check the health of node or get
- * broker statistics. You can disable it with the internalServices: false broker
- * option within the constructor.
+ * Implementation of the "$node.services" action.
  */
-@Name("$node")
-public class InternalService extends Service {
+public class ServicesAction extends AbstractInternalAction {
 
-	// --- ACTIONS ---
-
-	/**
-	 * This actions lists all connected nodes.
-	 */
-	public Action list = (ctx) -> {
-		Tree message = new Tree();
-
-		return message;
-	};
-
-	/**
-	 * This action lists all registered services (local & remote).
-	 */
-	public Action services = (ctx) -> {
-		Tree message = new Tree();
-
-		return message;
-	};
-
-	/**
-	 * This action lists all registered actions.
-	 */
-	public Action actions = (ctx) -> {
-		Tree message = new Tree();
-
-		return message;
-	};
-
-	/**
-	 * This action lists all event subscriptions.
-	 */
-	public Action events = (ctx) -> {
-		Tree message = new Tree();
-
-		return message;
-	};
-
-	/**
-	 * This action returns the health info of process & OS.
-	 */
-	public Action health = (ctx) -> {
-		Tree message = new Tree();
-
-		return message;
-	};
-
-	/**
-	 * This action returns the request statistics if the statistics is enabled
-	 * in options.
-	 */
-	public Action stats = (ctx) -> {
-		Tree message = new Tree();
-
-		return message;
-	};
+	@Override
+	public Object handler(Context ctx) throws Exception {
+		Tree root = new Tree();
+		Tree list = root.putList("list");
+		
+		// Collect data
+		Tree infos = getNodeInfos(broker, transporter);
+		
+		HashMap<String, HashMap<String, Tree>> serviceMap = new HashMap<>();
+		for (Tree info : infos) {
+			String nodeID = info.getName();
+			Tree services = info.get("services");
+			if (services == null || services.isNull()) {
+				continue;
+			}
+			for (Tree service : services) {
+				String serviceName = service.get("name", "unknown");
+				HashMap<String, Tree> configs = serviceMap.get(serviceName);
+				if (configs == null) {
+					configs = new HashMap<String, Tree>();
+					serviceMap.put(serviceName, configs);
+				}
+				configs.put(nodeID, service);
+			}
+		}
+		
+		// Sort names
+		String[] serviceNames = new String[serviceMap.size()];
+		serviceMap.keySet().toArray(serviceNames);
+		Arrays.sort(serviceNames, String.CASE_INSENSITIVE_ORDER);
+		
+		for (String serviceName : serviceNames) {
+			HashMap<String, Tree> configs = serviceMap.get(serviceName);
+			if (configs == null) {
+				continue;
+			}
+			
+			
+		}
+		return list;
+	}
 
 }

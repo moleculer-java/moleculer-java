@@ -755,6 +755,16 @@ public abstract class Transporter implements MoleculerComponent {
 		return node == null ? 0 : node.cpu;
 	}
 
+	// --- GET LAST HEARTBEAT TIME OF A REMOTE NODE ---
+
+	public long getLastHeartbeatTime(String nodeID) {
+		if (this.nodeID.equals(nodeID)) {
+			return System.currentTimeMillis();
+		}
+		NodeDescriptor node = nodes.get(nodeID);
+		return node == null ? 0 : node.cpuWhen;
+	}
+	
 	// --- IS NODE ONLINE? ---
 
 	public boolean isOnline(String nodeID) {

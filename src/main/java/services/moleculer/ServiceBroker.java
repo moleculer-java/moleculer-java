@@ -49,7 +49,7 @@ import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
 import services.moleculer.eventbus.EventBus;
 import services.moleculer.eventbus.Groups;
-import services.moleculer.internal.InternalService;
+import services.moleculer.internal.NodeService;
 import services.moleculer.repl.Repl;
 import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.Name;
@@ -171,7 +171,7 @@ public class ServiceBroker {
 		// Install internal services
 		if (settings.isInternalServices()) {
 			try {
-				createService(new InternalService());				
+				createService(new NodeService());				
 			} catch (Exception cause) {
 				logger.error("Unable to install \"$node\" service!", cause);
 			}

@@ -29,21 +29,25 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.service;
+package services.moleculer.internal;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import static services.moleculer.util.CommonUtils.getNodeInfos;
+
+import io.datatree.Tree;
+import services.moleculer.context.Context;
 
 /**
- * Human readable name of a Moleculer Component (eg. "Redis Cacher"), or short
- * name (eg. "math") of a Moleculer Service.
+ * Implementation of the "$node.events" action.
  */
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ ElementType.TYPE, ElementType.FIELD })
-public @interface Name {
+public class EventsAction extends AbstractInternalAction {
 
-	String value();
+	@Override
+	public Object handler(Context ctx) throws Exception {
+		Tree root = new Tree();
+		Tree list = root.putList("list");
+		Tree infos = getNodeInfos(broker, transporter);
+		
+		return list;
+	}
 
 }

@@ -31,11 +31,12 @@
  */
 package services.moleculer.repl.commands;
 
+import static services.moleculer.util.CommonUtils.getNodeInfos;
+
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
@@ -184,24 +185,6 @@ public class Nodes extends Command {
 			}
 		}
 		out.println(table);
-	}
-
-	protected Tree getNodeInfos(ServiceBroker broker, Transporter transporter) {
-		Tree infos = new Tree();
-		if (transporter != null) {
-			Set<String> nodeIDset = transporter.getAllNodeIDs();
-			String[] nodeIDarray = new String[nodeIDset.size()];
-			nodeIDset.toArray(nodeIDarray);
-			Arrays.sort(nodeIDarray, String.CASE_INSENSITIVE_ORDER);
-			for (String nodeID : nodeIDarray) {
-				Tree info = transporter.getDescriptor(nodeID);
-				if (info == null) {
-					continue;
-				}
-				infos.putObject(nodeID, info);
-			}
-		}
-		return infos;
 	}
 
 }

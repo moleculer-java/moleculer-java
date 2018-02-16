@@ -36,27 +36,52 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
 import io.datatree.Tree;
 import io.datatree.dom.TreeReaderRegistry;
+import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.service.Name;
+import services.moleculer.transporter.Transporter;
 
 /**
  * Common utilities.
  */
 public final class CommonUtils {
 
+	// --- GET ALL NODE INFO STRUCTURES OF ALL NODES ---
+	
+	public static final Tree getNodeInfos(ServiceBroker broker, Transporter transporter) {
+		Tree infos = new Tree();
+		if (transporter != null) {
+			Set<String> nodeIDset = transporter.getAllNodeIDs();
+			String[] nodeIDarray = new String[nodeIDset.size()];
+			nodeIDset.toArray(nodeIDarray);
+			Arrays.sort(nodeIDarray, String.CASE_INSENSITIVE_ORDER);
+			for (String nodeID : nodeIDarray) {
+				Tree info = transporter.getDescriptor(nodeID);
+				if (info == null) {
+					continue;
+				}
+				infos.putObject(nodeID, info);
+			}
+		}
+		return infos;
+	}
+	
 	// --- GET HOSTNAME OR IP FROM AN INFO STRUCTURE ---
 	
 	public static final String getHostOrIP(boolean preferHostname, Tree info) {
@@ -231,6 +256,24 @@ public final class CommonUtils {
 		throw new IllegalArgumentException("Invalid serializer type (" + type + ")!");
 	}
 
+	public static final String nameOf(String prefix, Field field) {
+		Name n = field.getAnnotation(Name.class);
+		String name = null;
+		if (n != null) {
+			name = n.value();
+			if (name != null) {
+				name = name.trim();
+			}
+		}
+		if (name == null || name.isEmpty()) {
+			name = field.getName();
+		}
+		if (name.indexOf('.') == -1) {
+			return prefix + '.' + name;
+		}
+		return name;
+	}
+	
 	public static final String nameOf(Object object, boolean addQuotes) {
 		Objects.requireNonNull(object);
 		Class<?> c = object.getClass();
@@ -238,9 +281,9 @@ public final class CommonUtils {
 		String name = null;
 		if (n != null) {
 			name = n.value();
-		}
-		if (name != null) {
-			name = name.trim();
+			if (name != null) {
+				name = name.trim();
+			}
 		}
 		if (name == null || name.isEmpty()) {
 			name = c.getName();
@@ -250,7 +293,6 @@ public final class CommonUtils {
 			}
 			name = Character.toLowerCase(name.charAt(0)) + name.substring(1);
 		}
-		name = name.trim();
 		if (addQuotes && name.indexOf(' ') == -1) {
 			name = "\"" + name + "\"";
 		}

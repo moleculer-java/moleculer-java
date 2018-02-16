@@ -31,6 +31,8 @@
  */
 package services.moleculer.repl.commands;
 
+import static services.moleculer.util.CommonUtils.getNodeInfos;
+
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -40,6 +42,7 @@ import java.util.List;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.repl.Command;
 import services.moleculer.repl.TextTable;
 import services.moleculer.service.Name;
 import services.moleculer.transporter.Transporter;
@@ -48,7 +51,7 @@ import services.moleculer.transporter.Transporter;
  * List of services.
  */
 @Name("services")
-public class Services extends Nodes {
+public class Services extends Command {
 
 	public Services() {
 		options.clear();
@@ -68,6 +71,11 @@ public class Services extends Nodes {
 		return "services [options]";
 	}
 
+	@Override
+	public int getNumberOfRequiredParameters() {
+		return 0;
+	}
+	
 	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
 

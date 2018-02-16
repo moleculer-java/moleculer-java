@@ -32,6 +32,7 @@
 package services.moleculer.service;
 
 import static services.moleculer.util.CommonUtils.getHostName;
+import static services.moleculer.util.CommonUtils.nameOf;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -520,7 +521,9 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 				// Register action
 				if (Action.class.isAssignableFrom(field.getType())) {
-					String actionName = field.getName();
+
+					// Name of the action (eg. "v2.service.add")
+					String actionName = nameOf(service.name, field);
 					Tree actionConfig = config.get(actionName);
 					if (actionConfig == null) {
 						if (config.isMap()) {
@@ -529,9 +532,6 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 							actionConfig = new Tree();
 						}
 					}
-
-					// Name of the action (eg. "v2.service.add")
-					actionName = service.name + '.' + actionName;
 					actionConfig.put("name", actionName);
 
 					// Process "Cache" annotation

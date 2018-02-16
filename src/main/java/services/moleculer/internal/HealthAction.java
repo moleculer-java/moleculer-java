@@ -29,21 +29,18 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.service;
+package services.moleculer.internal;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import services.moleculer.context.Context;
 
 /**
- * Human readable name of a Moleculer Component (eg. "Redis Cacher"), or short
- * name (eg. "math") of a Moleculer Service.
+ * Implementation of the "$node.health" action.
  */
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ ElementType.TYPE, ElementType.FIELD })
-public @interface Name {
+public class HealthAction extends AbstractInternalAction {
 
-	String value();
+	@Override
+	public Object handler(Context ctx) throws Exception {
+		return null;
+	}
 
 }
