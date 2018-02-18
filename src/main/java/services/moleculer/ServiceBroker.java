@@ -358,7 +358,7 @@ public class ServiceBroker {
 	 * <br>
 	 * ...or with CallingOptions:<br>
 	 * <br>
-	 * broker.call("math.add", "a", 1, "b", 2, new CallingOptions("node2"));
+	 * broker.call("math.add", "a", 1, "b", 2, CallingOptions.nodeID("node2"));
 	 */
 	public Promise call(String name, Object... params) {
 		ParseResult res = parseParams(params);

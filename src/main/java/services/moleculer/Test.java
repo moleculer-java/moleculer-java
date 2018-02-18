@@ -31,15 +31,14 @@
  */
 package services.moleculer;
 
+import io.datatree.Tree;
 import services.moleculer.cacher.Cache;
-import services.moleculer.cacher.Cacher;
-import services.moleculer.cacher.MemoryCacher;
 import services.moleculer.eventbus.Group;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
-import services.moleculer.transporter.TcpTransporter;
+import services.moleculer.web.NettyApiGateway;
 
 public class Test {
 
@@ -50,25 +49,32 @@ public class Test {
 		System.setProperty("java.library.path", nativeDir);
 
 		// Define transporter
-		TcpTransporter transporter = new TcpTransporter();
-		// transporter.setGossipPeriod(5);
-		// transporter.setDebug(true);
-		// transporter.setOfflineTimeout(600);
-
+		// TcpTransporter transporter = new TcpTransporter();
 		// RedisTransporter transporter = new RedisTransporter();
 		// transporter.setDebug(true);
 
-		// Define cacher
-		Cacher cacher = new MemoryCacher();
-
 		// Create broker
-		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).cacher(cacher).nodeID("node-1").build();
-
+		ServiceBroker broker = ServiceBroker.builder().nodeID("node-1").build();
+		
 		// ServiceBroker broker = new
 		// ServiceBroker("c:\\temp\\moleculer-test\\conf\\moleculer.config.js");
 
 		// .repl(new RemoteRepl())
 
+		Tree config = new Tree();
+		Tree routes = config.putList("routes");
+		
+		Tree route = routes.addMap();
+		Tree whitelist = route.putList("whitelist");
+		whitelist.add("math.*");
+		
+		Tree aliasses = route.putMap("aliases");
+		
+		aliasses.put("GET test", "$node.list");
+		
+		NettyApiGateway gateway = new NettyApiGateway();
+		broker.createService(gateway, config);
+		
 		broker.createService(new Service("math") {
 
 			// @Cache(keys = { "a", "b" })

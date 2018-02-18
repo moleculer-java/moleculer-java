@@ -33,10 +33,71 @@ package services.moleculer.web.router;
 
 public class Alias {
 
-	String method;
-	
-	String path;
-	
-	String action;
-	
+	// --- PROPERTIES ---
+
+	protected final String httpMethod;
+	protected final String pathPattern;
+	protected final String actionName;
+
+	protected final int hashCode;
+
+	// --- CONSTRUCTOR ---
+
+	public Alias(String httpMethod, String pathPattern, String actionName) {
+		this.httpMethod = httpMethod;
+		this.pathPattern = pathPattern;
+		this.actionName = actionName;
+
+		// Generate hashcode
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + actionName.hashCode();
+		result = prime * result + httpMethod.hashCode();
+		result = prime * result + pathPattern.hashCode();
+		hashCode = result;
+	}
+
+	// --- COLLECTION HELPERS ---
+
+	@Override
+	public int hashCode() {
+		return hashCode;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (obj == null) {
+			return false;
+		}
+		if (getClass() != obj.getClass()) {
+			return false;
+		}
+		Alias other = (Alias) obj;
+		if (actionName == null) {
+			if (other.actionName != null) {
+				return false;
+			}
+		} else if (!actionName.equals(other.actionName)) {
+			return false;
+		}
+		if (httpMethod == null) {
+			if (other.httpMethod != null) {
+				return false;
+			}
+		} else if (!httpMethod.equals(other.httpMethod)) {
+			return false;
+		}
+		if (pathPattern == null) {
+			if (other.pathPattern != null) {
+				return false;
+			}
+		} else if (!pathPattern.equals(other.pathPattern)) {
+			return false;
+		}
+		return true;
+	}
+
 }

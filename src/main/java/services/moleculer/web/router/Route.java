@@ -31,14 +31,40 @@
  */
 package services.moleculer.web.router;
 
+import services.moleculer.ServiceBroker;
+import services.moleculer.context.CallingOptions;
+
 public class Route {
 
-	String path;
-	
-	String[] whitelist;
-	
-	Alias[] aliases;
-	
-	MappingPolicy mappingPolicy = MappingPolicy.ALL;
-	
+	// --- PARENT BROKER ---
+
+	protected final ServiceBroker broker;
+
+	// --- PROPERTIES ---
+
+	protected final String path;
+	protected final MappingPolicy mappingPolicy;
+	protected final CallingOptions.Options opts;
+	protected final String[] whitelist;
+	protected final Alias[] aliases;
+
+	// --- CONSTRUCTOR ---
+
+	public Route(ServiceBroker broker, String path, MappingPolicy mappingPolicy, CallingOptions.Options opts,
+			String[] whitelist, Alias[] aliases) {
+		this.broker = broker;
+		this.path = path;
+		this.mappingPolicy = mappingPolicy;
+		this.opts = opts;
+		this.whitelist = whitelist;
+		this.aliases = aliases;
+	}
+
+	// --- REQUEST PROCESSOR ---
+
+	public Mapping findMapping(String httpMethod, String path) throws Exception {
+
+		return null;
+	}
+
 }

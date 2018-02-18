@@ -63,10 +63,12 @@ import services.moleculer.transporter.Transporter;
 public final class CommonUtils {
 
 	// --- GET ALL NODE INFO STRUCTURES OF ALL NODES ---
-	
+
 	public static final Tree getNodeInfos(ServiceBroker broker, Transporter transporter) {
 		Tree infos = new Tree();
-		if (transporter != null) {
+		if (transporter == null) {
+			infos.putObject(broker.nodeID(), broker.components().registry().getDescriptor());
+		} else {
 			Set<String> nodeIDset = transporter.getAllNodeIDs();
 			String[] nodeIDarray = new String[nodeIDset.size()];
 			nodeIDset.toArray(nodeIDarray);
@@ -81,9 +83,9 @@ public final class CommonUtils {
 		}
 		return infos;
 	}
-	
+
 	// --- GET HOSTNAME OR IP FROM AN INFO STRUCTURE ---
-	
+
 	public static final String getHostOrIP(boolean preferHostname, Tree info) {
 		String hostOrIP = null;
 		if (preferHostname) {
@@ -118,7 +120,7 @@ public final class CommonUtils {
 		}
 		return null;
 	}
-	
+
 	// --- LOCAL HOST NAME ---
 
 	private static String cachedHostName;
@@ -157,7 +159,7 @@ public final class CommonUtils {
 	public static final String[] parseURLs(Tree config, String[] defaultURLs) {
 		return parseURLs(config, "url", defaultURLs);
 	}
-	
+
 	public static final String[] parseURLs(Tree config, String name, String[] defaultURLs) {
 		Tree urlNode = config.get(name);
 		List<String> urlList;
@@ -273,7 +275,7 @@ public final class CommonUtils {
 		}
 		return name;
 	}
-	
+
 	public static final String nameOf(Object object, boolean addQuotes) {
 		Objects.requireNonNull(object);
 		Class<?> c = object.getClass();
@@ -339,7 +341,7 @@ public final class CommonUtils {
 		}
 		throw new IOException("Resource not found (" + resourceURL + ")!");
 	}
-	
+
 	public static final Tree readTree(InputStream in, String format) throws Exception {
 		return new Tree(readFully(in), format);
 	}
