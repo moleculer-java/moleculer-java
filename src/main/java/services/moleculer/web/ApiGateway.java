@@ -302,6 +302,7 @@ public abstract class ApiGateway extends Service {
 				}
 			}
 		} catch (Exception cause) {
+			logger.error("Unable to process request!", cause);
 			return convertError(cause, null, "500 Internal Server Error");
 		}
 
