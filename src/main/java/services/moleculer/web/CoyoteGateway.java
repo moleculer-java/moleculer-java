@@ -32,13 +32,13 @@
 package services.moleculer.web;
 
 import java.net.InetAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.concurrent.ExecutorService;
 
 import org.apache.coyote.AbstractProtocol;
 import org.apache.coyote.Adapter;
-import org.apache.coyote.InputBuffer;
 import org.apache.coyote.Request;
 import org.apache.coyote.Response;
 import org.apache.coyote.ajp.AjpAprProtocol;
@@ -47,6 +47,7 @@ import org.apache.coyote.http11.Http11AprProtocol;
 import org.apache.coyote.http11.Http11NioProtocol;
 import org.apache.coyote.http11.Http11Protocol;
 import org.apache.tomcat.util.buf.ByteChunk;
+import org.apache.tomcat.util.buf.MessageBytes;
 import org.apache.tomcat.util.http.MimeHeaders;
 import org.apache.tomcat.util.net.SocketStatus;
 
@@ -156,26 +157,34 @@ public class CoyoteGateway extends ApiGateway {
 			@Override
 			public final void service(Request req, Response rsp) throws Exception {
 
+				// Get method
+				String httpMethod = req.method().getString().toUpperCase();
+
 				// Read body
 				byte[] body = null;
-				long max = req.getContentLengthLong();
-				if (max == -1) {
-
-					// TODO read request
-					// req.queryString().toString()
-
+				if ("GET".equals(httpMethod)) {
+					MessageBytes qs = req.queryString();
+					if (qs != null && !qs.isNull()) {
+						body = qs.toString().getBytes(StandardCharsets.UTF_8);
+					}
 				} else {
-					long count = req.getBytesRead();
-					if (count >= max) {
-						InputBuffer buffer = req.getInputBuffer();
-
-						// TODO read request
-
+					int max = req.getContentLength();
+					if (max == -1) {
+						if (req.getHeader("transfer-encoding").contains("chunked")) {
+							max = 1;
+						}
+					}
+					if (max > 0) {
+						ByteChunk chunk = new ByteChunk(max);
+						int count = req.doRead(chunk);
+						body = chunk.getBuffer();
+						if (count < body.length) {
+							byte[] tmp = new byte[count];
+							System.arraycopy(body, 0, tmp, 0, count);
+							body = tmp;
+						}
 					}
 				}
-
-				// Get method
-				String httpMethod = req.method().getString();
 
 				// Get path
 				String path = req.requestURI().toString();
