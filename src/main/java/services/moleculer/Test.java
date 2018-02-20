@@ -38,7 +38,7 @@ import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
-import services.moleculer.web.CoyoteGateway;
+import services.moleculer.web.NettyGateway;
 
 public class Test {
 
@@ -72,7 +72,7 @@ public class Test {
 		
 		aliasses.put("GET test", "$node.list");
 		
-		CoyoteGateway gateway = new CoyoteGateway();
+		NettyGateway gateway = new NettyGateway();
 		broker.createService(gateway, config);
 		
 		broker.createService(new Service("math") {

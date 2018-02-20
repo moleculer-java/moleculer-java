@@ -135,11 +135,4 @@ dependencies {
 	// https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients
 	compile group: 'org.apache.kafka', name: 'kafka-clients', version: '1.0.0'
 
-	// =============== WEB SERVERS ===============
-
-	// --- DEPENDENCY OF THE APACHE COYOTE SERVER ---
-		
-	// https://mvnrepository.com/artifact/org.apache.tomcat/coyote
-	compile group: 'org.apache.tomcat', name: 'coyote', version: '6.0.53'
-
 }
