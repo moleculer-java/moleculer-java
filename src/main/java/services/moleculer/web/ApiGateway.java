@@ -31,8 +31,6 @@
  */
 package services.moleculer.web;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
@@ -136,7 +134,7 @@ public abstract class ApiGateway extends Service {
 	public static final String ACCEPT_ENCODING = "Accept-Encoding";
 	public static final String CONTENT_ENCODING = "Content-Encoding";
 	public static final String DEFLATE = "deflate";
-	
+
 	// --- LOGGER ---
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
@@ -310,7 +308,7 @@ public abstract class ApiGateway extends Service {
 	@Override
 	public void stop() {
 		routes = new Route[0];
-		
+
 		// TODO Synchronize this block (with write lock)
 		staticMappings.clear();
 		dynamicMappings.clear();
@@ -319,99 +317,71 @@ public abstract class ApiGateway extends Service {
 
 	// --- COMMON HTTP REQUEST PROCESSOR ---
 
-	protected Promise processRequest(String httpMethod, String path, LinkedHashMap<String, String> headers,
-			byte[] body) {
-		try {
-			if (!path.startsWith("/")) {
-				path = "/" + path;
+	protected Promise processRequest(String httpMethod, String path, Tree headers, byte[] body) throws Exception {
+		if (!path.startsWith("/")) {
+			path = "/" + path;
+		}
+
+		// TODO Synchronize this block (with read lock)
+		// Try to find in static mappings (eg. "/user")
+		Mapping mapping = staticMappings.get(path);
+		if (mapping == null) {
+
+			// Try to find in dynamic mappings (eg. "/user/:id")
+			for (Mapping dynamicMapping : dynamicMappings) {
+				if (dynamicMapping.matches(path)) {
+					mapping = dynamicMapping;
+					break;
+				}
 			}
+		}
+		// TODO End of synchronized block
 
-			// TODO Synchronize this block (with read lock)
-			// Try to find in static mappings (eg. "/user")
-			Mapping mapping = staticMappings.get(path);
-			if (mapping == null) {
+		// Invoke mapping
+		if (mapping != null) {
+			Promise response = mapping.processRequest(path, headers, body);
+			if (response != null) {
+				return response;
+			}
+		}
 
-				// Try to find in dynamic mappings (eg. "/user/:id")
-				for (Mapping dynamicMapping : dynamicMappings) {
-					if (dynamicMapping.matches(path)) {
-						mapping = dynamicMapping;
-						break;
+		// Find in routes
+		Mapping newMapping = null;
+		for (Route route : routes) {
+			newMapping = route.findMapping(httpMethod, path);
+			if (newMapping != null) {
+				break;
+			}
+		}
+		if (newMapping != null) {
+
+			// Store new mapping
+			// TODO Synchronize this block (with write lock)
+			if (mapping.isStatic()) {
+				if (!staticMappings.containsValue(mapping)) {
+					staticMappings.put(mapping.getPathPrefix(), mapping);
+				}
+			} else {
+				if (!dynamicMappings.contains(mapping)) {
+					dynamicMappings.addLast(mapping);
+					if (dynamicMappings.size() > cacheSize) {
+						dynamicMappings.removeFirst();
 					}
 				}
 			}
 			// TODO End of synchronized block
 
-			// Invoke mapping
-			if (mapping != null) {
-				Promise response = mapping.processRequest(path, headers, body);
-				if (response != null) {
-					return response;
-				}
+			Promise response = newMapping.processRequest(path, headers, body);
+			if (response != null) {
+				return response;
 			}
-
-			// Find in routes
-			Mapping newMapping = null;
-			for (Route route : routes) {
-				newMapping = route.findMapping(httpMethod, path);
-				if (newMapping != null) {
-					break;
-				}
-			}
-			if (newMapping != null) {
-
-				// Store new mapping
-				// TODO Synchronize this block (with write lock)
-				if (mapping.isStatic()) {
-					if (!staticMappings.containsValue(mapping)) {
-						staticMappings.put(mapping.getPathPrefix(), mapping);
-					}
-				} else {
-					if (!dynamicMappings.contains(mapping)) {
-						dynamicMappings.addLast(mapping);
-						if (dynamicMappings.size() > cacheSize) {
-							dynamicMappings.removeFirst();
-						}
-					}
-				}
-				// TODO End of synchronized block
-
-				Promise response = newMapping.processRequest(path, headers, body);
-				if (response != null) {
-					return response;
-				}
-			}
-		} catch (Exception cause) {
-			logger.error("Unable to process request!", cause);
-			return convertError(cause, null, "500 Internal Server Error");
 		}
 
 		// 404 Not Found
-		return convertError(null, "Not Found: " + path, "404 Not Found");
-	}
-
-	protected Promise convertError(Throwable cause, String message, String status) {
-		String trace = null;
-		if (cause != null) {
-			if (message == null) {
-				message = cause.getMessage();
-			}
-			StringWriter traceWriter = new StringWriter(512);
-			cause.printStackTrace(new PrintWriter(traceWriter, true));
-			trace = traceWriter.toString();
-		}
-		if (message != null) {
-			message = message.replace('\r', ' ').replace('\t', ' ').replace('\n', ' ').replace("\"", "\\\"").trim();
-		}
-		if (message == null || message.isEmpty()) {
-			message = "Unexpected error occured!";
-		}
-		Tree out = new Tree();
-		out.put("message", message);
-		if (trace != null) {
-			out.put("trace", trace);
-		}
-		out.getMeta(true).put("status", status);
-		return Promise.resolve(out);
+		Tree notFound = new Tree();
+		notFound.getMeta().putMap("response.status").put("status", STATUS_404);
+		notFound.put("message", "Not Found: " + path);
+		return Promise.resolve(notFound);
 	}
 
 }

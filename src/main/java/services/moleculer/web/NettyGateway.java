@@ -35,7 +35,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
 import java.util.Map.Entry;
 
 import io.datatree.Tree;
@@ -78,13 +77,13 @@ public class NettyGateway extends ApiGateway {
 	// --- PROPERTIES ---
 
 	protected int port = 3000;
-	
+
 	protected String address;
-	
+
 	protected int maxContentLength = 10485760;
 
 	protected EventLoopGroup eventLoopGroup;
-	
+
 	protected ChannelHandler handler;
 
 	// --- START NETTY SERVER ---
@@ -205,12 +204,9 @@ public class NettyGateway extends ApiGateway {
 					}
 
 					// Copy headers
-					LinkedHashMap<String, String> headers = new LinkedHashMap<>();
-					String name, value;
+					Tree headers = new Tree();
 					for (Entry<String, String> entry : httpHeaders) {
-						name = String.valueOf(entry.getKey());
-						value = String.valueOf(entry.getValue());
-						headers.put(name, value);
+						headers.put(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
 					}
 
 					// Get body
@@ -233,17 +229,15 @@ public class NettyGateway extends ApiGateway {
 					}
 
 					// Invoke Action
-					// TODO context + keepAlive
 					nettyGateway.processRequest(method, path, headers, bytes).then(rsp -> {
-						
+
 						// Send normal HTTP response
-						sendResponse(ctx, keepAlive, rsp);
-						
+						sendHttpResponse(ctx, keepAlive, rsp);
+
 					}).Catch(cause -> {
 
 						// Send HTTP error in JSON format
-						sendResponse(ctx, cause);
-						
+						sendHttpError(ctx, cause);
 					});
 					return;
 				}
@@ -264,17 +258,18 @@ public class NettyGateway extends ApiGateway {
 
 				// Process WebSocket message frame
 				if (request instanceof WebSocketFrame) {
-					nettyGateway.processRequest("WS", path, null, readFully(((WebSocketFrame) request).content())).then(rsp -> {
-						
-						// Send websocket response
-						sendResponse(ctx, rsp);
-						
-					}).Catch(cause -> {
+					nettyGateway.processRequest("WS", path, null, readFully(((WebSocketFrame) request).content()))
+							.then(rsp -> {
 
-						// TODO Send error in JSON format
-						sendResponse(ctx, cause);
-						
-					});
+								// Send websocket response
+								sendWebSocketResponse(ctx, rsp);
+
+							}).Catch(cause -> {
+
+								// Send error in JSON format
+								sendWebSocketError(ctx, cause);
+
+							});
 					return;
 				}
 
@@ -284,8 +279,11 @@ public class NettyGateway extends ApiGateway {
 			} catch (Throwable cause) {
 
 				// Send error in JSON format
-				// TODO websocket?
-				sendResponse(ctx, cause);
+				if (handshaker == null) {
+					sendHttpError(ctx, cause);
+				} else {
+					sendWebSocketError(ctx, cause);
+				}
 			}
 		}
 
@@ -302,21 +300,72 @@ public class NettyGateway extends ApiGateway {
 
 		// --- SEND METHODS ---
 
-		protected void sendResponse(ChannelHandlerContext ctx, boolean keepAlive, Tree rsp) {
-			
-			// TODO send response
-			// sendResponse(ctx, status, headers, keepAlive, body);
-			
+		protected void sendWebSocketResponse(ChannelHandlerContext ctx, Tree rsp) {
+
+			// TODO send websocket response
+
 		}
 
-		protected void sendResponse(ChannelHandlerContext ctx, Tree rsp) {
+		protected void sendWebSocketError(ChannelHandlerContext ctx, Throwable cause) {
 
-			// TODO send websocket response 
-			
+			// TODO send websocket error
+
 		}
-		
-		protected void sendResponse(ChannelHandlerContext ctx, Throwable cause) {
-			
+
+		protected void sendHttpResponse(ChannelHandlerContext ctx, boolean keepAlive, Tree rsp) {
+
+			// Default status
+			String status = STATUS_200;
+			Tree headers = null;
+
+			// Get status code and response headers
+			Tree meta = rsp.getMeta(false);
+			if (meta != null) {
+				Tree response = rsp.get("response");
+				if (response != null) {
+					status = response.get("status", status);
+					headers = response.get("headers");
+				}
+			}
+
+			// Convert body
+			byte[] body = null;
+			if (rsp != null && !rsp.isNull()) {
+				Class<?> type = rsp.getType();
+				if (type == byte[].class) {
+					if (headers == null) {
+						headers = rsp.putMap("_meta.response.headers");
+					}
+					String contentType = headers.get(CONTENT_TYPE, (String) null);
+					if (contentType == null || contentType.isEmpty()) {
+						contentType = "application/octetstream";
+					}
+					body = rsp.asBytes();
+				} else if (type == String.class) {
+					if (headers == null) {
+						headers = rsp.putMap("_meta.response.headers");
+					}
+					String contentType = headers.get(CONTENT_TYPE, (String) null);
+					String content = rsp.asString();
+					if (contentType == null || contentType.isEmpty()) {
+						if (content.toLowerCase().contains("<html")) {
+							contentType = "text/html;charset=utf-8";
+						} else {
+							contentType = "text/plain;charset=utf-8";
+						}
+					}
+					body = content.getBytes(StandardCharsets.UTF_8);
+				} else {
+					body = rsp.toBinary(null, false);
+				}
+			}
+
+			// Send body
+			sendHttpResponse(ctx, status, headers, keepAlive, body);
+		}
+
+		protected void sendHttpError(ChannelHandlerContext ctx, Throwable cause) {
+
 			// Send HTTP error response
 			String message = null;
 			String trace = null;
@@ -344,10 +393,10 @@ public class NettyGateway extends ApiGateway {
 			}
 			json.append("\"\r\n}");
 			byte[] bytes = json.toString().getBytes(StandardCharsets.UTF_8);
-			sendResponse(ctx, STATUS_500, null, true, bytes);
+			sendHttpResponse(ctx, STATUS_500, null, true, bytes);
 		}
 
-		protected void sendResponse(ChannelHandlerContext ctx, String status, Tree headers, boolean keepAlive,
+		protected void sendHttpResponse(ChannelHandlerContext ctx, String status, Tree headers, boolean keepAlive,
 				byte[] body) {
 
 			// Create HTTP response
@@ -365,6 +414,9 @@ public class NettyGateway extends ApiGateway {
 				boolean found = false;
 				for (Tree header : headers) {
 					name = header.getName();
+					if (name.equals(CONNECTION) || name.equals(CONTENT_LENGTH)) {
+						continue;
+					}
 					if (!found && CONTENT_TYPE.equalsIgnoreCase(name)) {
 						found = true;
 					}

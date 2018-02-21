@@ -1,8 +1,5 @@
-"use strict";
-
-const Moleculer = require("moleculer");
-
 module.exports = {
+
 	namespace: "dev",
 	nodeID: null,
 
@@ -15,7 +12,7 @@ module.exports = {
 	transporter: "nats://localhost:4222",
 	transporter: {
 		type: "NATS",
-		opts: {}
+		settings: {}
 	},
 	
 	cacher: new Moleculer.Cachers.Redis({}),
@@ -23,7 +20,7 @@ module.exports = {
 	cacher: "redis://redis-server",
 	cacher: {
 		type: "memory",
-		opts: {
+		settings: {
 			ttl: 60
 		}
 	},

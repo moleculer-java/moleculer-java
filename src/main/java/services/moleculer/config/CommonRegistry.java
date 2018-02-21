@@ -217,11 +217,11 @@ public abstract class CommonRegistry extends ComponentRegistry {
 
 		// Find services in Spring Context / Classpath / etc.
 		Tree registryConfig = configOf(COMPONENTS_ID, config);
-		Tree opts = registryConfig.get("opts");
-		if (opts == null) {
-			opts = registryConfig.putMap("opts");
+		Tree registrySettings = registryConfig.get("settings");
+		if (registrySettings == null) {
+			registrySettings = registryConfig.putMap("settings");
 		}
-		findServices(broker, opts);
+		findServices(broker, registrySettings);
 
 		// Get namespace
 		String ns = settings.getNamespace();
@@ -261,7 +261,7 @@ public abstract class CommonRegistry extends ComponentRegistry {
 	
 	// --- SERVICE AND COMPONENT FINDER FOR SPRING / GUICE / STANDALONE ---
 
-	protected abstract void findServices(ServiceBroker broker, Tree customConfig) throws Exception;
+	protected abstract void findServices(ServiceBroker broker, Tree settings) throws Exception;
 
 	// --- CHECK OBJECT TYPE ---
 
@@ -300,26 +300,26 @@ public abstract class CommonRegistry extends ComponentRegistry {
 		if (component != null) {
 			String name = nameOf(component, true);
 			try {
-				Tree opts = config.get("opts");
-				if (opts == null) {
+				Tree settings = config.get("settings");
+				if (settings == null) {
 					if (config.isMap()) {
-						opts = config.putMap("opts");
+						settings = config.putMap("settings");
 					} else if (config.getType() == String.class) {
 						String type = config.asString();
 						config = new Tree();
 						config.put("type", type);
-						opts = config.putMap("opts");
+						settings = config.putMap("settings");
 					} else {						
-						opts = new Tree();						
+						settings = new Tree();						
 					}
 				}
 				if (namespace != null && !namespace.isEmpty()) {
-					String ns = opts.get("namespace", "");
+					String ns = settings.get("namespace", "");
 					if (ns == null || ns.isEmpty()) {
-						opts.put("namespace", namespace);
+						settings.put("namespace", namespace);
 					}
 				}
-				component.start(broker, opts);
+				component.start(broker, settings);
 				if (!(component instanceof Repl)) {
 					if (name.indexOf(' ') == -1) {
 						logger.info("Component " + name + " started.");

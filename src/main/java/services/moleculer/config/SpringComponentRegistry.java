@@ -36,6 +36,7 @@ import java.util.Map;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.annotation.Scope;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
@@ -74,6 +75,7 @@ import services.moleculer.service.Service;
  * @see GuiceComponentRegistry
  */
 @Name("Spring Component Registry")
+@Scope("singleton")
 public final class SpringComponentRegistry extends CommonRegistry implements ApplicationContextAware {
 
 	// --- FIND COMPONENTS AND SERVICES ---

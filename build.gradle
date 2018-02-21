@@ -90,7 +90,16 @@ dependencies {
 		
 	// https://mvnrepository.com/artifact/javax.cache/cache-api
 	compile group: 'javax.cache', name: 'cache-api', version: '1.0.0'
+
+
+	// =============== API GATEWAY ===============
 	
+		
+	// --- SERVLET 3 API ---
+	
+	// https://mvnrepository.com/artifact/javax.servlet/javax.servlet-api
+	compile group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
+
 	
 	// =============== TRANSPORTERS ===============
 	

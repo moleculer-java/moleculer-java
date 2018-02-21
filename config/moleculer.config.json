@@ -5,14 +5,14 @@
 	
 	"components": {
 		"type": "standalone",
-		"opts": {
+		"settings": {
 			"packagesToScan": "services.moleculer"
 		}
 	},
 	
 	"cacher": {
 		"type": "memory",
-		"opts": {
+		"settings": {
 			"ttl": 0,
  			"capacity": 10000
  		}
@@ -20,7 +20,7 @@
 	
 	"transporter": {
 		"type": "Redis",
-		"opts": {
+		"settings": {
 			"url": "localhost",
 			"password": null,
 			"useSSL": false,

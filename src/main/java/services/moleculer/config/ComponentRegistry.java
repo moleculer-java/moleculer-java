@@ -71,7 +71,7 @@ public abstract class ComponentRegistry {
 	 * <br>
 	 * "components": {<br>
 	 * "type": "standalone",<br>
-	 * "opts": {<br>
+	 * "settings": {<br>
 	 * "packagesToScan": "your.service.packages"<br>
 	 * }<br>
 	 * }<br>
@@ -88,7 +88,7 @@ public abstract class ComponentRegistry {
 	 * <br>
 	 * "context": {<br>
 	 * "type": "default",<br>
-	 * "opts": {}<br>
+	 * "settings": {}<br>
 	 * }<br>
 	 * <br>
 	 * You can access this component via {@code ServiceBroker}'s
@@ -102,7 +102,7 @@ public abstract class ComponentRegistry {
 	 * configuration <br>
 	 * "uid": {<br>
 	 * "type": "incremental",<br>
-	 * "opts": {}<br>
+	 * "settings": {}<br>
 	 * }<br>
 	 * <br>
 	 * You can access this component via {@code ServiceBroker}'s
@@ -117,7 +117,7 @@ public abstract class ComponentRegistry {
 	 * <br>
 	 * "strategy": {<br>
 	 * "type": "round-robin",<br>
-	 * "opts": {<br>
+	 * "settings": {<br>
 	 * "preferLocal":true }<br>
 	 * }<br>
 	 * <br>
@@ -133,7 +133,7 @@ public abstract class ComponentRegistry {
 	 * <br>
 	 * "eventbus": {<br>
 	 * "type": "default",<br>
-	 * "opts": {}<br>
+	 * "settings": {}<br>
 	 * <br>
 	 * You can access this component via {@code ServiceBroker}'s
 	 * {@code components()} method:<br>
@@ -147,7 +147,7 @@ public abstract class ComponentRegistry {
 	 * <br>
 	 * "cacher": {<br>
 	 * "type": "memory",<br>
-	 * "opts": {<br>
+	 * "settings": {<br>
 	 * "capacity": 2048<br>
 	 * }<br>
 	 * <br>
@@ -163,7 +163,7 @@ public abstract class ComponentRegistry {
 	 * <br>
 	 * "registry": {<br>
 	 * "type": "default",<br>
-	 * "opts": {}<br>
+	 * "settings": {}<br>
 	 * <br>
 	 * You can access this component via {@code ServiceBroker}'s
 	 * {@code components()} method:<br>
@@ -177,7 +177,7 @@ public abstract class ComponentRegistry {
 	 * <br>
 	 * "transporter": {<br>
 	 * "type": "redis",<br>
-	 * "opts": {<br>
+	 * "settings": {<br>
 	 * "url":"redis://host:port"<br>
 	 * }<br>
 	 * <br>

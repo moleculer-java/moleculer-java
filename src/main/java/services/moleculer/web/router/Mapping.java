@@ -34,7 +34,6 @@ package services.moleculer.web.router;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
@@ -138,7 +137,7 @@ public class Mapping {
 
 	// --- REQUEST PROCESSOR ---
 
-	public Promise processRequest(String path, LinkedHashMap<String, String> headers, byte[] body) throws Exception {
+	public Promise processRequest(String path, Tree headers, byte[] body) throws Exception {
 
 		// Check path
 		if (!matches(path)) {
