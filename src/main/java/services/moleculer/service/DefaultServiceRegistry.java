@@ -511,6 +511,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 	@Override
 	public void addActions(Service service, Tree config) throws Exception {
+			
 		writeLock.lock();
 		try {
 
@@ -523,16 +524,22 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 				if (Action.class.isAssignableFrom(field.getType())) {
 
 					// Name of the action (eg. "v2.service.add")
-					String actionName = nameOf(service.name, field);
-					Tree actionConfig = config.get(actionName);
+					String actionFullName = nameOf(service.name, field);
+					String actionShortName = actionFullName;
+					int i = actionFullName.indexOf('.');
+					if (i > -1) {
+						actionShortName = actionShortName.substring(i + 1);
+					}
+					String actionNodePath = "actions." + actionShortName;
+					Tree actionConfig = config.get(actionNodePath);
 					if (actionConfig == null) {
 						if (config.isMap()) {
-							actionConfig = config.putMap(actionName);
+							actionConfig = config.putMap(actionNodePath);
 						} else {
 							actionConfig = new Tree();
 						}
 					}
-					actionConfig.put("name", actionName);
+					actionConfig.put("name", actionFullName);
 
 					// Process "Cache" annotation
 					if (actionConfig.get("cache") == null) {
@@ -564,18 +571,35 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 					Action action = (Action) field.get(service);
 					LocalActionEndpoint endpoint = new LocalActionEndpoint(this, action, asyncLocalInvocation);
 					endpoint.start(broker, actionConfig);
-					Strategy<ActionEndpoint> actionStrategy = strategies.get(actionName);
+					Strategy<ActionEndpoint> actionStrategy = strategies.get(actionFullName);
 					if (actionStrategy == null) {
-						actionStrategy = strategy.create();
-						actionStrategy.start(broker, actionConfig);
-						strategies.put(actionName, actionStrategy);
+						Tree strategyConfig = actionConfig.get("strategy");
+						if (strategyConfig == null) {
+							actionStrategy = strategy.create();
+							strategyConfig = config.getRoot().get("strategy");
+							if (strategyConfig == null) {
+								strategyConfig = new Tree();
+							}
+						} else {
+							// TODO invoke strategy factory
+						}
+						actionStrategy.start(broker, strategyConfig);
+						strategies.put(actionFullName, actionStrategy);
 					}
 					actionStrategy.addEndpoint(endpoint);
 				}
 			}
 
 			// Start service
-			service.start(broker, config);
+			Tree settings = config.get("settings");
+			if (settings == null) {
+				if (config.isMap()) {
+					settings = config.putMap("settings");
+				} else {
+					settings = new Tree();
+				}
+			}
+			service.start(broker, settings);
 			services.put(service.name, service);
 
 			// Notify local listeners about the new LOCAL service
@@ -723,9 +747,9 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 	}
 
 	// --- TIMESTAMP OF SERVICE DESCRIPTOR ---
-	
+
 	private AtomicLong timestamp = new AtomicLong();
-	
+
 	public long getTimestamp() {
 		return timestamp.get();
 	}
@@ -860,7 +884,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 			// Config (not used in this version)
 			// root.putMap("config");
-			
+
 			// Set timestamp
 			timestamp.set(System.currentTimeMillis());
 		}

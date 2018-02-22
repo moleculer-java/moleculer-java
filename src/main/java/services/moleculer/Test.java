@@ -50,33 +50,33 @@ public class Test {
 		System.setProperty("java.library.path", nativeDir);
 
 		// Define transporter
-		TcpTransporter transporter = new TcpTransporter();
+		// TcpTransporter transporter = new TcpTransporter();
 		// RedisTransporter transporter = new RedisTransporter();
 		// transporter.setDebug(true);
 
 		// Create broker
-		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).nodeID("node-1").build();
-		
-		// ServiceBroker broker = new
-		// ServiceBroker("c:\\temp\\moleculer-test\\conf\\moleculer.config.js");
+		// ServiceBroker broker =
+		// ServiceBroker.builder().transporter(transporter).nodeID("node-1").build();
+
+		ServiceBroker broker = new ServiceBroker("c:\\temp\\moleculer-test\\conf\\moleculer.config.js");
 
 		// .repl(new RemoteRepl())
 
 		Tree config = new Tree();
 		Tree routes = config.putList("routes");
-		
+
 		Tree route = routes.addMap();
 		Tree whitelist = route.putList("whitelist");
 		whitelist.add("math.*");
-		
+
 		Tree aliasses = route.putMap("aliases");
-		
+
 		aliasses.put("GET test", "$node.list");
-		
+
 		NettyGateway gateway = new NettyGateway();
 		broker.createService(gateway, config);
-		
-		broker.createService(new Service("math") {
+
+		broker.createService(new Service("math2") {
 
 			// @Cache(keys = { "a", "b" })
 			public Action add = ctx -> {

@@ -141,7 +141,7 @@ public abstract class CommonRegistry extends ComponentRegistry {
 					String value = subConfig.asString();
 					Tree replace = replaceType(id, value);
 					if (replace != null) {
-						subConfig = replace;
+						subConfig = config.putObject(id, replace);
 					}
 				}
 
@@ -217,11 +217,11 @@ public abstract class CommonRegistry extends ComponentRegistry {
 
 		// Find services in Spring Context / Classpath / etc.
 		Tree registryConfig = configOf(COMPONENTS_ID, config);
-		Tree registrySettings = registryConfig.get("settings");
-		if (registrySettings == null) {
-			registrySettings = registryConfig.putMap("settings");
+		Tree options = registryConfig.get("options");
+		if (options == null) {
+			options = registryConfig.putMap("options");
 		}
-		findServices(broker, registrySettings);
+		findServices(broker, options);
 
 		// Get namespace
 		String ns = settings.getNamespace();
@@ -247,21 +247,21 @@ public abstract class CommonRegistry extends ComponentRegistry {
 		if (component instanceof Service) {
 			Service service = (Service) component;
 			String name = service.name();
-			broker.createService(service, configOf(name, config));
+			broker.createService(service, config);
 			logger.info("Object \"" + name + "\" registered as Moleculer Service.");
 			return;
 		}
 		if (component instanceof MoleculerComponent) {
 			MoleculerComponent c = (MoleculerComponent) component;
 			String name = nameOf(c, true);
-			componentMap.put(name, new MoleculerComponentContainer(c, configOf(name, config)));
+			componentMap.put(name, new MoleculerComponentContainer(c, config));
 			logger.info("Object " + name + " registered as Moleculer Component.");
 		}
 	}
 	
 	// --- SERVICE AND COMPONENT FINDER FOR SPRING / GUICE / STANDALONE ---
 
-	protected abstract void findServices(ServiceBroker broker, Tree settings) throws Exception;
+	protected abstract void findServices(ServiceBroker broker, Tree config) throws Exception;
 
 	// --- CHECK OBJECT TYPE ---
 
@@ -300,26 +300,26 @@ public abstract class CommonRegistry extends ComponentRegistry {
 		if (component != null) {
 			String name = nameOf(component, true);
 			try {
-				Tree settings = config.get("settings");
-				if (settings == null) {
+				Tree options = config.get("options");
+				if (options == null) {
 					if (config.isMap()) {
-						settings = config.putMap("settings");
+						options = config.putMap("options");
 					} else if (config.getType() == String.class) {
 						String type = config.asString();
 						config = new Tree();
 						config.put("type", type);
-						settings = config.putMap("settings");
+						options = config.putMap("options");
 					} else {						
-						settings = new Tree();						
+						options = new Tree();						
 					}
 				}
 				if (namespace != null && !namespace.isEmpty()) {
-					String ns = settings.get("namespace", "");
+					String ns = options.get("namespace", "");
 					if (ns == null || ns.isEmpty()) {
-						settings.put("namespace", namespace);
+						options.put("namespace", namespace);
 					}
 				}
-				component.start(broker, settings);
+				component.start(broker, options);
 				if (!(component instanceof Repl)) {
 					if (name.indexOf(' ') == -1) {
 						logger.info("Component " + name + " started.");

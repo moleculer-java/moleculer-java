@@ -31,6 +31,7 @@
  */
 package services.moleculer;
 
+import io.datatree.Tree;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
@@ -49,5 +50,27 @@ public class TestService extends Service {
 	public Listener evt = payload -> {
 		System.out.println(payload);
 	};
+
+	// --- LIFECYCLE ---
+	
+	@Override
+	public void start(ServiceBroker broker, Tree config) throws Exception {
+		System.out.println("START: " + config);
+	}
+
+	@Override
+	public void created() throws Exception {
+		System.out.println("CREATED");
+	}
+
+	@Override
+	public void started() throws Exception {
+		System.out.println("STARTED");
+	}
+
+	@Override
+	public void stop() {
+		System.out.println("STOP");
+	}
 
 }

@@ -49,7 +49,8 @@ public interface MoleculerComponent {
 	 * @param broker
 	 *            parent ServiceBroker instance
 	 * @param config
-	 *            optional configuration
+	 *            optional configuration (the "options" or "settings" block from
+	 *            the configuration file)
 	 * 
 	 * @throws Exception
 	 *             any I/O or configuration exception

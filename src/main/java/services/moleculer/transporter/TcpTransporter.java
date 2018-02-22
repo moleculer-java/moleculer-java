@@ -141,7 +141,7 @@ public class TcpTransporter extends Transporter {
 	/**
 	 * UDP broadcast/multicast period in SECONDS
 	 */
-	protected int udpPeriod = 60;
+	protected int udpPeriod = 30;
 
 	/**
 	 * Resuse addresses
@@ -156,7 +156,7 @@ public class TcpTransporter extends Transporter {
 	/**
 	 * UDP multicast address of automatic discovery service.
 	 */
-	protected String udpMulticast = "230.0.0.0";
+	protected String udpMulticast = "239.0.0.0";
 
 	/**
 	 * TTL of UDP multicast packets

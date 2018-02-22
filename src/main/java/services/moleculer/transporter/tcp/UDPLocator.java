@@ -36,7 +36,6 @@ import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -98,67 +97,70 @@ public class UDPLocator {
 	public void connect() throws Exception {
 		disconnect();
 
-		String bindAddress = transporter.getUdpBindAddress();
 		String udpMulticast = transporter.getUdpMulticast();
+		boolean udpBroadcast = transporter.isUdpBroadcast();
 
-		synchronized (receivers) {
-			if (bindAddress != null && !bindAddress.isEmpty()) {
+		if (udpMulticast != null || udpBroadcast) {
+			String bindAddress = transporter.getUdpBindAddress();
+			synchronized (receivers) {
+				if (bindAddress != null && !bindAddress.isEmpty()) {
 
-				// Create single receiver
-				InetAddress address = InetAddress.getByName(bindAddress);
-				NetworkInterface ni = NetworkInterface.getByInetAddress(address);
-				if (ni != null) {
-					if (udpMulticast != null && !udpMulticast.isEmpty()) {
+					// Create receiver for a NetworkInterface
+					InetAddress address = InetAddress.getByName(bindAddress);
+					startReceivers(NetworkInterface.getByInetAddress(address), udpMulticast, udpBroadcast);
+				} else {
 
-						// Create multicast receiver
-						receivers.add(new UDPMulticastReceiver(nodeID, udpMulticast, transporter, ni));
+					// Create receivers for all NetworkInterfaces
+					Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces();
+					while (en.hasMoreElements()) {
+						startReceivers(en.nextElement(), udpMulticast, udpBroadcast);
 					}
 				}
-			} else {
+				if (!receivers.isEmpty()) {
 
-				// Create multiple receivers
-				Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces();
-				while (en.hasMoreElements()) {
-					NetworkInterface ni = en.nextElement();
-					if (ni.isLoopback()) {
-						continue;
-					}					
-					List<InterfaceAddress> list = ni.getInterfaceAddresses();
-					if (list.isEmpty()) {
-						continue;
+					// Start broadcast receivers
+					for (UDPReceiver receiver : receivers) {
+						receiver.connect();
 					}
-					if (udpMulticast != null && ni.supportsMulticast()) {
 
-						// Create multicast receiver
-						receivers.add(new UDPMulticastReceiver(nodeID, udpMulticast, transporter, ni));
-					}
-					for (InterfaceAddress ia: list) {
-						if (ia == null) {
-							continue;
-						}
-						InetAddress address = ia.getBroadcast();
-						if (address == null || address.isLoopbackAddress()) {
-							continue;
-						}
-						String udpAddress = address.getHostAddress();
-						if (udpAddress == null || udpAddress.isEmpty() || udpAddress.startsWith("127.")) {
-							continue;
-						}
-
-						// Create broadcast receiver
-						receivers.add(new UDPBroadcastReceiver(nodeID, udpAddress, transporter));
-					}
+					// Start multicast / broadcast sender
+					timer = scheduler.scheduleAtFixedRate(this::send, 1, transporter.getUdpPeriod(), TimeUnit.SECONDS);
 				}
-			}
-
-			// Start broadcast receivers
-			for (UDPReceiver receiver : receivers) {
-				receiver.connect();
 			}
 		}
+	}
 
-		// Start multicast / broadcast sender
-		timer = scheduler.scheduleAtFixedRate(this::send, 1, transporter.getUdpPeriod(), TimeUnit.SECONDS);
+	protected void startReceivers(NetworkInterface ni, String udpMulticast, boolean udpBroadcast) throws Exception {
+		if (ni == null || ni.isLoopback()) {
+			return;
+		}
+		List<InterfaceAddress> list = ni.getInterfaceAddresses();
+		if (list == null || list.isEmpty()) {
+			return;
+		}
+		if (udpMulticast != null && ni.supportsMulticast()) {
+
+			// Create multicast receiver
+			receivers.add(new UDPMulticastReceiver(nodeID, udpMulticast, transporter, ni));
+		}
+		if (udpBroadcast) {
+			for (InterfaceAddress ia : list) {
+				if (ia == null) {
+					continue;
+				}
+				InetAddress address = ia.getBroadcast();
+				if (address == null || address.isLoopbackAddress()) {
+					continue;
+				}
+				String udpAddress = address.getHostAddress();
+				if (udpAddress == null || udpAddress.isEmpty() || udpAddress.startsWith("127.")) {
+					continue;
+				}
+
+				// Create broadcast receiver
+				receivers.add(new UDPBroadcastReceiver(nodeID, udpAddress, transporter));
+			}
+		}
 	}
 
 	// --- DISCONNECT ---
