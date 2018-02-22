@@ -70,6 +70,11 @@ public abstract class UDPReceiver {
 	 * Current NodeID
 	 */
 	protected final String nodeID;
+
+	/**
+	 * IP address
+	 */
+	protected final String udpAddress;
 	
 	/**
 	 * Resuse addresses
@@ -82,21 +87,14 @@ public abstract class UDPReceiver {
 	protected final int udpPort;
 
 	/**
-	 * TTL of UDP packets
+	 * UDP multicast TTL
 	 */
-	protected final int udpTTL;
+	protected final int udpMulticastTTL;
 	
 	/**
 	 * TCP port (used by the Transporter and Gossiper services)
 	 */
 	protected final int port;
-
-	// --- MULTICAST / BROADCAST ADDRESS ---
-	
-	/**
-	 * UDP broadcast/multicast address of automatic discovery service.
-	 */
-	protected String udpAddress;
 
 	// --- RECEIVER'S EXECUTOR ---
 
@@ -114,16 +112,16 @@ public abstract class UDPReceiver {
 	
 	// --- CONSTRUCTOR ---
 	
-	protected UDPReceiver(String nodeID, TcpTransporter transporter) {
+	protected UDPReceiver(String nodeID, String udpAddress, TcpTransporter transporter) {
 		this.nodeID = nodeID;
+		this.udpAddress = udpAddress;
 		this.transporter = transporter;
 		this.namespace = transporter.getNamespace();
 		this.debug = transporter.isDebug();
 		this.useHostname = transporter.isUseHostname();
-		this.udpAddress = transporter.getUdpAddress();
 		this.udpReuseAddr = transporter.isUdpReuseAddr();
 		this.udpPort = transporter.getUdpPort();
-		this.udpTTL = transporter.getUdpTTL();
+		this.udpMulticastTTL = transporter.getUdpMulticastTTL();
 		this.port = transporter.getCurrentPort();
 	}
 	

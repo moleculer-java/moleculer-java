@@ -38,6 +38,7 @@ import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
+import services.moleculer.transporter.TcpTransporter;
 import services.moleculer.web.NettyGateway;
 
 public class Test {
@@ -49,12 +50,12 @@ public class Test {
 		System.setProperty("java.library.path", nativeDir);
 
 		// Define transporter
-		// TcpTransporter transporter = new TcpTransporter();
+		TcpTransporter transporter = new TcpTransporter();
 		// RedisTransporter transporter = new RedisTransporter();
 		// transporter.setDebug(true);
 
 		// Create broker
-		ServiceBroker broker = ServiceBroker.builder().nodeID("node-1").build();
+		ServiceBroker broker = ServiceBroker.builder().transporter(transporter).nodeID("node-1").build();
 		
 		// ServiceBroker broker = new
 		// ServiceBroker("c:\\temp\\moleculer-test\\conf\\moleculer.config.js");

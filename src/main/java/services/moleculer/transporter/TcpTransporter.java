@@ -122,24 +122,26 @@ public class TcpTransporter extends Transporter {
 	protected String[] urls = {};
 
 	/**
-	 * Use UDP broadcast WITH UDP multicast (false = use UDP multicast only)
+	 * Use hostnames instead of IP addresses As the DHCP environment is dynamic,
+	 * any later attempt to use IPs instead hostnames would most likely yield
+	 * false results. Therefore, use hostnames if you are using DHCP.
 	 */
-	protected boolean udpBroadcast = true;
+	protected boolean useHostname = true;
+	
+	/**
+	 * UDP broadcast/multicast port
+	 */
+	protected int udpPort = 4445;
 
 	/**
-	 * Maximum number of outgoing multicast packets (0 = runs forever)
+	 * UDP bind address (null = autodetect)
 	 */
-	protected int udpMaxDiscovery = 0;
-
+	protected String udpBindAddress;
+	
 	/**
 	 * UDP broadcast/multicast period in SECONDS
 	 */
 	protected int udpPeriod = 60;
-
-	/**
-	 * UDP multicast address of automatic discovery service.
-	 */
-	protected String udpAddress = "230.0.0.0";
 
 	/**
 	 * Resuse addresses
@@ -147,21 +149,24 @@ public class TcpTransporter extends Transporter {
 	protected boolean udpReuseAddr = true;
 
 	/**
-	 * UDP broadcast/multicast port
+	 * Maximum number of outgoing multicast packets (0 = runs forever)
 	 */
-	protected int udpPort = 4445;
+	protected int udpMaxDiscovery = 0;
 
 	/**
-	 * TTL of UDP packets
+	 * UDP multicast address of automatic discovery service.
 	 */
-	protected int udpTTL = 1;
+	protected String udpMulticast = "230.0.0.0";
 
 	/**
-	 * Use hostnames instead of IP addresses As the DHCP environment is dynamic,
-	 * any later attempt to use IPs instead hostnames would most likely yield
-	 * false results. Therefore, use hostnames if you are using DHCP.
+	 * TTL of UDP multicast packets
 	 */
-	protected boolean useHostname = true;
+	protected int udpMulticastTTL = 1;
+	
+	/**
+	 * Use UDP broadcast WITH UDP multicast (false = use UDP multicast only)
+	 */
+	protected boolean udpBroadcast = false;
 
 	// --- CONSTUCTORS ---
 
@@ -232,13 +237,14 @@ public class TcpTransporter extends Transporter {
 		maxPacketSize = config.get("maxPacketSize", maxPacketSize);
 
 		// UDP discovery ("zero config" mode)
-		udpBroadcast = config.get("udpBroadcast", udpBroadcast);
-		udpMaxDiscovery = config.get("udpMaxDiscovery", udpMaxDiscovery);
-		udpPeriod = config.get("udpPeriod", udpPeriod);
-		udpAddress = config.get("udpAddress", udpAddress);
-		udpReuseAddr = config.get("udpReuseAddr", udpReuseAddr);
 		udpPort = config.get("udpPort", udpPort);
-		udpTTL = config.get("udpTTL", udpTTL);
+		udpBindAddress = config.get("udpBindAddress", udpBindAddress);
+		udpPeriod = config.get("udpPeriod", udpPeriod);
+		udpReuseAddr = config.get("udpReuseAddr", udpReuseAddr);
+		udpMaxDiscovery = config.get("udpMaxDiscovery", udpMaxDiscovery);
+		udpMulticast = config.get("udpMulticast", udpMulticast);
+		udpMulticastTTL = config.get("udpMulticastTTL", udpMulticastTTL);
+		udpBroadcast = config.get("udpBroadcast", udpBroadcast);
 
 		// Use hostname instead of IP address
 		useHostname = config.get("useHostname", useHostname);
@@ -1402,14 +1408,6 @@ public class TcpTransporter extends Transporter {
 		this.udpPeriod = udpPeriod;
 	}
 
-	public String getUdpAddress() {
-		return udpAddress;
-	}
-
-	public void setUdpAddress(String udpAddress) {
-		this.udpAddress = udpAddress;
-	}
-
 	public boolean isUdpReuseAddr() {
 		return udpReuseAddr;
 	}
@@ -1426,12 +1424,28 @@ public class TcpTransporter extends Transporter {
 		this.udpPort = udpPort;
 	}
 
-	public int getUdpTTL() {
-		return udpTTL;
+	public String getUdpBindAddress() {
+		return udpBindAddress;
 	}
 
-	public void setUdpTTL(int udpTTL) {
-		this.udpTTL = udpTTL;
+	public void setUdpBindAddress(String udpBindAddress) {
+		this.udpBindAddress = udpBindAddress;
+	}
+
+	public String getUdpMulticast() {
+		return udpMulticast;
+	}
+
+	public void setUdpMulticast(String udpMulticast) {
+		this.udpMulticast = udpMulticast;
+	}
+
+	public int getUdpMulticastTTL() {
+		return udpMulticastTTL;
+	}
+
+	public void setUdpMulticastTTL(int udpMulticastTTL) {
+		this.udpMulticastTTL = udpMulticastTTL;
 	}
 
 }

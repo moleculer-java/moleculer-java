@@ -33,7 +33,9 @@ package services.moleculer.transporter.tcp;
 
 import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
+import java.net.NetworkInterface;
 
 import services.moleculer.transporter.TcpTransporter;
 
@@ -45,11 +47,22 @@ public class UDPMulticastReceiver extends UDPReceiver {
 	 * Multicast receiver
 	 */
 	protected MulticastSocket multicastReceiver;
+
+	/**
+	 * Network interface (or null)
+	 */
+	protected final NetworkInterface netIf;
 	
 	// --- CONSTRUCTOR ---
 	
-	protected UDPMulticastReceiver(String nodeID, TcpTransporter transporter) {
-		super(nodeID, transporter);
+	protected UDPMulticastReceiver(String nodeID, String udpAddress, TcpTransporter transporter) {
+		super(nodeID, udpAddress, transporter);
+		this.netIf = null;
+	}
+
+	protected UDPMulticastReceiver(String nodeID, String udpAddress, TcpTransporter transporter, NetworkInterface netIf) {
+		super(nodeID, udpAddress, transporter);
+		this.netIf = netIf;
 	}
 
 	// --- CONNECT ---
@@ -59,12 +72,31 @@ public class UDPMulticastReceiver extends UDPReceiver {
 		
 		// Start multicast receiver
 		multicastReceiver = new MulticastSocket(udpPort);
-		multicastReceiver.joinGroup(InetAddress.getByName(udpAddress));
+		multicastReceiver.setReuseAddress(udpReuseAddr);
+		
+		InetAddress inetAddress = InetAddress.getByName(udpAddress);
+		if (netIf == null) {
+			multicastReceiver.joinGroup(inetAddress);			
+		} else {
+			InetSocketAddress socketAddress = new InetSocketAddress(inetAddress, udpPort);
+			try {
+				multicastReceiver.joinGroup(socketAddress, netIf);				
+			} catch (Exception unsupportedAddress) {
+				disconnect();
+				return;
+			}
+		}
 		
 		// Start thread
 		super.connect();
-		
-		logger.info("Multicast discovery service started on udp://" + udpAddress + ':' + udpPort + '.');
+
+		// Log
+		String msg = "Multicast discovery service started on udp://" + udpAddress + ':' + udpPort;
+		if (netIf == null) {
+			logger.info(msg + '.');			
+		} else {
+			logger.info(msg + " (" + netIf.getDisplayName() + ").");
+		}
 	}
 
 	// --- DISCONNECT ---
@@ -87,7 +119,12 @@ public class UDPMulticastReceiver extends UDPReceiver {
 			} catch (Exception ignored) {
 			}
 			multicastReceiver = null;
-			logger.info("Multicast discovery service stopped.");
+			String msg = "Multicast discovery service stopped on udp://" + udpAddress + ':' + udpPort;
+			if (netIf == null) {
+				logger.info(msg + '.');			
+			} else {
+				logger.info(msg + " (" + netIf.getDisplayName() + ").");
+			}
 		}
 	}
 	
@@ -102,7 +139,7 @@ public class UDPMulticastReceiver extends UDPReceiver {
 		try {
 			byte[] bytes = msg.getBytes();
 			udpSocket = new MulticastSocket(udpPort);
-			udpSocket.setTimeToLive(udpTTL);
+			udpSocket.setTimeToLive(udpMulticastTTL);
 			udpSocket.setReuseAddress(udpReuseAddr);
 			InetAddress address = InetAddress.getByName(udpAddress);
 			DatagramPacket packet = new DatagramPacket(bytes, bytes.length, address, udpPort);
@@ -134,6 +171,9 @@ public class UDPMulticastReceiver extends UDPReceiver {
 				// Waiting for packet...
 				byte[] buffer = new byte[512];
 				DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+				if (multicastReceiver == null) {
+					return;
+				}
 				multicastReceiver.receive(packet);
 				processReceivedMessage(packet, buffer);
 
@@ -143,22 +183,8 @@ public class UDPMulticastReceiver extends UDPReceiver {
 					return;
 				}
 				logger.warn("Unexpected error occured in UDP broadcaster!", cause);
-				if (multicastReceiver != null) {
-					try {
-						InetAddress address = InetAddress.getByName(udpAddress);
-						multicastReceiver.leaveGroup(address);
-					} catch (Exception ignored) {
-					}
-					try {
-						multicastReceiver.close();
-					} catch (Exception ignored) {
-					}
-				}
 				try {
 					Thread.sleep(1000);
-					multicastReceiver = new MulticastSocket(udpPort);
-					multicastReceiver.joinGroup(InetAddress.getByName(udpAddress));
-					logger.info("UDP multicast discovery service reconnected.");
 				} catch (Exception interrupt) {
 					return;
 				}

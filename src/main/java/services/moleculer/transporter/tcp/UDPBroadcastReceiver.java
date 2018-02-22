@@ -49,8 +49,7 @@ public class UDPBroadcastReceiver extends UDPReceiver {
 	// --- CONSTRUCTOR ---
 	
 	protected UDPBroadcastReceiver(String nodeID, String udpAddress, TcpTransporter transporter) {
-		super(nodeID, transporter);
-		this.udpAddress = udpAddress;
+		super(nodeID, udpAddress, transporter);
 	}
 
 	// --- CONNECT ---
@@ -60,6 +59,7 @@ public class UDPBroadcastReceiver extends UDPReceiver {
 		
 		// Start broadcast receiver
 		broadcastReceiver = new DatagramSocket();
+		broadcastReceiver.setReuseAddress(udpReuseAddr);
 		broadcastReceiver.setBroadcast(true);
 		broadcastReceiver.connect(InetAddress.getByName(udpAddress), udpPort);
 		
@@ -84,7 +84,7 @@ public class UDPBroadcastReceiver extends UDPReceiver {
 			} catch (Exception ignored) {
 			}
 			broadcastReceiver = null;
-			logger.info("Broadcast discovery service stopped.");
+			logger.info("Broadcast discovery service stopped on udp://" + udpAddress + ':' + udpPort + '.');
 		}
 	}
 	
@@ -140,21 +140,11 @@ public class UDPBroadcastReceiver extends UDPReceiver {
 					return;
 				}
 				logger.warn("Unexpected error occured in UDP broadcaster!", cause);
-				if (broadcastReceiver != null) {
-					try {
-						broadcastReceiver.close();
-					} catch (Exception ignored) {
-					}
-				}
 				try {
 					Thread.sleep(1000);
-					broadcastReceiver = new DatagramSocket();
-					broadcastReceiver.setBroadcast(true);
-					broadcastReceiver.connect(InetAddress.getByName(udpAddress), udpPort);
-					logger.info("UDP broadcast discovery service reconnected.");
 				} catch (Exception interrupt) {
 					return;
-				}
+				}				
 			}
 		}
 	}

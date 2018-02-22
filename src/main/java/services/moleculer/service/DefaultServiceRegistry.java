@@ -772,8 +772,10 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 					Tree serviceMap = servicesMap.putMap(service, true);
 					serviceMap.put("name", service);
 
-					// Not used
+					// TODO Store settings block
 					// serviceMap.putMap("settings");
+
+					// Not used
 					// serviceMap.putMap("metadata");
 
 					// Node ID

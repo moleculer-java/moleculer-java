@@ -64,21 +64,6 @@ public class UDPLocator {
 	 */
 	protected final String nodeID;
 
-	/**
-	 * Use UDP broadcast WITH UDP multicast (false = use UDP multicast only)
-	 */
-	protected final boolean udpBroadcast;
-
-	/**
-	 * Maximum number of outgoing multicast packets (0 = runs forever)
-	 */
-	protected final int udpMaxDiscovery;
-
-	/**
-	 * UDP broadcast/multicast period in SECONDS
-	 */
-	protected final int udpPeriod;
-
 	// --- COMPONENTS ---
 
 	/**
@@ -101,9 +86,6 @@ public class UDPLocator {
 		this.nodeID = nodeID;
 		this.transporter = transporter;
 		this.scheduler = scheduler;
-		this.udpMaxDiscovery = transporter.getUdpMaxDiscovery();
-		this.udpPeriod = transporter.getUdpPeriod();
-		this.udpBroadcast = transporter.isUdpBroadcast();
 	}
 
 	// --- CONNECT ---
@@ -115,21 +97,42 @@ public class UDPLocator {
 
 	public void connect() throws Exception {
 		disconnect();
+
+		String bindAddress = transporter.getUdpBindAddress();
+		String udpMulticast = transporter.getUdpMulticast();
+
 		synchronized (receivers) {
+			if (bindAddress != null && !bindAddress.isEmpty()) {
 
-			// Create multicast receiver
-			receivers.add(new UDPMulticastReceiver(nodeID, transporter));
+				// Create single receiver
+				InetAddress address = InetAddress.getByName(bindAddress);
+				NetworkInterface ni = NetworkInterface.getByInetAddress(address);
+				if (ni != null) {
+					if (udpMulticast != null && !udpMulticast.isEmpty()) {
 
-			// Create broadcast receivers
-			if (udpBroadcast) {
+						// Create multicast receiver
+						receivers.add(new UDPMulticastReceiver(nodeID, udpMulticast, transporter, ni));
+					}
+				}
+			} else {
+
+				// Create multiple receivers
 				Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces();
 				while (en.hasMoreElements()) {
-
 					NetworkInterface ni = en.nextElement();
+					if (ni.isLoopback()) {
+						continue;
+					}					
 					List<InterfaceAddress> list = ni.getInterfaceAddresses();
-					Iterator<InterfaceAddress> it = list.iterator();
-					while (it.hasNext()) {
-						InterfaceAddress ia = it.next();
+					if (list.isEmpty()) {
+						continue;
+					}
+					if (udpMulticast != null && ni.supportsMulticast()) {
+
+						// Create multicast receiver
+						receivers.add(new UDPMulticastReceiver(nodeID, udpMulticast, transporter, ni));
+					}
+					for (InterfaceAddress ia: list) {
 						if (ia == null) {
 							continue;
 						}
@@ -141,6 +144,8 @@ public class UDPLocator {
 						if (udpAddress == null || udpAddress.isEmpty() || udpAddress.startsWith("127.")) {
 							continue;
 						}
+
+						// Create broadcast receiver
 						receivers.add(new UDPBroadcastReceiver(nodeID, udpAddress, transporter));
 					}
 				}
@@ -153,7 +158,7 @@ public class UDPLocator {
 		}
 
 		// Start multicast / broadcast sender
-		timer = scheduler.scheduleAtFixedRate(this::send, 1, udpPeriod, TimeUnit.SECONDS);
+		timer = scheduler.scheduleAtFixedRate(this::send, 1, transporter.getUdpPeriod(), TimeUnit.SECONDS);
 	}
 
 	// --- DISCONNECT ---
@@ -183,12 +188,13 @@ public class UDPLocator {
 	// --- UDP BROADCAST / MULTICAST SENDER ---
 
 	protected volatile int nextIndex = 0;
-	
+
 	protected volatile int numberOfSubmittedPackets = 0;
 
 	protected void send() {
 
 		// Check number of packets
+		int udpMaxDiscovery = transporter.getUdpMaxDiscovery();
 		if (udpMaxDiscovery > 0) {
 			if (numberOfSubmittedPackets >= udpMaxDiscovery) {
 				if (timer != null) {
@@ -207,7 +213,7 @@ public class UDPLocator {
 				for (UDPReceiver receiver : receivers) {
 					receiver.send();
 					try {
-						Thread.sleep(200);						
+						Thread.sleep(200);
 					} catch (InterruptedException interrupt) {
 						return;
 					}
