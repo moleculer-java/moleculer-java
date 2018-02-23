@@ -40,49 +40,23 @@ import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
 import io.datatree.Tree;
 import io.datatree.dom.TreeReaderRegistry;
-import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.service.Name;
-import services.moleculer.transporter.Transporter;
 
 /**
  * Common utilities.
  */
 public final class CommonUtils {
-
-	// --- GET ALL NODE INFO STRUCTURES OF ALL NODES ---
-
-	public static final Tree getNodeInfos(ServiceBroker broker, Transporter transporter) {
-		Tree infos = new Tree();
-		if (transporter == null) {
-			infos.putObject(broker.nodeID(), broker.components().registry().getDescriptor());
-		} else {
-			Set<String> nodeIDset = transporter.getAllNodeIDs();
-			String[] nodeIDarray = new String[nodeIDset.size()];
-			nodeIDset.toArray(nodeIDarray);
-			Arrays.sort(nodeIDarray, String.CASE_INSENSITIVE_ORDER);
-			for (String nodeID : nodeIDarray) {
-				Tree info = transporter.getDescriptor(nodeID);
-				if (info == null) {
-					continue;
-				}
-				infos.putObject(nodeID, info);
-			}
-		}
-		return infos;
-	}
 
 	// --- GET HOSTNAME OR IP FROM AN INFO STRUCTURE ---
 

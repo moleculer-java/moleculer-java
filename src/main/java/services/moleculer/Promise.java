@@ -32,10 +32,9 @@
 package services.moleculer;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 import io.datatree.Tree;
 import services.moleculer.util.CheckedTree;
@@ -48,7 +47,7 @@ import services.moleculer.util.CheckedTree;
  * or the reason for rejection.
  */
 public class Promise {
-
+	
 	// --- INTERNAL COMPLETABLE FUTURE ---
 
 	/**
@@ -163,7 +162,7 @@ public class Promise {
 	 * <b>}).then(value -> {</b><br>
 	 * <i>// ...do something...</i><br>
 	 * return value;<br>
-	 * <b>})</b>.Catch(error -> {<br>
+	 * <b>})</b>.catchError(error -> {<br>
 	 * <i>// ...error handling...</i><br>
 	 * return value;<br>
 	 * });
@@ -176,8 +175,17 @@ public class Promise {
 	 * 
 	 * @return output Promise
 	 */
-	public Promise then(Function<Tree, Object> action) {
-		return new Promise(future.thenApply(action));
+	public Promise then(CheckedFunction<Tree> action) {
+		return new Promise(future.handle((data, error) -> {
+			if (error != null) {
+				return error;
+			}
+			try {
+				return action.apply(data);				
+			} catch (Throwable cause) {
+				return cause;
+			}
+		}));
 	}
 
 	/**
@@ -194,12 +202,16 @@ public class Promise {
 	 * 
 	 * @return output Promise
 	 */
-	public Promise then(Consumer<Tree> action) {
+	public Promise then(CheckedConsumer<Tree> action) {
 		return new Promise(future.handle((data, error) -> {
 			if (error != null) {
 				return error;
 			}
-			action.accept(data);
+			try {
+				action.accept(data);				
+			} catch (Throwable cause) {
+				return cause;
+			}
 			return data;
 		}));
 	}
@@ -207,14 +219,14 @@ public class Promise {
 	// --- ERROR HANDLER METHODS ---
 
 	/**
-	 * The Catch() method returns a Promise and deals with rejected cases only.
+	 * The catchError() method returns a Promise and deals with rejected cases only.
 	 * Sample:<br>
 	 * <br>
 	 * Promise.resolve().then(() -> {<br>
 	 * <i>// do something</i><br>
 	 * return 123;<br>
-	 * <b>}).Catch(error -> {</b><br>
-	 * <i>// catch error</i><br>
+	 * <b>}).catchError(error -> {</b><br>
+	 * <i>// Catch error</i><br>
 	 * return 456;<br>
 	 * });
 	 * 
@@ -226,23 +238,27 @@ public class Promise {
 	 *         InetAddress, BigInteger, BigDecimal, and Java Collections with
 	 *         these types)
 	 */
-	public Promise Catch(Function<Throwable, Object> action) {
+	public Promise catchError(CheckedFunction<Throwable> action) {
 		return new Promise(future.handle((data, error) -> {
 			if (error != null) {
-				return action.apply(error);
+				try {
+					return action.apply(error);				
+				} catch (Throwable cause) {
+					return cause;
+				}
 			}
 			return data;
 		}));
 	}
 
 	/**
-	 * The Catch() method returns a Promise and deals with rejected cases only.
+	 * The catchError() method returns a Promise and deals with rejected cases only.
 	 * Sample:<br>
 	 * <br>
 	 * Promise.resolve().then(() -> {<br>
 	 * <i>// do something</i><br>
 	 * return 123;<br>
-	 * <b>}).Catch(error -> {</b><br>
+	 * <b>}).catchError(error -> {</b><br>
 	 * <i>// ...do something without any return value...</i><br>
 	 * });
 	 * 
@@ -251,10 +267,14 @@ public class Promise {
 	 * 
 	 * @return output Promise
 	 */
-	public Promise Catch(Consumer<Throwable> action) {
+	public Promise catchError(CheckedConsumer<Throwable> action) {
 		return new Promise(future.handle((data, error) -> {
 			if (error != null) {
-				action.accept(error);
+				try {
+					action.accept(error);				
+				} catch (Throwable cause) {
+					return cause;
+				}
 			}
 			return data;
 		}));
@@ -316,7 +336,7 @@ public class Promise {
 	 * <br>
 	 * Promise p = new Promise();<br>
 	 * // Listener:<br>
-	 * p.Catch((error) -> {<br>
+	 * p.catchError((error) -> {<br>
 	 * System.out.println("Received: " + error);<br>
 	 * return null;<br>
 	 * });<br>
@@ -482,11 +502,11 @@ public class Promise {
 		if (object == null) {
 			return CompletableFuture.completedFuture(null);
 		}
-		if (object instanceof Promise) {
-			return ((Promise) object).future;
-		}
 		if (object instanceof CompletableFuture) {
 			return ((CompletableFuture<?>) object).thenCompose(Promise::toCompletableFuture);
+		}
+		if (object instanceof Promise) {
+			return ((Promise) object).future;
 		}
 		if (object instanceof Throwable) {
 			CompletableFuture<Tree> future = new CompletableFuture<>();
@@ -508,6 +528,7 @@ public class Promise {
 		return CompletableFuture.completedFuture(toTree(object));
 	}
 
+	@SuppressWarnings("unchecked")
 	protected static final Tree toTree(Object object) {
 		if (object == null) {
 			return new CheckedTree(null);
@@ -515,7 +536,13 @@ public class Promise {
 		if (object instanceof Tree) {
 			return (Tree) object;
 		}
-		return new CheckedTree(object);
+		if (object instanceof Map) {
+			return new Tree((Map<String, Object>) object);
+		}
+		if (object instanceof Collection) {			
+			return new Tree((Collection<Object>) object);
+		}
+		return new Tree().setObject(object);
 	}
 
 	// --- SUBCLASSES AND INTERFACES ---
@@ -559,4 +586,29 @@ public class Promise {
 
 	}
 
+	@FunctionalInterface
+	public static interface CheckedConsumer<IN> {
+		
+	    /**
+	     * Performs this operation on the given argument.
+	     *
+	     * @param t the input argument
+	     */
+	    void accept(IN in) throws Exception;
+		
+	}
+
+	@FunctionalInterface
+	public static interface CheckedFunction<IN> {
+		
+	    /**
+	     * Applies this function to the given argument.
+	     *
+	     * @param t the function argument
+	     * @return the function result
+	     */
+		Object apply(IN in) throws Throwable;
+		
+	}
+		
 }

@@ -39,6 +39,8 @@ import services.moleculer.context.Context;
 @FunctionalInterface
 public interface Action {
 
+	// --- INVOKE ACTION ---
+	
 	/**
 	 * Action's main method. Allowed return types: Promise, CompletableFuture,
 	 * Tree, String, int, double, byte, float, short, long, boolean, byte[],
@@ -46,8 +48,10 @@ public interface Action {
 	 * (Map, List, Set) with these types.
 	 * 
 	 * @param ctx
-	 * @return
+	 *            invocation context
+	 * @return result of the action
 	 * @throws Exception
+	 *             any exception
 	 */
 	public Object handler(Context ctx) throws Exception;
 
