@@ -7,15 +7,28 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 
 	// --- CONSTRUCTOR ---
 	
-	public RemoteActionEndpoint(Tree config) {
-		this.config = config;
+	public RemoteActionEndpoint(String nodeID, Tree config) {
+		super(nodeID, config);
+		this.current = new RemoteAction(this);
 	}
 	
-	// --- INVOKE ACTION ---
+	// --- REMOTE ACTION ---
+	
+	protected static class RemoteAction implements Action {
 
-	@Override
-	public Object handler(Context ctx) throws Exception {
-		return null;
+		protected final RemoteActionEndpoint endpoint;
+		
+		protected RemoteAction(RemoteActionEndpoint endpoint) {
+			this.endpoint = endpoint;
+		}
+		
+		@Override
+		public Object handler(Context ctx) throws Exception {
+
+			// Return promise
+			return null;
+		}
+		
 	}
 	
 }

@@ -7,7 +7,6 @@ import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
 import services.moleculer.service.Dependencies;
-import services.moleculer.service.Middlewares;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.Version;
@@ -15,7 +14,6 @@ import services.moleculer.service.Version;
 @Component
 @Name("math")
 @Version("2")
-@Middlewares({"filter1"})
 @Dependencies({"service1", "service2"})
 public class TestService extends Service {
 
@@ -44,7 +42,6 @@ public class TestService extends Service {
 	};
 
 	@Name("math.test")
-	@Middlewares({"filter2"})
 	public Action test = ctx -> {
 		return ctx.params.get("a", 0) + ctx.params.get("b", 0);
 	};

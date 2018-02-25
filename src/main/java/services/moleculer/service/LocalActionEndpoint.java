@@ -1,29 +1,14 @@
 package services.moleculer.service;
 
-import services.moleculer.context.Context;
+import io.datatree.Tree;
 
 public class LocalActionEndpoint extends ActionEndpoint {
 
-	// --- PROPERTIES ---
-
-	/**
-	 * Action instance (it's a field / inner class in Service object)
-	 */
-	protected final Action action;
-
 	// --- CONSTRUCTOR ---
 		
-	public LocalActionEndpoint(Action action) {
-		this.action = action;
-		
-		// Process annotations
+	public LocalActionEndpoint(String nodeID, Tree config, Action action) {
+		super(nodeID, config);
+		this.current = action;
 	}
-
-	// --- INVOKE ACTION ---
-
-	@Override
-	public Object handler(Context ctx) throws Exception {
-		return action.handler(ctx);
-	}
-
+	
 }
