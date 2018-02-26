@@ -34,70 +34,50 @@ package services.moleculer.eventbus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.lambdaworks.redis.event.DefaultEventBus;
-
 import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
-import services.moleculer.service.Name;
-import services.moleculer.service.Service;
+import services.moleculer.service.Endpoint;
 
-/**
- * Base superclass of all Event Bus implementations.
- * 
- * @see DefaultEventBus
- */
-@Name("Event Bus")
-public abstract class Eventbus implements MoleculerComponent {
+public abstract class ListenerEndpoint extends Endpoint {
 
 	// --- LOGGER ---
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
-	// --- START EVENT BUS ---
+	// --- PROPERTIES ---
+	
+	protected final String serviceName;
+	protected final String group;
+	protected final String subscribe;
+	
+	// --- CONSTRUCTOR ---
 
-	/**
-	 * Initializes internal EventBus instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 */
-	@Override
-	public void start(ServiceBroker broker) throws Exception {
+	protected ListenerEndpoint(String nodeID, String serviceName, String group, String subscribe) {
+		super(nodeID);
+		this.serviceName = serviceName;
+		this.group = group;
+		this.subscribe = subscribe;
 	}
 
-	// --- STOP EVENT BUS ---
+	// --- SEND EVENT TO ENDPOINT ---
 
-	@Override
-	public void stop() {
+	public abstract void on(String name, Tree payload, Groups groups, boolean broadcast) throws Exception;
+
+	// --- LOCAL LISTENER? ---
+	
+	public abstract boolean isLocal();
+
+	// --- PROPERTY GETTERS ---
+	
+	public String getServiceName() {
+		return serviceName;
 	}
 
-	// --- RECEIVE EVENT FROM REMOTE SERVICE ---
+	public String getGroup() {
+		return group;
+	}
 
-	public abstract void receiveEvent(Tree message);
-
-	// --- ADD LISTENERS OF A LOCAL SERVICE ---
-
-	public abstract void addListeners(String name, Service service) throws Exception;
-
-	// --- ADD LISTENERS OF A REMOTE SERVICE ---
-
-	public abstract void addListeners(Tree config) throws Exception;
-
-	// --- REMOVE ALL LISTENERS OF A NODE ---
-
-	public abstract void removeListeners(String nodeID);
-
-	// --- SEND EVENT TO ONE LISTENER IN THE SPECIFIED GROUP ---
-
-	public abstract void emit(String name, Tree payload, Groups groups, boolean local);
-
-	// --- SEND EVENT TO ALL LISTENERS IN THE SPECIFIED GROUP ---
-
-	public abstract void broadcast(String name, Tree payload, Groups groups, boolean local);
-
-	// --- GENERATE LISTENER DESCRIPTOR ---
-
-	public abstract Tree generateListenerDescriptor(String service);
-
+	public String getSubscribe() {
+		return subscribe;
+	}
+	
 }

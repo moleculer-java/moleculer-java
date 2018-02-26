@@ -31,73 +31,62 @@
  */
 package services.moleculer.eventbus;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.lambdaworks.redis.event.DefaultEventBus;
+import java.util.concurrent.ExecutorService;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
-import services.moleculer.service.Name;
-import services.moleculer.service.Service;
 
-/**
- * Base superclass of all Event Bus implementations.
- * 
- * @see DefaultEventBus
- */
-@Name("Event Bus")
-public abstract class Eventbus implements MoleculerComponent {
+public class LocalListenerEndpoint extends ListenerEndpoint {
 
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
-
-	// --- START EVENT BUS ---
+	// --- PROPERTIES ---
 
 	/**
-	 * Initializes internal EventBus instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
+	 * Listener instance (it's a field / inner class in Service object)
 	 */
-	@Override
-	public void start(ServiceBroker broker) throws Exception {
+	protected Listener listener;
+
+	/**
+	 * Invoke all local listeners via Thread pool (true) or directly (false)
+	 */
+	protected boolean asyncLocalInvocation;
+
+	// --- COMPONENTS ---
+
+	protected ExecutorService executor;
+
+	// --- CONSTRUCTOR ---
+
+	public LocalListenerEndpoint(ServiceBroker broker, String service, String group, String subscribe, Listener listener, boolean asyncLocalInvocation) {
+		super(broker.getNodeID(), service, group, subscribe);
+		this.listener = listener;
+		this.asyncLocalInvocation = asyncLocalInvocation;
+		this.executor = broker.getConfig().getExecutor();
 	}
 
-	// --- STOP EVENT BUS ---
+	// --- INVOKE LOCAL LISTENER ---
 
 	@Override
-	public void stop() {
+	public void on(String name, Tree payload, Groups groups, boolean broadcast) throws Exception {
+
+		// A.) Async invocation
+		if (asyncLocalInvocation) {
+			executor.execute(() -> {
+				try {
+					listener.on(payload);
+				} catch (Exception cause) {
+					logger.warn("Unable to invoke local listener!", cause);
+				}
+			});
+			return;
+		}
+
+		// B.) Faster in-process (direct) invocation
+		listener.on(payload);
 	}
 
-	// --- RECEIVE EVENT FROM REMOTE SERVICE ---
-
-	public abstract void receiveEvent(Tree message);
-
-	// --- ADD LISTENERS OF A LOCAL SERVICE ---
-
-	public abstract void addListeners(String name, Service service) throws Exception;
-
-	// --- ADD LISTENERS OF A REMOTE SERVICE ---
-
-	public abstract void addListeners(Tree config) throws Exception;
-
-	// --- REMOVE ALL LISTENERS OF A NODE ---
-
-	public abstract void removeListeners(String nodeID);
-
-	// --- SEND EVENT TO ONE LISTENER IN THE SPECIFIED GROUP ---
-
-	public abstract void emit(String name, Tree payload, Groups groups, boolean local);
-
-	// --- SEND EVENT TO ALL LISTENERS IN THE SPECIFIED GROUP ---
-
-	public abstract void broadcast(String name, Tree payload, Groups groups, boolean local);
-
-	// --- GENERATE LISTENER DESCRIPTOR ---
-
-	public abstract Tree generateListenerDescriptor(String service);
-
+	// --- LOCAL LISTENER? ---
+	
+	public boolean isLocal() {
+		return true;
+	}
 }

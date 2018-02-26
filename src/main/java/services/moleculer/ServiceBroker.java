@@ -24,6 +24,7 @@ import services.moleculer.service.Middleware;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.StrategyFactory;
+import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.UIDGenerator;
 import services.moleculer.util.ParseResult;
 
@@ -75,6 +76,7 @@ public class ServiceBroker {
 	protected Eventbus eventbus;
 	protected Cacher cacher;
 	protected ServiceRegistry serviceRegistry;
+	protected Transporter transporter;
 
 	// --- CONSTRUCTORS ---
 
@@ -117,6 +119,7 @@ public class ServiceBroker {
 			eventbus = start(config.getEventbus());
 			cacher = start(config.getCacher());
 			serviceRegistry = start(config.getServiceRegistry());
+			transporter = start(config.getTransporter());
 
 			// Register enqued middlewares
 			if (cacher != null) {
@@ -133,14 +136,13 @@ public class ServiceBroker {
 				serviceRegistry.addActions(name, service);
 
 				// Register listeners
-				// eventbus.addListeners(name, service);
+				eventbus.addListeners(name, service);
 			}
 
 			// Start transporter's connection loop
-			// Transporter transporter = components.transporter();
-			// if (transporter != null) {
-			// transporter.connect();
-			// }
+			if (transporter != null) {
+				transporter.connect();
+			}
 
 			logger.info("Node \"" + getNodeID() + "\" started successfully.");
 
@@ -191,11 +193,11 @@ public class ServiceBroker {
 	}
 
 	// --- LOGGING ---
-	
+
 	public Logger getLogger() {
 		return logger;
 	}
-	
+
 	public Logger getLogger(Class<?> clazz) {
 		return LoggerFactory.getLogger(clazz);
 	}
@@ -203,7 +205,7 @@ public class ServiceBroker {
 	public Logger getLogger(String name) {
 		return LoggerFactory.getLogger(name);
 	}
-	
+
 	// --- ADD LOCAL SERVICE ---
 
 	public void createService(Service service) {
@@ -240,7 +242,7 @@ public class ServiceBroker {
 		if (serviceRegistry == null) {
 
 			// Apply middlewares later
-			for (Middleware middleware: middlewares) {
+			for (Middleware middleware : middlewares) {
 				this.middlewares.add(middleware);
 			}
 		} else {
@@ -298,11 +300,11 @@ public class ServiceBroker {
 			try {
 				String targetID = opts == null ? null : opts.nodeID;
 				Action action = serviceRegistry.getAction(name, targetID);
-				Context ctx = contextFactory.create(name, params, opts, null);				
+				Context ctx = contextFactory.create(name, params, opts, null);
 				result.resolve(action.handler(ctx));
 			} catch (Throwable cause) {
 				result.reject(cause);
-			}			
+			}
 		});
 	}
 

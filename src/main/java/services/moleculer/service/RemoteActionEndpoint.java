@@ -25,7 +25,7 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 		@Override
 		public Object handler(Context ctx) throws Exception {
 
-			// Return promise
+			// TODO Return promise
 			return null;
 		}
 		

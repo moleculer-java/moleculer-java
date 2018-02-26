@@ -12,11 +12,15 @@ import services.moleculer.cacher.Cacher;
 import services.moleculer.cacher.MemoryCacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.context.DefaultContextFactory;
+import services.moleculer.eventbus.DefaultEventbus;
 import services.moleculer.eventbus.Eventbus;
+import services.moleculer.monitor.ConstantMonitor;
+import services.moleculer.monitor.Monitor;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.RoundRobinStrategyFactory;
 import services.moleculer.strategy.StrategyFactory;
+import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.IncrementalUIDGenerator;
 import services.moleculer.uid.UIDGenerator;
 
@@ -58,10 +62,39 @@ public class ServiceBrokerConfig {
 	protected UIDGenerator uidGenerator = new IncrementalUIDGenerator();
 	protected StrategyFactory strategyFactory = new RoundRobinStrategyFactory();
 	protected ContextFactory contextFactory = new DefaultContextFactory();
-	protected Eventbus eventbus = null;
+	protected Eventbus eventbus = new DefaultEventbus();
 	protected ServiceRegistry serviceRegistry = new DefaultServiceRegistry();
-	
 	protected Cacher cacher = new MemoryCacher();
+	
+	protected Transporter transporter;	
+	protected Monitor monitor; 
+	
+	// --- INSTALL JS PARSER ---
+
+	private static Monitor defaultMonitor;
+	
+	static {
+		defaultMonitor = tryToLoadMonitor("Sigar");
+		if (defaultMonitor == null) {
+			defaultMonitor = tryToLoadMonitor("JMX");
+			if (defaultMonitor == null) {
+				defaultMonitor = tryToLoadMonitor("Command");
+				if (defaultMonitor == null) {
+					defaultMonitor = new ConstantMonitor();
+				}
+			}
+		}
+	}
+
+	private static final Monitor tryToLoadMonitor(String type) {
+		try {
+			Class<?> c = ServiceBrokerConfig.class.getClassLoader()
+					.loadClass("services.moleculer.monitor." + type + "Monitor");
+			return (Monitor) c.newInstance();
+		} catch (Throwable ignored) {
+		}
+		return null;
+	}
 	
 	// --- CONSTRUCTORS ---
 
@@ -72,11 +105,10 @@ public class ServiceBrokerConfig {
 		scheduler = Executors.newScheduledThreadPool(ForkJoinPool.commonPool().getParallelism());
 
 		// Set the default System Monitor
-		// monitor = defaultMonitor;
+		monitor = defaultMonitor;
 
 		// Set the default NodeID
-		// nodeID = getHostName() + '-' + monitor.getPID();
-		nodeID = getHostName() + '-' + System.currentTimeMillis();
+		nodeID = getHostName() + '-' + monitor.getPID();
 	}
 	
 	// --- GETTERS AND SETTERS ---
@@ -191,6 +223,22 @@ public class ServiceBrokerConfig {
 
 	public void setCacher(Cacher cacher) {
 		this.cacher = cacher;
+	}
+
+	public Monitor getMonitor() {
+		return monitor;
+	}
+
+	public void setMonitor(Monitor monitor) {
+		this.monitor = monitor;
+	}
+
+	public Transporter getTransporter() {
+		return transporter;
+	}
+
+	public void setTransporter(Transporter transporter) {
+		this.transporter = transporter;
 	}	
 	
 }
