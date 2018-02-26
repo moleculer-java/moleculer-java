@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
+import services.moleculer.cacher.Cacher;
 import services.moleculer.config.MoleculerComponent;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallingOptions;
@@ -72,6 +73,7 @@ public class ServiceBroker {
 	protected StrategyFactory strategyFactory;
 	protected ContextFactory contextFactory;
 	protected Eventbus eventbus;
+	protected Cacher cacher;
 	protected ServiceRegistry serviceRegistry;
 
 	// --- CONSTRUCTORS ---
@@ -113,9 +115,13 @@ public class ServiceBroker {
 			strategyFactory = start(config.getStrategyFactory());
 			contextFactory = start(config.getContextFactory());
 			eventbus = start(config.getEventbus());
+			cacher = start(config.getCacher());
 			serviceRegistry = start(config.getServiceRegistry());
 
 			// Register enqued middlewares
+			if (cacher != null) {
+				middlewares.add(cacher);
+			}
 			serviceRegistry.use(middlewares);
 
 			// Register and start enqued services and listeners
@@ -288,14 +294,14 @@ public class ServiceBroker {
 	}
 
 	public Promise call(String name, Tree params, CallingOptions.Options opts) {
-		return new Promise(init -> {
+		return new Promise(result -> {
 			try {
 				String targetID = opts == null ? null : opts.nodeID;
 				Action action = serviceRegistry.getAction(name, targetID);
 				Context ctx = contextFactory.create(name, params, opts, null);				
-				init.resolve(action.handler(ctx));
+				result.resolve(action.handler(ctx));
 			} catch (Throwable cause) {
-				init.reject(cause);
+				result.reject(cause);
 			}			
 		});
 	}

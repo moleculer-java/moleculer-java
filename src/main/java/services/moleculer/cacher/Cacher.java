@@ -58,13 +58,17 @@ public abstract class Cacher extends Middleware {
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
 	// --- ADD MIDDLEWARE TO ACTION ---
-	
+
 	public Action install(Action action, Tree config) {
+
+		// Is caching enabled?
 		Tree cacheNode = config.get("cache");
 		if (cacheNode == null) {
 			return null;
 		}
-		Tree keyNode = config.get("keys");
+
+		// Get cache keys
+		Tree keyNode = cacheNode.get("keys");
 		final String[] keys;
 		if (keyNode == null) {
 			keys = null;
@@ -77,16 +81,32 @@ public abstract class Cacher extends Middleware {
 				list.toArray(keys);
 			}
 		}
+
+		// Get TTL (0 = use default TTL)
+		final int ttl = cacheNode.get("ttl", 0);
+
 		return new Action() {
-			
+
 			@Override
 			public Object handler(Context ctx) throws Exception {
 				String key = getCacheKey(ctx.name, ctx.params, keys);
-
-				// TODO implement caching
-				return null;
+				return new Promise(resolver -> {
+					get(key).then(in -> {
+						if (in == null || in.isNull()) {
+							new Promise(action.handler(ctx)).then(tree -> {
+								set(key, tree, ttl);
+								resolver.resolve(tree);
+							}).catchError(err -> {
+								resolver.reject(err);
+							});
+						} else {
+							resolver.resolve(in);
+						}
+					}).catchError(err -> {
+						resolver.reject(err);
+					});
+				});
 			}
-			
 		};
 	}
 

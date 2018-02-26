@@ -128,7 +128,11 @@ public class Promise {
 	 */
 	public Promise(Initializer initializer) {
 		future = new CompletableFuture<>();
-		initializer.init(new Resolver(future));
+		try {
+			initializer.init(new Resolver(future));			
+		} catch (Throwable cause) {
+			future.completeExceptionally(cause);
+		}
 	}
 
 	/**
@@ -550,7 +554,7 @@ public class Promise {
 	@FunctionalInterface
 	public static interface Initializer {
 
-		void init(Resolver resolver);
+		void init(Resolver resolver) throws Throwable;
 
 	}
 
@@ -577,7 +581,14 @@ public class Promise {
 		 *            value of the current Promise
 		 */
 		public final void resolve(Object value) {
-			future.complete(toTree(value));
+			toCompletableFuture(value).handle((data, error) -> {
+				if (error == null) {
+					future.complete(data);
+				} else {
+					future.completeExceptionally(error);
+				}
+				return data;
+			});
 		}
 
 		public final void reject(Throwable error) {
@@ -594,7 +605,7 @@ public class Promise {
 	     *
 	     * @param t the input argument
 	     */
-	    void accept(IN in) throws Exception;
+	    void accept(IN in) throws Throwable;
 		
 	}
 

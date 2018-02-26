@@ -8,6 +8,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledExecutorService;
 
+import services.moleculer.cacher.Cacher;
+import services.moleculer.cacher.MemoryCacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.context.DefaultContextFactory;
 import services.moleculer.eventbus.Eventbus;
@@ -58,6 +60,8 @@ public class ServiceBrokerConfig {
 	protected ContextFactory contextFactory = new DefaultContextFactory();
 	protected Eventbus eventbus = null;
 	protected ServiceRegistry serviceRegistry = new DefaultServiceRegistry();
+	
+	protected Cacher cacher = new MemoryCacher();
 	
 	// --- CONSTRUCTORS ---
 
@@ -179,6 +183,14 @@ public class ServiceBrokerConfig {
 
 	public void setContextFactory(ContextFactory contextFactory) {
 		this.contextFactory = Objects.requireNonNull(contextFactory);
+	}
+
+	public Cacher getCacher() {
+		return cacher;
+	}
+
+	public void setCacher(Cacher cacher) {
+		this.cacher = cacher;
 	}	
 	
 }
