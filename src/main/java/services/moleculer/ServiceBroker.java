@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
 import services.moleculer.cacher.Cacher;
+import services.moleculer.config.ServiceBrokerBuilder;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
@@ -28,6 +29,7 @@ import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.UIDGenerator;
 import services.moleculer.util.ParseResult;
+import services.moleculer.web.ApiGateway;
 
 public class ServiceBroker {
 
@@ -79,13 +81,39 @@ public class ServiceBroker {
 	protected ServiceRegistry serviceRegistry;
 	protected Transporter transporter;
 	protected Repl repl;
-	
-	// --- CONSTRUCTORS ---
+	protected ApiGateway apiGateway;
 
+	// --- STATIC SERVICE BROKER BUILDER ---
+
+	/**
+	 * Creates a new {@link ServiceBrokerBuilder} instance. Sample of usage:<br>
+	 * <br>
+	 * ServiceBroker broker = ServiceBroker.builder().cacher(cacher).build();
+	 * 
+	 * @return builder instance
+	 */
+	public static ServiceBrokerBuilder builder() {
+		return new ServiceBrokerBuilder();
+	}
+
+	// --- CONSTRUCTORS ---
+	
 	public ServiceBroker(ServiceBrokerConfig config) {
 		this.config = config;
 	}
 
+	public ServiceBroker() {
+		this(null, null, null);
+	}
+
+	public ServiceBroker(String nodeID) {
+		this(nodeID, null, null);
+	}
+
+	public ServiceBroker(String nodeID, Cacher cacher, Transporter transporter) {
+		this(new ServiceBrokerConfig(nodeID, cacher, transporter));		
+	}
+	
 	// --- GET CONFIGURATION ---
 
 	public ServiceBrokerConfig getConfig() {
@@ -133,7 +161,7 @@ public class ServiceBroker {
 			if (config.isInternalServices()) {
 				services.add(new NodeService());
 			}
-			
+
 			// Register and start enqued services and listeners
 			for (Service service : services) {
 
@@ -149,11 +177,15 @@ public class ServiceBroker {
 				transporter.connect();
 			}
 
+			// Start API gateway
+			apiGateway = start(config.getApiGateway());
+
+			// Ok, services, transporter and gateway started
 			logger.info("Node \"" + getNodeID() + "\" started successfully.");
 
 			// Start repl console
 			repl = start(config.getRepl());
-			
+
 		} catch (Throwable cause) {
 			logger.error("Moleculer Service Broker could not be started!", cause);
 			stop();
@@ -181,6 +213,7 @@ public class ServiceBroker {
 	public void stop() {
 
 		// Stop internal components
+		stop(apiGateway);
 		stop(repl);
 		stop(serviceRegistry);
 		stop(eventbus);
@@ -254,7 +287,7 @@ public class ServiceBroker {
 			serviceRegistry.use(middlewares);
 		}
 	}
-	
+
 	public void use(Middleware... middlewares) {
 		use(Arrays.asList(middlewares));
 	}
@@ -324,7 +357,7 @@ public class ServiceBroker {
 		ParseResult res = parseParams(params);
 		eventbus.emit(name, res.data, res.groups, false);
 	}
-	
+
 	/**
 	 * Emits an event (grouped & balanced global event)
 	 */
@@ -338,9 +371,9 @@ public class ServiceBroker {
 	public void emit(String name, Tree payload) {
 		eventbus.emit(name, payload, null, false);
 	}
-	
+
 	// --- BROADCAST EVENT TO ALL LISTENERS ---
-	
+
 	/**
 	 * Emits an event for all local & remote services
 	 */
@@ -348,7 +381,7 @@ public class ServiceBroker {
 		ParseResult res = parseParams(params);
 		eventbus.broadcast(name, res.data, res.groups, false);
 	}
-	
+
 	/**
 	 * Emits an event for all local & remote services
 	 */
@@ -362,9 +395,9 @@ public class ServiceBroker {
 	public void broadcast(String name, Tree payload) {
 		eventbus.broadcast(name, payload, null, false);
 	}
-	
+
 	// --- BROADCAST EVENT TO LOCAL LISTENERS ---
-	
+
 	/**
 	 * Emits an event for all local services.
 	 */
@@ -372,7 +405,7 @@ public class ServiceBroker {
 		ParseResult res = parseParams(params);
 		eventbus.broadcast(name, res.data, res.groups, true);
 	}
-	
+
 	/**
 	 * Emits an event for all local services.
 	 */
@@ -386,5 +419,5 @@ public class ServiceBroker {
 	public void broadcastLocal(String name, Tree payload) {
 		eventbus.broadcast(name, payload, null, true);
 	}
-	
+
 }

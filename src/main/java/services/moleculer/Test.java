@@ -3,6 +3,7 @@ package services.moleculer;
 import io.datatree.Tree;
 import services.moleculer.cacher.Cache;
 import services.moleculer.config.ServiceBrokerConfig;
+import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
@@ -13,6 +14,11 @@ import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.Version;
 import services.moleculer.transporter.RedisTransporter;
+import services.moleculer.web.ApiGateway;
+import services.moleculer.web.SunGateway;
+import services.moleculer.web.router.Alias;
+import services.moleculer.web.router.MappingPolicy;
+import services.moleculer.web.router.Route;
 
 public class Test {
 
@@ -23,12 +29,26 @@ public class Test {
 			
 			RedisTransporter t = new RedisTransporter();
 			t.setDebug(false);
-			cfg.setTransporter(t);
+			// cfg.setTransporter(t);
 			
 			cfg.setRepl(new LocalRepl());
 			
+			ApiGateway gateway = new SunGateway();
+			cfg.setApiGateway(gateway);
+			
 			ServiceBroker broker = new ServiceBroker(cfg);
-			broker.createService(new Service("test") {
+
+			String path = "/math";
+			MappingPolicy policy = MappingPolicy.ALL;
+			CallingOptions.Options opts = CallingOptions.retryCount(3);
+			String[] whitelist = {};
+			Alias[] aliases = new Alias[1];
+			aliases[0] = new Alias("GET", "/add", "math.add");
+			
+			Route r = new Route(broker, path, policy, opts, whitelist, aliases);
+			gateway.setRoutes(new Route[]{r});
+			
+			broker.createService(new Service("math") {
 
 				@Name("add")
 				@Cache(keys = { "a", "b" }, ttl = 30)
@@ -80,7 +100,7 @@ public class Test {
 
 			});
 			for (int i = 0; i < 2; i++) {
-				broker.call("test.add", "a", 3, "b", 5).then(in -> {
+				broker.call("math.add", "a", 3, "b", 5).then(in -> {
 
 					broker.getLogger(Test.class).info("Result: " + in);
 

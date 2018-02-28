@@ -24,6 +24,7 @@ import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.IncrementalUIDGenerator;
 import services.moleculer.uid.UIDGenerator;
+import services.moleculer.web.ApiGateway;
 
 public class ServiceBrokerConfig {
 
@@ -68,8 +69,9 @@ public class ServiceBrokerConfig {
 	protected Cacher cacher = new MemoryCacher();
 	
 	protected Transporter transporter;
+	protected ApiGateway apiGateway;
 	protected Monitor monitor; 
-	protected Repl repl;
+	protected Repl repl;	
 	
 	// --- INSTALL JS PARSER ---
 
@@ -103,7 +105,11 @@ public class ServiceBrokerConfig {
 	// --- CONSTRUCTORS ---
 
 	public ServiceBrokerConfig() {
-
+		this(null, null, null);
+	}
+	
+	public ServiceBrokerConfig(String nodeID, Cacher cacher, Transporter transporter) {
+		
 		// Create default thread pools
 		executor = ForkJoinPool.commonPool();
 		scheduler = Executors.newScheduledThreadPool(ForkJoinPool.commonPool().getParallelism());
@@ -112,7 +118,17 @@ public class ServiceBrokerConfig {
 		monitor = defaultMonitor;
 
 		// Set the default NodeID
-		nodeID = getHostName() + '-' + monitor.getPID();
+		if (nodeID == null || nodeID.isEmpty()) {
+			nodeID = getHostName() + '-' + monitor.getPID();
+		}
+		
+		// Set cacher
+		if (cacher != null) {
+			this.cacher = cacher;
+		}
+		
+		// Set transporter
+		this.transporter = transporter;
 	}
 	
 	// --- GETTERS AND SETTERS ---
@@ -154,7 +170,7 @@ public class ServiceBrokerConfig {
 	}
 
 	public void setNodeID(String nodeID) {
-		this.nodeID = nodeID;
+		this.nodeID = Objects.requireNonNull(nodeID);
 	}
 
 	public boolean isInternalServices() {
@@ -251,6 +267,14 @@ public class ServiceBrokerConfig {
 
 	public void setRepl(Repl repl) {
 		this.repl = repl;
+	}
+
+	public ApiGateway getApiGateway() {
+		return apiGateway;
+	}
+
+	public void setApiGateway(ApiGateway apiGateway) {
+		this.apiGateway = apiGateway;
 	}	
 	
 }
