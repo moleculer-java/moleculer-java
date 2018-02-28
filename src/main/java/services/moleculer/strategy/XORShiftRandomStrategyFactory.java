@@ -35,7 +35,8 @@ import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
 /**
- * Factory of XORSHIFT-based pseudorandom invocation strategy.
+ * Factory of XORSHIFT-based pseudorandom invocation strategy. XORShift is the
+ * fastest random invocation strategy.
  * 
  * @see RoundRobinStrategyFactory
  * @see NanoSecRandomStrategyFactory

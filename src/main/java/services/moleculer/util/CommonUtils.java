@@ -40,24 +40,50 @@ import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Objects;
+import java.util.Set;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
 import io.datatree.Tree;
 import io.datatree.dom.TreeReaderRegistry;
+import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.service.Name;
+import services.moleculer.service.Version;
+import services.moleculer.transporter.Transporter;
 
 /**
  * Common utilities.
  */
 public final class CommonUtils {
 
+	// --- GET ALL NODE INFO STRUCTURES OF ALL NODES ---
+
+	public static final Tree getNodeInfos(ServiceBroker broker, Transporter transporter) {
+		Tree infos = new Tree();
+		if (transporter == null) {
+			infos.putObject(broker.getNodeID(), broker.getConfig().getServiceRegistry().getDescriptor());
+		} else {
+			Set<String> nodeIDset = transporter.getAllNodeIDs();
+			String[] nodeIDarray = new String[nodeIDset.size()];
+			nodeIDset.toArray(nodeIDarray);
+			Arrays.sort(nodeIDarray, String.CASE_INSENSITIVE_ORDER);
+			for (String nodeID : nodeIDarray) {
+				Tree info = transporter.getDescriptor(nodeID);
+				if (info == null) {
+					continue;
+				}
+				infos.putObject(nodeID, info);
+			}
+		}
+		return infos;
+	}
+	
 	// --- GET HOSTNAME OR IP FROM AN INFO STRUCTURE ---
 
 	public static final String getHostOrIP(boolean preferHostname, Tree info) {
@@ -251,8 +277,25 @@ public final class CommonUtils {
 	}
 
 	public static final String nameOf(Object object, boolean addQuotes) {
-		Objects.requireNonNull(object);
 		Class<?> c = object.getClass();
+		Version v = c.getAnnotation(Version.class);
+		String version = null;
+		if (v != null) {
+			version = v.value();
+			if (version != null) {
+				version = version.trim();
+				if (version.isEmpty()) {
+					version = null;
+				}
+			}
+			if (version != null) {
+				try {
+					Double.parseDouble(version);
+					version = 'v' + version;
+				} catch (Exception ignored) {
+				}
+			}
+		}
 		Name n = c.getAnnotation(Name.class);
 		String name = null;
 		if (n != null) {
@@ -268,6 +311,9 @@ public final class CommonUtils {
 				name = name.substring(i + 1);
 			}
 			name = Character.toLowerCase(name.charAt(0)) + name.substring(1);
+		}
+		if (version != null) {
+			name = version + '.' + name;
 		}
 		if (addQuotes && name.indexOf(' ') == -1) {
 			name = "\"" + name + "\"";

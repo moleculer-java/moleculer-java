@@ -48,7 +48,6 @@ public class StandardUUIDGenerator extends UIDGenerator {
 
 	@Override
 	public String nextUID() {
-		
 		return UUID.randomUUID().toString();
 	}
 

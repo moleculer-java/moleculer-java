@@ -137,7 +137,8 @@ public class MemoryCacher extends Cacher implements Runnable {
 	 *            parent ServiceBroker
 	 */
 	@Override
-	public void start(ServiceBroker broker) throws Exception {
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 
 		// Start timer
 		if (cleanup > 0) {
@@ -167,7 +168,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 	// --- STOP CACHER ---
 
 	@Override
-	public void stop() {
+	public void stopped() {
 
 		// Stop timer
 		if (timer != null) {

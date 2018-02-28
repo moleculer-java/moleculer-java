@@ -61,7 +61,8 @@ public class DefaultContextFactory extends ContextFactory {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker) {
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 		registry = broker.getConfig().getServiceRegistry();
 		eventbus = broker.getConfig().getEventbus();
 		uid = broker.getConfig().getUidGenerator();	

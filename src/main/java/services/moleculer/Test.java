@@ -4,22 +4,31 @@ import io.datatree.Tree;
 import services.moleculer.cacher.Cache;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.Context;
+import services.moleculer.eventbus.Listener;
+import services.moleculer.eventbus.Subscribe;
+import services.moleculer.repl.LocalRepl;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.Version;
+import services.moleculer.transporter.RedisTransporter;
 
 public class Test {
 
 	public static void main(String[] args) throws Exception {
 		System.out.println("START");
 		try {
-
 			ServiceBrokerConfig cfg = new ServiceBrokerConfig();
+			
+			RedisTransporter t = new RedisTransporter();
+			t.setDebug(false);
+			cfg.setTransporter(t);
+			
+			cfg.setRepl(new LocalRepl());
+			
 			ServiceBroker broker = new ServiceBroker(cfg);
-
-			broker.createService("test", new Service() {
+			broker.createService(new Service("test") {
 
 				@Name("add")
 				@Cache(keys = { "a", "b" }, ttl = 30)
@@ -38,10 +47,13 @@ public class Test {
 
 				};
 
-			});
+				@Subscribe("foo.*")
+				public Listener listener = payload -> {
+					System.out.println("Received: " + payload);
+				};
 
+			});			
 			broker.start();
-
 			broker.use(new Middleware() {
 
 				@Override
@@ -67,7 +79,6 @@ public class Test {
 				}
 
 			});
-
 			for (int i = 0; i < 2; i++) {
 				broker.call("test.add", "a", 3, "b", 5).then(in -> {
 

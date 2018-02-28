@@ -31,8 +31,6 @@
  */
 package services.moleculer.strategy;
 
-import services.moleculer.ServiceBroker;
-
 /**
  * Abstract class for Round-Robin and Random invocation strategy factories.
  * 
@@ -51,25 +49,6 @@ public abstract class ArrayBasedStrategyFactory extends StrategyFactory {
 	 */
 	protected boolean preferLocal;
 
-	// --- PARENT BROKER ---
-	
-	protected ServiceBroker broker;
-	
-	// --- START STRATEGY FACTORY ---
-
-	/**
-	 * Initializes Invocation Strategy Factory instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker) throws Exception {
-		this.broker = broker;
-	}
-	
 	// --- CONSTRUCTORS ---
 
 	public ArrayBasedStrategyFactory() {

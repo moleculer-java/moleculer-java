@@ -49,7 +49,6 @@ import io.datatree.dom.Cache;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
-import services.moleculer.service.Version;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.util.CheckedTree;
@@ -132,7 +131,8 @@ public class DefaultEventbus extends Eventbus {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker) throws Exception {
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 
 		// Set nodeID
 		this.nodeID = broker.getNodeID();
@@ -145,7 +145,7 @@ public class DefaultEventbus extends Eventbus {
 	// --- STOP EVENT BUS ---
 
 	@Override
-	public void stop() {
+	public void stopped() {
 
 		// Clear endpoints
 		writeLock.lock();
@@ -217,41 +217,24 @@ public class DefaultEventbus extends Eventbus {
 	// --- ADD LOCAL LISTENER ---
 
 	@Override
-	public void addListeners(String name, Service service) throws Exception {
+	public void addListeners(Service service) throws Exception {
+		
+		// Service name with version
+		String serviceName = service.getName();
+		Class<? extends Service> clazz = service.getClass();
+		Field[] fields = clazz.getFields();
+		
 		writeLock.lock();
 		try {
 
-			// Get version
-			Class<? extends Service> clazz = service.getClass();
-			Version v = clazz.getAnnotation(Version.class);
-			String version = null;
-			if (v != null) {
-				version = v.value();
-				if (version != null) {
-					version = version.trim();
-					if (version.isEmpty()) {
-						version = null;
-					}
-				}
-				if (version != null) {
-					try {
-						Double.parseDouble(version);
-						version = 'v' + version;
-					} catch (Exception ignored) {
-					}
-				}
-			}
-
-			// Initialize actions in services
-			Field[] fields = clazz.getFields();
+			// Initialize listeners in service
 			for (Field field : fields) {
 
 				// Register event listener
 				if (Listener.class.isAssignableFrom(field.getType())) {
 
-					// Name of the action (eg. "service.listener")
-					String prefix = version == null ? name : version + '.' + name;
-					String listenerName = nameOf(prefix, field);
+					// Name of the action (eg. "service.action")
+					String listenerName = nameOf(serviceName, field);
 
 					// Process "Subscribe" annotation
 					Subscribe s = field.getAnnotation(Subscribe.class);
@@ -270,7 +253,7 @@ public class DefaultEventbus extends Eventbus {
 						group = g.value();
 					}
 					if (group == null || group.isEmpty()) {
-						group = name;
+						group = serviceName;
 					}
 
 					// Register listener in EventBus
@@ -293,7 +276,7 @@ public class DefaultEventbus extends Eventbus {
 
 					// Add endpoint to strategy
 					strategy.addEndpoint(
-							new LocalListenerEndpoint(broker, name, group, subscribe, listener, asyncLocalInvocation));
+							new LocalListenerEndpoint(broker, serviceName, group, subscribe, listener, asyncLocalInvocation));
 				}
 			}
 		} finally {

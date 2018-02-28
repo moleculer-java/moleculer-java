@@ -193,12 +193,12 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	 * Closes transporter.
 	 */
 	@Override
-	public void stop() {
+	public void stopped() {
 		int s = status.getAndSet(STATUS_STOPPED);
 		if (s != STATUS_STOPPED) {
 			
 			// Stop timers
-			super.stop();
+			super.stopped();
 			
 			// Disconnect
 			disconnect();

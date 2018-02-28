@@ -63,7 +63,7 @@ public class XORShiftRandomStrategy<T extends Endpoint> extends ArrayBasedStrate
 	@Override
 	public Endpoint next(Endpoint[] array) {
 
-		// Generate pseudo random long
+		// Generate pseudo random long (XORShift is the fastest random method)
 		long start, next;
 		do {
 			start = rnd.get();

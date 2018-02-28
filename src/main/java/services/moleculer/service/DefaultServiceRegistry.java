@@ -1,12 +1,20 @@
 package services.moleculer.service;
 
+import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.nameOf;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.rmi.RemoteException;
 import java.util.Collection;
+import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -28,8 +36,14 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
+import services.moleculer.config.ServiceBrokerConfig;
+import services.moleculer.context.CallingOptions;
+import services.moleculer.context.Context;
+import services.moleculer.context.ContextFactory;
+import services.moleculer.eventbus.Eventbus;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
+import services.moleculer.transporter.Transporter;
 
 /**
  * Default implementation of the Service Registry.
@@ -94,7 +108,10 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected ServiceBroker broker;
 	protected ScheduledExecutorService scheduler;
 	protected StrategyFactory strategyFactory;
-
+	protected ContextFactory contextFactory;
+	protected Transporter transporter;
+	protected Eventbus eventbus;
+	
 	// --- CONSTRUCTORS ---
 
 	public DefaultServiceRegistry() {
@@ -123,21 +140,26 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker) throws Exception {
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 
 		// Local nodeID
 		this.nodeID = broker.getNodeID();
 
 		// Set components
+		ServiceBrokerConfig cfg = broker.getConfig();
 		this.broker = broker;
-		this.scheduler = broker.getConfig().getScheduler();
-		this.strategyFactory = broker.getConfig().getStrategyFactory();
+		this.scheduler = cfg.getScheduler();
+		this.strategyFactory = cfg.getStrategyFactory();
+		this.contextFactory = cfg.getContextFactory();
+		this.transporter = cfg.getTransporter();
+		this.eventbus = cfg.getEventbus();
 	}
 
 	// --- STOP SERVICE REGISTRY ---
 
 	@Override
-	public void stop() {
+	public void stopped() {
 
 		// Stop timer
 		ScheduledFuture<?> task = timer.get();
@@ -164,7 +186,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			// Stop middlewares
 			for (Middleware middleware : middlewares) {
 				try {
-					middleware.stop();
+					middleware.stopped();
 				} catch (Throwable cause) {
 					logger.warn("Unable to stop middleware!", cause);
 				}
@@ -283,16 +305,185 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	@Override
 	public void receiveRequest(Tree message) {
-		// TODO Auto-generated method stub
+
+		// Verify protocol version
+		if (checkVersion) {
+			String ver = message.get("ver", "unknown");
+			if (!ServiceBroker.PROTOCOL_VERSION.equals(ver)) {
+				logger.warn("Invalid protocol version (" + ver + ")!");
+				return;
+			}
+		}
+
+		// Get action property
+		String action = message.get("action", (String) null);
+		if (action == null || action.isEmpty()) {
+			logger.warn("Missing \"action\" property!");
+			return;
+		}
+
+		// Get strategy (action endpoint array) by action name
+		Strategy<ActionEndpoint> strategy;
+		readLock.lock();
+		try {
+			strategy = strategies.get(action);
+		} finally {
+			readLock.unlock();
+		}
+		if (strategy == null) {
+			logger.warn("Invalid action name (" + action + ")!");
+			return;
+		}
+
+		// Get local action endpoint (with cache handling)
+		ActionEndpoint endpoint = strategy.getEndpoint(nodeID);
+		if (endpoint == null) {
+			logger.warn("Not a local action (" + action + ")!");
+			return;
+		}
+
+		// Get request's unique ID
+		String id = message.get("id", (String) null);
+		if (id == null || id.isEmpty()) {
+			logger.warn("Missing \"id\" property!");
+			return;
+		}
+
+		// Get sender's nodeID
+		String sender = message.get("sender", (String) null);
+		if (sender == null || sender.isEmpty()) {
+			logger.warn("Missing \"sender\" property!");
+			return;
+		}
+
+		// Create CallingOptions
+		int timeout = message.get("socketTimeout", 0);
+		Tree params = message.get("params");
+
+		// TODO Process other properties:
+		//
+		// Tree meta = message.get("meta");
+		// int level = message.get("level", 1);
+		// boolean metrics = message.get("metrics", false);
+		// String parentID = message.get("parentID", (String) null);
+		// String requestID = message.get("requestID", (String) null);
+
+		CallingOptions.Options opts = CallingOptions.nodeID(nodeID).timeout(timeout);
+		Context ctx = contextFactory.create(action, params, opts, null);
+		
+		// Invoke action
+		try {
+			new Promise(endpoint.handler(ctx)).then(data -> {
+
+				// Send response
+				Tree response = new Tree();
+				response.put("sender", nodeID);
+				response.put("id", id);
+				response.put("ver", ServiceBroker.PROTOCOL_VERSION);
+				response.put("success", true);
+				response.putObject("data", data);
+				transporter.publish(Transporter.PACKET_RESPONSE, sender, response);
+
+			}).catchError(error -> {
+
+				// Send error
+				transporter.publish(Transporter.PACKET_RESPONSE, sender, throwableToTree(id, error));
+
+			});
+		} catch (Throwable error) {
+
+			// Send error
+			transporter.publish(Transporter.PACKET_RESPONSE, sender, throwableToTree(id, error));
+
+		}
 
 	}
 
+	// --- CONVERT THROWABLE TO RESPONSE MESSAGE ---
+	
+	protected Tree throwableToTree(String id, Throwable error) {
+		Tree response = new Tree();
+		response.put("id", id);
+		response.put("ver", ServiceBroker.PROTOCOL_VERSION);
+		response.put("success", false);
+		response.put("data", (String) null);
+		if (error != null) {
+
+			// Add message
+			Tree errorMap = response.putMap("error");
+			errorMap.put("message", error.getMessage());
+
+			// Add trace
+			StringWriter sw = new StringWriter(128);
+			PrintWriter pw = new PrintWriter(sw);
+			error.printStackTrace(pw);
+			errorMap.put("trace", sw.toString());
+
+		}
+		return response;
+	}
+	
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
 
 	@Override
 	public void receiveResponse(Tree message) {
-		// TODO Auto-generated method stub
 
+		// Verify protocol version
+		if (checkVersion) {
+			String ver = message.get("ver", "unknown");
+			if (!ServiceBroker.PROTOCOL_VERSION.equals(ver)) {
+				logger.warn("Invalid protocol version (" + ver + ")!");
+				return;
+			}
+		}
+
+		// Get response's unique ID
+		String id = message.get("id", (String) null);
+		if (id == null || id.isEmpty()) {
+			logger.warn("Missing \"id\" property!", message);
+			return;
+		}
+
+		// Get stored promise
+		PendingPromise pending = promises.remove(id);
+		if (pending == null) {
+			logger.warn("Unknown (maybe timeouted) response received!", message);
+			return;
+		}
+		try {
+
+			// Get response status (successed or not?)
+			boolean success = message.get("success", true);
+			if (success) {
+
+				// Ok -> resolve
+				pending.promise.complete(message.get("data"));
+
+			} else {
+
+				// Failed -> reject
+				Tree error = message.get("error");
+				String errorMessage = null;
+				String trace = null;
+				if (error != null) {
+					errorMessage = error.get("message", (String) null);
+					trace = error.get("trace", (String) null);
+					if (trace != null && !trace.isEmpty()) {
+						logger.error("Remote invaction failed!\r\n" + trace);
+					}
+				}
+				if (errorMessage == null || errorMessage.isEmpty()) {
+					errorMessage = "Unknow error!";
+				}
+				if (trace == null || trace.isEmpty()) {
+					logger.error("Remote invaction failed (unknown error occured)!");
+				}
+				pending.promise.complete(new RemoteException(errorMessage));
+				return;
+			}
+		} catch (Throwable cause) {
+			logger.error("Unable to pass on incoming response!", cause);
+		}
 	}
 
 	// --- ADD MIDDLEWARES ---
@@ -313,7 +504,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			// Start middlewares
 			for (Middleware middleware : newMiddlewares) {
 				try {
-					middleware.start(broker);
+					middleware.started(broker);
 				} catch (Exception cause) {
 					throw new RuntimeException("Unable to start middleware!", cause);
 				}
@@ -337,33 +528,17 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	// --- ADD A LOCAL SERVICE ---
 
 	@Override
-	public void addActions(String name, Service service) {
+	public void addActions(Service service) {
+		
+		// Service name with version
+		String serviceName = service.getName();
+		Class<? extends Service> clazz = service.getClass();
+		Field[] fields = clazz.getFields();
+		
 		writeLock.lock();
 		try {
 
-			// Get version
-			Class<? extends Service> clazz = service.getClass();
-			Version v = clazz.getAnnotation(Version.class);
-			String version = null;
-			if (v != null) {
-				version = v.value();
-				if (version != null) {
-					version = version.trim();
-					if (version.isEmpty()) {
-						version = null;
-					}
-				}
-				if (version != null) {
-					try {
-						Double.parseDouble(version);
-						version = 'v' + version;
-					} catch (Exception ignored) {
-					}
-				}
-			}
-
-			// Initialize actions in services
-			Field[] fields = clazz.getFields();
+			// Initialize actions in service
 			for (Field field : fields) {
 				if (!Action.class.isAssignableFrom(field.getType())) {
 					continue;
@@ -372,8 +547,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				Action action = (Action) field.get(service);
 
 				// Name of the action (eg. "service.action")
-				String prefix = version == null ? name : version + '.' + name;
-				String actionName = nameOf(prefix, field);
+				String actionName = nameOf(serviceName, field);
 
 				Tree actionConfig = new Tree();
 				actionConfig.put("name", actionName);
@@ -437,11 +611,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					endpoint.use(middleware);
 				}
 			}
-			services.put(name, service);
-			service.started();
+			services.put(serviceName, service);
+			service.started(broker);
 
-			// TODO Notify local listeners about the new LOCAL service
-			// broadcastServicesChanged(true);
+			// Notify local listeners about the new LOCAL service
+			broadcastServicesChanged(true);
 
 		} catch (Exception cause) {
 			logger.error("Unable to register local service!", cause);
@@ -454,6 +628,14 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		}
 	}
 
+	// --- NOTIFY OTHER SERVICES ---
+	
+	protected void broadcastServicesChanged(boolean local) {
+		Tree message = new Tree();
+		message.put("localService", true);
+		eventbus.broadcast("$services.changed", message, null, true);
+	}
+	
 	// --- ADD A REMOTE SERVICE ---
 
 	@Override
@@ -481,7 +663,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			}
 
 			// Notify local listeners about the new REMOTE service
-			// broadcastServicesChanged(false);
+			broadcastServicesChanged(false);
 		}
 	}
 
@@ -511,12 +693,12 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				}
 
 				// Notify local listeners (LOCAL services changed)
-				// broadcastServicesChanged(true);
+				broadcastServicesChanged(true);
 
 			} else {
 
 				// Notify local listeners (REMOTE services changed)
-				// broadcastServicesChanged(false);
+				broadcastServicesChanged(false);
 			}
 		} finally {
 			writeLock.unlock();
@@ -601,7 +783,101 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			// Create new descriptor block
 			descriptor = new Tree();
 
-			// TODO ...
+			// Services array
+			Tree services = descriptor.putList("services");
+			Tree servicesMap = new Tree();
+			readLock.lock();
+			try {
+				for (Map.Entry<String, Strategy<ActionEndpoint>> entry : strategies.entrySet()) {
+
+					// Split into parts ("math.add" -> "math" and "add")
+					String name = entry.getKey();
+					int i = name.lastIndexOf('.');
+					String service = name.substring(0, i);
+
+					// Get endpoint
+					ActionEndpoint endpoint = entry.getValue().getEndpoint(nodeID);
+					if (endpoint == null) {
+						continue;
+					}
+
+					// Service block
+					Tree serviceMap = servicesMap.putMap(service, true);
+					serviceMap.put("name", service);
+
+					// TODO Store settings block
+					// serviceMap.putMap("settings");
+
+					// Not used
+					// serviceMap.putMap("metadata");
+
+					// Node ID
+					serviceMap.put("nodeID", nodeID);
+
+					// Action block
+					@SuppressWarnings("unchecked")
+					Map<String, Object> actionBlock = (Map<String, Object>) serviceMap.putMap("actions", true)
+							.asObject();
+					actionBlock.put(name, endpoint.getConfig().asObject());
+
+					// Listener block
+					Tree listeners = eventbus.generateListenerDescriptor(service);
+					if (listeners != null && !listeners.isEmpty()) {
+						serviceMap.putObject("events", listeners);
+					}
+
+					// Not used
+					// actionMap.putMap("params");
+
+				}
+			} finally {
+				readLock.unlock();
+			}
+			for (Tree service : servicesMap) {
+				services.addObject(service);
+			}
+
+			// Host name
+			descriptor.put("hostname", getHostName());
+
+			// IP array
+			Tree ipList = descriptor.putList("ipList");
+			HashSet<String> ips = new HashSet<>();
+			try {
+				InetAddress local = InetAddress.getLocalHost();
+				String defaultAddress = local.getHostAddress();
+				if (!defaultAddress.startsWith("127.")) {
+					ips.add(defaultAddress);
+					ipList.add(defaultAddress);
+				}
+			} catch (Exception ignored) {
+			}
+			try {
+				Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
+				while (e.hasMoreElements()) {
+					NetworkInterface n = (NetworkInterface) e.nextElement();
+					Enumeration<InetAddress> ee = n.getInetAddresses();
+					while (ee.hasMoreElements()) {
+						InetAddress i = (InetAddress) ee.nextElement();
+						if (!i.isLoopbackAddress()) {
+							String test = i.getHostAddress();
+							if (ips.add(test)) {
+								ipList.add(test);
+							}
+						}
+					}
+				}
+			} catch (Exception ignored) {
+			}
+
+			// Client descriptor
+			Tree client = descriptor.putMap("client");
+			client.put("type", "java");
+			client.put("version", ServiceBroker.SOFTWARE_VERSION);
+			client.put("langVersion", System.getProperty("java.version", "1.8"));
+
+			// Config (not used in this version)
+			// root.putMap("config");
 
 			// Set timestamp
 			timestamp.set(System.currentTimeMillis());

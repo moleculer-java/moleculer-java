@@ -33,12 +33,7 @@ package services.moleculer.service;
 
 import java.util.Collection;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
 
 /**
  * Base superclass of all Service Registry implementations.
@@ -46,31 +41,7 @@ import services.moleculer.config.MoleculerComponent;
  * @see DefaultServiceRegistry
  */
 @Name("Service Registry")
-public abstract class ServiceRegistry implements MoleculerComponent {
-
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
-
-	// --- INIT SERVICE REGISTRY ---
-
-	/**
-	 * Initializes ServiceRegistry instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker) throws Exception {
-	}
-
-	// --- STOP SERVICE REGISTRY ---
-
-	@Override
-	public void stop() {
-	}
+public abstract class ServiceRegistry extends Service {
 
 	// --- RECEIVE REQUEST FROM REMOTE SERVICE ---
 
@@ -86,7 +57,7 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 	
 	// --- ADD ACTION OF A LOCAL SERVICE ---
 
-	public abstract void addActions(String name, Service service);
+	public abstract void addActions(Service service);
 
 	// --- ADD ACTIONS OF A REMOTE SERVICE ---
 

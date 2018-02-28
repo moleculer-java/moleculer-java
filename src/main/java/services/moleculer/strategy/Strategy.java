@@ -33,9 +33,6 @@ package services.moleculer.strategy;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
@@ -44,10 +41,6 @@ import services.moleculer.service.Name;
  */
 @Name("Strategy")
 public abstract class Strategy<T extends Endpoint> {
-
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
 	// --- ADD A LOCAL OR REMOTE ENDPOINT ---
 

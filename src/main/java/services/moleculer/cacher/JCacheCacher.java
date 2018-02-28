@@ -133,14 +133,15 @@ public class JCacheCacher extends DistributedCacher {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker) throws Exception {
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
 	}
 
 	// --- STOP CACHER ---
 
 	@Override
-	public void stop() {
+	public void stopped() {
 
 		// Close the cache manager
 		if (cacheManager != null) {

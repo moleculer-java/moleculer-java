@@ -64,7 +64,8 @@ public class IncrementalUIDGenerator extends UIDGenerator {
 	 *            parent ServiceBroker
 	 */
 	@Override
-	public void start(ServiceBroker broker) throws Exception {
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 		if (prefix == null) {
 			prefix = (broker.getNodeID() + ':').toCharArray();
 		}

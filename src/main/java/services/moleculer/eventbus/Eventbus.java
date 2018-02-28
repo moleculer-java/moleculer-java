@@ -31,14 +31,9 @@
  */
 package services.moleculer.eventbus;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.lambdaworks.redis.event.DefaultEventBus;
 
 import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 
@@ -48,29 +43,7 @@ import services.moleculer.service.Service;
  * @see DefaultEventBus
  */
 @Name("Event Bus")
-public abstract class Eventbus implements MoleculerComponent {
-
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
-
-	// --- START EVENT BUS ---
-
-	/**
-	 * Initializes internal EventBus instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 */
-	@Override
-	public void start(ServiceBroker broker) throws Exception {
-	}
-
-	// --- STOP EVENT BUS ---
-
-	@Override
-	public void stop() {
-	}
+public abstract class Eventbus extends Service {
 
 	// --- RECEIVE EVENT FROM REMOTE SERVICE ---
 
@@ -78,7 +51,7 @@ public abstract class Eventbus implements MoleculerComponent {
 
 	// --- ADD LISTENERS OF A LOCAL SERVICE ---
 
-	public abstract void addListeners(String name, Service service) throws Exception;
+	public abstract void addListeners(Service service) throws Exception;
 
 	// --- ADD LISTENERS OF A REMOTE SERVICE ---
 

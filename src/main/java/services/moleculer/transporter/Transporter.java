@@ -45,13 +45,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.Context;
 import services.moleculer.eventbus.Eventbus;
@@ -59,6 +55,7 @@ import services.moleculer.monitor.Monitor;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
 import services.moleculer.service.Name;
+import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.transporter.tcp.NodeDescriptor;
 import services.moleculer.transporter.tcp.RemoteAddress;
@@ -74,7 +71,7 @@ import services.moleculer.transporter.tcp.RemoteAddress;
  * @see GoogleTransporter
  */
 @Name("Transporter")
-public abstract class Transporter implements MoleculerComponent {
+public abstract class Transporter extends Service {
 
 	// --- CHANNEL NAMES / PACKET TYPES ---
 
@@ -102,10 +99,6 @@ public abstract class Transporter implements MoleculerComponent {
 	public String pingBroadcastChannel;
 	public String pingChannel;
 	public String pongChannel;
-
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
 	// --- PROPERTIES ---
 
@@ -148,11 +141,10 @@ public abstract class Transporter implements MoleculerComponent {
 	// --- CONSTUCTORS ---
 
 	public Transporter() {
-		this(null);
 	}
 
 	public Transporter(Serializer serializer) {
-		this.serializer = serializer;
+		this.serializer = Objects.requireNonNull(serializer);
 	}
 
 	// --- START TRANSPORTER ---
@@ -166,7 +158,8 @@ public abstract class Transporter implements MoleculerComponent {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker) throws Exception {
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 
 		// Process config
 		namespace = broker.getConfig().getNamespace();
@@ -285,7 +278,7 @@ public abstract class Transporter implements MoleculerComponent {
 	 * Closes transporter.
 	 */
 	@Override
-	public void stop() {
+	public void stopped() {
 
 		// Send "disconnected" packet
 		sendDisconnectPacket();
@@ -456,7 +449,7 @@ public abstract class Transporter implements MoleculerComponent {
 							registry.removeActions(sender);
 							eventbus.removeListeners(sender);
 							disconnected = true;
-							
+
 						}
 					} finally {
 						node.writeLock.unlock();
@@ -714,7 +707,7 @@ public abstract class Transporter implements MoleculerComponent {
 		NodeDescriptor node = nodes.get(nodeID);
 		return node == null ? 0 : node.cpuWhen;
 	}
-	
+
 	// --- IS NODE ONLINE? ---
 
 	public boolean isOnline(String nodeID) {
@@ -772,7 +765,7 @@ public abstract class Transporter implements MoleculerComponent {
 		}
 		RemoteAddress address;
 		node.readLock.lock();
-		try {			
+		try {
 			address = new RemoteAddress(node.host, node.port);
 		} finally {
 			node.readLock.unlock();

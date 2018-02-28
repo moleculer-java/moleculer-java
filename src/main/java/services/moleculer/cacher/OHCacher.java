@@ -201,7 +201,8 @@ public class OHCacher extends Cacher {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker) throws Exception {
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
 
 		// Create cache
@@ -239,7 +240,7 @@ public class OHCacher extends Cacher {
 	// --- CLOSE CACHE INSTANCE ---
 
 	@Override
-	public void stop() {
+	public void stopped() {
 		if (cache != null) {
 			try {
 				cache.close();

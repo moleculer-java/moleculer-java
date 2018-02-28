@@ -2,6 +2,7 @@ package services.moleculer.test;
 
 import org.springframework.stereotype.Component;
 
+import services.moleculer.ServiceBroker;
 import services.moleculer.cacher.Cache;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
@@ -17,17 +18,10 @@ import services.moleculer.service.Version;
 @Dependencies({"service1", "service2"})
 public class TestService extends Service {
 
-	// --- SERVICE INSTANCE CREATED ---
-	
-	@Override
-	public void created() throws Exception {
-		System.out.println("CREATED");
-	}
-
 	// --- SERVICE STARTED AND PUBLISHED ---
 	
 	@Override
-	public void started() throws Exception {
+	public void started(ServiceBroker broker) throws Exception {
 		System.out.println("STARTED");
 	}
 	

@@ -217,10 +217,10 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 	 * Closes transporter.
 	 */
 	@Override
-	public void stop() {
-
+	public void stopped() {
+		
 		// Stop timers
-		super.stop();
+		super.stopped();
 
 		// Disconnect
 		disconnect();

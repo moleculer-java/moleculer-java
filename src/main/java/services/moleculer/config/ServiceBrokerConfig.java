@@ -16,6 +16,7 @@ import services.moleculer.eventbus.DefaultEventbus;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.monitor.Monitor;
+import services.moleculer.repl.Repl;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.RoundRobinStrategyFactory;
@@ -66,8 +67,9 @@ public class ServiceBrokerConfig {
 	protected ServiceRegistry serviceRegistry = new DefaultServiceRegistry();
 	protected Cacher cacher = new MemoryCacher();
 	
-	protected Transporter transporter;	
+	protected Transporter transporter;
 	protected Monitor monitor; 
+	protected Repl repl;
 	
 	// --- INSTALL JS PARSER ---
 
@@ -90,7 +92,9 @@ public class ServiceBrokerConfig {
 		try {
 			Class<?> c = ServiceBrokerConfig.class.getClassLoader()
 					.loadClass("services.moleculer.monitor." + type + "Monitor");
-			return (Monitor) c.newInstance();
+			Monitor monitor = (Monitor) c.newInstance();
+			monitor.getPID();
+			return monitor;
 		} catch (Throwable ignored) {
 		}
 		return null;
@@ -239,6 +243,14 @@ public class ServiceBrokerConfig {
 
 	public void setTransporter(Transporter transporter) {
 		this.transporter = transporter;
+	}
+
+	public Repl getRepl() {
+		return repl;
+	}
+
+	public void setRepl(Repl repl) {
+		this.repl = repl;
 	}	
 	
 }

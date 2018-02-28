@@ -1,7 +1,5 @@
 package services.moleculer.config;
 
-import static services.moleculer.util.CommonUtils.nameOf;
-
 import java.util.Map;
 
 import org.springframework.beans.BeansException;
@@ -35,7 +33,7 @@ public class SpringLoader implements ApplicationContextAware {
 		// Find Services in Spring Application Context
 		Map<String, Service> serviceMap = ctx.getBeansOfType(Service.class);
 		for (Service service : serviceMap.values()) {
-			broker.createService(nameOf(service, false), service);
+			broker.createService(service);
 		}
 		
 	}

@@ -31,13 +31,9 @@
  */
 package services.moleculer.strategy;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
 import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
+import services.moleculer.service.Service;
 
 /**
  * Base class of Invocation Strategies. An Invocation Strategy is a
@@ -59,31 +55,7 @@ import services.moleculer.service.Name;
  * @see CpuUsageStrategyFactory
  */
 @Name("Strategy Factory")
-public abstract class StrategyFactory implements MoleculerComponent {
-
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
-	
-	// --- START STRATEGY FACTORY ---
-
-	/**
-	 * Initializes Invocation Strategy Factory instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker) throws Exception {
-	}
-
-	// --- STOP STRATEGY FACTORY ---
-
-	@Override
-	public void stop() {
-	}
+public abstract class StrategyFactory extends Service {
 
 	// --- FACTORY METHOD ---
 

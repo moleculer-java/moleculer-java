@@ -33,9 +33,6 @@ package services.moleculer.cacher;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.context.Context;
@@ -52,10 +49,6 @@ import services.moleculer.service.Name;
  */
 @Name("Cacher")
 public abstract class Cacher extends Middleware {
-
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
 	// --- ADD MIDDLEWARE TO ACTION ---
 

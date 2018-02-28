@@ -4,21 +4,22 @@ import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.parseParams;
 
 import java.util.Arrays;
-import java.util.LinkedHashMap;
+import java.util.Collection;
 import java.util.LinkedHashSet;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
 import services.moleculer.cacher.Cacher;
-import services.moleculer.config.MoleculerComponent;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.Eventbus;
+import services.moleculer.eventbus.Groups;
+import services.moleculer.internal.NodeService;
+import services.moleculer.repl.Repl;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.Service;
@@ -58,7 +59,7 @@ public class ServiceBroker {
 	/**
 	 * Services which defined and added to the Broker before the boot process.
 	 */
-	protected final LinkedHashMap<String, Service> services = new LinkedHashMap<>();
+	protected final LinkedHashSet<Service> services = new LinkedHashSet<>();
 
 	// --- ENQUED MIDDLEWARES ---
 
@@ -77,7 +78,8 @@ public class ServiceBroker {
 	protected Cacher cacher;
 	protected ServiceRegistry serviceRegistry;
 	protected Transporter transporter;
-
+	protected Repl repl;
+	
 	// --- CONSTRUCTORS ---
 
 	public ServiceBroker(ServiceBrokerConfig config) {
@@ -127,16 +129,19 @@ public class ServiceBroker {
 			}
 			serviceRegistry.use(middlewares);
 
+			// Install internal services
+			if (config.isInternalServices()) {
+				services.add(new NodeService());
+			}
+			
 			// Register and start enqued services and listeners
-			for (Map.Entry<String, Service> entry : services.entrySet()) {
-				String name = entry.getKey();
-				Service service = entry.getValue();
+			for (Service service : services) {
 
 				// Register actions
-				serviceRegistry.addActions(name, service);
+				serviceRegistry.addActions(service);
 
 				// Register listeners
-				eventbus.addListeners(name, service);
+				eventbus.addListeners(service);
 			}
 
 			// Start transporter's connection loop
@@ -146,6 +151,9 @@ public class ServiceBroker {
 
 			logger.info("Node \"" + getNodeID() + "\" started successfully.");
 
+			// Start repl console
+			repl = start(config.getRepl());
+			
 		} catch (Throwable cause) {
 			logger.error("Moleculer Service Broker could not be started!", cause);
 			stop();
@@ -155,11 +163,11 @@ public class ServiceBroker {
 		}
 	}
 
-	protected <TYPE extends MoleculerComponent> TYPE start(TYPE component) throws Exception {
+	protected <TYPE extends Service> TYPE start(TYPE component) throws Exception {
 		if (component == null) {
 			return null;
 		}
-		component.start(this);
+		component.started(this);
 		logger.info(nameOf(component, true) + " started.");
 		return component;
 	}
@@ -173,6 +181,7 @@ public class ServiceBroker {
 	public void stop() {
 
 		// Stop internal components
+		stop(repl);
 		stop(serviceRegistry);
 		stop(eventbus);
 		stop(contextFactory);
@@ -180,12 +189,12 @@ public class ServiceBroker {
 		stop(uidGenerator);
 	}
 
-	protected void stop(MoleculerComponent component) {
+	protected void stop(Service component) {
 		if (component == null) {
 			return;
 		}
 		try {
-			component.stop();
+			component.stopped();
 			logger.info(nameOf(component, true) + " stopped.");
 		} catch (Exception cause) {
 			logger.warn("Unable to stop component!", cause);
@@ -209,18 +218,14 @@ public class ServiceBroker {
 	// --- ADD LOCAL SERVICE ---
 
 	public void createService(Service service) {
-		createService(nameOf(service, false), service);
-	}
-
-	public void createService(String name, Service service) {
 		if (serviceRegistry == null) {
 
 			// Start service later
-			services.put(name, service);
+			services.add(service);
 		} else {
 
 			// Start service now
-			serviceRegistry.addActions(name, service);
+			serviceRegistry.addActions(service);
 		}
 	}
 
@@ -238,18 +243,20 @@ public class ServiceBroker {
 
 	// --- ADD MIDDLEWARE ---
 
-	public void use(Middleware... middlewares) {
+	public void use(Collection<Middleware> middlewares) {
 		if (serviceRegistry == null) {
 
 			// Apply middlewares later
-			for (Middleware middleware : middlewares) {
-				this.middlewares.add(middleware);
-			}
+			this.middlewares.addAll(middlewares);
 		} else {
 
 			// Apply middlewares now
-			serviceRegistry.use(Arrays.asList(middlewares));
+			serviceRegistry.use(middlewares);
 		}
+	}
+	
+	public void use(Middleware... middlewares) {
+		use(Arrays.asList(middlewares));
 	}
 
 	// --- GET LOCAL OR REMOTE ACTION ---
@@ -308,4 +315,76 @@ public class ServiceBroker {
 		});
 	}
 
+	// --- EMIT EVENT TO EVENT GROUP ---
+
+	/**
+	 * Emits an event (grouped & balanced global event)
+	 */
+	public void emit(String name, Object... params) {
+		ParseResult res = parseParams(params);
+		eventbus.emit(name, res.data, res.groups, false);
+	}
+	
+	/**
+	 * Emits an event (grouped & balanced global event)
+	 */
+	public void emit(String name, Tree payload, Groups groups) {
+		eventbus.emit(name, payload, groups, false);
+	}
+
+	/**
+	 * Emits an event (grouped & balanced global event)
+	 */
+	public void emit(String name, Tree payload) {
+		eventbus.emit(name, payload, null, false);
+	}
+	
+	// --- BROADCAST EVENT TO ALL LISTENERS ---
+	
+	/**
+	 * Emits an event for all local & remote services
+	 */
+	public void broadcast(String name, Object... params) {
+		ParseResult res = parseParams(params);
+		eventbus.broadcast(name, res.data, res.groups, false);
+	}
+	
+	/**
+	 * Emits an event for all local & remote services
+	 */
+	public void broadcast(String name, Tree payload, Groups groups) {
+		eventbus.broadcast(name, payload, groups, false);
+	}
+
+	/**
+	 * Emits an event for all local & remote services
+	 */
+	public void broadcast(String name, Tree payload) {
+		eventbus.broadcast(name, payload, null, false);
+	}
+	
+	// --- BROADCAST EVENT TO LOCAL LISTENERS ---
+	
+	/**
+	 * Emits an event for all local services.
+	 */
+	public void broadcastLocal(String name, Object... params) {
+		ParseResult res = parseParams(params);
+		eventbus.broadcast(name, res.data, res.groups, true);
+	}
+	
+	/**
+	 * Emits an event for all local services.
+	 */
+	public void broadcastLocal(String name, Tree payload, Groups groups) {
+		eventbus.broadcast(name, payload, groups, true);
+	}
+
+	/**
+	 * Emits an event for all local services.
+	 */
+	public void broadcastLocal(String name, Tree payload) {
+		eventbus.broadcast(name, payload, null, true);
+	}
+	
 }
