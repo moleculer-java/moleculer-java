@@ -33,13 +33,19 @@ package services.moleculer.web.router;
 
 import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallingOptions;
+import services.moleculer.context.Context;
+import services.moleculer.context.ContextFactory;
+import services.moleculer.service.Action;
+import services.moleculer.service.Middleware;
 
-public class Mapping {
+public class Mapping implements HttpConstants {
 
 	// --- PARENT BROKER ---
 
@@ -59,6 +65,8 @@ public class Mapping {
 
 	protected final int hashCode;
 
+	protected final ContextFactory contextFactory;
+
 	// --- CONSTRUCTOR ---
 
 	public Mapping(ServiceBroker broker, String pathPattern, String actionName, CallingOptions.Options opts) {
@@ -66,6 +74,7 @@ public class Mapping {
 		this.pathPattern = pathPattern;
 		this.actionName = actionName;
 		this.opts = opts;
+		this.contextFactory = broker.getConfig().getContextFactory();
 
 		// Parse "path pattern"
 		isStatic = pathPattern.indexOf(':') == -1;
@@ -135,7 +144,7 @@ public class Mapping {
 
 	// --- REQUEST PROCESSOR ---
 
-	public Promise processRequest(String path, Tree headers, String query, byte[] body) {
+	public Promise processRequest(String httpMethod, String path, Tree headers, String query, byte[] body) {
 		try {
 
 			// Parse request
@@ -151,7 +160,7 @@ public class Mapping {
 					params = new Tree(body);
 				}
 				if (query != null) {
-					
+
 					// URL-encoded Query String
 					if (params == null) {
 						params = new Tree();
@@ -174,11 +183,61 @@ public class Mapping {
 				}
 			}
 
+			// Set path
+			Tree meta = params.getMeta();
+			meta.put(METHOD, httpMethod);
+			meta.put(PATH, path);
+			meta.put(PATTERN, pathPattern);
+			
+			// Copy headers
+			if (headers != null && !headers.isEmpty()) {
+				meta.putObject(HEADERS, headers.asObject());
+			}
+			
 			// Call action
-			return broker.call(actionName, params, opts);
+			if (current == brokerAction) {
+				return broker.call(actionName, params, opts);
+			}
+			return new Promise(current.handler(contextFactory.create(actionName, params, opts, null)));
 
 		} catch (Throwable cause) {
 			return Promise.reject(cause);
+		}
+	}
+
+	// --- ACTION WITH MIDDLEWARES ---
+
+	protected HashSet<Middleware> checkedMiddlewares = new HashSet<>(32);
+
+	protected final Action brokerAction = new Action() {
+
+		@Override
+		public Object handler(Context ctx) throws Exception {
+			return broker.call(ctx.name, ctx.params, ctx.opts);
+		}
+
+	};
+
+	protected Action current = brokerAction;
+
+	public void use(Collection<Middleware> middlewares) {
+		Tree config = new Tree();
+		config.put("action", actionName);
+		config.put("pattern", pathPattern);
+		config.put("static", isStatic);
+		config.put("prefix", pathPrefix);
+		if (opts != null) {
+			config.put("nodeID", opts.nodeID);
+			config.put("retryCount", opts.retryCount);
+			config.put("timeout", opts.timeout);
+		}
+		for (Middleware middleware : middlewares) {
+			if (checkedMiddlewares.add(middleware)) {
+				Action action = middleware.install(current, config);
+				if (action != null) {
+					current = action;
+				}
+			}
 		}
 	}
 

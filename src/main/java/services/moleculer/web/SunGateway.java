@@ -1,7 +1,7 @@
 package services.moleculer.web;
 
-import static services.moleculer.util.CommonUtils.readFully;
 import static services.moleculer.util.CommonUtils.getHostName;
+import static services.moleculer.util.CommonUtils.readFully;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,6 +23,9 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
+/**
+ * API Gateway, based on the "com.sun.net.httpserver" package.
+ */
 @Name("Sun HTTP Server API Gateway")
 @SuppressWarnings("restriction")
 public class SunGateway extends ApiGateway implements HttpHandler {
@@ -155,24 +158,28 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 					responseHeaders.set(RSP_CONTENT_TYPE, CONTENT_TYPE_JSON);
 				}
 			}
-
+			boolean hasBody = body != null && body.length > 0;
+			
 			// Write HTTP headers
-			exchange.sendResponseHeaders(status, body == null ? 0 : body.length);
+			exchange.sendResponseHeaders(status, hasBody ? body.length : -1);
 
 			// Write body
-			OutputStream out = exchange.getResponseBody();
-			if (body != null) {
+			if (hasBody) {
+				OutputStream out = exchange.getResponseBody();
 				out.write(body);
 
 				// Flush response
 				out.flush();
 			}
+		} catch (Throwable cause) {
+			if (String.valueOf(cause).toLowerCase().contains("closed")) {
+				return;
+			}
+			logger.warn("Unable to send HTTP response!", cause);
+		} finally {
 			
 			// Close exchange
 			exchange.close();
-			
-		} catch (Throwable cause) {
-			logger.warn("Unable to send HTTP response!", cause);
 		}
 	}
 

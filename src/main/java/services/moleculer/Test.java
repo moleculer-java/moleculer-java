@@ -1,7 +1,6 @@
 package services.moleculer;
 
 import io.datatree.Tree;
-import services.moleculer.cacher.Cache;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
@@ -16,6 +15,7 @@ import services.moleculer.service.Version;
 import services.moleculer.transporter.RedisTransporter;
 import services.moleculer.web.ApiGateway;
 import services.moleculer.web.SunGateway;
+import services.moleculer.web.middleware.CorsHeaders;
 import services.moleculer.web.router.Alias;
 import services.moleculer.web.router.MappingPolicy;
 import services.moleculer.web.router.Route;
@@ -45,13 +45,16 @@ public class Test {
 			Alias[] aliases = new Alias[1];
 			aliases[0] = new Alias("GET", "/add", "math.add");
 			
-			Route r = new Route(broker, path, policy, opts, whitelist, aliases);
+			Route r = new Route(gateway, path, policy, opts, whitelist, aliases);
+			r.use(new CorsHeaders());
 			gateway.setRoutes(new Route[]{r});
+			
+			gateway.addStaticRoute("/static", "C:/test-eclipse/workspace/datatree/build/docs/javadoc");
 			
 			broker.createService(new Service("math") {
 
 				@Name("add")
-				@Cache(keys = { "a", "b" }, ttl = 30)
+				//@Cache(keys = { "a", "b" }, ttl = 30)
 				public Action add = ctx -> {
 
 					//broker.getLogger().info("Call " + ctx.params);

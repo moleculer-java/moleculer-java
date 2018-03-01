@@ -92,6 +92,14 @@ public interface HttpConstants {
 	public static final String KEEP_ALIVE = "keep-alive";
 	public static final String CLOSE = "close";
 
+	// --- META VARIABLES ---
+	
+	public static final String STATUS = "status";
+	public static final String PATH = "path";	
+	public static final String METHOD = "method";
+	public static final String PATTERN = "pattern";
+	public static final String HEADERS = "headers";
+	
 	// --- CONTENT TYPES ---
 	
 	public static final String CONTENT_TYPE_JSON = "application/json;charset=utf-8";

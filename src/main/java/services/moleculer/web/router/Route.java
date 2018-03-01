@@ -31,15 +31,20 @@
  */
 package services.moleculer.web.router;
 
-import services.moleculer.ServiceBroker;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+
 import services.moleculer.context.CallingOptions;
 import services.moleculer.eventbus.Matcher;
+import services.moleculer.service.Middleware;
+import services.moleculer.web.ApiGateway;
 
 public class Route {
 
-	// --- PARENT BROKER ---
+	// --- PARENT GATEWAY ---
 
-	protected final ServiceBroker broker;
+	protected final ApiGateway gateway;
 
 	// --- PROPERTIES ---
 
@@ -51,9 +56,9 @@ public class Route {
 
 	// --- CONSTRUCTOR ---
 
-	public Route(ServiceBroker broker, String path, MappingPolicy mappingPolicy, CallingOptions.Options opts,
+	public Route(ApiGateway gateway, String path, MappingPolicy mappingPolicy, CallingOptions.Options opts,
 			String[] whitelist, Alias[] aliases) {
-		this.broker = broker;
+		this.gateway = gateway;
 		this.path = path;
 		this.mappingPolicy = mappingPolicy;
 		this.opts = opts;
@@ -64,34 +69,73 @@ public class Route {
 	// --- REQUEST PROCESSOR ---
 
 	public Mapping findMapping(String httpMethod, String path) {
+		if (this.path != null && !this.path.isEmpty()) {
+			if (!path.startsWith(this.path)) {
+				return null;
+			}
+		}
+		String shortPath = path.substring(this.path.length());
 		if (aliases != null && aliases.length > 0) {
 			for (Alias alias : aliases) {
 				if ("ALL".equals(alias.httpMethod) || httpMethod.equals(alias.httpMethod)) {
-					Mapping mapping = new Mapping(broker, this.path + alias.pathPattern, alias.actionName, opts);
+					Mapping mapping = new Mapping(gateway.getBroker(), this.path + alias.pathPattern, alias.actionName,
+							opts);
 					if (mapping.matches(path)) {
+						if (!checkedMiddlewares.isEmpty()) {
+							mapping.use(checkedMiddlewares);
+						}
 						return mapping;
 					}
 				}
 			}
 		}
-		String actionName = path.substring(1).replace('/', '.').replace('~', '$');
+		String actionName = shortPath.replace('/', '.').replace('~', '$');
+		if (actionName.startsWith(".")) {
+			actionName = actionName.substring(1);
+		}
 		if (whitelist != null && whitelist.length > 0) {
-			for (String pattern: whitelist) {
-				if (Matcher.matches(path, pattern)) {
-					return new Mapping(broker, this.path + pattern, actionName, opts);
+			for (String pattern : whitelist) {
+				if (Matcher.matches(shortPath, pattern)) {
+					Mapping mapping = new Mapping(gateway.getBroker(), this.path + pattern, actionName, opts);
+					if (!checkedMiddlewares.isEmpty()) {
+						mapping.use(checkedMiddlewares);
+					}
+					return mapping;
 				}
 			}
 		}
 		if (mappingPolicy == MappingPolicy.ALL) {
-			return new Mapping(broker, this.path + path, actionName, opts);
+			String pattern;
+			if (this.path == null || this.path.isEmpty()) {
+				pattern = path;
+			} else {
+				pattern = this.path + '*';
+			}
+			Mapping mapping = new Mapping(gateway.getBroker(), pattern, actionName, opts);
+			if (!checkedMiddlewares.isEmpty()) {
+				mapping.use(checkedMiddlewares);
+			}
+			return mapping;
 		}
 		return null;
 	}
 
+	// --- GLOBAL MIDDLEWARES ---
+
+	protected HashSet<Middleware> checkedMiddlewares = new HashSet<>(32);
+
+	public void use(Middleware... middlewares) {
+		use(Arrays.asList(middlewares));
+	}
+
+	public void use(Collection<Middleware> middlewares) {
+		checkedMiddlewares.addAll(middlewares);
+	}
+
 	// --- PROPERTY GETTERS ---
 
-	public ServiceBroker getBroker() {
-		return broker;
+	public ApiGateway getApiGateway() {
+		return gateway;
 	}
 
 	public String getPath() {

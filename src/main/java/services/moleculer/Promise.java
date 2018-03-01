@@ -40,14 +40,46 @@ import io.datatree.Tree;
 import services.moleculer.util.CheckedTree;
 
 /**
- * ES6-like Promise based on the Java8's CompletableFuture API. A Promise is an
+ * ES6-like Promise, based on the Java8's CompletableFuture API. A Promise is an
  * object that may produce a single value some time in the future: either a
  * resolved value, or a reason that it's not resolved (e.g., a network error
  * occurred). Promise users can attach callbacks to handle the fulfilled value
- * or the reason for rejection.
+ * or the reason for rejection. Sample waterfall processing:<br>
+ * <br>
+ * Promise.resolve().then(in -> {<br>
+ * <br>
+ * Tree out = new Tree();<br>
+ * out.put("a", 1);<br>
+ * out.put("b", 2);<br>
+ * return out;<br>
+ * <br>
+ * }).then(in -> {<br>
+ * <br>
+ * int a = in.get("a", -1);<br>
+ * int b = in.get("b", -1);<br>
+ * return a + b;<br>
+ * <br>
+ * }).then(in -> {<br>
+ * <br>
+ * int sub = in.asInteger();<br>
+ * // You can return an another Promise<br>
+ * return Promise.resolve("OK!");<br>
+ * <br>
+ * }).then(in -> {<br>
+ * <br>
+ * if (!"OK".equals(in.asString()) {<br>
+ * throw new Exception("Invalid value!");<br>
+ * <br>
+ * }<br>
+ * }).catchError(err -> {<br>
+ * <br>
+ * System.out.println("Error: " + err);<br>
+ * return "foo";<br>
+ * <br>
+ * });
  */
 public class Promise {
-	
+
 	// --- INTERNAL COMPLETABLE FUTURE ---
 
 	/**
@@ -129,7 +161,7 @@ public class Promise {
 	public Promise(Initializer initializer) {
 		future = new CompletableFuture<>();
 		try {
-			initializer.init(new Resolver(future));			
+			initializer.init(new Resolver(future));
 		} catch (Throwable cause) {
 			future.completeExceptionally(cause);
 		}
@@ -185,7 +217,7 @@ public class Promise {
 				return error;
 			}
 			try {
-				return action.apply(data);				
+				return action.apply(data);
 			} catch (Throwable cause) {
 				return cause;
 			}
@@ -212,7 +244,7 @@ public class Promise {
 				return error;
 			}
 			try {
-				action.accept(data);				
+				action.accept(data);
 			} catch (Throwable cause) {
 				return cause;
 			}
@@ -223,8 +255,8 @@ public class Promise {
 	// --- ERROR HANDLER METHODS ---
 
 	/**
-	 * The catchError() method returns a Promise and deals with rejected cases only.
-	 * Sample:<br>
+	 * The catchError() method returns a Promise and deals with rejected cases
+	 * only. Sample:<br>
 	 * <br>
 	 * Promise.resolve().then(() -> {<br>
 	 * <i>// do something</i><br>
@@ -246,7 +278,7 @@ public class Promise {
 		return new Promise(future.handle((data, error) -> {
 			if (error != null) {
 				try {
-					return action.apply(error);				
+					return action.apply(error);
 				} catch (Throwable cause) {
 					return cause;
 				}
@@ -256,8 +288,8 @@ public class Promise {
 	}
 
 	/**
-	 * The catchError() method returns a Promise and deals with rejected cases only.
-	 * Sample:<br>
+	 * The catchError() method returns a Promise and deals with rejected cases
+	 * only. Sample:<br>
 	 * <br>
 	 * Promise.resolve().then(() -> {<br>
 	 * <i>// do something</i><br>
@@ -275,7 +307,7 @@ public class Promise {
 		return new Promise(future.handle((data, error) -> {
 			if (error != null) {
 				try {
-					action.accept(error);				
+					action.accept(error);
 				} catch (Throwable cause) {
 					return cause;
 				}
@@ -543,7 +575,7 @@ public class Promise {
 		if (object instanceof Map) {
 			return new Tree((Map<String, Object>) object);
 		}
-		if (object instanceof Collection) {			
+		if (object instanceof Collection) {
 			return new Tree((Collection<Object>) object);
 		}
 		return new Tree().setObject(object);
@@ -599,27 +631,29 @@ public class Promise {
 
 	@FunctionalInterface
 	public static interface CheckedConsumer<IN> {
-		
-	    /**
-	     * Performs this operation on the given argument.
-	     *
-	     * @param t the input argument
-	     */
-	    void accept(IN in) throws Throwable;
-		
+
+		/**
+		 * Performs this operation on the given argument.
+		 *
+		 * @param t
+		 *            the input argument
+		 */
+		void accept(IN in) throws Throwable;
+
 	}
 
 	@FunctionalInterface
 	public static interface CheckedFunction<IN> {
-		
-	    /**
-	     * Applies this function to the given argument.
-	     *
-	     * @param t the function argument
-	     * @return the function result
-	     */
+
+		/**
+		 * Applies this function to the given argument.
+		 *
+		 * @param t
+		 *            the function argument
+		 * @return the function result
+		 */
 		Object apply(IN in) throws Throwable;
-		
+
 	}
-		
+
 }

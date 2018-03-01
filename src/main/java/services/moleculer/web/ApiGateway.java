@@ -31,8 +31,12 @@
  */
 package services.moleculer.web;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -40,14 +44,22 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
+import services.moleculer.service.Middleware;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.transporter.Transporter;
+import services.moleculer.web.middleware.StaticFiles;
 import services.moleculer.web.router.HttpConstants;
 import services.moleculer.web.router.Mapping;
+import services.moleculer.web.router.MappingPolicy;
 import services.moleculer.web.router.Route;
 
+/**
+ * Base superclass of all Moleculer Web Server ("API Gateway") implementations.
+ *
+ * @see SunGateway
+ */
 @Name("API Gateway")
 public abstract class ApiGateway extends Service implements HttpConstants {
 
@@ -64,7 +76,7 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 
 	protected int cachedRoutes = 1024;
 
-	protected final LinkedHashMap<String, Mapping> staticMappings = new LinkedHashMap<>();
+	protected LinkedHashMap<String, Mapping> staticMappings;
 	protected final LinkedList<Mapping> dynamicMappings = new LinkedList<>();
 
 	// --- LOCKS ---
@@ -72,8 +84,6 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 	protected final Lock readLock;
 	protected final Lock writeLock;
 
-	// --- REQUEST HANDLERS ---
-	
 	// --- CONSTRUCTOR ---
 
 	public ApiGateway() {
@@ -97,6 +107,18 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 	@Override
 	public void started(ServiceBroker broker) throws Exception {
 		super.started(broker);
+		staticMappings = new LinkedHashMap<String, Mapping>(64) {
+
+			private static final long serialVersionUID = 2994447707758047152L;
+
+			protected final boolean removeEldestEntry(Map.Entry<String, Mapping> entry) {
+				if (this.size() > cachedRoutes) {
+					return true;
+				}
+				return false;
+			};
+
+		};
 		this.registry = broker.getConfig().getServiceRegistry();
 		this.transporter = broker.getConfig().getTransporter();
 	}
@@ -109,6 +131,12 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 	@Override
 	public void stopped() {
 		setRoutes(new Route[0]);
+		writeLock.lock();
+		try {
+			checkedMiddlewares.clear();
+		} finally {
+			writeLock.unlock();
+		}
 		logger.info("HTTP server stopped.");
 	}
 
@@ -138,7 +166,7 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 
 			// Invoke mapping
 			if (mapping != null) {
-				Promise response = mapping.processRequest(path, headers, query, body);
+				Promise response = mapping.processRequest(httpMethod, path, headers, query, body);
 				if (response != null) {
 					return response;
 				}
@@ -148,6 +176,9 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 			for (Route route : routes) {
 				mapping = route.findMapping(httpMethod, path);
 				if (mapping != null) {
+					if (!checkedMiddlewares.isEmpty()) {
+						mapping.use(checkedMiddlewares);
+					}
 					break;
 				}
 			}
@@ -172,7 +203,7 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 					writeLock.unlock();
 				}
 
-				Promise response = mapping.processRequest(path, headers, query, body);
+				Promise response = mapping.processRequest(httpMethod, path, headers, query, body);
 				if (response != null) {
 					return response;
 				}
@@ -183,12 +214,69 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 			notFound.getMeta().put("response.status", 404);
 			notFound.put("message", "Not Found: " + path);
 			return Promise.resolve(notFound);
-			
+
 		} catch (Throwable cause) {
+			logger.error("Unable to process request!", cause);
 			return Promise.reject(cause);
 		}
 	}
 
+	// --- GLOBAL MIDDLEWARES ---
+
+	protected HashSet<Middleware> checkedMiddlewares = new HashSet<>(32);
+
+	public void use(Middleware... middlewares) {
+		use(Arrays.asList(middlewares));
+	}
+
+	public void use(Collection<Middleware> middlewares) {
+		LinkedList<Middleware> newMiddlewares = new LinkedList<>();
+		for (Middleware middleware : middlewares) {
+			if (checkedMiddlewares.add(middleware)) {
+				newMiddlewares.addLast(middleware);
+			}
+		}
+		if (!newMiddlewares.isEmpty()) {
+			readLock.lock();
+			try {
+				if (staticMappings != null) {
+					for (Mapping mapping : staticMappings.values()) {
+						mapping.use(newMiddlewares);
+					}
+				}
+				for (Mapping mapping : dynamicMappings) {
+					mapping.use(newMiddlewares);
+				}
+			} finally {
+				readLock.unlock();
+			}
+		}
+	}
+
+	// --- ADD ROUTE ---
+	
+	public void addRoute(Route route) {
+		writeLock.lock();
+		try {
+			Route[] copy = new Route[routes.length + 1];
+			System.arraycopy(routes, 0, copy, 0, routes.length);
+			copy[routes.length] = route;
+			routes = copy;
+			if (staticMappings != null) {
+				staticMappings.clear();
+			}
+			dynamicMappings.clear();
+		} finally {
+			writeLock.unlock();
+		}
+	}
+
+	public void addStaticRoute(String webRoot, String rootDirectory) {
+		Route route = new Route(this, webRoot, MappingPolicy.ALL, null, null, null);
+		route.use(new StaticFiles(rootDirectory));
+		addRoute(route);
+	}
+	
 	// --- PROPERTY GETTERS AND SETTERS ---
 
 	public Route[] getRoutes() {
@@ -199,7 +287,9 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 		this.routes = Objects.requireNonNull(routes);
 		writeLock.lock();
 		try {
-			staticMappings.clear();
+			if (staticMappings != null) {
+				staticMappings.clear();
+			}
 			dynamicMappings.clear();
 		} finally {
 			writeLock.unlock();
