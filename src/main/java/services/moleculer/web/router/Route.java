@@ -31,9 +31,13 @@
  */
 package services.moleculer.web.router;
 
+import static services.moleculer.util.CommonUtils.formatPath;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Objects;
 
 import services.moleculer.context.CallingOptions;
 import services.moleculer.eventbus.Matcher;
@@ -58,12 +62,34 @@ public class Route {
 
 	public Route(ApiGateway gateway, String path, MappingPolicy mappingPolicy, CallingOptions.Options opts,
 			String[] whitelist, Alias[] aliases) {
-		this.gateway = gateway;
-		this.path = path;
+		this.gateway = Objects.requireNonNull(gateway);
+		this.path = formatPath(path);
 		this.mappingPolicy = mappingPolicy;
 		this.opts = opts;
+		if (whitelist != null && whitelist.length > 0) {
+			for (int i = 0; i < whitelist.length; i++) {
+				whitelist[i] = formatPath(whitelist[i]);
+			}
+		}
 		this.whitelist = whitelist;
-		this.aliases = aliases;
+		if (aliases != null && aliases.length > 0) {
+			LinkedList<Alias> list = new LinkedList<>();
+			for (Alias alias : aliases) {
+				if (Alias.REST.endsWith(alias.httpMethod)) {
+					list.addLast(new Alias(Alias.GET, alias.pathPattern, alias.actionName + ".find"));
+					list.addLast(new Alias(Alias.GET, alias.pathPattern + "/:id", alias.actionName + ".get"));
+					list.addLast(new Alias(Alias.POST, alias.pathPattern, alias.actionName + ".create"));
+					list.addLast(new Alias(Alias.PUT, alias.pathPattern + "/:id", alias.actionName + ".update"));
+					list.addLast(new Alias(Alias.DELETE, alias.pathPattern + "/:id", alias.actionName + ".remove"));
+				} else {
+					list.addLast(alias);
+				}
+			}
+			this.aliases = new Alias[list.size()];
+			list.toArray(this.aliases);
+		} else {
+			this.aliases = null;
+		}
 	}
 
 	// --- REQUEST PROCESSOR ---
@@ -90,7 +116,7 @@ public class Route {
 			}
 		}
 		String actionName = shortPath.replace('/', '.').replace('~', '$');
-		if (actionName.startsWith(".")) {
+		while (actionName.startsWith(".")) {
 			actionName = actionName.substring(1);
 		}
 		if (whitelist != null && whitelist.length > 0) {

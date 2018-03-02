@@ -1,9 +1,10 @@
-package services.moleculer.web.middleware;
+package services.moleculer.web.service;
 
+import static services.moleculer.util.CommonUtils.compress;
+import static services.moleculer.util.CommonUtils.formatPath;
 import static services.moleculer.util.CommonUtils.readFully;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import java.util.HashMap;
@@ -11,220 +12,67 @@ import java.util.zip.Deflater;
 
 import io.datatree.Tree;
 import io.datatree.dom.Cache;
-import services.moleculer.context.Context;
 import services.moleculer.service.Action;
-import services.moleculer.service.Middleware;
+import services.moleculer.service.Name;
+import services.moleculer.service.Service;
 import services.moleculer.web.router.HttpConstants;
 
-public class StaticFiles extends Middleware implements HttpConstants {
+/**
+ * Service to serve files from within a given root directory. Sample of usage:
+ * <br>
+ * <br>
+ * ServiceBroker broker = new ServiceBroker();<br>
+ * ApiGateway webserver = new SunGateway();<br>
+ * broker.createService("webserver", webserver);<br>
+ * <br>
+ * webserver.addRoute(Alias.GET, "/pages/*", "files.get");<br>
+ * <br>
+ * broker.createService("files", new ServeStatic("/path/to/www/root"));<br>
+ * <br>
+ * broker.start();<br>
+ * <br>
+ * ...then open browser, and enter the following URL:
+ * "http://localhost:3000/pages/index.html"
+ */
+@Name("serve-static")
+public class ServeStatic extends Service implements HttpConstants {
 
 	// --- ROOT DIRECTORY ---
 
-	private String rootDirectory;
+	protected String rootDirectory;
 
 	// --- CACHE PARAMETERS ---
 
-	private boolean enableReloading = true;
-	private int numberOfCachedFiles = 1024;
-	private long cacheDelay = 2000L;
-	private long maxCachedFileSize = 1024 * 1024;
-	private boolean useETags = true;
+	/**
+	 * Enables content reloading (in production mode set it to "false" for the
+	 * better performance)
+	 */
+	protected boolean enableReloading = true;
+
+	protected int numberOfCachedFiles = 1024;
+
+	protected long cacheDelay = 2000L;
+
+	protected long maxCachedFileSize = 1024 * 1024;
+
+	protected boolean useETags = true;
 
 	// --- COMPRESSION PARAMETERS ---
 
-	private boolean enableCompression = true;
-	private int compressAbove = 500;
+	/**
+	 * Compress key and/or value above this size (BYTES), 0 = disable
+	 * compression
+	 */
+	protected int compressAbove = 1024;
+
+	/**
+	 * Compression level (best speed = 1, best compression = 9).
+	 */
+	protected int compressionLevel = Deflater.BEST_SPEED;
 
 	// --- CONTENT TYPES ---
 
-	private final HashMap<String, String> contentTypes = new HashMap<>();
-
-	// --- CONSTRUCTOR ---
-
-	public StaticFiles() {
-		this("/www");
-	}
-
-	public StaticFiles(String rootDirectory) {
-		while (rootDirectory.endsWith("/") || rootDirectory.endsWith("\\")) {
-			rootDirectory = rootDirectory.substring(0, rootDirectory.length() - 1);
-		}
-		this.rootDirectory = rootDirectory;
-	}
-
-	// --- ADD MIDDLEWARE TO ACTION ---
-
-	private int prefixLength = -1;
-
-	public Action install(Action action, Tree config) {
-		return new Action() {
-
-			@Override
-			public Object handler(Context ctx) throws Exception {
-				Tree out = new Tree();
-
-				// Realtive path
-				String relativePath = null;
-
-				// If-None-Match header
-				String ifNoneMatch = null;
-
-				// Client supports compressed content
-				boolean compressionSupported = false;
-
-				// Get path and headers block
-				Tree meta = ctx.params.getMeta(false);
-				if (meta != null) {
-					Tree path = meta.get(PATH);
-					if (path != null) {
-						relativePath = path.asString();
-					}
-					Tree headers = meta.get(HEADERS);
-					if (headers != null) {
-						if (useETags) {
-							ifNoneMatch = headers.get(REQ_IF_NONE_MATCH, "");
-						}
-						if (enableCompression) {
-							compressionSupported = headers.get(REQ_ACCEPT_ENCODING, "").contains(DEFLATE);
-						}
-					}
-				}
-
-				// Remove prefix
-				int i;
-				if (prefixLength == -1) {
-					String pattern = meta.get(PATTERN, "");
-					i = pattern.indexOf('*');
-					if (i != -1) {
-						pattern = pattern.substring(0, i);
-						prefixLength = pattern.length();
-					}
-				}
-				relativePath = relativePath.substring(prefixLength);
-
-				// Absolute path
-				String absolutePath = rootDirectory + relativePath;
-
-				// Get response meta and headers
-				meta = out.getMeta(true);
-				Tree headers = meta.putMap(HEADERS, true);
-
-				// Get file from cache
-				CachedFile cached = cache.get(relativePath);
-				long now = System.currentTimeMillis();
-				boolean reload;
-				if (cached != null && now - cached.lastChecked < cacheDelay) {
-					reload = false;
-				} else {
-					reload = enableReloading;
-				}
-
-				// Valid file?
-				if (reload || cached == null) {
-					boolean readable = isReadable(absolutePath);
-					if (readable) {
-						if (cached != null) {
-							cached.lastChecked = now;
-						}
-					} else {
-
-						// 404 Not Found
-						headers.put(STATUS, STATUS_404);
-						cache.remove(relativePath);
-						return out;
-					}
-				}
-
-				// Get extension
-				i = relativePath.lastIndexOf('.');
-				String extension = "";
-				if (i > -1) {
-					extension = relativePath.substring(i + 1).toLowerCase();
-				}
-
-				// Get content-type
-				String contentType = getContentType(extension);
-
-				// Handling ETag
-				String etag = null;
-				if (reload || cached == null) {
-					long time = getLastModifiedTime(absolutePath);
-					if (time > 0 && useETags) {
-						etag = Long.toHexString(time);
-					}
-				} else if (cached != null) {
-					etag = cached.etag;
-				}
-				if (etag != null) {
-					if (ifNoneMatch != null && ifNoneMatch.equals(etag) && (reload || cached != null)) {
-
-						// 304 Not Modified
-						headers.put(RSP_CONTENT_TYPE, contentType);
-						meta.put(STATUS, STATUS_304);
-						out.setObject(new byte[0]);
-						return out;
-
-					} else {
-
-						// Send ETag header
-						headers.put(RSP_ETAG, etag);
-					}
-				}
-
-				// Get body
-				byte[] body = null;
-				boolean compressed = false;
-				if (cached != null && (!reload || (cached.etag != null && cached.etag.equals(etag)))) {
-
-					// Set cached content
-					if (!compressionSupported || cached.compressedBody == null) {
-						body = cached.body;
-					} else {
-
-						// Client supports compressed content
-						body = cached.compressedBody;
-						compressed = true;
-					}
-
-				} else {
-
-					// Read file
-					body = readAllBytes(absolutePath);
-
-					// Store in cache
-					cached = new CachedFile();
-					cached.lastChecked = now;
-					cached.etag = etag;
-					cached.body = body;
-					if (enableCompression && body.length > compressAbove && contentType.startsWith("text/")) {
-						cached.compressedBody = deflate(body, Deflater.BEST_COMPRESSION);
-						if (compressionSupported) {
-
-							// Client supports compressed content
-							body = cached.compressedBody;
-							compressed = true;
-						}
-					}
-					if (body.length <= maxCachedFileSize) {
-						cache.put(relativePath, cached);
-					}
-				}
-
-				// Add Content-Encoding header
-				if (compressed) {
-					headers.put(RSP_CONTENT_ENCODING, DEFLATE);
-				}
-
-				// Set data
-				headers.put(RSP_CONTENT_TYPE, contentType);
-				out.setObject(body);
-
-				// Return response
-				return out;
-			}
-
-		};
-	}
+	protected final HashMap<String, String> contentTypes = new HashMap<>();
 
 	// --- FILE CACHE ---
 
@@ -232,13 +80,199 @@ public class StaticFiles extends Middleware implements HttpConstants {
 
 	protected static final class CachedFile {
 
-		private long lastChecked;
-		private String etag;
+		protected long lastChecked;
+		protected String etag;
 
-		private byte[] body;
-		private byte[] compressedBody;
+		protected byte[] body;
+		protected byte[] compressedBody;
 
 	}
+
+	// --- CONSTRUCTORS ---
+
+	public ServeStatic() {
+		this("/www");
+	}
+
+	public ServeStatic(String rootDirectory) {
+		this.rootDirectory = formatPath(rootDirectory);
+	}
+
+	// --- FILE HANDLER ---
+
+	protected int prefixLength = -1;
+
+	public Action get = ctx -> {
+		Tree out = new Tree();
+
+		// Realtive path
+		String relativePath = null;
+
+		// If-None-Match header
+		String ifNoneMatch = null;
+
+		// Client supports compressed content
+		boolean compressionSupported = false;
+
+		// Get path and headers block
+		Tree meta = ctx.params.getMeta(false);
+		if (meta != null) {
+			Tree path = meta.get(PATH);
+			if (path != null) {
+				relativePath = path.asString();
+			}
+			Tree headers = meta.get(HEADERS);
+			if (headers != null) {
+				if (useETags) {
+					ifNoneMatch = headers.get(REQ_IF_NONE_MATCH, "");
+				}
+				if (compressAbove > 0) {
+					compressionSupported = headers.get(REQ_ACCEPT_ENCODING, "").contains(DEFLATE);
+				}
+			}
+		}
+			
+		// Remove prefix
+		int i;
+		if (prefixLength == -1) {
+			String pattern = meta.get(PATTERN, "");
+			i = pattern.indexOf('*');
+			if (i != -1) {
+				pattern = pattern.substring(0, i);
+				while (pattern.endsWith("/")) {
+					pattern = pattern.substring(0, pattern.length() - 1);
+				}
+			}
+			prefixLength = pattern.length();
+		}
+		relativePath = relativePath.substring(prefixLength);
+
+		// Get response meta and headers
+		meta = out.getMeta(true);
+		Tree headers = meta.putMap(HEADERS, true);
+		if (relativePath == null || relativePath.isEmpty() || relativePath.contains("..")) {
+			headers.put(STATUS, STATUS_404);
+			return out;
+		}
+		
+		// Absolute path
+		String absolutePath = rootDirectory + formatPath(relativePath);
+
+		// Get file from cache
+		CachedFile cached = cache.get(relativePath);
+		long now = System.currentTimeMillis();
+		boolean reload;
+		if (cached != null && now - cached.lastChecked < cacheDelay) {
+			reload = false;
+		} else {
+			reload = enableReloading;
+		}
+
+		// Valid file?
+		if (reload || cached == null) {
+			boolean readable = isReadable(absolutePath);
+			if (readable) {
+				if (cached != null) {
+					cached.lastChecked = now;
+				}
+			} else {
+
+				// 404 Not Found
+				headers.put(STATUS, STATUS_404);
+				cache.remove(relativePath);
+				return out;
+			}
+		}
+
+		// Get extension
+		i = relativePath.lastIndexOf('.');
+		String extension = "";
+		if (i > -1) {
+			extension = relativePath.substring(i + 1).toLowerCase();
+		}
+
+		// Get content-type
+		String contentType = getContentType(extension);
+
+		// Handling ETag
+		String etag = null;
+		if (reload || cached == null) {
+			long time = getLastModifiedTime(absolutePath);
+			if (time > 0 && useETags) {
+				etag = Long.toHexString(time);
+			}
+		} else if (cached != null) {
+			etag = cached.etag;
+		}
+		if (etag != null) {
+			if (ifNoneMatch != null && ifNoneMatch.equals(etag) && (reload || cached != null)) {
+
+				// 304 Not Modified
+				headers.put(RSP_CONTENT_TYPE, contentType);
+				meta.put(STATUS, STATUS_304);
+				out.setObject(new byte[0]);
+				return out;
+
+			} else {
+
+				// Send ETag header
+				headers.put(RSP_ETAG, etag);
+			}
+		}
+
+		// Get body
+		byte[] body = null;
+		boolean compressed = false;
+		if (cached != null && (!reload || (cached.etag != null && cached.etag.equals(etag)))) {
+
+			// Set cached content
+			if (!compressionSupported || cached.compressedBody == null) {
+				body = cached.body;
+			} else {
+
+				// Client supports compressed content
+				body = cached.compressedBody;
+				compressed = true;
+			}
+
+		} else {
+
+			// Read file
+			body = readAllBytes(absolutePath);
+
+			// Store in cache
+			cached = new CachedFile();
+			cached.lastChecked = now;
+			cached.etag = etag;
+			cached.body = body;
+			if (compressAbove > 0 && body.length > compressAbove && contentType.startsWith("text/")) {
+				cached.compressedBody = compress(body, compressionLevel);
+				if (compressionSupported) {
+
+					// Client supports compressed content
+					body = cached.compressedBody;
+					compressed = true;
+				}
+			}
+			if (body.length <= maxCachedFileSize) {
+				cache.put(relativePath, cached);
+			}
+		}
+
+		// Add Content-Encoding header
+		if (compressed) {
+			headers.put(RSP_CONTENT_ENCODING, DEFLATE);
+		}
+
+		// Set data
+		headers.put(RSP_CONTENT_TYPE, contentType);
+		out.setObject(body);
+
+		// Return response
+		return out;
+	};
+
+	// --- STOP SERVICE ---
 
 	@Override
 	public void stopped() {
@@ -246,23 +280,10 @@ public class StaticFiles extends Middleware implements HttpConstants {
 		cache.clear();
 	}
 
-	// --- CONTENT DEFLATOR ---
-
-	protected byte[] deflate(byte[] bytes, int level) throws IOException {
-		final Deflater deflater = new Deflater(level, true);
-		deflater.setInput(bytes);
-		deflater.finish();
-		final byte[] buffer = new byte[bytes.length + 128];
-		final int length = deflater.deflate(buffer);
-		final byte[] compressed = new byte[length];
-		System.arraycopy(buffer, 0, compressed, 0, length);
-		return compressed;
-	}
-
 	// --- FILE HANDLERS ---
 
 	protected final long jarTimestamp = System.currentTimeMillis();
-	
+
 	protected boolean isReadable(String path) {
 		try {
 			return getFileURL(path) != null;
@@ -293,7 +314,7 @@ public class StaticFiles extends Middleware implements HttpConstants {
 			}
 		} catch (Exception ignored) {
 		}
-		logger.warn("Unable to load file: " + path);		
+		logger.warn("Unable to load file: " + path);
 		return new byte[0];
 	}
 
@@ -314,7 +335,7 @@ public class StaticFiles extends Middleware implements HttpConstants {
 			if (test.isFile()) {
 				return test.toURI().toURL();
 			}
-			URL url = StaticFiles.class.getResource(path);
+			URL url = ServeStatic.class.getResource(path);
 			if (url != null) {
 				return url;
 			}
@@ -815,7 +836,7 @@ public class StaticFiles extends Middleware implements HttpConstants {
 	}
 
 	public void setRootDirectory(String rootDirectory) {
-		this.rootDirectory = rootDirectory;
+		this.rootDirectory = formatPath(rootDirectory);
 	}
 
 	public void setContentType(String extension, String contentType) {
@@ -870,14 +891,6 @@ public class StaticFiles extends Middleware implements HttpConstants {
 		this.maxCachedFileSize = maxCachedFileSize;
 	}
 
-	public boolean isEnableCompression() {
-		return enableCompression;
-	}
-
-	public void setEnableCompression(boolean enableCompression) {
-		this.enableCompression = enableCompression;
-	}
-
 	public int getCompressAbove() {
 		return compressAbove;
 	}
@@ -892,6 +905,14 @@ public class StaticFiles extends Middleware implements HttpConstants {
 
 	public void setUseETags(boolean useETags) {
 		this.useETags = useETags;
+	}
+
+	public int getCompressionLevel() {
+		return compressionLevel;
+	}
+
+	public void setCompressionLevel(int compressionLevel) {
+		this.compressionLevel = compressionLevel;
 	}
 
 }

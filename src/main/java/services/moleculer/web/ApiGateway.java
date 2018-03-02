@@ -49,7 +49,7 @@ import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.transporter.Transporter;
-import services.moleculer.web.middleware.StaticFiles;
+import services.moleculer.web.router.Alias;
 import services.moleculer.web.router.HttpConstants;
 import services.moleculer.web.router.Mapping;
 import services.moleculer.web.router.MappingPolicy;
@@ -74,9 +74,12 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 
 	// --- CACHED MAPPINGS ---
 
+	/**
+	 * Maximum number of cached routes
+	 */
 	protected int cachedRoutes = 1024;
 
-	protected LinkedHashMap<String, Mapping> staticMappings;
+	protected LinkedHashMap<String, Mapping> staticMappings;	
 	protected final LinkedList<Mapping> dynamicMappings = new LinkedList<>();
 
 	// --- LOCKS ---
@@ -254,7 +257,67 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 	}
 
 	// --- ADD ROUTE ---
-	
+
+	/**
+	 * Define a route for a list of Services with the specified path prefix (eg.
+	 * if the path is "/rest-services" and service list is "service1", the
+	 * service's "func" action will available on
+	 * "http://host:port/rest-services/service1/func").
+	 * 
+	 * @param path
+	 *            path prefix for all enumerated services (eg. "/rest-services")
+	 * @param serviceList
+	 *            list of services (eg. "service1,service2,service3")
+	 * @param middlewares
+	 *            optional middlewares (eg. CorsHeaders)
+	 */
+	public void addRoute(String path, String serviceList, Middleware... middlewares) {
+		String[] serviceNames = serviceList.split(",");
+		LinkedList<String> list = new LinkedList<>();
+		for (String serviceName : serviceNames) {
+			serviceName = '/' + serviceName.trim() + "*";
+			if (serviceName.length() > 2) {
+				list.addLast(serviceName);
+			}
+		}
+		String[] whiteList = new String[list.size()];
+		list.toArray(whiteList);
+		Route route = new Route(this, path, MappingPolicy.RESTRICT, null, whiteList, null);
+		if (middlewares != null && middlewares.length > 0) {
+			route.use(middlewares);
+		}
+		addRoute(route);
+	}
+
+	/**
+	 * Define a route to a single action. The action will available on the
+	 * specified path.
+	 * 
+	 * @param httpMethod
+	 *            HTTP method (eg. "GET", "POST", "ALL", "REST", etc.)
+	 * @param path
+	 *            path of the action (eg. "numbers/add" creates an endpoint on
+	 *            "http://host:port/numbers/add")
+	 * @param actionName
+	 *            name of action (eg. "math.add")
+	 * @param middlewares
+	 *            optional middlewares (eg. CorsHeaders)
+	 */
+	public void addRoute(String httpMethod, String path, String actionName, Middleware... middlewares) {
+		Alias alias = new Alias(httpMethod, path, actionName);
+		Route route = new Route(this, "", MappingPolicy.RESTRICT, null, null, new Alias[] { alias });
+		if (middlewares != null && middlewares.length > 0) {
+			route.use(middlewares);
+		}
+		addRoute(route);
+	}
+
+	/**
+	 * Adds a route to the list of routes.
+	 * 
+	 * @param route
+	 *            the new route
+	 */
 	public void addRoute(Route route) {
 		writeLock.lock();
 		try {
@@ -271,12 +334,6 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 		}
 	}
 
-	public void addStaticRoute(String webRoot, String rootDirectory) {
-		Route route = new Route(this, webRoot, MappingPolicy.ALL, null, null, null);
-		route.use(new StaticFiles(rootDirectory));
-		addRoute(route);
-	}
-	
 	// --- PROPERTY GETTERS AND SETTERS ---
 
 	public Route[] getRoutes() {

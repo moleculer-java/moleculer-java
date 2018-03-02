@@ -57,7 +57,7 @@ public abstract class ServiceRegistry extends Service {
 	
 	// --- ADD ACTION OF A LOCAL SERVICE ---
 
-	public abstract void addActions(Service service);
+	public abstract void addActions(String name, Service service);
 
 	// --- ADD ACTIONS OF A REMOTE SERVICE ---
 

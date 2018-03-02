@@ -528,10 +528,13 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	// --- ADD A LOCAL SERVICE ---
 
 	@Override
-	public void addActions(Service service) {
+	public void addActions(String serviceName, Service service) {
 		
 		// Service name with version
-		String serviceName = service.getName();
+		if (serviceName == null || serviceName.isEmpty()) {
+			serviceName = service.getName();
+		}
+		serviceName = serviceName.replace(' ', '-');
 		Class<? extends Service> clazz = service.getClass();
 		Field[] fields = clazz.getFields();
 		

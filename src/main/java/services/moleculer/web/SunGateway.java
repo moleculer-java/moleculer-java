@@ -24,7 +24,8 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * API Gateway, based on the "com.sun.net.httpserver" package.
+ * API Gateway, based on the "com.sun.net.httpserver" package. This web-server can
+ * be used primarily for development and testing.
  */
 @Name("Sun HTTP Server API Gateway")
 @SuppressWarnings("restriction")
@@ -75,7 +76,7 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 			if (in != null) {
 				reqBody = readFully(in);
 			}
-			processRequest(httpMethod, path, reqHeaders, query, reqBody).then(rsp -> {				
+			processRequest(httpMethod, path, reqHeaders, query, reqBody).then(rsp -> {
 				Class<?> type = rsp.getType();
 				byte[] rspBody;
 				if (type == byte[].class) {
@@ -83,7 +84,7 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 				} else {
 					rspBody = rsp.toBinary(null, false);
 				}
-				int status = 200; 
+				int status = 200;
 				Tree meta = rsp.getMeta(false);
 				Tree rspHeaders = null;
 				if (meta != null) {
@@ -159,7 +160,7 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 				}
 			}
 			boolean hasBody = body != null && body.length > 0;
-			
+
 			// Write HTTP headers
 			exchange.sendResponseHeaders(status, hasBody ? body.length : -1);
 
@@ -172,12 +173,13 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 				out.flush();
 			}
 		} catch (Throwable cause) {
-			if (String.valueOf(cause).toLowerCase().contains("closed")) {
+			String msg = String.valueOf(cause).toLowerCase();
+			if (msg.contains("close") || msg.contains("abort")) {
 				return;
 			}
 			logger.warn("Unable to send HTTP response!", cause);
 		} finally {
-			
+
 			// Close exchange
 			exchange.close();
 		}

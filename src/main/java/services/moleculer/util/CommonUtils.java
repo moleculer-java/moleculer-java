@@ -62,6 +62,25 @@ import services.moleculer.transporter.Transporter;
  */
 public final class CommonUtils {
 
+	// --- PATH FORMATTER ---
+	
+	public static final String formatPath(String path) {
+		if (path == null) {
+			return "";
+		}
+		path = path.trim();
+		if (path.isEmpty()) {
+			return path;
+		}
+		if (!path.startsWith("/")) {
+			path = '/' + path;
+		}
+		while (path.endsWith("/")) {
+			path = path.substring(0, path.length() -1);
+		}
+		return path;
+	}
+	
 	// --- GET ALL NODE INFO STRUCTURES OF ALL NODES ---
 
 	public static final Tree getNodeInfos(ServiceBroker broker, Transporter transporter) {
@@ -156,10 +175,6 @@ public final class CommonUtils {
 
 	// --- PARSE URL LIST OR URL ARRAY ---
 
-	public static final String[] parseURLs(Tree config, String[] defaultURLs) {
-		return parseURLs(config, "url", defaultURLs);
-	}
-
 	public static final String[] parseURLs(Tree config, String name, String[] defaultURLs) {
 		Tree urlNode = config.get(name);
 		List<String> urlList;
@@ -232,32 +247,6 @@ public final class CommonUtils {
 		return new ParseResult(data, opts, groups);
 	}
 
-	public static final String serializerTypeToClass(String type) {
-		String test = type.toLowerCase();
-		if ("json".equals(test)) {
-			return "services.moleculer.serializer.JsonSerializer";
-		}
-		if ("msgpack".equals(test) || "messagepack".equals(test)) {
-			return "services.moleculer.serializer.MsgPackSerializer";
-		}
-		if ("smile".equals(test)) {
-			return "services.moleculer.serializer.SmileSerializer";
-		}
-		if ("bson".equals(test)) {
-			return "services.moleculer.serializer.BsonSerializer";
-		}
-		if ("ion".equals(test)) {
-			return "services.moleculer.serializer.IonSerializer";
-		}
-		if ("cbor".equals(test)) {
-			return "services.moleculer.serializer.CborSerializer";
-		}
-		if (test.indexOf('.') > -1) {
-			return type;
-		}
-		throw new IllegalArgumentException("Invalid serializer type (" + type + ")!");
-	}
-
 	public static final String nameOf(String prefix, Field field) {
 		Name n = field.getAnnotation(Name.class);
 		String name = null;
@@ -321,28 +310,6 @@ public final class CommonUtils {
 		return name;
 	}
 
-	public static final String nameOf(Tree tree) {
-		String name = tree.get("name", "");
-		if (name == null || name.isEmpty()) {
-			name = tree.getName();
-		}
-		if (name == null) {
-			return "";
-		}
-		return name.trim();
-	}
-
-	public static final String typeOf(Tree tree) {
-		String type = tree.get("type", "");
-		if ((type == null || type.isEmpty()) && tree.isPrimitive()) {
-			type = tree.asString();
-		}
-		if (type == null) {
-			return "";
-		}
-		return type;
-	}
-
 	public static final Tree readTree(String resourceURL) throws Exception {
 		String format = getFormat(resourceURL);
 		if (resourceURL.startsWith("http:") || resourceURL.startsWith("https:") || resourceURL.startsWith("file:")) {
@@ -402,21 +369,19 @@ public final class CommonUtils {
 
 	// --- COMPRESSS / DECOMPRESS ---
 
-	public static final byte[] compress(byte[] data) throws IOException {
-		Deflater deflater = new Deflater(Deflater.BEST_SPEED, false);
+	public static final byte[] compress(byte[] data, int level) throws IOException {
+		final Deflater deflater = new Deflater(level, true);
 		deflater.setInput(data);
-		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);
 		deflater.finish();
-		byte[] buffer = new byte[1024];
-		while (!deflater.finished()) {
-			int count = deflater.deflate(buffer);
-			outputStream.write(buffer, 0, count);
-		}
-		return outputStream.toByteArray();
+		final byte[] buffer = new byte[data.length + 128];
+		final int length = deflater.deflate(buffer);
+		final byte[] compressed = new byte[length];
+		System.arraycopy(buffer, 0, compressed, 0, length);
+		return compressed;
 	}
 
 	public static final byte[] decompress(byte[] data) throws IOException, DataFormatException {
-		Inflater inflater = new Inflater(false);
+		Inflater inflater = new Inflater(true);
 		inflater.setInput(data);
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);
 		byte[] buffer = new byte[1024];

@@ -5,7 +5,9 @@ import static services.moleculer.util.CommonUtils.parseParams;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,7 +63,7 @@ public class ServiceBroker {
 	/**
 	 * Services which defined and added to the Broker before the boot process.
 	 */
-	protected final LinkedHashSet<Service> services = new LinkedHashSet<>();
+	protected final LinkedHashMap<String, Service> services = new LinkedHashMap<>();
 
 	// --- ENQUED MIDDLEWARES ---
 
@@ -159,14 +161,15 @@ public class ServiceBroker {
 
 			// Install internal services
 			if (config.isInternalServices()) {
-				services.add(new NodeService());
+				services.put("$node", new NodeService());
 			}
 
 			// Register and start enqued services and listeners
-			for (Service service : services) {
-
+			for (Map.Entry<String, Service> entry : services.entrySet()) {
+				Service service = entry.getValue();
+				
 				// Register actions
-				serviceRegistry.addActions(service);
+				serviceRegistry.addActions(entry.getKey(), service);
 
 				// Register listeners
 				eventbus.addListeners(service);
@@ -251,14 +254,18 @@ public class ServiceBroker {
 	// --- ADD LOCAL SERVICE ---
 
 	public void createService(Service service) {
+		createService(service.getName(), service);
+	}
+	
+	public void createService(String name, Service service) {
 		if (serviceRegistry == null) {
 
 			// Start service later
-			services.add(service);
+			services.put(name, service);
 		} else {
 
 			// Start service now
-			serviceRegistry.addActions(service);
+			serviceRegistry.addActions(name, service);
 		}
 	}
 

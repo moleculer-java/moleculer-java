@@ -19,6 +19,8 @@ import services.moleculer.web.middleware.CorsHeaders;
 import services.moleculer.web.router.Alias;
 import services.moleculer.web.router.MappingPolicy;
 import services.moleculer.web.router.Route;
+import services.moleculer.web.service.MediaStreamer;
+import services.moleculer.web.service.ServeStatic;
 
 public class Test {
 
@@ -43,14 +45,23 @@ public class Test {
 			CallingOptions.Options opts = CallingOptions.retryCount(3);
 			String[] whitelist = {};
 			Alias[] aliases = new Alias[1];
-			aliases[0] = new Alias("GET", "/add", "math.add");
+			aliases[0] = new Alias(Alias.ALL, "/add", "math.add");
 			
 			Route r = new Route(gateway, path, policy, opts, whitelist, aliases);
 			r.use(new CorsHeaders());
 			gateway.setRoutes(new Route[]{r});
 			
-			gateway.addStaticRoute("/static", "C:/test-eclipse/workspace/datatree/build/docs/javadoc");
+			gateway.addRoute(Alias.GET, "/pages/*", "files.get");
 			
+			ServeStatic staticHandler = new ServeStatic("C:/Program Files/apache-cassandra-3.11.0/doc/html");
+			staticHandler.setEnableReloading(false);
+			broker.createService("files", staticHandler);
+
+			gateway.addRoute(Alias.GET, "/videos/*", "videos.get");
+			
+			MediaStreamer videoStreamer = new MediaStreamer("/temp");
+			broker.createService("videos", videoStreamer);
+
 			broker.createService(new Service("math") {
 
 				@Name("add")

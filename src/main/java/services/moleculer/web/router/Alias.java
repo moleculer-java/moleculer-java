@@ -31,7 +31,23 @@
  */
 package services.moleculer.web.router;
 
+import static services.moleculer.util.CommonUtils.formatPath;
+
 public class Alias {
+
+	// --- HTTP METHODS ---
+
+	public static final String ALL = "ALL";
+	public static final String REST = "REST";
+
+	public static final String CONNECT = "CONNECT";
+	public static final String DELETE = "DELETE";
+	public static final String GET = "GET";
+	public static final String HEAD = "HEAD";
+	public static final String OPTIONS = "OPTIONS";
+	public static final String POST = "POST";
+	public static final String PUT = "PUT";
+	public static final String TRACE = "TRACE";
 
 	// --- PROPERTIES ---
 
@@ -44,8 +60,15 @@ public class Alias {
 	// --- CONSTRUCTOR ---
 
 	public Alias(String httpMethod, String pathPattern, String actionName) {
-		this.httpMethod = httpMethod;
-		this.pathPattern = pathPattern;
+		this.httpMethod = httpMethod.trim().toUpperCase();
+		this.pathPattern = formatPath(pathPattern);
+		actionName = actionName.trim().replace('/', '.');
+		while (actionName.startsWith(".")) {
+			actionName = actionName.substring(1);
+		}
+		while (actionName.endsWith(".")) {
+			actionName = actionName.substring(0, actionName.length() - 1);
+		}
 		this.actionName = actionName;
 
 		// Generate hashcode
@@ -57,6 +80,20 @@ public class Alias {
 		hashCode = result;
 	}
 
+	// --- PROPERTY GETTERS ---
+	
+	public String getHttpMethod() {
+		return httpMethod;
+	}
+
+	public String getPathPattern() {
+		return pathPattern;
+	}
+
+	public String getActionName() {
+		return actionName;
+	}
+	
 	// --- COLLECTION HELPERS ---
 
 	@Override

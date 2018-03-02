@@ -44,6 +44,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Objects;
+import java.util.zip.Deflater;
 
 import org.caffinitas.ohc.CacheSerializer;
 import org.caffinitas.ohc.OHCache;
@@ -136,6 +137,11 @@ public class OHCacher extends Cacher {
 	 */
 	protected int compressAbove = 1024;
 
+	/**
+	 * Compression level (best speed = 1, best compression = 9).
+	 */
+	protected int compressionLevel = Deflater.BEST_SPEED;
+	
 	// --- SERIALIZER / DESERIALIZER ---
 
 	protected Serializer serializer = new JsonSerializer();
@@ -338,7 +344,7 @@ public class OHCacher extends Cacher {
 			part1 = key.substring(0, i).getBytes(StandardCharsets.UTF_8);
 			part2 = key.substring(i + 1).getBytes(StandardCharsets.UTF_8);
 			if (compressAbove > 0 && part2.length > compressAbove) {
-				part2 = compress(part2);
+				part2 = compress(part2, compressionLevel);
 				compressed = true;
 			} else {
 				compressed = false;
@@ -381,7 +387,7 @@ public class OHCacher extends Cacher {
 		byte[] bytes = serializer.write(root);
 		boolean compressed;
 		if (compressAbove > 0 && bytes.length > compressAbove) {
-			bytes = compress(bytes);
+			bytes = compress(bytes, compressionLevel);
 			compressed = true;
 		} else {
 			compressed = false;
@@ -484,6 +490,14 @@ public class OHCacher extends Cacher {
 
 	public void setSerializer(Serializer serializer) {
 		this.serializer = Objects.requireNonNull(serializer);
+	}
+
+	public int getCompressionLevel() {
+		return compressionLevel;
+	}
+
+	public void setCompressionLevel(int compressionLevel) {
+		this.compressionLevel = compressionLevel;
 	}
 
 }

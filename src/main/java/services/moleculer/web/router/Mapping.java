@@ -77,12 +77,15 @@ public class Mapping implements HttpConstants {
 		this.contextFactory = broker.getConfig().getContextFactory();
 
 		// Parse "path pattern"
-		isStatic = pathPattern.indexOf(':') == -1;
+		int starPos = pathPattern.indexOf('*');
+		isStatic = pathPattern.indexOf(':') == -1 && starPos == -1;
 		String[] tokens = null;
 		ArrayList<Integer> indexList = new ArrayList<>();
 		ArrayList<String> nameList = new ArrayList<>();
 		if (isStatic) {
 			pathPrefix = pathPattern;
+		} else if (starPos > -1) {
+			pathPrefix = pathPattern.substring(0, starPos);
 		} else {
 			tokens = pathPattern.split("/");
 			int endIndex = 0;
@@ -105,7 +108,7 @@ public class Mapping implements HttpConstants {
 		for (int i = 0; i < indexes.length; i++) {
 			indexes[i] = indexList.get(i);
 			names[i] = nameList.get(i);
-		}
+		}		
 
 		// Generate hashcode
 		final int prime = 31;
