@@ -14,7 +14,7 @@ import services.moleculer.service.Service;
 import services.moleculer.service.Version;
 import services.moleculer.transporter.RedisTransporter;
 import services.moleculer.web.ApiGateway;
-import services.moleculer.web.SunGateway;
+import services.moleculer.web.NettyGateway;
 import services.moleculer.web.middleware.CorsHeaders;
 import services.moleculer.web.router.Alias;
 import services.moleculer.web.router.MappingPolicy;
@@ -35,7 +35,7 @@ public class Test {
 			
 			cfg.setRepl(new LocalRepl());
 			
-			ApiGateway gateway = new SunGateway();
+			ApiGateway gateway = new NettyGateway();
 			cfg.setApiGateway(gateway);
 			
 			ServiceBroker broker = new ServiceBroker(cfg);

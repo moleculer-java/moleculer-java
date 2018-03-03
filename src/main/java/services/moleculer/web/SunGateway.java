@@ -56,6 +56,8 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 		logger.info("HTTP server started on http://" + getHostName() + ':' + port + '.');
 	}
 
+	// --- REQUEST PROCESSOR ---
+	
 	@Override
 	public void handle(HttpExchange exchange) throws IOException {
 		try {
