@@ -73,7 +73,12 @@ import services.moleculer.service.Name;
 import services.moleculer.web.router.HttpConstants;
 
 /**
- * HTTP/1.1 API Gateway based on Netty framework.
+ * HTTP/1.1 API Gateway based on Netty framework. Required dependency:<br>
+ * <br>
+ * // https://mvnrepository.com/artifact/io.netty/netty-handler<br>
+ * compile group: 'io.netty', name: 'netty-handler', version: '4.1.22.Final'
+ * 
+ * @see SunGateway
  */
 @Name("Netty HTTP Server API Gateway")
 public class NettyGateway extends ApiGateway implements HttpConstants {
@@ -219,7 +224,7 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 					// Copy headers
 					Tree headers = new Tree();
 					for (Entry<String, String> entry : httpHeaders) {
-						headers.put(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
+						headers.put(String.valueOf(entry.getKey()).toLowerCase(), String.valueOf(entry.getValue()));
 					}
 
 					// Get body
@@ -332,8 +337,8 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 			// Get status code and response headers
 			Tree meta = rsp.getMeta(false);
 			if (meta != null) {
-				status = rsp.get("status", status);
-				headers = rsp.get("headers");
+				status = meta.get("status", status);
+				headers = meta.get("headers");
 			}
 
 			// Convert body

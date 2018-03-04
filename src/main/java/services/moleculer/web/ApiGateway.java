@@ -49,6 +49,7 @@ import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.transporter.Transporter;
+import services.moleculer.web.middleware.NotFound;
 import services.moleculer.web.router.Alias;
 import services.moleculer.web.router.HttpConstants;
 import services.moleculer.web.router.Mapping;
@@ -58,6 +59,7 @@ import services.moleculer.web.router.Route;
 /**
  * Base superclass of all Moleculer Web Server ("API Gateway") implementations.
  *
+ * @see NettyGateway
  * @see SunGateway
  */
 @Name("API Gateway")
@@ -72,6 +74,12 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 
 	protected Route[] routes = new Route[0];
 
+	// --- LAST / BUILTIN ROUTE ---
+
+	protected Route lastRoute;
+
+	protected Middleware lastMiddleware = new NotFound();
+	
 	// --- CACHED MAPPINGS ---
 
 	/**
@@ -79,7 +87,7 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 	 */
 	protected int cachedRoutes = 1024;
 
-	protected LinkedHashMap<String, Mapping> staticMappings;	
+	protected LinkedHashMap<String, Mapping> staticMappings;
 	protected final LinkedList<Mapping> dynamicMappings = new LinkedList<>();
 
 	// --- LOCKS ---
@@ -124,6 +132,10 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 		};
 		this.registry = broker.getConfig().getServiceRegistry();
 		this.transporter = broker.getConfig().getTransporter();
+
+		// Set last route (for "404 Not Found" and ServeStatic)
+		lastRoute = new Route(this, "", MappingPolicy.ALL, null, null, null);
+		lastRoute.use(lastMiddleware);
 	}
 
 	// --- STOP GATEWAY INSTANCE ---
@@ -185,6 +197,8 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 					break;
 				}
 			}
+						
+			// Process mapping
 			if (mapping != null) {
 
 				// Store new mapping
@@ -212,11 +226,23 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 				}
 			}
 
-			// 404 Not Found
-			Tree notFound = new Tree();
-			notFound.getMeta().put("response.status", 404);
-			notFound.put("message", "Not Found: " + path);
-			return Promise.resolve(notFound);
+			// Custom "404 Not Found", ServeStatic, etc...
+			mapping = lastRoute.findMapping(httpMethod, path);
+			if (mapping != null) {
+				if (!checkedMiddlewares.isEmpty()) {
+					mapping.use(checkedMiddlewares);
+				}
+				Promise response = mapping.processRequest(httpMethod, path, headers, query, body);
+				if (response != null) {
+					return response;
+				}
+			}
+			
+			// Default "404 Not Found"
+			Tree rsp = new Tree();
+			Tree meta = rsp.getMeta();
+			meta.put(STATUS, 404);
+			return Promise.resolve(rsp);
 
 		} catch (Throwable cause) {
 			logger.error("Unable to process request!", cause);
@@ -359,6 +385,14 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 
 	public void setCachedRoutes(int cacheSize) {
 		this.cachedRoutes = cacheSize;
+	}
+
+	public Middleware getLastMiddleware() {
+		return lastMiddleware;
+	}
+
+	public void setLastMiddleware(Middleware lastMiddleware) {
+		this.lastMiddleware = lastMiddleware;
 	}
 
 }

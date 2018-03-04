@@ -24,8 +24,11 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * API Gateway, based on the "com.sun.net.httpserver" package. This web-server can
- * be used primarily for development and testing.
+ * API Gateway, based on the "com.sun.net.httpserver" package. This web-server
+ * can be used primarily for development and testing. This Gateway does not have
+ * any dependencies. In production mode use {@link NettyGateway}.
+ * 
+ * @see NettyGateway
  */
 @Name("Sun HTTP Server API Gateway")
 @SuppressWarnings("restriction")
@@ -57,7 +60,7 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 	}
 
 	// --- REQUEST PROCESSOR ---
-	
+
 	@Override
 	public void handle(HttpExchange exchange) throws IOException {
 		try {

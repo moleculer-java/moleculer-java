@@ -14,13 +14,12 @@ import services.moleculer.service.Service;
 import services.moleculer.service.Version;
 import services.moleculer.transporter.RedisTransporter;
 import services.moleculer.web.ApiGateway;
-import services.moleculer.web.NettyGateway;
+import services.moleculer.web.SunGateway;
 import services.moleculer.web.middleware.CorsHeaders;
+import services.moleculer.web.middleware.ServeStatic;
 import services.moleculer.web.router.Alias;
 import services.moleculer.web.router.MappingPolicy;
 import services.moleculer.web.router.Route;
-import services.moleculer.web.service.MediaStreamer;
-import services.moleculer.web.service.ServeStatic;
 
 public class Test {
 
@@ -35,7 +34,7 @@ public class Test {
 			
 			cfg.setRepl(new LocalRepl());
 			
-			ApiGateway gateway = new NettyGateway();
+			ApiGateway gateway = new SunGateway();
 			cfg.setApiGateway(gateway);
 			
 			ServiceBroker broker = new ServiceBroker(cfg);
@@ -51,17 +50,8 @@ public class Test {
 			r.use(new CorsHeaders());
 			gateway.setRoutes(new Route[]{r});
 			
-			gateway.addRoute(Alias.GET, "/pages/*", "files.get");
-			
-			ServeStatic staticHandler = new ServeStatic("C:/Program Files/apache-cassandra-3.11.0/doc/html");
-			staticHandler.setEnableReloading(false);
-			broker.createService("files", staticHandler);
-
-			gateway.addRoute(Alias.GET, "/videos/*", "videos.get");
-			
-			MediaStreamer videoStreamer = new MediaStreamer("/temp");
-			broker.createService("videos", videoStreamer);
-
+			gateway.use(new ServeStatic("/pages", "D:/test/docs"));
+		
 			broker.createService(new Service("math") {
 
 				@Name("add")
