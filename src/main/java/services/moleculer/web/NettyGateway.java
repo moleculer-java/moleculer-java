@@ -31,7 +31,10 @@
  */
 package services.moleculer.web;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.RandomAccessFile;
 import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -49,16 +52,19 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.DefaultFileRegion;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpChunkedInput;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.ContinuationWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
@@ -66,6 +72,8 @@ import io.netty.handler.codec.http.websocketx.PongWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.stream.ChunkedFile;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.ThreadPerTaskExecutor;
@@ -342,19 +350,15 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 				headers = meta.get("headers");
 			}
 
-			// Convert body
-			byte[] body = null;
-			if (rsp != null && !rsp.isNull()) {
-				Class<?> type = rsp.getType();
-				if (type == byte[].class) {
-					body = rsp.asBytes();
-				} else {
-					body = rsp.toBinary(null, false);
-				}
+			// Convert and send body
+			Class<?> type = rsp.getType();
+			if (type == byte[].class) {
+				sendHttpResponse(ctx, status, headers, keepAlive, rsp.asBytes(), null);
+			} else if (type == File.class) {
+				sendHttpResponse(ctx, status, headers, keepAlive, null, (File) rsp.asObject());
+			} else {
+				sendHttpResponse(ctx, status, headers, keepAlive, rsp.toBinary(null, false), null);
 			}
-
-			// Send body
-			sendHttpResponse(ctx, status, headers, keepAlive, body);
 		}
 
 		protected void sendHttpError(ChannelHandlerContext ctx, Throwable cause) {
@@ -386,74 +390,93 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 			}
 			json.append("\"\r\n}");
 			byte[] bytes = json.toString().getBytes(StandardCharsets.UTF_8);
-			sendHttpResponse(ctx, 500, null, true, bytes);
+			sendHttpResponse(ctx, 500, null, true, bytes, null);
 		}
 
 		protected void sendHttpResponse(ChannelHandlerContext ctx, int status, Tree headers, boolean keepAlive,
-				byte[] body) {
-
-			// Create HTTP response
-			StringBuilder httpHeader = new StringBuilder(512);
-			httpHeader.append("HTTP/1.1 ");
-			httpHeader.append(HttpResponseStatus.valueOf(status));			
-			if (headers == null) {
-				httpHeader.append("\r\nContent-Type:application/json;charset=utf-8");
-			} else {
-				String name, value;
-				boolean found = false;
-				for (Tree header : headers) {
-					name = header.getName();
-					if (name.equals(RSP_CONNECTION) || name.equals(RSP_CONTENT_LENGTH)) {
-						continue;
-					}
-					if (!found && RSP_CONTENT_TYPE.equalsIgnoreCase(name)) {
-						found = true;
-					}
-					value = header.asString();
-					if (value != null) {
-						httpHeader.append("\r\n");
-						httpHeader.append(name);
-						httpHeader.append(':');
-						httpHeader.append(value);
-					}
-				}
-				if (!found) {
+				byte[] bytes, File file) {
+			try {
+				// Create HTTP response
+				StringBuilder httpHeader = new StringBuilder(512);
+				httpHeader.append("HTTP/1.1 ");
+				httpHeader.append(HttpResponseStatus.valueOf(status));
+				if (headers == null) {
 					httpHeader.append("\r\nContent-Type:application/json;charset=utf-8");
+				} else {
+					String name, value;
+					boolean found = false;
+					for (Tree header : headers) {
+						name = header.getName();
+						if (name.equals(RSP_CONNECTION) || name.equals(RSP_CONTENT_LENGTH)) {
+							continue;
+						}
+						if (!found && RSP_CONTENT_TYPE.equalsIgnoreCase(name)) {
+							found = true;
+						}
+						value = header.asString();
+						if (value != null) {
+							httpHeader.append("\r\n");
+							httpHeader.append(name);
+							httpHeader.append(':');
+							httpHeader.append(value);
+						}
+					}
+					if (!found) {
+						httpHeader.append("\r\nContent-Type:application/json;charset=utf-8");
+					}
 				}
-			}
+				httpHeader.append("\r\n");
+				httpHeader.append(RSP_CONTENT_LENGTH);
+				httpHeader.append(':');
+				if (bytes != null) {
+					httpHeader.append(bytes.length);
+				} else if (file != null) {
+					httpHeader.append(file.length());
+				} else {
+					httpHeader.append('0');
+				}
+				httpHeader.append("\r\n");
+				httpHeader.append(RSP_CONNECTION);
+				httpHeader.append(':');
+				if (keepAlive) {
+					httpHeader.append(KEEP_ALIVE);
+				} else {
+					httpHeader.append(CLOSE);
+				}
+				httpHeader.append("\r\n\r\n");
 
-			int contentLength = body == null ? 0 : body.length;
-			httpHeader.append("\r\n");
-			httpHeader.append(RSP_CONTENT_LENGTH);
-			httpHeader.append(':');
-			httpHeader.append(contentLength);
-			httpHeader.append("\r\n");
-			httpHeader.append(RSP_CONNECTION);
-			httpHeader.append(':');
-			if (keepAlive) {
-				httpHeader.append(KEEP_ALIVE);
-			} else {
-				httpHeader.append(CLOSE);
-			}
-			httpHeader.append("\r\n\r\n");
+				// Write HTTP headers
+				ChannelFuture last = ctx
+						.write(Unpooled.wrappedBuffer(httpHeader.toString().getBytes(StandardCharsets.UTF_8)));
 
-			// Write HTTP headers
-			ChannelFuture last = ctx
-					.write(Unpooled.wrappedBuffer(httpHeader.toString().getBytes(StandardCharsets.UTF_8)));
+				// Write body
+				if (bytes != null) {
+					last = ctx.write(Unpooled.wrappedBuffer(bytes));
+				} else if (file != null) {
+					RandomAccessFile raf = new RandomAccessFile(file, "r");
+					if (ctx.pipeline().get(SslHandler.class) == null) {
+						ctx.write(new DefaultFileRegion(raf.getChannel(), 0, raf.length()),
+								ctx.newProgressivePromise());
+						last = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+					} else {
+						last = ctx.writeAndFlush(new HttpChunkedInput(new ChunkedFile(raf, 0, raf.length(), 8192)),
+								ctx.newProgressivePromise());
+					}
+				}
+				if (!keepAlive) {
+					last.addListener(ChannelFutureListener.CLOSE);
+				}
 
-			// Write body
-			if (body != null) {
-				last = ctx.write(Unpooled.wrappedBuffer(body));
-			}
-			if (!keepAlive) {
-				last.addListener(ChannelFutureListener.CLOSE);
-			}
+				// Flush response
+				ctx.flush();
 
-			// Flush response
-			ctx.flush();
+			} catch (IOException closed) {
+			} catch (Throwable cause) {
+				nettyGateway.logger.warn("Unable to send HTTP response!", cause);
+			}
 		}
 	}
-	
+
 	// --- GETTERS AND SETTERS ---
 
 	public int getPort() {

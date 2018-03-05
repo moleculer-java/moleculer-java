@@ -42,6 +42,7 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.eventbus.Matcher;
@@ -112,9 +113,9 @@ public class Route {
 		if (aliases != null && aliases.length > 0) {
 			for (Alias alias : aliases) {
 				if ("ALL".equals(alias.httpMethod) || httpMethod.equals(alias.httpMethod)) {
-					Mapping mapping = new Mapping(gateway.getBroker(), this.path + alias.pathPattern, alias.actionName,
+					Mapping mapping = new Mapping(gateway.getBroker(), httpMethod, this.path + alias.pathPattern, alias.actionName,
 							opts);
-					if (mapping.matches(path)) {
+					if (mapping.matches(httpMethod, path)) {
 						if (!checkedMiddlewares.isEmpty()) {
 							mapping.use(checkedMiddlewares);
 						}
@@ -130,7 +131,7 @@ public class Route {
 		if (whitelist != null && whitelist.length > 0) {
 			for (String pattern : whitelist) {
 				if (Matcher.matches(shortPath, pattern)) {
-					Mapping mapping = new Mapping(gateway.getBroker(), this.path + pattern, actionName, opts);
+					Mapping mapping = new Mapping(gateway.getBroker(), httpMethod, this.path + pattern, actionName, opts);
 					if (!checkedMiddlewares.isEmpty()) {
 						mapping.use(checkedMiddlewares);
 					}
@@ -145,7 +146,7 @@ public class Route {
 			} else {
 				pattern = this.path + '*';
 			}
-			Mapping mapping = new Mapping(gateway.getBroker(), pattern, actionName, opts);
+			Mapping mapping = new Mapping(gateway.getBroker(), httpMethod, pattern, actionName, opts);
 			if (!checkedMiddlewares.isEmpty()) {
 				mapping.use(checkedMiddlewares);
 			}
@@ -192,6 +193,30 @@ public class Route {
 				}
 			}
 		}
+	}
+	
+	// --- CONVERT TO TREE ---
+	
+	public Tree toTree() {
+		Tree tree = new Tree();
+		tree.put("path", path);
+		tree.putObject("whitelist", whitelist);
+		if (opts != null) {
+			Tree o = tree.putMap("opts");
+			o.put("nodeID", opts.nodeID);
+			o.put("retryCount", opts.retryCount);
+			o.put("timeout", opts.timeout);
+		}
+		if (aliases != null) {
+			Tree as = tree.putList("aliases");
+			for (Alias alias: aliases) {
+				Tree a = as.addMap();
+				a.put("httpMethod", alias.httpMethod);
+				a.put("pathPattern", alias.pathPattern);
+				a.put("actionName", alias.actionName);
+			}
+		}
+		return tree;
 	}
 	
 	// --- PROPERTY GETTERS ---

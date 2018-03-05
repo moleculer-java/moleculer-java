@@ -7,8 +7,10 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.context.Context;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
+import services.moleculer.service.Name;
 import services.moleculer.web.router.HttpConstants;
 
+@Name("Not Found")
 public class NotFound extends Middleware implements HttpConstants {
 
 	// --- JSON / HTML RESPONSE ---

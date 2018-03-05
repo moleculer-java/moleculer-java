@@ -53,6 +53,7 @@ public class Mapping implements HttpConstants {
 
 	// --- PROPERTIES ---
 
+	protected final String httpMethod;
 	protected final String actionName;
 	protected final String pathPattern;
 	protected final boolean isStatic;
@@ -69,8 +70,9 @@ public class Mapping implements HttpConstants {
 
 	// --- CONSTRUCTOR ---
 
-	public Mapping(ServiceBroker broker, String pathPattern, String actionName, CallingOptions.Options opts) {
+	public Mapping(ServiceBroker broker, String httpMethod, String pathPattern, String actionName, CallingOptions.Options opts) {
 		this.broker = broker;
+		this.httpMethod =  "ALL".equals(httpMethod) ? null : httpMethod;
 		this.pathPattern = pathPattern;
 		this.actionName = actionName;
 		this.opts = opts;
@@ -132,7 +134,10 @@ public class Mapping implements HttpConstants {
 
 	// --- MATCH TEST ---
 
-	public boolean matches(String path) {
+	public boolean matches(String httpMethod, String path) {
+		if (this.httpMethod != null && !this.httpMethod.equals(httpMethod)) {
+			return false;
+		}
 		if (isStatic) {
 			if (!path.equals(pathPrefix)) {
 				return false;

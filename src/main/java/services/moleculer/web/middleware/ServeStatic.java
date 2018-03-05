@@ -2,7 +2,11 @@ package services.moleculer.web.middleware;
 
 import static services.moleculer.util.CommonUtils.compress;
 import static services.moleculer.util.CommonUtils.formatPath;
-import static services.moleculer.util.CommonUtils.readFully;
+import static services.moleculer.web.router.FileUtils.getFileSize;
+import static services.moleculer.web.router.FileUtils.getFileURL;
+import static services.moleculer.web.router.FileUtils.getLastModifiedTime;
+import static services.moleculer.web.router.FileUtils.isReadable;
+import static services.moleculer.web.router.FileUtils.readAllBytes;
 
 import java.io.File;
 import java.net.URI;
@@ -33,7 +37,7 @@ import services.moleculer.web.router.HttpConstants;
  * ...then open browser, and enter the following URL:
  * "http://localhost:3000/pages/index.html"
  */
-@Name("serve-static")
+@Name("Static File Provider")
 public class ServeStatic extends Middleware implements HttpConstants {
 
 	// --- URL PATH AND ROOT DIRECTORY ---
@@ -48,7 +52,7 @@ public class ServeStatic extends Middleware implements HttpConstants {
 	 */
 	protected String file;
 
-	// --- CACHE PARAMETERS ---
+	// --- PROPERTIES ---
 
 	/**
 	 * Enables content reloading (in production mode set it to "false" for the
@@ -56,15 +60,25 @@ public class ServeStatic extends Middleware implements HttpConstants {
 	 */
 	protected boolean enableReloading = true;
 
+	/**
+	 * Maximum number of cached files
+	 */
 	protected int numberOfCachedFiles = 1024;
 
+	/**
+	 * Do not reload cache until... (MILLISECONDS)
+	 */
 	protected long cacheDelay = 2000L;
 
+	/**
+	 * Enable caching for smaller files only (BYTES)
+	 */
 	protected int maxCachedFileSize = 1024 * 1024;
 
+	/**
+	 * Use ETag headers
+	 */
 	protected boolean useETags = true;
-
-	// --- COMPRESSION PARAMETERS ---
 
 	/**
 	 * Compress key and/or value above this size (BYTES), 0 = disable
@@ -84,7 +98,6 @@ public class ServeStatic extends Middleware implements HttpConstants {
 	// --- CACHES ---
 
 	protected Cache<String, CachedFile> fileCache;
-	protected Cache<String, URL> urlCache;
 
 	protected static final class CachedFile {
 
@@ -118,9 +131,6 @@ public class ServeStatic extends Middleware implements HttpConstants {
 		super.started(broker);
 		if (fileCache == null) {
 			fileCache = new Cache<>(numberOfCachedFiles, false);
-		}
-		if (urlCache == null) {
-			urlCache = new Cache<>(numberOfCachedFiles, false);
 		}
 	}
 
@@ -313,99 +323,7 @@ public class ServeStatic extends Middleware implements HttpConstants {
 	@Override
 	public void stopped() {
 		contentTypes.clear();
-		urlCache = null;
 		fileCache = null;
-	}
-
-	// --- FILE HANDLERS ---
-
-	protected final long jarTimestamp = System.currentTimeMillis();
-
-	protected boolean isReadable(String path) {
-		try {
-			return getFileURL(path) != null;
-		} catch (Exception ignored) {
-		}
-		return false;
-	}
-
-	protected long getFileSize(String path) {
-		try {
-			URL url = getFileURL(path);
-			if (url != null) {
-				if ("file".equals(url.getProtocol())) {
-					File file = new File(new URI(url.toString()));
-					return file.length();
-				}
-			}
-		} catch (Exception ignored) {
-		}
-		return -1;
-	}
-
-	protected long getLastModifiedTime(String path) {
-		try {
-			URL url = getFileURL(path);
-			if (url != null) {
-				if ("file".equals(url.getProtocol())) {
-					File file = new File(new URI(url.toString()));
-					return file.lastModified();
-				}
-			}
-		} catch (Exception ignored) {
-		}
-		return jarTimestamp;
-	}
-
-	protected byte[] readAllBytes(String path) {
-		try {
-			URL url = getFileURL(path);
-			if (url != null) {
-				return readFully(url.openStream());
-			}
-		} catch (Exception ignored) {
-		}
-		logger.warn("Unable to load file: " + path);
-		return new byte[0];
-	}
-
-	protected URL getFileURL(String path) {
-		URL url = urlCache.get(path);
-		if (url != null) {
-			return url;
-		}
-		url = tryToGetFileURL(path);
-		if (url != null) {
-			urlCache.put(path, url);
-			return url;
-		}
-		if (path.startsWith("/") && path.length() > 1) {
-			url = tryToGetFileURL(path.substring(1));
-			if (url != null) {
-				urlCache.put(path, url);
-			}
-		}
-		return url;
-	}
-
-	protected URL tryToGetFileURL(String path) {
-		try {
-			File test = new File(path);
-			if (test.isFile()) {
-				return test.toURI().toURL();
-			}
-			URL url = ServeStatic.class.getResource(path);
-			if (url != null) {
-				return url;
-			}
-			url = Thread.currentThread().getContextClassLoader().getResource(path);
-			if (url != null) {
-				return url;
-			}
-		} catch (Exception cause) {
-			logger.warn("Unable to open file: " + path, cause);
-		}
-		return null;
 	}
 
 	// --- DEFAULT CONTENT TYPES ---

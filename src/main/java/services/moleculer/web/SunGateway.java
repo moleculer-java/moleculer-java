@@ -84,13 +84,19 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 				reqBody = readFully(in);
 			}
 			processRequest(httpMethod, path, reqHeaders, query, reqBody).then(rsp -> {
+				
+				// Default status
 				int status = 200;
 				Tree rspHeaders = null;
+				
+				// Get status code and response headers
 				Tree meta = rsp.getMeta(false);
 				if (meta != null) {
 					status = meta.get("status", 200);
 					rspHeaders = meta.get("headers");
 				}
+				
+				// Convert and send body
 				Class<?> type = rsp.getType();
 				if (type == byte[].class) {
 					sendHttpResponse(exchange, status, rspHeaders, rsp.asBytes(), null);
@@ -186,7 +192,7 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 				// Write body
 				out = exchange.getResponseBody();
 				in = new FileInputStream(file);
-				byte[] packet = new byte[2048];
+				byte[] packet = new byte[8192];
 				int len;
 				while ((len = in.read(packet)) > -1) {
 					out.write(packet, 0, len);

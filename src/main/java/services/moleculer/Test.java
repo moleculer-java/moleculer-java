@@ -14,7 +14,7 @@ import services.moleculer.service.Service;
 import services.moleculer.service.Version;
 import services.moleculer.transporter.RedisTransporter;
 import services.moleculer.web.ApiGateway;
-import services.moleculer.web.SunGateway;
+import services.moleculer.web.NettyGateway;
 import services.moleculer.web.middleware.CorsHeaders;
 import services.moleculer.web.middleware.ServeStatic;
 import services.moleculer.web.router.Alias;
@@ -34,7 +34,7 @@ public class Test {
 			
 			cfg.setRepl(new LocalRepl());
 			
-			ApiGateway gateway = new SunGateway();
+			ApiGateway gateway = new NettyGateway();
 			cfg.setApiGateway(gateway);
 			
 			ServiceBroker broker = new ServiceBroker(cfg);
@@ -50,7 +50,7 @@ public class Test {
 			r.use(new CorsHeaders());
 			gateway.setRoutes(new Route[]{r});
 			
-			gateway.use(new ServeStatic("/pages", "/path/to/www/root"));
+			gateway.use(new ServeStatic("/pages", "c:/Program Files/apache-cassandra-3.11.0/doc/html/"));
 		
 			broker.createService(new Service("math") {
 
