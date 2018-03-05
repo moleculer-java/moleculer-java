@@ -5,8 +5,6 @@ import static services.moleculer.util.CommonUtils.formatPath;
 import static services.moleculer.util.CommonUtils.readFully;
 
 import java.io.File;
-import java.io.InputStream;
-import java.io.RandomAccessFile;
 import java.net.URI;
 import java.net.URL;
 import java.util.HashMap;
@@ -25,12 +23,10 @@ import services.moleculer.web.router.HttpConstants;
  * <br>
  * <br>
  * ServiceBroker broker = new ServiceBroker();<br>
- * ApiGateway webserver = new SunGateway();<br>
- * broker.createService("webserver", webserver);<br>
+ * ApiGateway gateway = new SunGateway();<br>
+ * broker.createService("gateway", gateway);<br>
  * <br>
- * webserver.addRoute(Alias.GET, "/pages/*", "files.get");<br>
- * <br>
- * broker.createService("files", new ServeStatic("/path/to/www/root"));<br>
+ * gateway.use(new ServeStatic("/pages", "/path/to/www/root"));<br>
  * <br>
  * broker.start();<br>
  * <br>
@@ -64,7 +60,7 @@ public class ServeStatic extends Middleware implements HttpConstants {
 
 	protected long cacheDelay = 2000L;
 
-	protected long maxCachedFileSize = 1024 * 1024;
+	protected int maxCachedFileSize = 1024 * 1024;
 
 	protected boolean useETags = true;
 
@@ -85,13 +81,15 @@ public class ServeStatic extends Middleware implements HttpConstants {
 
 	protected final HashMap<String, String> contentTypes = new HashMap<>();
 
-	// --- FILE CACHE ---
+	// --- CACHES ---
 
-	protected Cache<String, CachedFile> cache = new Cache<>(numberOfCachedFiles, false);
+	protected Cache<String, CachedFile> fileCache;
+	protected Cache<String, URL> urlCache;
 
 	protected static final class CachedFile {
 
 		protected long lastChecked;
+		protected long time;
 		protected String etag;
 
 		protected byte[] body;
@@ -114,6 +112,18 @@ public class ServeStatic extends Middleware implements HttpConstants {
 		}
 	}
 
+	// --- START HANDLER ---
+
+	public void started(services.moleculer.ServiceBroker broker) throws Exception {
+		super.started(broker);
+		if (fileCache == null) {
+			fileCache = new Cache<>(numberOfCachedFiles, false);
+		}
+		if (urlCache == null) {
+			urlCache = new Cache<>(numberOfCachedFiles, false);
+		}
+	}
+
 	// --- FILE HANDLER ---
 
 	@Override
@@ -122,167 +132,179 @@ public class ServeStatic extends Middleware implements HttpConstants {
 
 			@Override
 			public Object handler(Context ctx) throws Exception {
+				try {
 
-				// Realtive path
-				String relativePath = null;
+					// Realtive path
+					String relativePath = null;
 
-				// If-None-Match header
-				String ifNoneMatch = null;
+					// If-None-Match header
+					String ifNoneMatch = null;
 
-				// Client supports compressed content
-				boolean compressionSupported = false;
+					// Client supports compressed content
+					boolean compressionSupported = false;
 
-				// Get path and headers block
-				Tree meta = ctx.params.getMeta(false);
-				if (meta != null) {
-					Tree path = meta.get(PATH);
-					if (path != null) {
-						relativePath = path.asString();
+					// Get path and headers block
+					Tree meta = ctx.params.getMeta(false);
+					if (meta != null) {
+						Tree path = meta.get(PATH);
+						if (path != null) {
+							relativePath = path.asString();
+						}
+						Tree headers = meta.get(HEADERS);
+						if (headers != null) {
+							if (useETags) {
+								ifNoneMatch = headers.get(REQ_IF_NONE_MATCH, "");
+							}
+							if (compressAbove > 0) {
+								compressionSupported = headers.get(REQ_ACCEPT_ENCODING, "").contains(DEFLATE);
+							}
+						}
 					}
-					Tree headers = meta.get(HEADERS);
-					if (headers != null) {
-						if (useETags) {
-							ifNoneMatch = headers.get(REQ_IF_NONE_MATCH, "");
-						}
-						if (compressAbove > 0) {
-							compressionSupported = headers.get(REQ_ACCEPT_ENCODING, "").contains(DEFLATE);
-						}
-					}
-				}
-				if (relativePath == null || !relativePath.startsWith(path)) {
-					return action.handler(ctx);
-				}
-
-				// Remove prefix
-				relativePath = relativePath.substring(path.length());
-
-				// Get response meta and headers
-				Tree out = new Tree();
-				meta = out.getMeta(true);
-				Tree headers = meta.putMap(HEADERS, true);
-				if (relativePath == null || relativePath.isEmpty() || relativePath.contains("..")) {
-
-					// 404 Not Found
-					return action.handler(ctx);
-				}
-
-				// Absolute path
-				String absolutePath = file + formatPath(relativePath);
-
-				// Get file from cache
-				CachedFile cached = cache.get(relativePath);
-				long now = System.currentTimeMillis();
-				boolean reload;
-				if (cached != null && now - cached.lastChecked < cacheDelay) {
-					reload = false;
-				} else {
-					reload = enableReloading;
-				}
-
-				// Valid file?
-				if (reload || cached == null) {
-					boolean readable = isReadable(absolutePath);
-					if (readable) {
-						if (cached != null) {
-							cached.lastChecked = now;
-						}
-					} else {
-
-						// 404 Not Found
-						cache.remove(relativePath);
+					if (relativePath == null || !relativePath.startsWith(path)) {
 						return action.handler(ctx);
 					}
-				}
 
-				// Get extension
-				int i = relativePath.lastIndexOf('.');
-				String extension = "";
-				if (i > -1) {
-					extension = relativePath.substring(i + 1).toLowerCase();
-				}
+					// Remove prefix
+					relativePath = relativePath.substring(path.length());
 
-				// Get content-type
-				String contentType = getContentType(extension);
+					// Get response meta and headers
+					Tree out = new Tree();
+					meta = out.getMeta(true);
+					Tree headers = meta.putMap(HEADERS, true);
+					if (relativePath == null || relativePath.isEmpty() || relativePath.contains("..")) {
 
-				// Handling ETag
-				String etag = null;
-				if (reload || cached == null) {
-					long time = getLastModifiedTime(absolutePath);
-					if (time > 0 && useETags) {
-						etag = Long.toHexString(time);
+						// 404 Not Found
+						return action.handler(ctx);
 					}
-				} else if (cached != null) {
-					etag = cached.etag;
-				}
-				if (etag != null) {
-					if (ifNoneMatch != null && ifNoneMatch.equals(etag) && (reload || cached != null)) {
 
-						// 304 Not Modified
-						headers.put(RSP_CONTENT_TYPE, contentType);
-						meta.put(STATUS, STATUS_304);
-						out.setObject(new byte[0]);
-						return out;
+					// Absolute path
+					String absolutePath = file + formatPath(relativePath);
 
+					// Get file from cache
+					CachedFile cached = fileCache.get(relativePath);
+					long now = System.currentTimeMillis();
+					boolean reload;
+					if (cached != null && now - cached.lastChecked < cacheDelay) {
+						reload = false;
 					} else {
-
-						// Send ETag header
-						headers.put(RSP_ETAG, etag);
-					}
-				}
-
-				// Get body
-				byte[] body = null;
-				boolean compressed = false;
-				if (cached != null && (!reload || (cached.etag != null && cached.etag.equals(etag)))) {
-
-					// Set cached content
-					if (!compressionSupported || cached.compressedBody == null) {
-						body = cached.body;
-					} else {
-
-						// Client supports compressed content
-						body = cached.compressedBody;
-						compressed = true;
+						reload = enableReloading;
 					}
 
-				} else {
+					// Valid file?
+					if (reload || cached == null) {
+						boolean readable = isReadable(absolutePath);
+						if (readable) {
+							if (cached != null) {
+								cached.lastChecked = now;
+							}
+						} else {
 
-					// Read file
-					// TODO Check "range" header
-					body = readAllBytes(absolutePath);
-
-					// Store in cache
-					cached = new CachedFile();
-					cached.lastChecked = now;
-					cached.etag = etag;
-					cached.body = body;
-					if (compressAbove > 0 && body.length > compressAbove && contentType.startsWith("text/")) {
-						cached.compressedBody = compress(body, compressionLevel);
-						if (compressionSupported) {
-
-							// Client supports compressed content
-							body = cached.compressedBody;
-							compressed = true;
+							// 404 Not Found
+							fileCache.remove(relativePath);
+							return action.handler(ctx);
 						}
 					}
-					if (body.length <= maxCachedFileSize) {
-						cache.put(relativePath, cached);
+
+					// Get extension
+					int i = relativePath.lastIndexOf('.');
+					String extension = "";
+					if (i > -1) {
+						extension = relativePath.substring(i + 1).toLowerCase();
 					}
+
+					// Get content-type
+					String contentType = getContentType(extension);
+
+					// Set "Content-Type" header
+					headers.put(RSP_CONTENT_TYPE, contentType);
+
+					// Handling ETag
+					String etag = null;
+					long time = -1;
+					if (reload || cached == null) {
+						time = getLastModifiedTime(absolutePath);
+						if (time > 0 && useETags) {
+							etag = Long.toHexString(time);
+						}
+					} else if (cached != null) {
+						etag = cached.etag;
+					}
+					if (etag != null) {
+						if (ifNoneMatch != null && ifNoneMatch.equals(etag) && (reload || cached != null)) {
+
+							// 304 Not Modified
+							headers.put(RSP_CONTENT_TYPE, contentType);
+							meta.put(STATUS, 304);
+							out.setObject(new byte[0]);
+							return out;
+
+						} else {
+
+							// Send ETag header
+							headers.put(RSP_ETAG, etag);
+						}
+					}
+
+					// Set body
+					boolean compressed = false;
+					if (cached != null && (!reload || (cached.etag != null && cached.etag.equals(etag)))) {
+
+						// Set cached content
+						if (!compressionSupported || cached.compressedBody == null) {
+							out.setObject(cached.body);
+						} else {
+
+							// Client supports compressed content
+							out.setObject(cached.compressedBody);
+							compressed = true;
+						}
+
+					} else {
+
+						// Get file size
+						long max = getFileSize(absolutePath);
+						if (max > maxCachedFileSize) {
+
+							// Send as file
+							URL url = getFileURL(absolutePath);
+							out.setObject(new File(new URI(url.toString())));
+
+						} else {
+
+							// Read all bytes of the file
+							byte[] body = readAllBytes(absolutePath);
+
+							// Store in cache
+							cached = new CachedFile();
+							cached.lastChecked = now;
+							cached.etag = etag;
+							cached.body = body;
+							if (compressAbove > 0 && body.length > compressAbove && contentType.startsWith("text/")) {
+								cached.compressedBody = compress(body, compressionLevel);
+								if (compressionSupported) {
+
+									// Client supports compressed content
+									body = cached.compressedBody;
+									compressed = true;
+								}
+							}
+							fileCache.put(relativePath, cached);
+							out.setObject(body);
+						}
+					}
+
+					// Add "Content-Encoding" header
+					if (compressed) {
+						headers.put(RSP_CONTENT_ENCODING, DEFLATE);
+					}
+
+					// Return response
+					return out;
+				} catch (Exception cause) {
+					logger.warn("Unable to process request!", cause);
 				}
-
-				// Add Content-Encoding header
-				if (compressed) {
-					headers.put(RSP_CONTENT_ENCODING, DEFLATE);
-				}
-
-				// Set data
-				headers.put(RSP_CONTENT_TYPE, contentType);
-				out.setObject(body);
-
-				// Return response
-				return out;
+				return action.handler(ctx);
 			}
-
 		};
 	}
 
@@ -291,7 +313,8 @@ public class ServeStatic extends Middleware implements HttpConstants {
 	@Override
 	public void stopped() {
 		contentTypes.clear();
-		cache.clear();
+		urlCache = null;
+		fileCache = null;
 	}
 
 	// --- FILE HANDLERS ---
@@ -306,82 +329,32 @@ public class ServeStatic extends Middleware implements HttpConstants {
 		return false;
 	}
 
+	protected long getFileSize(String path) {
+		try {
+			URL url = getFileURL(path);
+			if (url != null) {
+				if ("file".equals(url.getProtocol())) {
+					File file = new File(new URI(url.toString()));
+					return file.length();
+				}
+			}
+		} catch (Exception ignored) {
+		}
+		return -1;
+	}
+
 	protected long getLastModifiedTime(String path) {
 		try {
 			URL url = getFileURL(path);
 			if (url != null) {
 				if ("file".equals(url.getProtocol())) {
-					return new File(new URI(url.toString())).lastModified();
+					File file = new File(new URI(url.toString()));
+					return file.lastModified();
 				}
-				return jarTimestamp;
 			}
 		} catch (Exception ignored) {
 		}
-		return 0;
-	}
-
-	protected byte[] readBytes(String path, long offset, int length) {
-		InputStream in = null;
-		RandomAccessFile raf = null;
-		try {
-			byte[] bytes;
-			URL url = getFileURL(path);
-			if ("file".equals(url.getProtocol())) {
-				raf = new RandomAccessFile(url.getFile(), "r");
-				long max = raf.length();
-				if (offset > 0) {
-					if (offset >= max) {
-						throw new IllegalArgumentException("Invalid offset (offset > file length)!");
-					}
-					raf.seek(offset);
-				}
-				if (offset + length > raf.length()) {
-					length = (int)(raf.length() - offset);
-					if (length < 1) {
-						throw new IllegalArgumentException("Invalid length (length > file length)!");
-					}
-				}
-				bytes = new byte[length];
-				raf.readFully(bytes);
-			} else {
-				in = url.openStream();
-				if (offset > 0) {
-					in.skip(offset);
-				}
-				byte[] buffer = new byte[length];
-				int pos = 0;
-				while (true) {
-					int count = in.read(buffer, pos, buffer.length - pos);
-					if (count == -1) {
-						break;
-					}
-					pos += count;
-				}
-				if (pos < buffer.length) {
-					bytes = new byte[pos];
-					System.arraycopy(buffer, 0, bytes, 0, bytes.length);
-				} else {
-					bytes = buffer;
-				}
-			}
-			return bytes;
-		} catch (Exception cause) {
-			logger.warn("Unable to load file!", cause);
-		} finally {
-			if (in != null) {
-				try {
-					in.close();
-				} catch (Exception ignored) {
-				}
-			} else if (raf != null) {
-				try {
-					raf.close();
-				} catch (Exception ignored) {
-				}
-			}
-		}
-		logger.warn("Unable to load file: " + path);
-		return new byte[0];
+		return jarTimestamp;
 	}
 
 	protected byte[] readAllBytes(String path) {
@@ -397,14 +370,22 @@ public class ServeStatic extends Middleware implements HttpConstants {
 	}
 
 	protected URL getFileURL(String path) {
-		URL url = tryToGetFileURL(path);
+		URL url = urlCache.get(path);
 		if (url != null) {
 			return url;
 		}
-		if (path.startsWith("/") && path.length() > 1) {
-			return tryToGetFileURL(path.substring(1));
+		url = tryToGetFileURL(path);
+		if (url != null) {
+			urlCache.put(path, url);
+			return url;
 		}
-		return null;
+		if (path.startsWith("/") && path.length() > 1) {
+			url = tryToGetFileURL(path.substring(1));
+			if (url != null) {
+				urlCache.put(path, url);
+			}
+		}
+		return url;
 	}
 
 	protected URL tryToGetFileURL(String path) {
@@ -940,7 +921,7 @@ public class ServeStatic extends Middleware implements HttpConstants {
 
 	public void setNumberOfCachedFiles(int numberOfCachedFiles) {
 		if (this.numberOfCachedFiles != numberOfCachedFiles) {
-			cache = new Cache<>(numberOfCachedFiles, false);
+			fileCache = new Cache<>(numberOfCachedFiles, false);
 		}
 		this.numberOfCachedFiles = numberOfCachedFiles;
 	}
@@ -961,11 +942,11 @@ public class ServeStatic extends Middleware implements HttpConstants {
 		this.cacheDelay = cacheDelay;
 	}
 
-	public long getMaxCachedFileSize() {
+	public int getMaxCachedFileSize() {
 		return maxCachedFileSize;
 	}
 
-	public void setMaxCachedFileSize(long maxCachedFileSize) {
+	public void setMaxCachedFileSize(int maxCachedFileSize) {
 		this.maxCachedFileSize = maxCachedFileSize;
 	}
 

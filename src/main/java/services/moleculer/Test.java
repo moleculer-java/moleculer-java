@@ -50,7 +50,7 @@ public class Test {
 			r.use(new CorsHeaders());
 			gateway.setRoutes(new Route[]{r});
 			
-			gateway.use(new ServeStatic("/pages", "D:/test/docs"));
+			gateway.use(new ServeStatic("/pages", "/path/to/www/root"));
 		
 			broker.createService(new Service("math") {
 

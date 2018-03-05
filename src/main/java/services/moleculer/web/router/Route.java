@@ -39,6 +39,10 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.eventbus.Matcher;
 import services.moleculer.service.Middleware;
@@ -46,6 +50,10 @@ import services.moleculer.web.ApiGateway;
 
 public class Route {
 
+	// --- LOGGER ---
+
+	protected static final Logger logger = LoggerFactory.getLogger(Route.class);
+	
 	// --- PARENT GATEWAY ---
 
 	protected final ApiGateway gateway;
@@ -146,6 +154,18 @@ public class Route {
 		return null;
 	}
 
+	// --- START MIDDLEWARES ---
+	
+	public void started(ServiceBroker broker, HashSet<Middleware> checkedMiddlewares) throws Exception {
+		
+		// Start middlewares
+		for (Middleware middleware: checkedMiddlewares) {
+			if (!checkedMiddlewares.contains(middleware)) {
+				middleware.started(broker);
+			}
+		}
+	}
+	
 	// --- GLOBAL MIDDLEWARES ---
 
 	protected HashSet<Middleware> checkedMiddlewares = new HashSet<>(32);
@@ -158,6 +178,22 @@ public class Route {
 		checkedMiddlewares.addAll(middlewares);
 	}
 
+	// --- STOP MIDDLEWARES ---
+	
+	public void stopped(HashSet<Middleware> checkedMiddlewares) {
+		
+		// Start middlewares
+		for (Middleware middleware: checkedMiddlewares) {
+			if (!checkedMiddlewares.contains(middleware)) {
+				try {
+					middleware.stopped();
+				} catch (Exception ignored) {
+					logger.warn("Unable to stop middleware!");
+				}
+			}
+		}
+	}
+	
 	// --- PROPERTY GETTERS ---
 
 	public ApiGateway getApiGateway() {

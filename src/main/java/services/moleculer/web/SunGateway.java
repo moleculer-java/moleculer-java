@@ -3,6 +3,8 @@ package services.moleculer.web;
 import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.readFully;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -82,21 +84,21 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 				reqBody = readFully(in);
 			}
 			processRequest(httpMethod, path, reqHeaders, query, reqBody).then(rsp -> {
-				Class<?> type = rsp.getType();
-				byte[] rspBody;
-				if (type == byte[].class) {
-					rspBody = rsp.asBytes();
-				} else {
-					rspBody = rsp.toBinary(null, false);
-				}
 				int status = 200;
-				Tree meta = rsp.getMeta(false);
 				Tree rspHeaders = null;
+				Tree meta = rsp.getMeta(false);
 				if (meta != null) {
 					status = meta.get("status", 200);
 					rspHeaders = meta.get("headers");
 				}
-				sendHttpResponse(exchange, status, rspHeaders, rspBody);
+				Class<?> type = rsp.getType();
+				if (type == byte[].class) {
+					sendHttpResponse(exchange, status, rspHeaders, rsp.asBytes(), null);
+				} else if (type == File.class) {
+					sendHttpResponse(exchange, status, rspHeaders, null, (File) rsp.asObject());
+				} else {
+					sendHttpResponse(exchange, status, rspHeaders, rsp.toBinary(null, false), null);
+				}
 			}).catchError(cause -> {
 				sendHttpError(exchange, cause);
 			});
@@ -134,10 +136,12 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 		}
 		json.append("\"\r\n}");
 		byte[] bytes = json.toString().getBytes(StandardCharsets.UTF_8);
-		sendHttpResponse(exchange, 500, null, bytes);
+		sendHttpResponse(exchange, 500, null, bytes, null);
 	}
 
-	protected void sendHttpResponse(HttpExchange exchange, int status, Tree headers, byte[] body) {
+	protected void sendHttpResponse(HttpExchange exchange, int status, Tree headers, byte[] bytes, File file) {
+		OutputStream out = null;
+		InputStream in = null;
 		try {
 
 			// Create HTTP response
@@ -164,26 +168,57 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 					responseHeaders.set(RSP_CONTENT_TYPE, CONTENT_TYPE_JSON);
 				}
 			}
-			boolean hasBody = body != null && body.length > 0;
+			if (bytes != null && bytes.length > 0) {
 
-			// Write HTTP headers
-			exchange.sendResponseHeaders(status, hasBody ? body.length : -1);
+				// Write HTTP headers (byte array body)
+				exchange.sendResponseHeaders(status, bytes.length);
 
-			// Write body
-			if (hasBody) {
-				OutputStream out = exchange.getResponseBody();
-				out.write(body);
-
-				// Flush response
+				// Write body
+				out = exchange.getResponseBody();
+				out.write(bytes);
 				out.flush();
+
+			} else if (file != null) {
+
+				// Write HTTP headers (file body)
+				exchange.sendResponseHeaders(status, file.length());
+
+				// Write body
+				out = exchange.getResponseBody();
+				in = new FileInputStream(file);
+				byte[] packet = new byte[2048];
+				int len;
+				while ((len = in.read(packet)) > -1) {
+					out.write(packet, 0, len);
+					out.flush();
+				}
+
+			} else {
+
+				// Write HTTP headers (empty body)
+				exchange.sendResponseHeaders(status, -1);
 			}
+
+		} catch (IOException closed) {
 		} catch (Throwable cause) {
-			String msg = String.valueOf(cause).toLowerCase();
-			if (msg.contains("close") || msg.contains("abort")) {
-				return;
-			}
 			logger.warn("Unable to send HTTP response!", cause);
 		} finally {
+
+			// Close output stream
+			if (out != null) {
+				try {
+					out.close();
+				} catch (Exception ingored) {
+				}
+			}
+
+			// Close input stream
+			if (in != null) {
+				try {
+					in.close();
+				} catch (Exception ingored) {
+				}
+			}
 
 			// Close exchange
 			exchange.close();

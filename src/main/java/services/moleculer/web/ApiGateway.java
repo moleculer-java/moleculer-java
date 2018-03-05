@@ -133,6 +133,14 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 		this.registry = broker.getConfig().getServiceRegistry();
 		this.transporter = broker.getConfig().getTransporter();
 
+		// Start middlewares
+		for (Middleware middleware: checkedMiddlewares) {
+			middleware.started(broker);
+		}
+		for (Route route: routes) {
+			route.started(broker, checkedMiddlewares);
+		}
+		
 		// Set last route (for "404 Not Found" and ServeStatic)
 		lastRoute = new Route(this, "", MappingPolicy.ALL, null, null, null);
 		lastRoute.use(lastMiddleware);
@@ -145,7 +153,20 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 	 */
 	@Override
 	public void stopped() {
+		
+		// Stop middlewares
+		for (Middleware middleware: checkedMiddlewares) {
+			try {
+				middleware.stopped();
+			} catch (Exception ignored) {
+				logger.warn("Unable to stop middleware!");
+			}
+		}
+		for (Route route: routes) {
+			route.stopped(checkedMiddlewares);
+		}
 		setRoutes(new Route[0]);
+
 		writeLock.lock();
 		try {
 			checkedMiddlewares.clear();

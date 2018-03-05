@@ -58,6 +58,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequestDecoder;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.ContinuationWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
@@ -331,7 +332,7 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 		protected void sendHttpResponse(ChannelHandlerContext ctx, boolean keepAlive, Tree rsp) {
 
 			// Default status
-			String status = STATUS_200;
+			int status = 200;
 			Tree headers = null;
 
 			// Get status code and response headers
@@ -385,20 +386,16 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 			}
 			json.append("\"\r\n}");
 			byte[] bytes = json.toString().getBytes(StandardCharsets.UTF_8);
-			sendHttpResponse(ctx, STATUS_500, null, true, bytes);
+			sendHttpResponse(ctx, 500, null, true, bytes);
 		}
 
-		protected void sendHttpResponse(ChannelHandlerContext ctx, String status, Tree headers, boolean keepAlive,
+		protected void sendHttpResponse(ChannelHandlerContext ctx, int status, Tree headers, boolean keepAlive,
 				byte[] body) {
 
 			// Create HTTP response
 			StringBuilder httpHeader = new StringBuilder(512);
 			httpHeader.append("HTTP/1.1 ");
-			if (status == null) {
-				httpHeader.append(STATUS_200);
-			} else {
-				httpHeader.append(status);
-			}
+			httpHeader.append(HttpResponseStatus.valueOf(status));			
 			if (headers == null) {
 				httpHeader.append("\r\nContent-Type:application/json;charset=utf-8");
 			} else {
@@ -456,7 +453,7 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 			ctx.flush();
 		}
 	}
-
+	
 	// --- GETTERS AND SETTERS ---
 
 	public int getPort() {
