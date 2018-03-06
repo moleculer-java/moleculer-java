@@ -31,19 +31,39 @@
  */
 package services.moleculer.web;
 
+import static services.moleculer.web.common.FileUtils.getFileURL;
+
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.io.StringWriter;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyStore;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map.Entry;
 import java.util.concurrent.ExecutorService;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.ManagerFactoryParameters;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLSessionContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
 
 import io.datatree.Tree;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -72,17 +92,25 @@ import io.netty.handler.codec.http.websocketx.PongWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
+import io.netty.handler.ssl.OpenSsl;
+import io.netty.handler.ssl.OpenSslServerContext;
+import io.netty.handler.ssl.OpenSslServerSessionContext;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslProvider;
+import io.netty.handler.ssl.util.SimpleTrustManagerFactory;
 import io.netty.handler.stream.ChunkedFile;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.ThreadPerTaskExecutor;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
-import services.moleculer.web.router.HttpConstants;
+import services.moleculer.web.common.HttpConstants;
 
 /**
- * HTTP/1.1 API Gateway based on Netty framework. Required dependency:<br>
+ * HTTP/1.1 API Gateway based on Netty framework. NettyGateway supports
+ * Transport Layer Security (TLS) and WebSockets. Required dependency:<br>
  * <br>
  * // https://mvnrepository.com/artifact/io.netty/netty-handler<br>
  * compile group: 'io.netty', name: 'netty-handler', version: '4.1.22.Final'
@@ -103,6 +131,28 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 	protected EventLoopGroup eventLoopGroup;
 
 	protected ChannelHandler handler;
+
+	// --- SSL PROPERTIES ---
+
+	protected boolean useSSL;
+
+	protected TrustManagerFactory trustManagerFactory;
+
+	// --- JDK SSL PROPERTIES ---
+
+	protected String keyStoreFilePath;
+
+	protected String keyStorePassword;
+
+	protected String keyStoreType = "jks";
+
+	// --- OPENSSL PROPERTIES ---
+
+	protected String keyCertChainFilePath;
+
+	protected String keyFilePath;
+
+	protected boolean openSslSessionCacheEnabled = true;
 
 	// --- COMPONENTS ---
 
@@ -136,6 +186,9 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 				@Override
 				protected void initChannel(Channel ch) throws Exception {
 					ChannelPipeline p = ch.pipeline();
+					if (useSSL) {
+						p.addLast(createSslHandler(ch));
+					}
 					p.addLast(new HttpRequestDecoder());
 					p.addLast(new HttpObjectAggregator(maxContentLength, true));
 					p.addLast(new ChunkedWriteHandler());
@@ -166,6 +219,112 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 			eventLoopGroup = null;
 		}
 		handler = null;
+	}
+
+	// --- SSL HANDLER ---
+
+	protected SslHandler createSslHandler(Channel ch) throws Exception {
+		SslContext sslContext = getSslContext();
+		InetSocketAddress remoteAddress = (InetSocketAddress) ch.remoteAddress();
+		SSLEngine sslEngine = sslContext.newEngine(ByteBufAllocator.DEFAULT,
+				remoteAddress.getAddress().getHostAddress(), remoteAddress.getPort());
+		return new SslHandler(sslEngine);
+	}
+
+	protected SslContext cachedSslContext;
+
+	protected synchronized SslContext getSslContext() throws Exception {
+		if (cachedSslContext == null) {
+			SslContextBuilder builder;
+			if (keyCertChainFilePath != null || keyFilePath != null) {
+
+				// OpenSSL
+				InputStream keyCertChainInputStream = getFileURL(keyCertChainFilePath).openStream();
+				InputStream keyInputStream = getFileURL(keyFilePath).openStream();
+				builder = SslContextBuilder.forServer(keyCertChainInputStream, keyInputStream);
+
+			} else {
+
+				// JDK SSL
+				KeyStore keyStore = KeyStore.getInstance(keyStoreType);
+				InputStream keyStoreInputStream = getFileURL(keyStoreFilePath).openStream();
+				keyStore.load(keyStoreInputStream, keyStorePassword == null ? null : keyStorePassword.toCharArray());
+				KeyManagerFactory keyManagerFactory = KeyManagerFactory
+						.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+				keyManagerFactory.getProvider();
+				keyManagerFactory.init(keyStore, keyStorePassword == null ? null : keyStorePassword.toCharArray());
+				builder = SslContextBuilder.forServer(keyManagerFactory);
+
+			}
+			Collection<String> cipherSuites;
+			if (keyCertChainFilePath != null || keyFilePath != null) {
+
+				// OpenSSL
+				builder.sslProvider(SslProvider.OPENSSL);
+				cipherSuites = OpenSsl.availableOpenSslCipherSuites();
+
+			} else {
+
+				// JDK SSL
+				builder.sslProvider(SslProvider.JDK);
+				SSLContext context = SSLContext.getInstance("TLS");
+				context.init(null, null, null);
+				SSLEngine engine = context.createSSLEngine();
+				cipherSuites = new ArrayList<>();
+				Collections.addAll(cipherSuites, engine.getEnabledCipherSuites());
+
+			}
+			if (cipherSuites != null && cipherSuites.isEmpty()) {
+				builder.ciphers(cipherSuites);
+			}
+			if (trustManagerFactory == null) {
+				TrustManager[] mgrs = new TrustManager[] { new X509TrustManager() {
+
+					@Override
+					public void checkClientTrusted(X509Certificate[] x509Certificates, String s)
+							throws CertificateException {
+					}
+
+					@Override
+					public void checkServerTrusted(X509Certificate[] x509Certificates, String s)
+							throws CertificateException {
+					}
+
+					@Override
+					public X509Certificate[] getAcceptedIssuers() {
+						return new X509Certificate[0];
+					}
+
+				} };
+				builder.trustManager(new SimpleTrustManagerFactory() {
+
+					@Override
+					protected void engineInit(KeyStore keyStore) throws Exception {
+					}
+
+					@Override
+					protected void engineInit(ManagerFactoryParameters managerFactoryParameters) throws Exception {
+					}
+
+					@Override
+					protected TrustManager[] engineGetTrustManagers() {
+						return mgrs.clone();
+					}
+
+				});
+			} else {
+				builder.trustManager(trustManagerFactory);
+			}
+			cachedSslContext = builder.build();
+			if (cachedSslContext instanceof OpenSslServerContext) {
+				SSLSessionContext sslSessionContext = cachedSslContext.sessionContext();
+				if (sslSessionContext instanceof OpenSslServerSessionContext) {
+					((OpenSslServerSessionContext) sslSessionContext)
+							.setSessionCacheEnabled(openSslSessionCacheEnabled);
+				}
+			}
+		}
+		return cachedSslContext;
 	}
 
 	// --- CHANNEL HANDLER ---
@@ -517,6 +676,62 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 
 	public void setMaxContentLength(int maxContentLength) {
 		this.maxContentLength = maxContentLength;
+	}
+
+	public boolean isOpenSslSessionCacheEnabled() {
+		return openSslSessionCacheEnabled;
+	}
+
+	public void setOpenSslSessionCacheEnabled(boolean openSslSessionCacheEnabled) {
+		this.openSslSessionCacheEnabled = openSslSessionCacheEnabled;
+	}
+
+	public String getKeyCertChainFilePath() {
+		return keyCertChainFilePath;
+	}
+
+	public void setKeyCertChainFilePath(String keyCertChainFilePath) {
+		this.keyCertChainFilePath = keyCertChainFilePath;
+	}
+
+	public String getKeyFilePath() {
+		return keyFilePath;
+	}
+
+	public void setKeyFilePath(String keyFilePath) {
+		this.keyFilePath = keyFilePath;
+	}
+
+	public boolean isUseSSL() {
+		return useSSL;
+	}
+
+	public void setUseSSL(boolean useSSL) {
+		this.useSSL = useSSL;
+	}
+
+	public String getKeyStoreFilePath() {
+		return keyStoreFilePath;
+	}
+
+	public void setKeyStoreFilePath(String keyStoreFilePath) {
+		this.keyStoreFilePath = keyStoreFilePath;
+	}
+
+	public String getKeyStorePassword() {
+		return keyStorePassword;
+	}
+
+	public void setKeyStorePassword(String keyStorePassword) {
+		this.keyStorePassword = keyStorePassword;
+	}
+
+	public String getKeyStoreType() {
+		return keyStoreType;
+	}
+
+	public void setKeyStoreType(String keyStoreType) {
+		this.keyStoreType = keyStoreType;
 	}
 
 }

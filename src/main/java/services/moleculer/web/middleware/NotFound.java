@@ -8,7 +8,7 @@ import services.moleculer.context.Context;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.Name;
-import services.moleculer.web.router.HttpConstants;
+import services.moleculer.web.common.HttpConstants;
 
 @Name("Not Found")
 public class NotFound extends Middleware implements HttpConstants {
@@ -17,6 +17,8 @@ public class NotFound extends Middleware implements HttpConstants {
 
 	protected boolean htmlResponse;
 
+	// --- CONSTRUCTOR ---
+	
 	// --- CREATE NEW ACTION ---
 
 	public Action install(Action action, Tree config) {

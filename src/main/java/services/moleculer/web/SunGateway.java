@@ -2,6 +2,7 @@ package services.moleculer.web;
 
 import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.readFully;
+import static services.moleculer.web.common.FileUtils.getFileURL;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -13,13 +14,23 @@ import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyStore;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Map;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpsConfigurator;
+import com.sun.net.httpserver.HttpsServer;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
@@ -27,8 +38,9 @@ import services.moleculer.service.Name;
 
 /**
  * API Gateway, based on the "com.sun.net.httpserver" package. This web-server
- * can be used primarily for development and testing. This Gateway does not have
- * any dependencies. In production mode use {@link NettyGateway}.
+ * can be used primarily for development and testing. This Gateway does NOT have
+ * any dependencies. In production mode use the faster {@link NettyGateway}.
+ * SunGateway supports Transport Layer Security (TLS).
  * 
  * @see NettyGateway
  */
@@ -38,23 +50,46 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 
 	// --- PROPERTIES ---
 
-	protected String host;
+	protected String address;
+
 	protected int port = 3000;
+
+	// --- SSL PROPERTIES ---
+
+	protected boolean useSSL;
+
+	// --- JDK SSL PROPERTIES ---
+
+	protected String keyStoreFilePath;
+
+	protected String keyStorePassword;
+
+	protected String keyStoreType = "jks";
+
+	protected TrustManager[] trustManagers;
 
 	// --- HTTP SERVER INSTANCE ---
 
 	protected HttpServer server;
 
+	// --- START HTTP SERVER INSTANCE ---
+
 	@Override
 	public void started(ServiceBroker broker) throws Exception {
 		super.started(broker);
-		InetSocketAddress address;
-		if (host == null) {
-			address = new InetSocketAddress(port);
+		InetSocketAddress socketAddress;
+		if (address == null) {
+			socketAddress = new InetSocketAddress(port);
 		} else {
-			address = new InetSocketAddress(host, port);
+			socketAddress = new InetSocketAddress(address, port);
 		}
-		server = HttpServer.create(address, port);
+		if (useSSL) {
+			HttpsServer sslServer = HttpsServer.create(socketAddress, port);
+			sslServer.setHttpsConfigurator(new HttpsConfigurator(getSslContext()));
+			server = sslServer;
+		} else {
+			server = HttpServer.create(socketAddress, port);
+		}
 		server.setExecutor(broker.getConfig().getExecutor());
 		server.createContext("/", this);
 		server.start();
@@ -84,18 +119,18 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 				reqBody = readFully(in);
 			}
 			processRequest(httpMethod, path, reqHeaders, query, reqBody).then(rsp -> {
-				
+
 				// Default status
 				int status = 200;
 				Tree rspHeaders = null;
-				
+
 				// Get status code and response headers
 				Tree meta = rsp.getMeta(false);
 				if (meta != null) {
 					status = meta.get("status", 200);
 					rspHeaders = meta.get("headers");
 				}
-				
+
 				// Convert and send body
 				Class<?> type = rsp.getType();
 				if (type == byte[].class) {
@@ -231,6 +266,8 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 		}
 	}
 
+	// --- STOP HTTP SERVER INSTANCE ---
+
 	@Override
 	public void stopped() {
 		super.stopped();
@@ -242,6 +279,107 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 			}
 			server = null;
 		}
+	}
+
+	// --- CREATE SSL CONTEXT ---
+
+	protected SSLContext getSslContext() throws Exception {
+
+		// Load KeyStore
+		KeyStore keyStore = KeyStore.getInstance(keyStoreType);
+		InputStream keyStoreInputStream = getFileURL(keyStoreFilePath).openStream();
+		keyStore.load(keyStoreInputStream, keyStorePassword == null ? null : keyStorePassword.toCharArray());
+		KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+		keyManagerFactory.getProvider();
+		keyManagerFactory.init(keyStore, keyStorePassword == null ? null : keyStorePassword.toCharArray());
+
+		// Create TrustManager
+		TrustManager[] mgrs;
+		if (trustManagers == null) {
+			mgrs = new TrustManager[] { new X509TrustManager() {
+
+				@Override
+				public void checkClientTrusted(X509Certificate[] x509Certificates, String s)
+						throws CertificateException {
+				}
+
+				@Override
+				public void checkServerTrusted(X509Certificate[] x509Certificates, String s)
+						throws CertificateException {
+				}
+
+				@Override
+				public X509Certificate[] getAcceptedIssuers() {
+					return new X509Certificate[0];
+				}
+
+			} };
+		} else {
+			mgrs = trustManagers;
+		}
+
+		// Create SSL context
+		SSLContext sslContext = SSLContext.getInstance("TLS");
+		sslContext.init(keyManagerFactory.getKeyManagers(), mgrs, null);
+		return sslContext;
+	}
+
+	// --- PROPERTY GETTERS AND SETTERS ---
+
+	public int getPort() {
+		return port;
+	}
+
+	public void setPort(int port) {
+		this.port = port;
+	}
+
+	public String getAddress() {
+		return address;
+	}
+
+	public void setAddress(String host) {
+		this.address = host;
+	}
+
+	public boolean isUseSSL() {
+		return useSSL;
+	}
+
+	public void setUseSSL(boolean useSSL) {
+		this.useSSL = useSSL;
+	}
+
+	public String getKeyStoreFilePath() {
+		return keyStoreFilePath;
+	}
+
+	public void setKeyStoreFilePath(String keyStoreFilePath) {
+		this.keyStoreFilePath = keyStoreFilePath;
+	}
+
+	public String getKeyStorePassword() {
+		return keyStorePassword;
+	}
+
+	public void setKeyStorePassword(String keyStorePassword) {
+		this.keyStorePassword = keyStorePassword;
+	}
+
+	public String getKeyStoreType() {
+		return keyStoreType;
+	}
+
+	public void setKeyStoreType(String keyStoreType) {
+		this.keyStoreType = keyStoreType;
+	}
+
+	public TrustManager[] getTrustManagers() {
+		return trustManagers;
+	}
+
+	public void setTrustManagers(TrustManager[] trustManagers) {
+		this.trustManagers = trustManagers;
 	}
 
 }

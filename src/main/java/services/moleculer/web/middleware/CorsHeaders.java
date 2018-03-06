@@ -6,7 +6,7 @@ import services.moleculer.context.Context;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.Name;
-import services.moleculer.web.router.HttpConstants;
+import services.moleculer.web.common.HttpConstants;
 
 @Name("CORS Headers")
 public class CorsHeaders extends Middleware implements HttpConstants {

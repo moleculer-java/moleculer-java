@@ -1,4 +1,4 @@
-package services.moleculer.web.router;
+package services.moleculer.web.common;
 
 public interface HttpConstants {
 
@@ -10,7 +10,8 @@ public interface HttpConstants {
 	public static final String REQ_CONNECTION = "connection";
 	public static final String REQ_ACCEPT_ENCODING = "accept-encoding";
 	public static final String REQ_CONTENT_ENCODING = "content-encoding";
-
+	public static final String REQ_COOKIE = "cookie";
+	
 	// --- RESPONSE HEADERS ---
 
 	public static final String RSP_CONTENT_TYPE = "Content-Type";
@@ -19,6 +20,7 @@ public interface HttpConstants {
 	public static final String RSP_ACCEPT_ENCODING = "Accept-Encoding";
 	public static final String RSP_CONTENT_ENCODING = "Content-Encoding";	
 	public static final String RSP_ETAG = "ETag";
+	public static final String RSP_SET_COOKIE = "Set-Cookie";
 	
 	// --- HTTP HEADER VALUES ---
 	

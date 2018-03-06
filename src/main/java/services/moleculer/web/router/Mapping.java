@@ -44,6 +44,7 @@ import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
+import services.moleculer.web.common.HttpConstants;
 
 public class Mapping implements HttpConstants {
 

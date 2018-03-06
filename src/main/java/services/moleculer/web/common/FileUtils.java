@@ -1,4 +1,4 @@
-package services.moleculer.web.router;
+package services.moleculer.web.common;
 
 import static services.moleculer.util.CommonUtils.readFully;
 

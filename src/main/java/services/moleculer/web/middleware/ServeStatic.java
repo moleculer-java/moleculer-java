@@ -2,11 +2,11 @@ package services.moleculer.web.middleware;
 
 import static services.moleculer.util.CommonUtils.compress;
 import static services.moleculer.util.CommonUtils.formatPath;
-import static services.moleculer.web.router.FileUtils.getFileSize;
-import static services.moleculer.web.router.FileUtils.getFileURL;
-import static services.moleculer.web.router.FileUtils.getLastModifiedTime;
-import static services.moleculer.web.router.FileUtils.isReadable;
-import static services.moleculer.web.router.FileUtils.readAllBytes;
+import static services.moleculer.web.common.FileUtils.getFileSize;
+import static services.moleculer.web.common.FileUtils.getFileURL;
+import static services.moleculer.web.common.FileUtils.getLastModifiedTime;
+import static services.moleculer.web.common.FileUtils.isReadable;
+import static services.moleculer.web.common.FileUtils.readAllBytes;
 
 import java.io.File;
 import java.net.URI;
@@ -20,7 +20,7 @@ import services.moleculer.context.Context;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.Name;
-import services.moleculer.web.router.HttpConstants;
+import services.moleculer.web.common.HttpConstants;
 
 /**
  * Service to serve files from within a given root directory. Sample of usage:
@@ -112,6 +112,10 @@ public class ServeStatic extends Middleware implements HttpConstants {
 
 	// --- CONSTRUCTORS ---
 
+	public ServeStatic() {
+		this("/static", "/www");
+	}
+	
 	public ServeStatic(String path) {
 		this(path, "/www");
 	}
