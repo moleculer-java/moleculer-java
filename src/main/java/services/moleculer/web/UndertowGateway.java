@@ -1,59 +1,51 @@
 package services.moleculer.web;
 
-import static services.moleculer.util.CommonUtils.getHostName;
-import static services.moleculer.util.CommonUtils.readFully;
 import static services.moleculer.web.common.FileUtils.getFileURL;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.net.InetSocketAddress;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.List;
-import java.util.Map;
+import java.util.Collection;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
-import com.sun.net.httpserver.Headers;
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpServer;
-import com.sun.net.httpserver.HttpsConfigurator;
-import com.sun.net.httpserver.HttpsServer;
+import org.xnio.Options;
+import org.xnio.channels.StreamSourceChannel;
 
 import io.datatree.Tree;
+import io.undertow.Undertow;
+import io.undertow.UndertowOptions;
+import io.undertow.server.HttpHandler;
+import io.undertow.server.HttpServerExchange;
+import io.undertow.util.HeaderMap;
+import io.undertow.util.HeaderValues;
+import io.undertow.util.HttpString;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 import services.moleculer.web.common.LazyTree;
 
-/**
- * API Gateway, based on the "com.sun.net.httpserver" package. This web-server
- * can be used primarily for development and testing. This Gateway does NOT have
- * any dependencies. In production mode use the faster {@link NettyGateway}.
- * SunGateway supports Transport Layer Security (TLS).
- * 
- * @see NettyGateway
- */
-@Name("Sun HTTP Server API Gateway")
-@SuppressWarnings("restriction")
-public class SunGateway extends ApiGateway implements HttpHandler {
+@Name("Undertow HTTP Server API Gateway")
+public class UndertowGateway extends ApiGateway implements HttpHandler {
 
 	// --- PROPERTIES ---
 
 	protected String address;
 
 	protected int port = 3000;
+
+	protected boolean useHttp2;
+
+	protected int bufferSize = 1024 * 16;
+
+	protected int ioThreads = 2;
 
 	// --- SSL PROPERTIES ---
 
@@ -71,68 +63,75 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 
 	// --- HTTP SERVER INSTANCE ---
 
-	protected HttpServer server;
+	protected Undertow server;
 
 	// --- START HTTP SERVER INSTANCE ---
 
 	@Override
 	public void started(ServiceBroker broker) throws Exception {
 		super.started(broker);
-		InetSocketAddress socketAddress;
-		if (address == null) {
-			socketAddress = new InetSocketAddress(port);
-		} else {
-			socketAddress = new InetSocketAddress(address, port);
+		if (server != null) {
+			try {
+				server.stop();
+			} catch (Exception ignored) {
+			}
 		}
+		Undertow.Builder builder = Undertow.builder();
 		if (useSSL) {
-			HttpsServer sslServer = HttpsServer.create(socketAddress, port);
-			sslServer.setHttpsConfigurator(new HttpsConfigurator(getSslContext()));
-			server = sslServer;
+			SSLContext sslContext = getSslContext();
+			builder.addHttpsListener(port, address, sslContext);
 		} else {
-			server = HttpServer.create(socketAddress, port);
+			builder.addHttpListener(port, address);
 		}
-		server.setExecutor(broker.getConfig().getExecutor());
-		server.createContext("/", this);
+		if (useHttp2) {
+			builder.setServerOption(UndertowOptions.ENABLE_HTTP2, true);
+		}
+		builder.setBufferSize(bufferSize);
+		builder.setServerOption(UndertowOptions.RECORD_REQUEST_START_TIME, false);
+		builder.setServerOption(UndertowOptions.ALWAYS_SET_KEEP_ALIVE, false);
+		builder.setIoThreads(ioThreads);
+		builder.setSocketOption(Options.BACKLOG, 10000);
+		builder.setServerOption(UndertowOptions.ALWAYS_SET_DATE, true);
+		builder.setHandler(this);
+		server = builder.build();
 		server.start();
-		logger.info("HTTP server started on http://" + getHostName() + ':' + port + '.');
 	}
 
 	// --- REQUEST PROCESSOR ---
 
 	@Override
-	public void handle(HttpExchange exchange) throws IOException {
+	public void handleRequest(HttpServerExchange exchange) throws Exception {
 		try {
-			String httpMethod = exchange.getRequestMethod();
-			URI uri = exchange.getRequestURI();
-			String path = uri.getPath();
-			
+			String httpMethod = exchange.getRequestMethod().toString();
+			String path = exchange.getRequestPath();
+
 			Tree reqHeaders = new LazyTree((map) -> {
-				Headers requestHeaders = exchange.getRequestHeaders();
-				for (Map.Entry<String, List<String>> entry : requestHeaders.entrySet()) {
-					List<String> list = entry.getValue();
+				HeaderMap requestHeaders = exchange.getRequestHeaders();
+				Collection<HttpString> headerNames = requestHeaders.getHeaderNames();
+				for (HttpString headerName : headerNames) {
+					HeaderValues list = requestHeaders.get(headerName);
 					if (list != null && !list.isEmpty()) {
 						if (list.size() == 1) {
-							map.put(entry.getKey().toLowerCase(), list.get(0));
+							map.put(headerName.toString().toLowerCase(), list.get(0));
 						} else {
 							StringBuilder tmp = new StringBuilder(32);
-							for (String value: list) {
+							for (String value : list) {
 								if (tmp.length() > 0) {
 									tmp.append(',');
 								}
 								tmp.append(value);
 							}
-							map.put(entry.getKey().toLowerCase(), tmp.toString());
+							map.put(headerName.toString().toLowerCase(), tmp.toString());
 						}
 					}
-				}	
+				}
 			});
-			
-			String query = uri.getQuery();
+
+			String query = exchange.getQueryString();
+			StreamSourceChannel in = exchange.getRequestChannel();
+
+			// TODO read request
 			byte[] reqBody = null;
-			InputStream in = exchange.getRequestBody();
-			if (in != null) {
-				reqBody = readFully(in);
-			}
 			processRequest(httpMethod, path, reqHeaders, query, reqBody).then(rsp -> {
 
 				// Default status
@@ -163,7 +162,7 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 		}
 	}
 
-	protected void sendHttpError(HttpExchange exchange, Throwable cause) {
+	protected void sendHttpError(HttpServerExchange exchange, Throwable cause) {
 
 		// Send HTTP error response
 		String message = null;
@@ -195,90 +194,9 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 		sendHttpResponse(exchange, 500, null, bytes, null);
 	}
 
-	protected void sendHttpResponse(HttpExchange exchange, int status, Tree headers, byte[] bytes, File file) {
-		OutputStream out = null;
-		InputStream in = null;
-		try {
+	protected void sendHttpResponse(HttpServerExchange exchange, int status, Tree headers, byte[] bytes, File file) {
 
-			// Create HTTP response
-			Headers responseHeaders = exchange.getResponseHeaders();
-			if (headers == null) {
-				responseHeaders.set(RSP_CONTENT_TYPE, CONTENT_TYPE_JSON);
-			} else {
-				String name, value;
-				boolean foundContentType = false;
-				for (Tree header : headers) {
-					name = header.getName();
-					if (name.equals(RSP_CONTENT_LENGTH)) {
-						continue;
-					}
-					if (!foundContentType && RSP_CONTENT_TYPE.equalsIgnoreCase(name)) {
-						foundContentType = true;
-					}
-					value = header.asString();
-					if (value != null) {
-						responseHeaders.set(name, value);
-					}
-				}
-				if (!foundContentType) {
-					responseHeaders.set(RSP_CONTENT_TYPE, CONTENT_TYPE_JSON);
-				}
-			}
-			if (bytes != null && bytes.length > 0) {
-
-				// Write HTTP headers (byte array body)
-				exchange.sendResponseHeaders(status, bytes.length);
-
-				// Write body
-				out = exchange.getResponseBody();
-				out.write(bytes);
-				out.flush();
-
-			} else if (file != null) {
-
-				// Write HTTP headers (file body)
-				exchange.sendResponseHeaders(status, file.length());
-
-				// Write body
-				out = exchange.getResponseBody();
-				in = new FileInputStream(file);
-				byte[] packet = new byte[8192];
-				int len;
-				while ((len = in.read(packet)) > -1) {
-					out.write(packet, 0, len);
-					out.flush();
-				}
-
-			} else {
-
-				// Write HTTP headers (empty body)
-				exchange.sendResponseHeaders(status, -1);
-			}
-
-		} catch (IOException closed) {
-		} catch (Throwable cause) {
-			logger.warn("Unable to send HTTP response!", cause);
-		} finally {
-
-			// Close output stream
-			if (out != null) {
-				try {
-					out.close();
-				} catch (Exception ingored) {
-				}
-			}
-
-			// Close input stream
-			if (in != null) {
-				try {
-					in.close();
-				} catch (Exception ingored) {
-				}
-			}
-
-			// Close exchange
-			exchange.close();
-		}
+		// TODO send response
 	}
 
 	// --- STOP HTTP SERVER INSTANCE ---
@@ -288,7 +206,7 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 		super.stopped();
 		if (server != null) {
 			try {
-				server.stop(0);
+				server.stop();
 			} catch (Exception cause) {
 				logger.warn("Unable to stop HTTP server!", cause);
 			}
@@ -395,6 +313,14 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 
 	public void setTrustManagers(TrustManager[] trustManagers) {
 		this.trustManagers = trustManagers;
+	}
+
+	public boolean isUseHttp2() {
+		return useHttp2;
+	}
+
+	public void setUseHttp2(boolean useHttp2) {
+		this.useHttp2 = useHttp2;
 	}
 
 }

@@ -107,6 +107,7 @@ import io.netty.util.concurrent.ThreadPerTaskExecutor;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 import services.moleculer.web.common.HttpConstants;
+import services.moleculer.web.common.LazyTree;
 
 /**
  * HTTP/1.1 API Gateway based on Netty framework. NettyGateway supports
@@ -390,10 +391,19 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 					}
 
 					// Copy headers
-					Tree headers = new Tree();
-					for (Entry<String, String> entry : httpHeaders) {
-						headers.put(String.valueOf(entry.getKey()).toLowerCase(), String.valueOf(entry.getValue()));
-					}
+					Tree headers = new LazyTree((map) -> {
+						String key, val, prev;
+						for (Entry<String, String> entry : httpHeaders) {
+							key = entry.getKey();
+							prev = (String) map.get(key);
+							val = entry.getValue();							
+							if (prev == null) {
+								map.put(key.toLowerCase(), val);
+							} else {
+								map.put(key.toLowerCase(), prev + ',' + val);
+							}
+						}
+					});
 
 					// Get body
 					int i = path.indexOf('?');

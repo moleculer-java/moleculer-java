@@ -151,19 +151,25 @@ public class ServeStatic extends Middleware implements HttpConstants {
 					// Realtive path
 					String relativePath = null;
 
+					// Get path and headers block
+					Tree meta = ctx.params.getMeta(false);
+					if (meta != null) {
+						Tree pathNode = meta.get(PATH);
+						if (pathNode != null) {
+							relativePath = pathNode.asString();
+						}
+					}
+					if (relativePath == null || !relativePath.startsWith(path)) {
+						return action.handler(ctx);
+					}
+					
 					// If-None-Match header
 					String ifNoneMatch = null;
 
 					// Client supports compressed content
 					boolean compressionSupported = false;
-
-					// Get path and headers block
-					Tree meta = ctx.params.getMeta(false);
+					
 					if (meta != null) {
-						Tree path = meta.get(PATH);
-						if (path != null) {
-							relativePath = path.asString();
-						}
 						Tree headers = meta.get(HEADERS);
 						if (headers != null) {
 							if (useETags) {
@@ -173,9 +179,6 @@ public class ServeStatic extends Middleware implements HttpConstants {
 								compressionSupported = headers.get(REQ_ACCEPT_ENCODING, "").contains(DEFLATE);
 							}
 						}
-					}
-					if (relativePath == null || !relativePath.startsWith(path)) {
-						return action.handler(ctx);
 					}
 
 					// Remove prefix

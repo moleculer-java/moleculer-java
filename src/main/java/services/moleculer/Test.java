@@ -35,7 +35,7 @@ public class Test {
 			cfg.setRepl(new LocalRepl());
 			
 			NettyGateway gateway = new NettyGateway();
-			gateway.setUseSSL(true);
+			gateway.setUseSSL(false);
 			gateway.setKeyStoreFilePath("/temp/test.jks");
 			gateway.setKeyStorePassword("test");
 			cfg.setApiGateway(gateway);
@@ -54,7 +54,8 @@ public class Test {
 			gateway.setRoutes(new Route[]{r});
 
 			gateway.use(new SessionCookie());
-			gateway.use(new ServeStatic("/pages", "c:/Program Files/apache-cassandra-3.11.0/doc/html/"));
+			// gateway.use(new RequestLogger());
+			gateway.use(new ServeStatic("/pages", "d:/docs"));
 		
 			broker.createService(new Service("math") {
 
@@ -118,7 +119,7 @@ public class Test {
 
 				});
 			}
-
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

@@ -352,8 +352,9 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 	 *            list of services (eg. "service1,service2,service3")
 	 * @param middlewares
 	 *            optional middlewares (eg. CorsHeaders)
+	 * @return route the new route
 	 */
-	public void addRoute(String path, String serviceList, Middleware... middlewares) {
+	public Route addRoute(String path, String serviceList, Middleware... middlewares) {
 		String[] serviceNames = serviceList.split(",");
 		LinkedList<String> list = new LinkedList<>();
 		for (String serviceName : serviceNames) {
@@ -368,7 +369,7 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 		if (middlewares != null && middlewares.length > 0) {
 			route.use(middlewares);
 		}
-		addRoute(route);
+		return addRoute(route);
 	}
 
 	/**
@@ -384,14 +385,15 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 	 *            name of action (eg. "math.add")
 	 * @param middlewares
 	 *            optional middlewares (eg. CorsHeaders)
+	 * @return route the new route
 	 */
-	public void addRoute(String httpMethod, String path, String actionName, Middleware... middlewares) {
+	public Route addRoute(String httpMethod, String path, String actionName, Middleware... middlewares) {
 		Alias alias = new Alias(httpMethod, path, actionName);
 		Route route = new Route(this, "", MappingPolicy.RESTRICT, null, null, new Alias[] { alias });
 		if (middlewares != null && middlewares.length > 0) {
 			route.use(middlewares);
 		}
-		addRoute(route);
+		return addRoute(route);
 	}
 
 	/**
@@ -399,8 +401,9 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 	 * 
 	 * @param route
 	 *            the new route
+	 * @return route the new route
 	 */
-	public void addRoute(Route route) {
+	public Route addRoute(Route route) {
 		writeLock.lock();
 		try {
 			Route[] copy = new Route[routes.length + 1];
@@ -414,6 +417,7 @@ public abstract class ApiGateway extends Service implements HttpConstants {
 		} finally {
 			writeLock.unlock();
 		}
+		return route;
 	}
 
 	// --- PROPERTY GETTERS AND SETTERS ---

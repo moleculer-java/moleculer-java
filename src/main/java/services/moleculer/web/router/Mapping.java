@@ -199,7 +199,7 @@ public class Mapping implements HttpConstants {
 			meta.put(PATTERN, pathPattern);
 			
 			// Copy headers
-			if (headers != null && !headers.isEmpty()) {
+			if (headers != null) {
 				meta.putObject(HEADERS, headers.asObject());
 			}
 			

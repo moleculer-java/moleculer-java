@@ -119,7 +119,9 @@ public class ServiceBrokerConfig {
 
 		// Set the default NodeID
 		if (nodeID == null || nodeID.isEmpty()) {
-			nodeID = getHostName() + '-' + monitor.getPID();
+			this.nodeID = getHostName() + '-' + monitor.getPID();
+		} else {
+			this.nodeID = nodeID;
 		}
 		
 		// Set cacher

@@ -125,7 +125,7 @@ public class ServiceBroker {
 	// --- PROPERTY GETTERS ---
 
 	public String getNodeID() {
-		return getConfig().getNodeID();
+		return config.getNodeID();
 	}
 
 	// --- START BROKER INSTANCE ---
@@ -184,7 +184,7 @@ public class ServiceBroker {
 			apiGateway = start(config.getApiGateway());
 
 			// Ok, services, transporter and gateway started
-			logger.info("Node \"" + getNodeID() + "\" started successfully.");
+			logger.info("Node \"" + config.getNodeID() + "\" started successfully.");
 
 			// Start repl console
 			repl = start(config.getRepl());

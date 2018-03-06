@@ -9,15 +9,17 @@ import services.moleculer.Promise;
 import services.moleculer.context.Context;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
+import services.moleculer.service.Name;
 import services.moleculer.web.common.HttpConstants;
 
+@Name("Session Cookie Handler")
 public class SessionCookie extends Middleware implements HttpConstants {
 
 	// --- PROPERTIES ---
 
 	protected String cookieName = "JSESSIONID";
 
-	protected String path = "/";
+	protected String postfix = "; Path=/";
 
 	// --- CONSTRUCTORS ---
 
@@ -59,26 +61,24 @@ public class SessionCookie extends Middleware implements HttpConstants {
 
 					// Generate new sessionID
 					sessionID = UUID.randomUUID().toString();
-					if (httpCookies == null) {
-						headerValue = cookieName + "=\"" + sessionID + "\"; Path=" + path;
-					} else {
-						StringBuilder tmp = new StringBuilder(64);
+					final String newHeader;
+					StringBuilder tmp = new StringBuilder(64);
+					if (httpCookies != null) {
 						for (HttpCookie httpCookie : httpCookies) {
 							if (!cookieName.equals(httpCookie.getName())) {
-								if (tmp.length() > 0) {
-									tmp.append(",");
-								}
 								tmp.append(httpCookie.toString());
+								tmp.append(',');
 							}
 						}
-						tmp.append(cookieName);
-						tmp.append("=\"");
-						tmp.append(sessionID);
-						tmp.append("\"; Path=");
-						tmp.append(path);
-						headerValue = tmp.toString();
 					}
-					final String newHeader = headerValue;
+					tmp.append(cookieName);
+					tmp.append("=\"");
+					tmp.append(sessionID);
+					tmp.append('\"');
+					if (postfix != null) {
+						tmp.append(postfix);
+					}
+					newHeader = tmp.toString();
 					
 					// Store sessionID in meta
 					meta.put("sessionID", sessionID);
@@ -88,7 +88,6 @@ public class SessionCookie extends Middleware implements HttpConstants {
 
 					// Set outgoing cookie
 					return Promise.resolve(result).then(rsp -> {
-
 						rsp.getMeta().putMap(HEADERS, true).put(RSP_SET_COOKIE, newHeader);
 					});
 				}
@@ -112,12 +111,12 @@ public class SessionCookie extends Middleware implements HttpConstants {
 		this.cookieName = cookieName;
 	}
 
-	public String getPath() {
-		return path;
+	public String getPostfix() {
+		return postfix;
 	}
 
-	public void setPath(String path) {
-		this.path = path;
+	public void setPostfix(String path) {
+		this.postfix = path;
 	}
 
 }

@@ -16,8 +16,6 @@ public class NotFound extends Middleware implements HttpConstants {
 	// --- JSON / HTML RESPONSE ---
 
 	protected boolean htmlResponse;
-
-	// --- CONSTRUCTOR ---
 	
 	// --- CREATE NEW ACTION ---
 

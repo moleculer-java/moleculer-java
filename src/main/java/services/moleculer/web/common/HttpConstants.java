@@ -21,6 +21,7 @@ public interface HttpConstants {
 	public static final String RSP_CONTENT_ENCODING = "Content-Encoding";	
 	public static final String RSP_ETAG = "ETag";
 	public static final String RSP_SET_COOKIE = "Set-Cookie";
+	public static final String RSP_CACHE_CONTROL = "Cache-Control";
 	
 	// --- HTTP HEADER VALUES ---
 	
