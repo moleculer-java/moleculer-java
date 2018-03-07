@@ -2,7 +2,7 @@ package services.moleculer.web;
 
 import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.readFully;
-import static services.moleculer.web.common.FileUtils.getFileURL;
+import static services.moleculer.web.common.GatewayUtils.getSslContext;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -14,16 +14,10 @@ import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyStore;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Map;
 
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
@@ -86,7 +80,8 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 		}
 		if (useSSL) {
 			HttpsServer sslServer = HttpsServer.create(socketAddress, port);
-			sslServer.setHttpsConfigurator(new HttpsConfigurator(getSslContext()));
+			sslServer.setHttpsConfigurator(new HttpsConfigurator(
+					getSslContext(keyStoreFilePath, keyStorePassword, keyStoreType, trustManagers)));
 			server = sslServer;
 		} else {
 			server = HttpServer.create(socketAddress, port);
@@ -105,7 +100,7 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 			String httpMethod = exchange.getRequestMethod();
 			URI uri = exchange.getRequestURI();
 			String path = uri.getPath();
-			
+
 			Tree reqHeaders = new LazyTree((map) -> {
 				Headers requestHeaders = exchange.getRequestHeaders();
 				for (Map.Entry<String, List<String>> entry : requestHeaders.entrySet()) {
@@ -115,7 +110,7 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 							map.put(entry.getKey().toLowerCase(), list.get(0));
 						} else {
 							StringBuilder tmp = new StringBuilder(32);
-							for (String value: list) {
+							for (String value : list) {
 								if (tmp.length() > 0) {
 									tmp.append(',');
 								}
@@ -124,9 +119,9 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 							map.put(entry.getKey().toLowerCase(), tmp.toString());
 						}
 					}
-				}	
+				}
 			});
-			
+
 			String query = uri.getQuery();
 			byte[] reqBody = null;
 			InputStream in = exchange.getRequestBody();
@@ -294,49 +289,6 @@ public class SunGateway extends ApiGateway implements HttpHandler {
 			}
 			server = null;
 		}
-	}
-
-	// --- CREATE SSL CONTEXT ---
-
-	protected SSLContext getSslContext() throws Exception {
-
-		// Load KeyStore
-		KeyStore keyStore = KeyStore.getInstance(keyStoreType);
-		InputStream keyStoreInputStream = getFileURL(keyStoreFilePath).openStream();
-		keyStore.load(keyStoreInputStream, keyStorePassword == null ? null : keyStorePassword.toCharArray());
-		KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-		keyManagerFactory.getProvider();
-		keyManagerFactory.init(keyStore, keyStorePassword == null ? null : keyStorePassword.toCharArray());
-
-		// Create TrustManager
-		TrustManager[] mgrs;
-		if (trustManagers == null) {
-			mgrs = new TrustManager[] { new X509TrustManager() {
-
-				@Override
-				public void checkClientTrusted(X509Certificate[] x509Certificates, String s)
-						throws CertificateException {
-				}
-
-				@Override
-				public void checkServerTrusted(X509Certificate[] x509Certificates, String s)
-						throws CertificateException {
-				}
-
-				@Override
-				public X509Certificate[] getAcceptedIssuers() {
-					return new X509Certificate[0];
-				}
-
-			} };
-		} else {
-			mgrs = trustManagers;
-		}
-
-		// Create SSL context
-		SSLContext sslContext = SSLContext.getInstance("TLS");
-		sslContext.init(keyManagerFactory.getKeyManagers(), mgrs, null);
-		return sslContext;
 	}
 
 	// --- PROPERTY GETTERS AND SETTERS ---

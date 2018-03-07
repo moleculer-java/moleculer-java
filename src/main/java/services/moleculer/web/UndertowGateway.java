@@ -1,39 +1,40 @@
 package services.moleculer.web;
 
-import static services.moleculer.web.common.FileUtils.getFileURL;
+import static services.moleculer.web.common.GatewayUtils.getSslContext;
 
 import java.io.File;
-import java.io.InputStream;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyStore;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
+import java.nio.file.StandardOpenOption;
 import java.util.Collection;
+import java.util.concurrent.ExecutorService;
 
-import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 
 import org.xnio.Options;
-import org.xnio.channels.StreamSourceChannel;
 
 import io.datatree.Tree;
 import io.undertow.Undertow;
 import io.undertow.UndertowOptions;
+import io.undertow.io.IoCallback;
+import io.undertow.io.Sender;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.HeaderMap;
 import io.undertow.util.HeaderValues;
+import io.undertow.util.Headers;
 import io.undertow.util.HttpString;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 import services.moleculer.web.common.LazyTree;
 
 @Name("Undertow HTTP Server API Gateway")
-public class UndertowGateway extends ApiGateway implements HttpHandler {
+public class UndertowGateway extends ApiGateway implements HttpHandler, IoCallback {
 
 	// --- PROPERTIES ---
 
@@ -45,7 +46,7 @@ public class UndertowGateway extends ApiGateway implements HttpHandler {
 
 	protected int bufferSize = 1024 * 16;
 
-	protected int ioThreads = 2;
+	protected int ioThreads = 1;
 
 	// --- SSL PROPERTIES ---
 
@@ -65,11 +66,20 @@ public class UndertowGateway extends ApiGateway implements HttpHandler {
 
 	protected Undertow server;
 
+	// --- COMPONENTS ---
+
+	protected ExecutorService executor;
+
 	// --- START HTTP SERVER INSTANCE ---
 
 	@Override
 	public void started(ServiceBroker broker) throws Exception {
 		super.started(broker);
+
+		// Get executor
+		executor = broker.getConfig().getExecutor();
+
+		// Build new server
 		if (server != null) {
 			try {
 				server.stop();
@@ -78,7 +88,7 @@ public class UndertowGateway extends ApiGateway implements HttpHandler {
 		}
 		Undertow.Builder builder = Undertow.builder();
 		if (useSSL) {
-			SSLContext sslContext = getSslContext();
+			SSLContext sslContext = getSslContext(keyStoreFilePath, keyStorePassword, keyStoreType, trustManagers);
 			builder.addHttpsListener(port, address, sslContext);
 		} else {
 			builder.addHttpListener(port, address);
@@ -91,7 +101,8 @@ public class UndertowGateway extends ApiGateway implements HttpHandler {
 		builder.setServerOption(UndertowOptions.ALWAYS_SET_KEEP_ALIVE, false);
 		builder.setIoThreads(ioThreads);
 		builder.setSocketOption(Options.BACKLOG, 10000);
-		builder.setServerOption(UndertowOptions.ALWAYS_SET_DATE, true);
+		builder.setServerOption(UndertowOptions.ALWAYS_SET_DATE, false);
+		builder.setServerOption(UndertowOptions.ALWAYS_SET_DATE, false);
 		builder.setHandler(this);
 		server = builder.build();
 		server.start();
@@ -101,65 +112,74 @@ public class UndertowGateway extends ApiGateway implements HttpHandler {
 
 	@Override
 	public void handleRequest(HttpServerExchange exchange) throws Exception {
-		try {
-			String httpMethod = exchange.getRequestMethod().toString();
-			String path = exchange.getRequestPath();
+		exchange.dispatch(executor, () -> {
+			try {
 
-			Tree reqHeaders = new LazyTree((map) -> {
-				HeaderMap requestHeaders = exchange.getRequestHeaders();
-				Collection<HttpString> headerNames = requestHeaders.getHeaderNames();
-				for (HttpString headerName : headerNames) {
-					HeaderValues list = requestHeaders.get(headerName);
-					if (list != null && !list.isEmpty()) {
-						if (list.size() == 1) {
-							map.put(headerName.toString().toLowerCase(), list.get(0));
-						} else {
-							StringBuilder tmp = new StringBuilder(32);
-							for (String value : list) {
-								if (tmp.length() > 0) {
-									tmp.append(',');
+				// Get method and path
+				String httpMethod = exchange.getRequestMethod().toString();
+				String path = exchange.getRequestPath();
+
+				// Parse headers when required
+				Tree reqHeaders = new LazyTree((map) -> {
+					HeaderMap requestHeaders = exchange.getRequestHeaders();
+					Collection<HttpString> headerNames = requestHeaders.getHeaderNames();
+					for (HttpString headerName : headerNames) {
+						HeaderValues list = requestHeaders.get(headerName);
+						if (list != null && !list.isEmpty()) {
+							if (list.size() == 1) {
+								map.put(headerName.toString().toLowerCase(), list.get(0));
+							} else {
+								StringBuilder tmp = new StringBuilder(32);
+								for (String value : list) {
+									if (tmp.length() > 0) {
+										tmp.append(',');
+									}
+									tmp.append(value);
 								}
-								tmp.append(value);
+								map.put(headerName.toString().toLowerCase(), tmp.toString());
 							}
-							map.put(headerName.toString().toLowerCase(), tmp.toString());
 						}
 					}
-				}
-			});
+				});
 
-			String query = exchange.getQueryString();
-			StreamSourceChannel in = exchange.getRequestChannel();
+				// Get query string
+				String query = exchange.getQueryString();
 
-			// TODO read request
-			byte[] reqBody = null;
-			processRequest(httpMethod, path, reqHeaders, query, reqBody).then(rsp -> {
+				// Invoke action
+				exchange.getRequestReceiver().receiveFullBytes((ex, reqBody) -> {
+					processRequest(httpMethod, path, reqHeaders, query, reqBody).then(rsp -> {
 
-				// Default status
-				int status = 200;
-				Tree rspHeaders = null;
+						// Default status
+						int status = 200;
+						Tree rspHeaders = null;
 
-				// Get status code and response headers
-				Tree meta = rsp.getMeta(false);
-				if (meta != null) {
-					status = meta.get("status", 200);
-					rspHeaders = meta.get("headers");
-				}
+						// Get status code and response headers
+						Tree meta = rsp.getMeta(false);
+						if (meta != null) {
+							status = meta.get("status", 200);
+							rspHeaders = meta.get("headers");
+						}
 
-				// Convert and send body
-				Class<?> type = rsp.getType();
-				if (type == byte[].class) {
-					sendHttpResponse(exchange, status, rspHeaders, rsp.asBytes(), null);
-				} else if (type == File.class) {
-					sendHttpResponse(exchange, status, rspHeaders, null, (File) rsp.asObject());
-				} else {
-					sendHttpResponse(exchange, status, rspHeaders, rsp.toBinary(null, false), null);
-				}
-			}).catchError(cause -> {
+						// Convert and send body
+						Class<?> type = rsp.getType();
+						if (type == byte[].class) {
+							sendHttpResponse(exchange, status, rspHeaders, rsp.asBytes(), null);
+						} else if (type == File.class) {
+							sendHttpResponse(exchange, status, rspHeaders, null, (File) rsp.asObject());
+						} else {
+							sendHttpResponse(exchange, status, rspHeaders, rsp.toBinary(null, false), null);
+						}
+
+					}).catchError(cause -> {
+						sendHttpError(exchange, cause);
+					});
+				}, (ex, cause) -> {
+					sendHttpError(exchange, cause);
+				});
+			} catch (Exception cause) {
 				sendHttpError(exchange, cause);
-			});
-		} catch (Exception cause) {
-			sendHttpError(exchange, cause);
-		}
+			}
+		});
 	}
 
 	protected void sendHttpError(HttpServerExchange exchange, Throwable cause) {
@@ -195,8 +215,71 @@ public class UndertowGateway extends ApiGateway implements HttpHandler {
 	}
 
 	protected void sendHttpResponse(HttpServerExchange exchange, int status, Tree headers, byte[] bytes, File file) {
+		try {
 
-		// TODO send response
+			// Create HTTP response
+			exchange.setStatusCode(status);
+			HeaderMap responseHeaders = exchange.getResponseHeaders();
+			if (headers == null) {
+				responseHeaders.put(Headers.CONTENT_TYPE, CONTENT_TYPE_JSON);
+			} else {
+				String name, value;
+				boolean foundContentType = false;
+				for (Tree header : headers) {
+					name = header.getName();
+					if (name.equals(RSP_CONTENT_LENGTH)) {
+						continue;
+					}
+					if (!foundContentType && RSP_CONTENT_TYPE.equalsIgnoreCase(name)) {
+						foundContentType = true;
+					}
+					value = header.asString();
+					if (value != null) {
+						responseHeaders.put(HttpString.tryFromString(name), value);
+					}
+				}
+				if (!foundContentType) {
+					responseHeaders.put(Headers.CONTENT_TYPE, CONTENT_TYPE_JSON);
+				}
+			}
+			if (bytes != null && bytes.length > 0) {
+
+				// Write HTTP headers (byte array body)
+				exchange.setResponseContentLength(bytes.length);
+
+				// Write byte array body
+				exchange.getResponseSender().send(ByteBuffer.wrap(bytes), this);
+
+			} else if (file != null) {
+
+				// Write HTTP headers (file body)
+				exchange.setResponseContentLength(file.length());
+
+				// Write file
+				FileChannel channel = FileChannel.open(file.toPath(), StandardOpenOption.READ);
+				exchange.getResponseSender().transferFrom(channel, this);
+
+			} else {
+
+				// Write HTTP headers (empty body)
+				exchange.setResponseContentLength(-1);
+				exchange.endExchange();
+			}
+
+		} catch (IOException closed) {
+		} catch (Throwable cause) {
+			logger.warn("Unable to send HTTP response!", cause);
+		}
+	}
+
+	@Override
+	public void onException(HttpServerExchange exchange, Sender sender, IOException exception) {
+		exchange.endExchange();
+	}
+
+	@Override
+	public void onComplete(HttpServerExchange exchange, Sender sender) {
+		exchange.endExchange();
 	}
 
 	// --- STOP HTTP SERVER INSTANCE ---
@@ -212,49 +295,6 @@ public class UndertowGateway extends ApiGateway implements HttpHandler {
 			}
 			server = null;
 		}
-	}
-
-	// --- CREATE SSL CONTEXT ---
-
-	protected SSLContext getSslContext() throws Exception {
-
-		// Load KeyStore
-		KeyStore keyStore = KeyStore.getInstance(keyStoreType);
-		InputStream keyStoreInputStream = getFileURL(keyStoreFilePath).openStream();
-		keyStore.load(keyStoreInputStream, keyStorePassword == null ? null : keyStorePassword.toCharArray());
-		KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-		keyManagerFactory.getProvider();
-		keyManagerFactory.init(keyStore, keyStorePassword == null ? null : keyStorePassword.toCharArray());
-
-		// Create TrustManager
-		TrustManager[] mgrs;
-		if (trustManagers == null) {
-			mgrs = new TrustManager[] { new X509TrustManager() {
-
-				@Override
-				public void checkClientTrusted(X509Certificate[] x509Certificates, String s)
-						throws CertificateException {
-				}
-
-				@Override
-				public void checkServerTrusted(X509Certificate[] x509Certificates, String s)
-						throws CertificateException {
-				}
-
-				@Override
-				public X509Certificate[] getAcceptedIssuers() {
-					return new X509Certificate[0];
-				}
-
-			} };
-		} else {
-			mgrs = trustManagers;
-		}
-
-		// Create SSL context
-		SSLContext sslContext = SSLContext.getInstance("TLS");
-		sslContext.init(keyManagerFactory.getKeyManagers(), mgrs, null);
-		return sslContext;
 	}
 
 	// --- PROPERTY GETTERS AND SETTERS ---

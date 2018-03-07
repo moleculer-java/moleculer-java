@@ -1,6 +1,6 @@
 package services.moleculer.web.middleware;
 
-import static services.moleculer.web.common.FileUtils.readAllBytes;
+import static services.moleculer.web.common.GatewayUtils.readAllBytes;
 
 import io.datatree.Tree;
 import services.moleculer.context.Context;

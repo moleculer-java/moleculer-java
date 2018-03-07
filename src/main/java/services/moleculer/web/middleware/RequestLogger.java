@@ -1,5 +1,8 @@
 package services.moleculer.web.middleware;
 
+import static services.moleculer.util.CommonUtils.formatNamoSec;
+import static services.moleculer.util.CommonUtils.formatNumber;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
@@ -20,7 +23,11 @@ public class RequestLogger extends Middleware implements HttpConstants {
 	// --- LOGGER ---
 
 	protected static final Logger logger = LoggerFactory.getLogger(RequestLogger.class);
+
+	// --- NEW LINE ---
 	
+	protected static final char[] crlf = System.getProperty("line.separator", "\r\n").toCharArray();
+
 	// --- CREATE NEW ACTION ---
 
 	public Action install(Action action, Tree config) {
@@ -28,34 +35,59 @@ public class RequestLogger extends Middleware implements HttpConstants {
 
 			@Override
 			public Object handler(Context ctx) throws Exception {
-				long start = System.currentTimeMillis();
+				long start = System.nanoTime();
 				Object result = action.handler(ctx);				
 				return Promise.resolve(result).then(rsp -> {
-					long duration = System.currentTimeMillis() - start;
+					long duration = System.nanoTime() - start;
 					StringBuilder tmp = new StringBuilder(512);
-					tmp.append("Request processed in ");
-					tmp.append(duration);
-					tmp.append(" milliseconds.\r\nRequest:\r\n");
+					tmp.append("======= REQUEST PROCESSED IN ");
+					tmp.append(formatNamoSec(duration).toUpperCase());
+					tmp.append(" =======");
+					tmp.append(crlf);
+					tmp.append("Request:");
+					tmp.append(crlf);
 					tmp.append(ctx.params);
-					tmp.append("Response:\r\n");
-					if (rsp != null && rsp.isPrimitive()) {
-						if (rsp.getType() == byte[].class) {
-							tmp.append(new String((byte[]) rsp.asObject()));		
-						} else {
-							tmp.append(rsp.asObject());
-						}
+					tmp.append(crlf);
+					tmp.append("Response:");
+					tmp.append(crlf);
+					if (rsp == null) {
+						tmp.append("<null>");
 					} else {
-						tmp.append(rsp);
+						if (rsp.isMap() || rsp.isList()) {
+							tmp.append(rsp);
+						} else {
+							tmp.append(rsp.getMeta());
+							if (rsp.getType() == byte[].class) {
+								byte[] bytes = (byte[]) rsp.asBytes();
+								if (bytes.length == 0) {
+									tmp.append(crlf);
+									tmp.append("<empty body>");
+								} else {
+									tmp.append(crlf);
+									tmp.append('<');
+									tmp.append(formatNumber(bytes.length));		
+									tmp.append(" bytes of binary response>");
+								}
+							} else {
+								tmp.append(crlf);
+								tmp.append(rsp);
+							}
+						}
 					}
 					logger.info(tmp.toString());
 				}).catchError(cause -> {
-					long duration = System.currentTimeMillis() - start;
+					long duration = System.nanoTime() - start;
 					StringBuilder tmp = new StringBuilder(512);
-					tmp.append("Request processed in ");
-					tmp.append(duration);
-					tmp.append(" milliseconds.\r\nRequest:\r\n");
+					tmp.append("======= REQUEST PROCESSED IN ");
+					tmp.append(formatNamoSec(duration).toUpperCase());
+					tmp.append(" =======");
+					tmp.append(crlf);
+					tmp.append("Request:");
+					tmp.append(crlf);
 					tmp.append(ctx.params);
-					tmp.append("Response:\r\n");
+					tmp.append(crlf);
+					tmp.append("Response:");
+					tmp.append(crlf);
 					StringWriter stringWriter = new StringWriter(512);
 					PrintWriter printWriter = new PrintWriter(stringWriter, true);
 					cause.printStackTrace(printWriter);
@@ -67,5 +99,5 @@ public class RequestLogger extends Middleware implements HttpConstants {
 			
 		};
 	}
-	
+		
 }

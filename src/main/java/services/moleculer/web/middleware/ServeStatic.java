@@ -2,11 +2,11 @@ package services.moleculer.web.middleware;
 
 import static services.moleculer.util.CommonUtils.compress;
 import static services.moleculer.util.CommonUtils.formatPath;
-import static services.moleculer.web.common.FileUtils.getFileSize;
-import static services.moleculer.web.common.FileUtils.getFileURL;
-import static services.moleculer.web.common.FileUtils.getLastModifiedTime;
-import static services.moleculer.web.common.FileUtils.isReadable;
-import static services.moleculer.web.common.FileUtils.readAllBytes;
+import static services.moleculer.web.common.GatewayUtils.getFileSize;
+import static services.moleculer.web.common.GatewayUtils.getFileURL;
+import static services.moleculer.web.common.GatewayUtils.getLastModifiedTime;
+import static services.moleculer.web.common.GatewayUtils.isReadable;
+import static services.moleculer.web.common.GatewayUtils.readAllBytes;
 
 import java.io.File;
 import java.net.URI;
@@ -115,7 +115,7 @@ public class ServeStatic extends Middleware implements HttpConstants {
 	public ServeStatic() {
 		this("/static", "/www");
 	}
-	
+
 	public ServeStatic(String path) {
 		this(path, "/www");
 	}
@@ -162,13 +162,12 @@ public class ServeStatic extends Middleware implements HttpConstants {
 					if (relativePath == null || !relativePath.startsWith(path)) {
 						return action.handler(ctx);
 					}
-					
+
 					// If-None-Match header
 					String ifNoneMatch = null;
 
 					// Client supports compressed content
 					boolean compressionSupported = false;
-					
 					if (meta != null) {
 						Tree headers = meta.get(HEADERS);
 						if (headers != null) {
@@ -284,7 +283,8 @@ public class ServeStatic extends Middleware implements HttpConstants {
 
 							// Send as file
 							URL url = getFileURL(absolutePath);
-							out.setObject(new File(new URI(url.toString())));
+							File file = new File(new URI(url.toString()));
+							out.setObject(file);
 
 						} else {
 

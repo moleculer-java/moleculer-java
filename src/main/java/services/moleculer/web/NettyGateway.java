@@ -31,7 +31,7 @@
  */
 package services.moleculer.web;
 
-import static services.moleculer.web.common.FileUtils.getFileURL;
+import static services.moleculer.web.common.GatewayUtils.getFileURL;
 
 import java.io.File;
 import java.io.IOException;
@@ -181,7 +181,6 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 
 		// Define request chain
 		if (handler == null) {
-			NettyGateway nettyGateway = this;
 			handler = new ChannelInitializer<Channel>() {
 
 				@Override
@@ -193,7 +192,7 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 					p.addLast(new HttpRequestDecoder());
 					p.addLast(new HttpObjectAggregator(maxContentLength, true));
 					p.addLast(new ChunkedWriteHandler());
-					p.addLast(new MoleculerHandler(nettyGateway));
+					p.addLast(new MoleculerHandler());
 				}
 
 			};
@@ -330,11 +329,7 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 
 	// --- CHANNEL HANDLER ---
 
-	protected static class MoleculerHandler extends SimpleChannelInboundHandler<Object> {
-
-		// --- PARENT GATEWAY ---
-
-		protected NettyGateway nettyGateway;
+	protected class MoleculerHandler extends SimpleChannelInboundHandler<Object> {
 
 		// --- WEBSOCKET VARIABLES ---
 
@@ -343,8 +338,7 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 
 		// --- CONSTRUCTOR ---
 
-		protected MoleculerHandler(NettyGateway nettyGateway) {
-			this.nettyGateway = nettyGateway;
+		protected MoleculerHandler() {
 		}
 
 		// --- PROCESS INCOMING HTTP REQUEST ---
@@ -396,7 +390,7 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 						for (Entry<String, String> entry : httpHeaders) {
 							key = entry.getKey();
 							prev = (String) map.get(key);
-							val = entry.getValue();							
+							val = entry.getValue();
 							if (prev == null) {
 								map.put(key.toLowerCase(), val);
 							} else {
@@ -417,8 +411,8 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 					byte[] bytes = readFully(httpRequest.content());
 
 					// Invoke Action
-					nettyGateway.executor.execute(() -> {
-						nettyGateway.processRequest(method, path, headers, query, bytes).then(rsp -> {
+					executor.execute(() -> {
+						processRequest(method, path, headers, query, bytes).then(rsp -> {
 
 							// Send normal HTTP response
 							sendHttpResponse(ctx, keepAlive, rsp);
@@ -448,9 +442,8 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 
 				// Process WebSocket message frame
 				if (request instanceof WebSocketFrame) {
-					nettyGateway.executor.execute(() -> {
-						nettyGateway
-								.processRequest("WS", path, null, null, readFully(((WebSocketFrame) request).content()))
+					executor.execute(() -> {
+						processRequest("WS", path, null, null, readFully(((WebSocketFrame) request).content()))
 								.then(rsp -> {
 
 									// Send websocket response
@@ -463,7 +456,6 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 
 								});
 					});
-
 					return;
 				}
 
@@ -565,6 +557,7 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 		protected void sendHttpResponse(ChannelHandlerContext ctx, int status, Tree headers, boolean keepAlive,
 				byte[] bytes, File file) {
 			try {
+
 				// Create HTTP response
 				StringBuilder httpHeader = new StringBuilder(512);
 				httpHeader.append("HTTP/1.1 ");
@@ -641,7 +634,7 @@ public class NettyGateway extends ApiGateway implements HttpConstants {
 
 			} catch (IOException closed) {
 			} catch (Throwable cause) {
-				nettyGateway.logger.warn("Unable to send HTTP response!", cause);
+				logger.warn("Unable to send HTTP response!", cause);
 			}
 		}
 	}

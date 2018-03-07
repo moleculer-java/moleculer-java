@@ -15,8 +15,6 @@ import services.moleculer.service.Version;
 import services.moleculer.transporter.RedisTransporter;
 import services.moleculer.web.NettyGateway;
 import services.moleculer.web.middleware.CorsHeaders;
-import services.moleculer.web.middleware.ServeStatic;
-import services.moleculer.web.middleware.SessionCookie;
 import services.moleculer.web.router.Alias;
 import services.moleculer.web.router.MappingPolicy;
 import services.moleculer.web.router.Route;
@@ -53,9 +51,9 @@ public class Test {
 			r.use(new CorsHeaders());
 			gateway.setRoutes(new Route[]{r});
 
-			gateway.use(new SessionCookie());
+			// gateway.use(new ServeStatic("/pages", "c:/temp"));
+			// gateway.use(new SessionCookie());
 			// gateway.use(new RequestLogger());
-			gateway.use(new ServeStatic("/pages", "d:/docs"));
 		
 			broker.createService(new Service("math") {
 

@@ -71,9 +71,10 @@ public class Mapping implements HttpConstants {
 
 	// --- CONSTRUCTOR ---
 
-	public Mapping(ServiceBroker broker, String httpMethod, String pathPattern, String actionName, CallingOptions.Options opts) {
+	public Mapping(ServiceBroker broker, String httpMethod, String pathPattern, String actionName,
+			CallingOptions.Options opts) {
 		this.broker = broker;
-		this.httpMethod =  "ALL".equals(httpMethod) ? null : httpMethod;
+		this.httpMethod = "ALL".equals(httpMethod) ? null : httpMethod;
 		this.pathPattern = pathPattern;
 		this.actionName = actionName;
 		this.opts = opts;
@@ -111,7 +112,7 @@ public class Mapping implements HttpConstants {
 		for (int i = 0; i < indexes.length; i++) {
 			indexes[i] = indexList.get(i);
 			names[i] = nameList.get(i);
-		}		
+		}
 
 		// Generate hashcode
 		final int prime = 31;
@@ -168,7 +169,7 @@ public class Mapping implements HttpConstants {
 					// JSON body
 					params = new Tree(body);
 				}
-				if (query != null) {
+				if (query != null && !query.isEmpty()) {
 
 					// URL-encoded Query String
 					if (params == null) {
@@ -178,8 +179,10 @@ public class Mapping implements HttpConstants {
 					int i;
 					for (String pair : pairs) {
 						i = pair.indexOf("=");
-						params.put(URLDecoder.decode(pair.substring(0, i), "UTF-8"),
-								URLDecoder.decode(pair.substring(i + 1), "UTF-8"));
+						if (i > -1) {
+							params.put(URLDecoder.decode(pair.substring(0, i), "UTF-8"),
+									URLDecoder.decode(pair.substring(i + 1), "UTF-8"));
+						}
 					}
 				}
 			} else {
@@ -197,12 +200,12 @@ public class Mapping implements HttpConstants {
 			meta.put(METHOD, httpMethod);
 			meta.put(PATH, path);
 			meta.put(PATTERN, pathPattern);
-			
+
 			// Copy headers
 			if (headers != null) {
 				meta.putObject(HEADERS, headers.asObject());
 			}
-			
+
 			// Call action
 			if (current == brokerAction) {
 				return broker.call(actionName, params, opts);

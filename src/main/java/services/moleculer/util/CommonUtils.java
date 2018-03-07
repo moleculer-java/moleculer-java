@@ -39,11 +39,14 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.URL;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
@@ -79,6 +82,47 @@ public final class CommonUtils {
 			path = path.substring(0, path.length() -1);
 		}
 		return path;
+	}
+	
+	// --- DURATION FORMATTER ---
+	
+	private static final NumberFormat numberFormatter = DecimalFormat.getInstance();
+	
+	public static final String formatNumber(Number number) {
+		synchronized (numberFormatter) {
+			return numberFormatter.format(number);
+		}
+	}
+	
+	public static final String formatNamoSec(long nanoSec) {
+		String test, test2;
+		if ((test = test(nanoSec, TimeUnit.HOURS, "hour")) != null) {
+			test2 = test(nanoSec, TimeUnit.MINUTES, "minute");
+			return test2 == null ? test : test + " (" + test2 + ")";
+		}
+		if ((test = test(nanoSec, TimeUnit.MINUTES, "minute")) != null) {
+			test2 = test(nanoSec, TimeUnit.SECONDS, "second");
+			return test2 == null ? test : test + " (" + test2 + ")";
+		}
+		if ((test = test(nanoSec, TimeUnit.SECONDS, "second")) != null) {
+			test2 = test(nanoSec, TimeUnit.MILLISECONDS, "millisecond");
+			return test2 == null ? test : test + " (" + test2 + ")";
+		}
+		if ((test = test(nanoSec, TimeUnit.MILLISECONDS, "millisecond")) != null) {
+			return test + " (" + formatNumber(nanoSec) + " nanoseconds)";				
+		}
+		return formatNumber(nanoSec) + " nanoseconds";
+	}
+	
+	private static final String test(long nanoSec, TimeUnit unit, String postfix) {
+		long converted = unit.convert(nanoSec, TimeUnit.NANOSECONDS);
+		if (converted > 0 && converted < 1000) {
+			if (converted == 1) {
+				return converted + " " + postfix;
+			}
+			return converted + " " + postfix + "s";
+		}
+		return null;
 	}
 	
 	// --- GET ALL NODE INFO STRUCTURES OF ALL NODES ---
