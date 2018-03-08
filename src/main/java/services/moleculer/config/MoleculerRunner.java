@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.context.support.AbstractXmlApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
+
 public final class MoleculerRunner {
 
 	// --- UDP PORT TO STOP MOLECULER SERVICE ---

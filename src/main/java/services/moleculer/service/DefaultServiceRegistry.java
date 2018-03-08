@@ -1,5 +1,6 @@
 package services.moleculer.service;
 
+import static services.moleculer.util.CommonUtils.convertAnnotations;
 import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.nameOf;
 
@@ -7,7 +8,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.rmi.RemoteException;
@@ -556,47 +556,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				actionConfig.put("name", actionName);
 
 				Annotation[] annotations = field.getAnnotations();
-				for (Annotation annotation : annotations) {
-
-					// Create entry for annotation
-					String annotationName = annotation.toString();
-					int i = annotationName.lastIndexOf('.');
-					if (i > -1) {
-						annotationName = annotationName.substring(i + 1);
-					}
-					i = annotationName.indexOf('(');
-					if (i > -1) {
-						annotationName = annotationName.substring(0, i);
-					}
-					annotationName = annotationName.toLowerCase();
-					if ("name".equals(annotationName) || "override".equals(annotationName)) {
-						continue;
-					}
-					Tree annotationMap = actionConfig.putMap(annotationName);
-
-					// Add annotation values
-					Class<? extends Annotation> type = annotation.annotationType();
-					Method[] members = type.getDeclaredMethods();
-					for (Method member : members) {
-						member.setAccessible(true);
-						String propName = member.getName();
-						Object propValue = member.invoke(annotation);
-						annotationMap.putObject(propName, propValue);
-						Tree newChild = annotationMap.get(propName);
-						if (newChild.size() < 1) {
-							newChild.remove();
-						}
-					}
-					int size = annotationMap.size();
-					if (size == 0) {
-						annotationMap.remove();
-					} else if (size == 1) {
-						Tree value = annotationMap.getFirstChild();
-						if (value != null && "value".equals(value.getName())) {
-							annotationMap.setObject(value.asObject());
-						}
-					}
-				}
+				convertAnnotations(actionConfig, annotations);
 
 				// Register action
 				LocalActionEndpoint endpoint = new LocalActionEndpoint(nodeID, actionConfig, action);

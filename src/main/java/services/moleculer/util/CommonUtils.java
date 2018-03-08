@@ -36,7 +36,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.URL;
 import java.text.DecimalFormat;
@@ -66,7 +69,7 @@ import services.moleculer.transporter.Transporter;
 public final class CommonUtils {
 
 	// --- PATH FORMATTER ---
-	
+
 	public static final String formatPath(String path) {
 		if (path == null) {
 			return "";
@@ -79,21 +82,72 @@ public final class CommonUtils {
 			path = '/' + path;
 		}
 		while (path.endsWith("/")) {
-			path = path.substring(0, path.length() -1);
+			path = path.substring(0, path.length() - 1);
 		}
 		return path;
 	}
-	
+
+	// --- ANNOTATION TO JSON CONVERTER ---
+
+	public static final void convertAnnotations(Tree config, Annotation[] annotations)
+			throws IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+		for (Annotation annotation : annotations) {
+
+			// Create entry for annotation
+			String annotationName = annotation.toString();
+			int i = annotationName.lastIndexOf('.');
+			if (i > -1) {
+				annotationName = annotationName.substring(i + 1);
+			}
+			i = annotationName.indexOf('(');
+			if (i > -1) {
+				annotationName = annotationName.substring(0, i);
+			}
+			if (annotationName.length() > 1) {
+				annotationName = Character.toLowerCase(annotationName.charAt(0)) + annotationName.substring(1);
+			} else {
+				annotationName = annotationName.toLowerCase();
+			}
+			if ("name".equals(annotationName) || "override".equals(annotationName)) {
+				continue;
+			}
+			Tree annotationMap = config.putMap(annotationName);
+
+			// Add annotation values
+			Class<? extends Annotation> type = annotation.annotationType();
+			Method[] members = type.getDeclaredMethods();
+			for (Method member : members) {
+				member.setAccessible(true);
+				String propName = member.getName();
+				Object propValue = member.invoke(annotation);
+				annotationMap.putObject(propName, propValue);
+				Tree newChild = annotationMap.get(propName);
+				if (newChild.size() < 1) {
+					newChild.remove();
+				}
+			}
+			int size = annotationMap.size();
+			if (size == 0) {
+				annotationMap.remove();
+			} else if (size == 1) {
+				Tree value = annotationMap.getFirstChild();
+				if (value != null && "value".equals(value.getName())) {
+					annotationMap.setObject(value.asObject());
+				}
+			}
+		}
+	}
+
 	// --- DURATION FORMATTER ---
-	
+
 	private static final NumberFormat numberFormatter = DecimalFormat.getInstance();
-	
+
 	public static final String formatNumber(Number number) {
 		synchronized (numberFormatter) {
 			return numberFormatter.format(number);
 		}
 	}
-	
+
 	public static final String formatNamoSec(long nanoSec) {
 		String test, test2;
 		if ((test = test(nanoSec, TimeUnit.HOURS, "hour")) != null) {
@@ -109,11 +163,11 @@ public final class CommonUtils {
 			return test2 == null ? test : test + " (" + test2 + ")";
 		}
 		if ((test = test(nanoSec, TimeUnit.MILLISECONDS, "millisecond")) != null) {
-			return test + " (" + formatNumber(nanoSec) + " nanoseconds)";				
+			return test + " (" + formatNumber(nanoSec) + " nanoseconds)";
 		}
 		return formatNumber(nanoSec) + " nanoseconds";
 	}
-	
+
 	private static final String test(long nanoSec, TimeUnit unit, String postfix) {
 		long converted = unit.convert(nanoSec, TimeUnit.NANOSECONDS);
 		if (converted > 0 && converted < 1000) {
@@ -124,7 +178,7 @@ public final class CommonUtils {
 		}
 		return null;
 	}
-	
+
 	// --- GET ALL NODE INFO STRUCTURES OF ALL NODES ---
 
 	public static final Tree getNodeInfos(ServiceBroker broker, Transporter transporter) {
@@ -146,7 +200,7 @@ public final class CommonUtils {
 		}
 		return infos;
 	}
-	
+
 	// --- GET HOSTNAME OR IP FROM AN INFO STRUCTURE ---
 
 	public static final String getHostOrIP(boolean preferHostname, Tree info) {

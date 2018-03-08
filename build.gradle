@@ -131,3 +131,61 @@ dependencies {
 	compile group: 'org.apache.kafka', name: 'kafka-clients', version: '1.0.0'
 
 }
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+group = 'com.github.berkesa'
+
+version = '1.0.3-SNAPSHOT'
+
+modifyPom {
+    project {
+        artifactId 'moleculer-java'
+        name 'Moleculer Microservices Framework'
+        description 'Fast & powerful microservices framework for Java.'
+        url 'https://berkesa.github.io/moleculer-java/'
+        inceptionYear '2018'
+
+        scm {
+            url 'https://berkesa.github.io/moleculer-java/'
+            connection 'scm:https://github.com/berkesa/moleculer-java.git'
+            developerConnection 'scm:git://github.com/berkesa/moleculer-java.git'
+        }
+
+        licenses {
+            license {
+                name 'The Apache Software License, Version 2.0'
+                url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                distribution 'repo'
+            }
+        }
+        
+        dependencies {
+            dependency {
+                groupId 'com.github.berkesa'
+                artifactId 'datatree-adapters'
+                version '1.0.5'
+                scope 'runtime'
+            }        
+        }
+
+        developers {
+            developer {
+                id 'berkesa'
+                name 'Andras Berkes'
+                email 'andras.berkes@programmer.net'
+            }
+        }
+    }
+}
+
+nexus {
+    sign = true
+    repositoryUrl = 'https://oss.sonatype.org/service/local/staging/deploy/maven2'
+	snapshotRepositoryUrl = 'https://oss.sonatype.org/content/repositories/snapshots'
+}
+
+test {
+    exclude '**/Performance*'
+}
