@@ -31,7 +31,6 @@ import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.UIDGenerator;
 import services.moleculer.util.ParseResult;
-import services.moleculer.web.ApiGateway;
 
 public class ServiceBroker {
 
@@ -83,7 +82,6 @@ public class ServiceBroker {
 	protected ServiceRegistry serviceRegistry;
 	protected Transporter transporter;
 	protected Repl repl;
-	protected ApiGateway apiGateway;
 
 	// --- STATIC SERVICE BROKER BUILDER ---
 
@@ -180,9 +178,6 @@ public class ServiceBroker {
 				transporter.connect();
 			}
 
-			// Start API gateway
-			apiGateway = start(config.getApiGateway());
-
 			// Ok, services, transporter and gateway started
 			logger.info("Node \"" + config.getNodeID() + "\" started successfully.");
 
@@ -216,7 +211,6 @@ public class ServiceBroker {
 	public void stop() {
 
 		// Stop internal components
-		stop(apiGateway);
 		stop(repl);
 		stop(serviceRegistry);
 		stop(eventbus);

@@ -45,7 +45,6 @@ import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.UIDGenerator;
-import services.moleculer.web.ApiGateway;
 
 /**
  * Builder-style ServiceBroker factory. Sample of usage:<br>
@@ -133,11 +132,6 @@ public class ServiceBrokerBuilder {
 
 	public ServiceBrokerBuilder repl(Repl repl) {
 		config.setRepl(repl);
-		return this;
-	}
-
-	public ServiceBrokerBuilder gateway(ApiGateway apiGateway) {
-		config.setApiGateway(apiGateway);
 		return this;
 	}
 

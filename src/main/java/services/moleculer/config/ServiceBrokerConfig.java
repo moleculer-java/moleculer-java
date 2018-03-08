@@ -24,7 +24,6 @@ import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.IncrementalUIDGenerator;
 import services.moleculer.uid.UIDGenerator;
-import services.moleculer.web.ApiGateway;
 
 public class ServiceBrokerConfig {
 
@@ -69,7 +68,6 @@ public class ServiceBrokerConfig {
 	protected Cacher cacher = new MemoryCacher();
 	
 	protected Transporter transporter;
-	protected ApiGateway apiGateway;
 	protected Monitor monitor; 
 	protected Repl repl;	
 	
@@ -270,13 +268,5 @@ public class ServiceBrokerConfig {
 	public void setRepl(Repl repl) {
 		this.repl = repl;
 	}
-
-	public ApiGateway getApiGateway() {
-		return apiGateway;
-	}
-
-	public void setApiGateway(ApiGateway apiGateway) {
-		this.apiGateway = apiGateway;
-	}	
 	
 }

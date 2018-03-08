@@ -2,7 +2,6 @@ package services.moleculer;
 
 import io.datatree.Tree;
 import services.moleculer.config.ServiceBrokerConfig;
-import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
@@ -12,12 +11,6 @@ import services.moleculer.service.Middleware;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.Version;
-import services.moleculer.transporter.RedisTransporter;
-import services.moleculer.web.NettyGateway;
-import services.moleculer.web.middleware.CorsHeaders;
-import services.moleculer.web.router.Alias;
-import services.moleculer.web.router.MappingPolicy;
-import services.moleculer.web.router.Route;
 
 public class Test {
 
@@ -26,35 +19,14 @@ public class Test {
 		try {
 			ServiceBrokerConfig cfg = new ServiceBrokerConfig();
 			
-			RedisTransporter t = new RedisTransporter();
-			t.setDebug(false);
+			// RedisTransporter t = new RedisTransporter();
+			// t.setDebug(false);
 			// cfg.setTransporter(t);
 			
 			cfg.setRepl(new LocalRepl());
-			
-			NettyGateway gateway = new NettyGateway();
-			gateway.setUseSSL(false);
-			gateway.setKeyStoreFilePath("/temp/test.jks");
-			gateway.setKeyStorePassword("test");
-			cfg.setApiGateway(gateway);
-			
+					
 			ServiceBroker broker = new ServiceBroker(cfg);
-
-			String path = "/math";
-			MappingPolicy policy = MappingPolicy.ALL;
-			CallingOptions.Options opts = CallingOptions.retryCount(3);
-			String[] whitelist = {};
-			Alias[] aliases = new Alias[1];
-			aliases[0] = new Alias(Alias.ALL, "/add", "math.add");
-			
-			Route r = new Route(gateway, path, policy, opts, whitelist, aliases);
-			r.use(new CorsHeaders());
-			gateway.setRoutes(new Route[]{r});
-
-			// gateway.use(new ServeStatic("/pages", "c:/temp"));
-			// gateway.use(new SessionCookie());
-			// gateway.use(new RequestLogger());
-		
+	
 			broker.createService(new Service("math") {
 
 				@Name("add")
