@@ -64,7 +64,7 @@ import services.moleculer.util.CheckedTree;
  * 
  *   int sub = in.asInteger();
  * 
- *   // You can return an another Promise
+ *   // You can return an another Promise:
  *   return Promise.resolve("OK!");
  * 
  * }).then(in -> {
@@ -72,7 +72,10 @@ import services.moleculer.util.CheckedTree;
  *   if (!"OK".equals(in.asString())) {
  *     throw new Exception("Invalid value!");
  *   }
- *
+ *   
+ *   // The "catch" is a protected name in Java,
+ *   // use "catchError" instead:
+ *  
  * }).catchError(err -> {
  * 
  *   System.out.println("Error: " + err);
