@@ -16,7 +16,6 @@ import services.moleculer.eventbus.DefaultEventbus;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.monitor.Monitor;
-import services.moleculer.repl.Repl;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.RoundRobinStrategyFactory;
@@ -69,7 +68,6 @@ public class ServiceBrokerConfig {
 	
 	protected Transporter transporter;
 	protected Monitor monitor; 
-	protected Repl repl;	
 	
 	// --- INSTALL JS PARSER ---
 
@@ -250,7 +248,7 @@ public class ServiceBrokerConfig {
 	}
 
 	public void setMonitor(Monitor monitor) {
-		this.monitor = monitor;
+		this.monitor = Objects.requireNonNull(monitor);
 	}
 
 	public Transporter getTransporter() {
@@ -259,14 +257,6 @@ public class ServiceBrokerConfig {
 
 	public void setTransporter(Transporter transporter) {
 		this.transporter = transporter;
-	}
-
-	public Repl getRepl() {
-		return repl;
-	}
-
-	public void setRepl(Repl repl) {
-		this.repl = repl;
 	}
 	
 }

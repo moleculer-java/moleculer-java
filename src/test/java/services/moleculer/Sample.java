@@ -5,14 +5,13 @@ import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.Context;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
-import services.moleculer.repl.LocalRepl;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.Version;
 
-public class Test {
+public class Sample {
 
 	public static void main(String[] args) throws Exception {
 		System.out.println("START");
@@ -22,9 +21,7 @@ public class Test {
 			// RedisTransporter t = new RedisTransporter();
 			// t.setDebug(false);
 			// cfg.setTransporter(t);
-			
-			cfg.setRepl(new LocalRepl());
-					
+							
 			ServiceBroker broker = new ServiceBroker(cfg);
 	
 			broker.createService(new Service("math") {
@@ -52,7 +49,7 @@ public class Test {
 				};
 
 			});			
-			broker.start();
+			broker.start();	
 			broker.use(new Middleware() {
 
 				@Override
@@ -81,11 +78,11 @@ public class Test {
 			for (int i = 0; i < 2; i++) {
 				broker.call("math.add", "a", 3, "b", 5).then(in -> {
 
-					broker.getLogger(Test.class).info("Result: " + in);
+					broker.getLogger(Sample.class).info("Result: " + in);
 
 				}).catchError(err -> {
 
-					broker.getLogger(Test.class).error("Error: " + err);
+					broker.getLogger(Sample.class).error("Error: " + err);
 
 				});
 			}

@@ -22,7 +22,6 @@ import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.internal.NodeService;
-import services.moleculer.repl.Repl;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.Service;
@@ -81,7 +80,6 @@ public class ServiceBroker {
 	protected Cacher cacher;
 	protected ServiceRegistry serviceRegistry;
 	protected Transporter transporter;
-	protected Repl repl;
 
 	// --- STATIC SERVICE BROKER BUILDER ---
 
@@ -97,7 +95,7 @@ public class ServiceBroker {
 	}
 
 	// --- CONSTRUCTORS ---
-	
+
 	public ServiceBroker(ServiceBrokerConfig config) {
 		this.config = config;
 	}
@@ -111,9 +109,9 @@ public class ServiceBroker {
 	}
 
 	public ServiceBroker(String nodeID, Cacher cacher, Transporter transporter) {
-		this(new ServiceBrokerConfig(nodeID, cacher, transporter));		
+		this(new ServiceBrokerConfig(nodeID, cacher, transporter));
 	}
-	
+
 	// --- GET CONFIGURATION ---
 
 	public ServiceBrokerConfig getConfig() {
@@ -165,7 +163,7 @@ public class ServiceBroker {
 			// Register and start enqued services and listeners
 			for (Map.Entry<String, Service> entry : services.entrySet()) {
 				Service service = entry.getValue();
-				
+
 				// Register actions
 				serviceRegistry.addActions(entry.getKey(), service);
 
@@ -180,9 +178,6 @@ public class ServiceBroker {
 
 			// Ok, services, transporter and gateway started
 			logger.info("Node \"" + config.getNodeID() + "\" started successfully.");
-
-			// Start repl console
-			repl = start(config.getRepl());
 
 		} catch (Throwable cause) {
 			logger.error("Moleculer Service Broker could not be started!", cause);
@@ -211,7 +206,6 @@ public class ServiceBroker {
 	public void stop() {
 
 		// Stop internal components
-		stop(repl);
 		stop(serviceRegistry);
 		stop(eventbus);
 		stop(contextFactory);
@@ -250,7 +244,7 @@ public class ServiceBroker {
 	public void createService(Service service) {
 		createService(service.getName(), service);
 	}
-	
+
 	public void createService(String name, Service service) {
 		if (serviceRegistry == null) {
 
@@ -419,6 +413,30 @@ public class ServiceBroker {
 	 */
 	public void broadcastLocal(String name, Tree payload) {
 		eventbus.broadcast(name, payload, null, true);
+	}
+
+	// --- START DEVELOPER CONSOLE ---
+
+	public boolean repl() {
+		return repl(true);
+	}
+	
+	public boolean repl(boolean local) {
+		try {
+			String className = local ? "Local" : "Remote";
+			String serviceName = className.toLowerCase() + "-repl";
+			try {
+				serviceRegistry.getService(serviceName);
+				return false;
+			} catch (Exception ignored) {
+			}
+			createService(serviceName,
+					(Service) Class.forName("services.moleculer.repl." + className + "Repl").newInstance());
+			return true;
+		} catch (Exception cause) {
+			logger.error("REPL package not installed!");
+		}
+		return false;
 	}
 
 }

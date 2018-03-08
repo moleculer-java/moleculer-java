@@ -40,7 +40,6 @@ import services.moleculer.cacher.Cacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.monitor.Monitor;
-import services.moleculer.repl.Repl;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
@@ -127,11 +126,6 @@ public class ServiceBrokerBuilder {
 
 	public ServiceBrokerBuilder monitor(Monitor monitor) {
 		config.setMonitor(Objects.requireNonNull(monitor));
-		return this;
-	}
-
-	public ServiceBrokerBuilder repl(Repl repl) {
-		config.setRepl(repl);
 		return this;
 	}
 
