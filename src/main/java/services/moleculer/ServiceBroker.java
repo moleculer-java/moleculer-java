@@ -31,6 +31,31 @@ import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.UIDGenerator;
 import services.moleculer.util.ParseResult;
 
+/**
+ * The ServiceBroker is the main component of Moleculer. It handles services &
+ * events, calls actions and communicates with remote nodes. You need to create
+ * an instance of ServiceBroker for every node. Sample of usage:<br>
+ * 
+ * <pre>
+ * ServiceBroker broker = new ServiceBroker("node-1");
+ * 
+ * broker.createService(new Service("math") {
+ * 	public Action add = ctx -> {
+ * 		return ctx.params.get("a", 0) + ctx.params.get("b", 0);
+ * 	};
+ * });
+ * 
+ * broker.start();
+ * 
+ * broker.call("math.add", "a", 5, "b", 3).then(rsp -> {
+ * 	broker.getLogger().info("Response: " + rsp.asInteger());
+ * });
+ * </pre>
+ * 
+ * This project is based on the idea of Moleculer Microservices Framework for
+ * NodeJS (https://moleculer.services). Special thanks to the Moleculer's
+ * project owner (https://github.com/icebob) for the consultations.
+ */
 public class ServiceBroker {
 
 	// --- VERSIONS ---
@@ -127,7 +152,7 @@ public class ServiceBroker {
 	// --- START BROKER INSTANCE ---
 
 	/**
-	 * Start broker. If has transporter, transporter.connect will be called.
+	 * Start broker. If has a Transporter, transporter.connect() will be called.
 	 */
 	public void start() throws Exception {
 
@@ -420,7 +445,7 @@ public class ServiceBroker {
 	public boolean repl() {
 		return repl(true);
 	}
-	
+
 	public boolean repl(boolean local) {
 		try {
 			String className = local ? "Local" : "Remote";

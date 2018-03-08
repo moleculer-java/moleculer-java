@@ -24,15 +24,15 @@ import services.moleculer.service.Name;
  * Kafka Transporter. Kafka is used for building real-time data pipelines and
  * streaming apps. It is horizontally scalable, fault-tolerant, wicked fast, and
  * runs in production in thousands of companies. Sample of usage:<br>
- * <br>
- * KafkaTransporter trans = new KafkaTransporter();<br>
- * trans.setUrls(new String[] { "192.168.51.29:9092" });<br>
- * trans.setDebug(true);<br>
- * trans.setProducerProperty("session.timeout.ms", "30000");<br>
- * ServiceBroker broker = ServiceBroker.builder().transporter(trans).build();<br>
- * //broker.createService(new Service("test") {...});<br>
- * broker.start();<br>
- * <br>
+ * <pre>
+ * KafkaTransporter kafka = new KafkaTransporter();
+ * kafka.setUrls(new String[] { "192.168.51.29:9092" });
+ * kafka.setDebug(true);
+ * kafka.setProducerProperty("session.timeout.ms", "30000");
+ * ServiceBroker broker = ServiceBroker.builder().transporter(kafka).build();
+ * //broker.createService(new Service("test") {...});
+ * broker.start();
+ * </pre>
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients<br>

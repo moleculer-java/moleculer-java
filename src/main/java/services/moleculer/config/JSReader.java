@@ -41,13 +41,17 @@ import io.datatree.dom.TreeReaderRegistry;
 
 /**
  * JS to JSON converter. Converts<br>
- * {<br>
- * ttl:10*1000<br>
- * }<br>
- * to<br>
- * {<br>
- * "ttl":10000<br>
+ * <pre>
+ * {
+ *   ttl: 10*1000
  * }
+ * </pre>
+ * to<br>
+ * <pre>
+ * {
+ *   "ttl": 10000
+ * }
+ * </pre>
  */
 public final class JSReader implements TreeReader {
 

@@ -45,38 +45,41 @@ import services.moleculer.util.CheckedTree;
  * resolved value, or a reason that it's not resolved (e.g., a network error
  * occurred). Promise users can attach callbacks to handle the fulfilled value
  * or the reason for rejection. Sample waterfall processing:<br>
- * <br>
- * Promise.resolve().then(in -> {<br>
- * <br>
- * Tree out = new Tree();<br>
- * out.put("a", 1);<br>
- * out.put("b", 2);<br>
- * return out;<br>
- * <br>
- * }).then(in -> {<br>
- * <br>
- * int a = in.get("a", -1);<br>
- * int b = in.get("b", -1);<br>
- * return a + b;<br>
- * <br>
- * }).then(in -> {<br>
- * <br>
- * int sub = in.asInteger();<br>
- * // You can return an another Promise<br>
- * return Promise.resolve("OK!");<br>
- * <br>
- * }).then(in -> {<br>
- * <br>
- * if (!"OK".equals(in.asString()) {<br>
- * throw new Exception("Invalid value!");<br>
- * <br>
- * }<br>
- * }).catchError(err -> {<br>
- * <br>
- * System.out.println("Error: " + err);<br>
- * return "foo";<br>
- * <br>
+ * 
+ * <pre>
+ * Promise.resolve().then(in -> {
+ * 
+ *   Tree out = new Tree();
+ *   out.put("a", 1);
+ *   out.put("b", 2);
+ *   return out;
+ * 
+ * }).then(in -> {
+ * 
+ *   int a = in.get("a", -1);
+ *   int b = in.get("b", -1);
+ *   return a + b;
+ * 
+ * }).then(in -> {
+ * 
+ *   int sub = in.asInteger();
+ * 
+ *   // You can return an another Promise
+ *   return Promise.resolve("OK!");
+ * 
+ * }).then(in -> {
+ * 
+ *   if (!"OK".equals(in.asString())) {
+ *     throw new Exception("Invalid value!");
+ *   }
+ *
+ * }).catchError(err -> {
+ * 
+ *   System.out.println("Error: " + err);
+ *   return "foo";
+ * 
  * });
+ * </pre>
  */
 public class Promise {
 
@@ -325,11 +328,10 @@ public class Promise {
 	 * Promise p = new Promise();<br>
 	 * // Listener:<br>
 	 * p.next(value -> {<br>
-	 * System.out.println("Received: " + value);<br>
+	 * System.out.println("Completed!");<br>
 	 * return value;<br>
 	 * });<br>
 	 * // Invoke chain:<br>
-	 * Tree t = new Tree().put("a", "b");<br>
 	 * p.complete();
 	 * 
 	 * @return {@code true} if this invocation caused this Promise to transition

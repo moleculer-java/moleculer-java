@@ -1,4 +1,4 @@
-package services.moleculer.test;
+package services.moleculer.service;
 
 import org.springframework.stereotype.Component;
 
@@ -9,7 +9,7 @@ import services.moleculer.service.Name;
 
 @Component
 @Name("filter1")
-public class Filter2 extends Middleware {
+public class Filter1 extends Middleware {
 
 	@Override
 	public Action install(Action action, Tree config) {

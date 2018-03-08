@@ -55,10 +55,10 @@ import services.moleculer.service.Name;
  * Middleware API for sending messages between two or more clients. It is an
  * implementation to handle the Producer-consumer problem. JMS is a part of the
  * Java Enterprise Edition. Sample of usage with Active MQ:<br>
- * <br>
- * Transporter t = new JmsTransporter(new ActiveMQConnectionFactory());<br>
- * ServiceBroker broker = ServiceBroker.builder().transporter(t).build();<br>
- * <br>
+ * <pre>
+ * Transporter t = new JmsTransporter(new ActiveMQConnectionFactory());
+ * ServiceBroker broker = ServiceBroker.builder().transporter(t).build();
+ * </pre>
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/javax.jms/javax.jms-api<br>

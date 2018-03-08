@@ -32,7 +32,17 @@
 package services.moleculer.context;
 
 /**
- * Calling options (socketTimeout, target nodeID, number of retries).
+ * Calling options (socketTimeout, target nodeID, number of retries). Usage:<br>
+ * <pre>
+ * broker.call("math.add", "a", 3, "b", 5,
+ *   CallingOptions.nodeID("node-2")).then(in -> {
+ *   ...
+ * });
+ * </pre>
+ * You can enumerate options in builder style:<br>
+ * <pre>
+ * CallingOptions.nodeID("node-2").timeout(5).retryCount(3);
+ * </pre>
  */
 public class CallingOptions {
 

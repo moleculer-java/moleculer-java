@@ -1,4 +1,4 @@
-package services.moleculer.test;
+package services.moleculer.service;
 
 import org.springframework.stereotype.Component;
 

@@ -16,12 +16,13 @@ public class Sample {
 	public static void main(String[] args) throws Exception {
 		System.out.println("START");
 		try {
+			
 			ServiceBrokerConfig cfg = new ServiceBrokerConfig();
 			
 			// RedisTransporter t = new RedisTransporter();
 			// t.setDebug(false);
 			// cfg.setTransporter(t);
-							
+			
 			ServiceBroker broker = new ServiceBroker(cfg);
 	
 			broker.createService(new Service("math") {
