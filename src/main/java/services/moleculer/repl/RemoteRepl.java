@@ -47,8 +47,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
@@ -121,24 +119,6 @@ public class RemoteRepl extends LocalRepl {
 
 	protected ServerSocketChannel serverChannel;
 	protected Selector selector;
-
-	// --- START REPL INSTANCE ---
-
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-		super.start(broker, config);
-
-		// Process config
-		port = config.get("port", port);
-		echo = config.get("echo", echo);
-		socketTimeout = config.get("socketTimeout", socketTimeout);
-		maxSessions = config.get("maxSessions", maxSessions);
-		authenticated = config.get("authenticated", authenticated);
-		username = config.get("username", username);
-		password = config.get("password", password);
-
-		// +packagesToScan from the superclass
-	}
 
 	// --- START TCP READER ---
 

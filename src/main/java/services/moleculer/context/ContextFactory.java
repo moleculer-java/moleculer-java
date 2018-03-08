@@ -31,13 +31,9 @@
  */
 package services.moleculer.context;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
 import services.moleculer.service.Name;
+import services.moleculer.service.Service;
 
 /**
  * Base superclass of all Context Factory implementations.
@@ -45,42 +41,10 @@ import services.moleculer.service.Name;
  * @see DefaultContextFactory
  */
 @Name("Context Factory")
-public abstract class ContextFactory implements MoleculerComponent {
-
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
-
-	// --- CONSTUCTOR ---
-
-	public ContextFactory() {
-	}
-
-	// --- START CONTEXT FACTORY ---
-
-	/**
-	 * Initializes Context Factory instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-	}
-
-	// --- STOP CONTEXT FACTORY ---
-
-	/**
-	 * Closes Context Factory.
-	 */
-	@Override
-	public void stop() {
-	}
+public abstract class ContextFactory extends Service {
 
 	// --- CREATE CONTEXT ---
 
-	public abstract Context create(String name, Tree params, CallingOptions.Options opts, Context parent, boolean generateID);
+	public abstract Context create(String name, Tree params, CallingOptions.Options opts, Context parent);
 
 }

@@ -31,19 +31,16 @@
  */
 package services.moleculer.repl;
 
-import static services.moleculer.util.CommonUtils.nameOf;
 import static io.datatree.dom.PackageScanner.scan;
+import static services.moleculer.util.CommonUtils.nameOf;
 
 import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
@@ -66,10 +63,6 @@ public class LocalRepl extends Repl implements Runnable {
 	 */
 	private String[] packagesToScan = {};
 
-	// --- COMPONENTS ---
-
-	protected ServiceBroker broker;
-
 	// --- MAP OF THE REGISTERED COMMANDS ---
 
 	protected ConcurrentHashMap<String, Command> commands = new ConcurrentHashMap<>(64);
@@ -81,33 +74,6 @@ public class LocalRepl extends Repl implements Runnable {
 
 	public LocalRepl(String... packagesToScan) {
 		this.packagesToScan = packagesToScan;
-	}
-
-	// --- START ---
-
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-		super.start(broker, config);
-		this.broker = broker;
-
-		// Process config
-		Tree packagesNode = config.get("packagesToScan");
-		if (packagesNode != null) {
-			if (packagesNode.isPrimitive()) {
-
-				// List of packages
-				String value = packagesNode.asString().trim();
-				packagesToScan = value.split(",");
-			} else {
-
-				// Array structure of packages
-				List<String> packageList = packagesNode.asList(String.class);
-				if (!packageList.isEmpty()) {
-					packagesToScan = new String[packageList.size()];
-					packageList.toArray(packagesToScan);
-				}
-			}
-		}
 	}
 
 	// --- START READING INPUT ---

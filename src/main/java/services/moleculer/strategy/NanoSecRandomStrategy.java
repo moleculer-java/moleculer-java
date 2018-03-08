@@ -31,6 +31,8 @@
  */
 package services.moleculer.strategy;
 
+import services.moleculer.ServiceBroker;
+import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
 /**
@@ -46,8 +48,8 @@ public class NanoSecRandomStrategy<T extends Endpoint> extends ArrayBasedStrateg
 
 	// --- CONSTRUCTOR ---
 
-	public NanoSecRandomStrategy(boolean preferLocal) {
-		super(preferLocal);
+	public NanoSecRandomStrategy(ServiceBroker broker, boolean preferLocal) {
+		super(broker, preferLocal);
 	}
 
 	// --- GET NEXT ENDPOINT ---

@@ -1,7 +1,5 @@
 package services.moleculer.transporter;
 
-import static services.moleculer.util.CommonUtils.parseURLs;
-
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
@@ -20,7 +18,6 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
-import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
@@ -75,55 +72,7 @@ public class KafkaTransporter extends Transporter {
 	public KafkaTransporter(String... urls) {
 		this.urls = urls;
 	}
-
-	// --- START TRANSPORTER ---
-
-	/**
-	 * Initializes transporter instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Process basic properties (eg. "prefix")
-		super.start(broker, config);
-
-		// Process config
-		urls = parseURLs(config, urls);
-
-		// Set unique "node ID" as Kafka "group ID"
-		consumerProperties.setProperty("group.id", nodeID);
-		
-		// Read custom properties from config, eg:
-		//
-		// consumerProperties {
-		// "acks": "all",
-		// "retries": 0,
-		// "batch-size": 16384,
-		// "linger-ms": 1,
-		// "buffer-memory": 33554432,
-		// "enable-auto-commit": true,
-		// "auto-commit-interval-ms": 1000,
-		// "session-timeout-ms": 30000
-		// }
-		//
-		copyProperties(config, consumerProperties, "consumerProperties");
-		copyProperties(config, producerProperties, "producerProperties");
-	}
 	
-	protected void copyProperties(Tree from, Properties to, String name) {
-		Tree props = from.get(name);
-		if (props != null) {
-			for (Tree prop : props) {
-				to.setProperty(prop.getName().replace('-', '.'), prop.asString());
-			}
-		}		
-	}
-
 	// --- CONNECT ---
 
 	/**
@@ -158,6 +107,9 @@ public class KafkaTransporter extends Transporter {
 			producerProperties.put("bootstrap.servers", urlList.toString());
 			consumerProperties.put("bootstrap.servers", urlList.toString());
 
+			// Set unique "node ID" as Kafka "group ID"
+			consumerProperties.setProperty("group.id", nodeID);
+			
 			// Create producer
 			ByteArraySerializer byteArraySerializer = new ByteArraySerializer();
 			producer = new KafkaProducer<>(producerProperties, byteArraySerializer, byteArraySerializer);
@@ -326,10 +278,10 @@ public class KafkaTransporter extends Transporter {
 	 * Closes transporter.
 	 */
 	@Override
-	public void stop() {
+	public void stopped() {
 		
 		// Stop timers
-		super.stop();
+		super.stopped();
 		
 		// Disconnect
 		disconnect();

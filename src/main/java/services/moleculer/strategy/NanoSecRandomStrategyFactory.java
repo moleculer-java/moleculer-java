@@ -31,6 +31,7 @@
  */
 package services.moleculer.strategy;
 
+import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
 /**
@@ -58,7 +59,7 @@ public class NanoSecRandomStrategyFactory extends ArrayBasedStrategyFactory {
 
 	@Override
 	public <T extends Endpoint> Strategy<T> create() {
-		return new NanoSecRandomStrategy<T>(preferLocal);
+		return new NanoSecRandomStrategy<T>(broker, preferLocal);
 	}
 
 }

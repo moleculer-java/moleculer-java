@@ -81,9 +81,9 @@ public class Nodes extends Command {
 		boolean telnet = params.contains("telnet");
 
 		// Collect data
-		Transporter transporter = broker.components().transporter();
+		Transporter transporter = broker.getConfig().getTransporter();
 		Tree infos = getNodeInfos(broker, transporter);
-		String localNodeID = broker.nodeID();
+		String localNodeID = broker.getNodeID();
 
 		// Create table
 		TextTable table;
@@ -149,11 +149,11 @@ public class Nodes extends Command {
 
 			// Add "CPU" cell
 			if (transporter == null) {
-				row.add(broker.components().monitor().getTotalCpuPercent() + "%");
+				row.add(broker.getConfig().getMonitor().getTotalCpuPercent() + "%");
 			} else {
 				int cpuUsage;
 				if (localNodeID.equals(nodeID)) {
-					cpuUsage = broker.components().monitor().getTotalCpuPercent();
+					cpuUsage = broker.getConfig().getMonitor().getTotalCpuPercent();
 				} else {
 					cpuUsage = transporter.getCpuUsage(nodeID);
 				}

@@ -33,6 +33,8 @@ package services.moleculer.strategy;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import services.moleculer.ServiceBroker;
+import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
 /**
@@ -52,8 +54,8 @@ public class RoundRobinStrategy<T extends Endpoint> extends ArrayBasedStrategy<T
 
 	// --- CONSTRUCTOR ---
 
-	public RoundRobinStrategy(boolean preferLocal) {
-		super(preferLocal);
+	public RoundRobinStrategy(ServiceBroker broker, boolean preferLocal) {
+		super(broker, preferLocal);
 	}
 
 	// --- GET NEXT ENDPOINT ---

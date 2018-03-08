@@ -36,8 +36,6 @@ import io.datatree.dom.TreeReader;
 import io.datatree.dom.TreeReaderRegistry;
 import io.datatree.dom.TreeWriter;
 import io.datatree.dom.TreeWriterRegistry;
-import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
 import services.moleculer.util.CheckedTree;
 
 /**
@@ -46,44 +44,21 @@ import services.moleculer.util.CheckedTree;
  * @see JsonSerializer
  * @see MsgPackSerializer
  */
-public abstract class Serializer implements MoleculerComponent {
+public abstract class Serializer {
 
 	// --- PROPERTIES ---
 
 	protected final String format;
 
-	protected TreeWriter writer;
-	protected TreeReader reader;
+	protected final TreeWriter writer;
+	protected final TreeReader reader;
 
 	// --- CONSTRUCTOR ---
 
 	protected Serializer(String format) {
 		this.format = format;
-	}
-
-	// --- START SERIALIZER INSTANCE ---
-
-	/**
-	 * Initializes serializer instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-		writer = TreeWriterRegistry.getWriter(format);
-		reader = TreeReaderRegistry.getReader(format);
-	}
-
-	// --- STOP SERIALIZER INSTANCE ---
-
-	/**
-	 * Closes serializer.
-	 */
-	@Override
-	public void stop() {
+		this.writer = TreeWriterRegistry.getWriter(format);
+		this.reader = TreeReaderRegistry.getReader(format);
 	}
 
 	// --- SERIALIZE TREE TO BYTE ARRAY ---
@@ -100,7 +75,7 @@ public abstract class Serializer implements MoleculerComponent {
 
 	// --- GET FORMAT NAME ---
 
-	public String format() {
+	public String getFormat() {
 		return format;
 	}
 

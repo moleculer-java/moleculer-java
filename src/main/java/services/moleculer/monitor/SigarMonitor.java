@@ -33,8 +33,6 @@ package services.moleculer.monitor;
 
 import org.hyperic.sigar.Sigar;
 
-import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
@@ -47,39 +45,19 @@ public class SigarMonitor extends Monitor {
 
 	// --- SIGAR INSTANCE ---
 
-	protected static Sigar sigar;
-	
-	protected static Exception initialException;
-	
-	static {
-		try {
-			sigar = new Sigar();
-		} catch (Throwable cause) {
-			if (cause instanceof Exception) {
-				initialException = (Exception) cause;
-			} else {
-				initialException = new Exception(cause);
+	protected static Sigar sigar = new Sigar();
+
+	// --- CONSTRUCTOR ---
+
+	public SigarMonitor() {
+		if (!invalidMonitor.get()) {
+			try {
+				sigar = new Sigar();
+			} catch (Exception cause) {
+				logger.error("Unable to reach Sigar API!", cause);
+				invalidMonitor.set(true);
 			}
 		}
-	}
-
-	// --- START MONITOR ---
-
-	/**
-	 * Initializes monitor instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-		if (initialException != null) {
-			throw initialException;
-		}
-		super.start(broker, config);
-		
 	}
 
 	// --- SYSTEM MONITORING METHODS ---
@@ -90,13 +68,8 @@ public class SigarMonitor extends Monitor {
 	 * @return total CPU usage of the current OS
 	 */
 	@Override
-	protected int detectTotalCpuPercent() {
-		try {
-			return (int) Math.max(sigar.getCpuPerc().getCombined() * 100d, 0d);
-		} catch (Exception cause) {
-			logger.warn("Unable to get CPU usage!", cause);
-		}
-		return 0;
+	protected int detectTotalCpuPercent() throws Exception {
+		return (int) Math.max(sigar.getCpuPerc().getCombined() * 100d, 0d);
 	}
 
 	/**
@@ -104,13 +77,8 @@ public class SigarMonitor extends Monitor {
 	 * 
 	 * @return current Java VM's process ID
 	 */
-	protected long detectPID() {
-		try {
-			return sigar.getPid();
-		} catch (Exception cause) {
-			logger.warn("Unable to get process ID!", cause);
-		}
-		return 0;			
+	protected long detectPID() throws Exception {
+		return sigar.getPid();
 	}
 
 }

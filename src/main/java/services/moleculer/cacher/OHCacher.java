@@ -34,7 +34,6 @@ package services.moleculer.cacher;
 import static services.moleculer.util.CommonUtils.compress;
 import static services.moleculer.util.CommonUtils.decompress;
 import static services.moleculer.util.CommonUtils.nameOf;
-import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -45,19 +44,18 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Objects;
+import java.util.zip.Deflater;
 
 import org.caffinitas.ohc.CacheSerializer;
 import org.caffinitas.ohc.OHCache;
 import org.caffinitas.ohc.OHCacheBuilder;
 
 import io.datatree.Tree;
-import io.datatree.dom.TreeWriterRegistry;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.Matcher;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
-import services.moleculer.serializer.SmileSerializer;
 import services.moleculer.service.Name;
 import services.moleculer.util.CheckedTree;
 
@@ -139,9 +137,14 @@ public class OHCacher extends Cacher {
 	 */
 	protected int compressAbove = 1024;
 
+	/**
+	 * Compression level (best speed = 1, best compression = 9).
+	 */
+	protected int compressionLevel = Deflater.BEST_SPEED;
+	
 	// --- SERIALIZER / DESERIALIZER ---
 
-	protected Serializer serializer;
+	protected Serializer serializer = new JsonSerializer();
 
 	// --- OFF-HEAP CACHE INSTANCE ---
 
@@ -204,56 +207,9 @@ public class OHCacher extends Cacher {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Process config
-		capacity = config.get("capacity", capacity);
-
-		// Number of segments in a cache
-		segmentCount = config.get("segmentCount", segmentCount);
-
-		// Initial size of each segment's hash table
-		hashTableSize = config.get("hashTableSize", hashTableSize);
-
-		// Default TTL seconds
-		ttl = config.get("ttl", ttl);
-
-		// Cache compresses content above this size (specified in
-		// bytes).
-		compressAbove = config.get("compressAbove", compressAbove);
-
-		// Create serializer
-		Tree serializerNode = config.get("serializer");
-		if (serializerNode != null) {
-			String type;
-			if (serializerNode.isPrimitive()) {
-				type = serializerNode.asString();
-			} else {
-				type = serializerNode.get("type", "json");
-			}
-
-			@SuppressWarnings("unchecked")
-			Class<? extends Serializer> c = (Class<? extends Serializer>) Class.forName(serializerTypeToClass(type));
-			serializer = c.newInstance();
-		} else {
-			serializerNode = config.putMap("serializer");
-		}
-		if (serializer == null) {
-			try {
-				if (TreeWriterRegistry.isAvailable("smile")) {
-					serializer = new SmileSerializer();
-				}
-			} catch (Throwable notSupported) {
-			} finally {
-				if (serializer == null) {
-					serializer = new JsonSerializer();
-				}
-			}
-		}
-
-		// Start serializer
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
-		serializer.start(broker, serializerNode);
 
 		// Create cache
 		OHCacheBuilder<byte[], byte[]> builder = OHCacheBuilder.newBuilder();
@@ -281,7 +237,7 @@ public class OHCacher extends Cacher {
 		builder.valueSerializer(serializer);
 
 		// Set scheduler
-		builder.executorService(broker.components().scheduler());
+		builder.executorService(broker.getConfig().getScheduler());
 
 		// Create cache
 		cache = builder.throwOOME(true).build();
@@ -290,7 +246,7 @@ public class OHCacher extends Cacher {
 	// --- CLOSE CACHE INSTANCE ---
 
 	@Override
-	public void stop() {
+	public void stopped() {
 		if (cache != null) {
 			try {
 				cache.close();
@@ -388,7 +344,7 @@ public class OHCacher extends Cacher {
 			part1 = key.substring(0, i).getBytes(StandardCharsets.UTF_8);
 			part2 = key.substring(i + 1).getBytes(StandardCharsets.UTF_8);
 			if (compressAbove > 0 && part2.length > compressAbove) {
-				part2 = compress(part2);
+				part2 = compress(part2, compressionLevel);
 				compressed = true;
 			} else {
 				compressed = false;
@@ -431,7 +387,7 @@ public class OHCacher extends Cacher {
 		byte[] bytes = serializer.write(root);
 		boolean compressed;
 		if (compressAbove > 0 && bytes.length > compressAbove) {
-			bytes = compress(bytes);
+			bytes = compress(bytes, compressionLevel);
 			compressed = true;
 		} else {
 			compressed = false;
@@ -534,6 +490,14 @@ public class OHCacher extends Cacher {
 
 	public void setSerializer(Serializer serializer) {
 		this.serializer = Objects.requireNonNull(serializer);
+	}
+
+	public int getCompressionLevel() {
+		return compressionLevel;
+	}
+
+	public void setCompressionLevel(int compressionLevel) {
+		this.compressionLevel = compressionLevel;
 	}
 
 }

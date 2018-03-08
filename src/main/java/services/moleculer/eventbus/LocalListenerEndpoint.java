@@ -56,34 +56,11 @@ public class LocalListenerEndpoint extends ListenerEndpoint {
 
 	// --- CONSTRUCTOR ---
 
-	public LocalListenerEndpoint(Listener listener, boolean asyncLocalInvocation) {
+	public LocalListenerEndpoint(ServiceBroker broker, String service, String group, String subscribe, Listener listener, boolean asyncLocalInvocation) {
+		super(broker.getNodeID(), service, group, subscribe);
 		this.listener = listener;
 		this.asyncLocalInvocation = asyncLocalInvocation;
-	}
-
-	// --- START CONTAINER ---
-
-	/**
-	 * Initializes Container instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Set base properties
-		super.start(broker, config);
-
-		// Process config
-		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
-
-		// Set components
-		if (asyncLocalInvocation) {
-			executor = broker.components().executor();
-		}
+		this.executor = broker.getConfig().getExecutor();
 	}
 
 	// --- INVOKE LOCAL LISTENER ---
@@ -107,9 +84,9 @@ public class LocalListenerEndpoint extends ListenerEndpoint {
 		listener.on(payload);
 	}
 
-	@Override
-	public boolean local() {
+	// --- LOCAL LISTENER? ---
+	
+	public boolean isLocal() {
 		return true;
 	}
-
 }

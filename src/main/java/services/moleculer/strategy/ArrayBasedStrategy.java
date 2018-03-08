@@ -35,9 +35,9 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-import io.datatree.Tree;
 import io.datatree.dom.Cache;
 import services.moleculer.ServiceBroker;
+import services.moleculer.service.Endpoint;
 
 /**
  * Abstract class for Round-Robin and Random invocation strategies.
@@ -60,28 +60,14 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 
 	// --- PROPERTIES ---
 
+	protected final String nodeID;
 	protected final boolean preferLocal;
-	protected String nodeID;
 
 	// --- CONSTRUCTOR ---
 
-	public ArrayBasedStrategy(boolean preferLocal) {
+	public ArrayBasedStrategy(ServiceBroker broker, boolean preferLocal) {
+		this.nodeID = broker.getNodeID();
 		this.preferLocal = preferLocal;
-	}
-
-	// --- START INVOCATION STRATEGY ---
-
-	/**
-	 * Initializes strategy instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-		nodeID = broker.nodeID();
 	}
 
 	// --- ADD A LOCAL OR REMOTE ENDPOINT ---
@@ -108,7 +94,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 		}
 
 		// Remove from cache
-		endpointCache.remove(endpoint.nodeID());
+		endpointCache.remove(endpoint.getNodeID());
 	}
 
 	// --- REMOVE ALL ENDPOINTS OF THE SPECIFIED NODE ---
@@ -119,7 +105,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 		boolean found = false;
 		for (int i = 0; i < endpoints.length; i++) {
 			endpoint = endpoints[i];
-			if (nodeID.equals(endpoint.nodeID())) {
+			if (nodeID.equals(endpoint.getNodeID())) {
 				found = true;
 				if (endpoints.length == 1) {
 					endpoints = new Endpoint[0];
@@ -178,7 +164,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 		if (array == null) {
 			LinkedList<Endpoint> list = new LinkedList<>();
 			for (Endpoint endpoint : endpoints) {
-				if (endpoint.nodeID().equals(nodeID)) {
+				if (endpoint.getNodeID().equals(nodeID)) {
 					list.addLast(endpoint);
 				}
 			}

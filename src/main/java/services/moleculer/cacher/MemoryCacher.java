@@ -77,12 +77,12 @@ public class MemoryCacher extends Cacher implements Runnable {
 	protected int capacity;
 
 	/**
-	 * Expire time, in seconds (0 = never expires)
+	 * Expire time, in SECONDS (0 = never expires)
 	 */
 	protected int ttl;
 
 	/**
-	 * Cleanup period time, in seconds (0 = disable cleanup process)
+	 * Cleanup period time, in SECONDS (0 = disable cleanup process)
 	 */
 	protected int cleanup = 5;
 
@@ -135,20 +135,14 @@ public class MemoryCacher extends Cacher implements Runnable {
 	 * 
 	 * @param broker
 	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Process config
-		capacity = config.get("capacity", capacity);
-		ttl = config.get("ttl", ttl);
-		cleanup = config.get("cleanup", cleanup);
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 
 		// Start timer
 		if (cleanup > 0) {
-			timer = broker.components().scheduler().scheduleWithFixedDelay(this, cleanup, cleanup, TimeUnit.SECONDS);
+			timer = broker.getConfig().getScheduler().scheduleWithFixedDelay(this, cleanup, cleanup, TimeUnit.SECONDS);
 		}
 		if (ttl > 0) {
 			logger.info("Entries in cache expire after " + ttl + " seconds.");
@@ -174,7 +168,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 	// --- STOP CACHER ---
 
 	@Override
-	public void stop() {
+	public void stopped() {
 
 		// Stop timer
 		if (timer != null) {

@@ -31,9 +31,6 @@
  */
 package services.moleculer.strategy;
 
-import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-
 /**
  * Abstract class for Round-Robin and Random invocation strategy factories.
  * 
@@ -60,23 +57,6 @@ public abstract class ArrayBasedStrategyFactory extends StrategyFactory {
 
 	public ArrayBasedStrategyFactory(boolean preferLocal) {
 		this.preferLocal = preferLocal;
-	}
-
-	// --- START INVOCATION FACTORY ---
-
-	/**
-	 * Initializes strategy instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Process config
-		preferLocal = config.get("preferLocal", preferLocal);
 	}
 
 	// --- GETTERS / SETTERS ---

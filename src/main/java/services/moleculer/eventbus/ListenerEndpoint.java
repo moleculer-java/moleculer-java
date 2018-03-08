@@ -31,17 +31,13 @@
  */
 package services.moleculer.eventbus;
 
-import java.util.Objects;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
-import services.moleculer.strategy.Endpoint;
+import services.moleculer.service.Endpoint;
 
-public abstract class ListenerEndpoint implements MoleculerComponent, Endpoint {
+public abstract class ListenerEndpoint extends Endpoint {
 
 	// --- LOGGER ---
 
@@ -49,74 +45,38 @@ public abstract class ListenerEndpoint implements MoleculerComponent, Endpoint {
 
 	// --- PROPERTIES ---
 
-	protected String nodeID;
-	protected String service;
-	protected String group;
-	protected String subscribe;
-	
-	protected int hashCode = 1;
+	protected final String serviceName;
+	protected final String group;
+	protected final String subscribe;
+
+	protected final int hashCode;
 
 	// --- CONSTRUCTOR ---
 
-	protected ListenerEndpoint() {
-	}
+	protected ListenerEndpoint(String nodeID, String serviceName, String group, String subscribe) {
+		super(nodeID);
+		this.serviceName = serviceName;
+		this.group = group;
+		this.subscribe = subscribe;
 
-	// --- START ENDPOINT ---
-
-	/**
-	 * Initializes enpoint instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current endpoint
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Set nodeID
-		nodeID = config.get("nodeID", (String) null);
-
-		// Set service name
-		service = config.get("service", (String) null);
-
-		// Set group
-		group = config.get("group", service);
-
-		// Set name
-		subscribe = config.get("subscribe", (String) null);
-
-		// Generate hash code
+		// Generate hashcode
 		final int prime = 31;
-		hashCode = prime * hashCode + ((group == null) ? 0 : group.hashCode());
-		hashCode = prime * hashCode + ((nodeID == null) ? 0 : nodeID.hashCode());
-		hashCode = prime * hashCode + ((service == null) ? 0 : service.hashCode());
-		hashCode = prime * hashCode + ((subscribe == null) ? 0 : subscribe.hashCode());
-
-		// Verify values
-		Objects.requireNonNull(nodeID);
-		Objects.requireNonNull(service);
-		Objects.requireNonNull(group);
-		Objects.requireNonNull(subscribe);
-	}
-
-	// --- GET NODEID ---
-	
-	public String nodeID() {
-		return nodeID;
-	}
-	
-	// --- STOP ENDPOINT ---
-
-	@Override
-	public void stop() {
+		int result = 1;
+		result = prime * result + ((group == null) ? 0 : group.hashCode());
+		result = prime * result + ((serviceName == null) ? 0 : serviceName.hashCode());
+		result = prime * result + ((subscribe == null) ? 0 : subscribe.hashCode());
+		hashCode = result;
 	}
 
 	// --- SEND EVENT TO ENDPOINT ---
 
 	public abstract void on(String name, Tree payload, Groups groups, boolean broadcast) throws Exception;
 
-	// --- EQUALS / HASHCODE ---
+	// --- LOCAL LISTENER? ---
+
+	public abstract boolean isLocal();
+
+	// --- COLLECTION HELPERS ---
 
 	@Override
 	public int hashCode() {
@@ -135,7 +95,7 @@ public abstract class ListenerEndpoint implements MoleculerComponent, Endpoint {
 			return false;
 		}
 		ListenerEndpoint other = (ListenerEndpoint) obj;
-		if (other.hashCode != hashCode) {
+		if (!nodeID.equals(other.nodeID)) {
 			return false;
 		}
 		if (group == null) {
@@ -145,18 +105,11 @@ public abstract class ListenerEndpoint implements MoleculerComponent, Endpoint {
 		} else if (!group.equals(other.group)) {
 			return false;
 		}
-		if (nodeID == null) {
-			if (other.nodeID != null) {
+		if (serviceName == null) {
+			if (other.serviceName != null) {
 				return false;
 			}
-		} else if (!nodeID.equals(other.nodeID)) {
-			return false;
-		}
-		if (service == null) {
-			if (other.service != null) {
-				return false;
-			}
-		} else if (!service.equals(other.service)) {
+		} else if (!serviceName.equals(other.serviceName)) {
 			return false;
 		}
 		if (subscribe == null) {
@@ -167,6 +120,20 @@ public abstract class ListenerEndpoint implements MoleculerComponent, Endpoint {
 			return false;
 		}
 		return true;
+	}
+
+	// --- PROPERTY GETTERS ---
+
+	public String getServiceName() {
+		return serviceName;
+	}
+
+	public String getGroup() {
+		return group;
+	}
+
+	public String getSubscribe() {
+		return subscribe;
 	}
 
 }

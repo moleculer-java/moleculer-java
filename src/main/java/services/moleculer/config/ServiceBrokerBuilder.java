@@ -31,17 +31,14 @@
  */
 package services.moleculer.config;
 
-import static services.moleculer.util.CommonUtils.nameOf;
-
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
-import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.context.ContextFactory;
-import services.moleculer.eventbus.EventBus;
+import services.moleculer.eventbus.Eventbus;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.repl.Repl;
 import services.moleculer.service.ServiceRegistry;
@@ -54,131 +51,97 @@ import services.moleculer.uid.UIDGenerator;
  * <br>
  * ServiceBroker broker = ServiceBroker.builder().cacher(cacher).build();
  */
-public final class ServiceBrokerBuilder {
+public class ServiceBrokerBuilder {
 
 	// --- CONFIGURATION ---
 
-	private final ServiceBrokerSettings settings;
-	
-	// --- CONSTRUCTOR ---
-
-	public ServiceBrokerBuilder(ServiceBrokerSettings settings) {
-		this.settings = settings;
-	}
+	protected ServiceBrokerConfig config = new ServiceBrokerConfig();
 
 	// --- BUILD METHOD ---
 
-	public final ServiceBroker build() {
-		return new ServiceBroker(settings);
+	public ServiceBroker build() {
+		return new ServiceBroker(config);
 	}
 
 	// --- INTERNAL COMPONENTS AND PROPERTIES ---
 
-	public final ServiceBrokerBuilder namespace(String namespace) {
-		settings.setNamespace(namespace);
+	public ServiceBrokerBuilder namespace(String namespace) {
+		config.setNamespace(namespace);
 		return this;
 	}
 
-	public final ServiceBrokerBuilder nodeID(String nodeID) {
-		settings.setNodeID(nodeID);
+	public ServiceBrokerBuilder nodeID(String nodeID) {
+		config.setNodeID(nodeID);
 		return this;
 	}
 
-	public final ServiceBrokerBuilder internalServices(boolean internalServices) {
-		settings.setInternalServices(internalServices);
-		return this;
-	}
-	
-	public final ServiceBrokerBuilder scheduler(ScheduledExecutorService scheduler) {
-		settings.setScheduler(scheduler);
+	public ServiceBrokerBuilder internalServices(boolean internalServices) {
+		config.setInternalServices(internalServices);
 		return this;
 	}
 
-	public final ServiceBrokerBuilder executor(ExecutorService executor) {
-		settings.setExecutor(executor);
+	public ServiceBrokerBuilder scheduler(ScheduledExecutorService scheduler) {
+		config.setScheduler(scheduler);
 		return this;
 	}
 
-	public final ServiceBrokerBuilder context(ContextFactory contextFactory) {
-		settings.setContext(contextFactory);
+	public ServiceBrokerBuilder executor(ExecutorService executor) {
+		config.setExecutor(executor);
 		return this;
 	}
 
-	public final ServiceBrokerBuilder registry(ServiceRegistry serviceRegistry) {
-		settings.setRegistry(serviceRegistry);
+	public ServiceBrokerBuilder context(ContextFactory contextFactory) {
+		config.setContextFactory(contextFactory);
 		return this;
 	}
 
-	public final ServiceBrokerBuilder eventbus(EventBus eventBus) {
-		settings.setEventbus(eventBus);
+	public ServiceBrokerBuilder registry(ServiceRegistry serviceRegistry) {
+		config.setServiceRegistry(serviceRegistry);
 		return this;
 	}
 
-	public final ServiceBrokerBuilder uid(UIDGenerator uidGenerator) {
-		settings.setUid(uidGenerator);
+	public ServiceBrokerBuilder eventbus(Eventbus eventBus) {
+		config.setEventbus(eventBus);
 		return this;
 	}
 
-	public final ServiceBrokerBuilder strategy(StrategyFactory strategyFactory) {
-		settings.setStrategy(strategyFactory);
+	public ServiceBrokerBuilder uid(UIDGenerator uidGenerator) {
+		config.setUidGenerator(uidGenerator);
 		return this;
 	}
 
-	public final ServiceBrokerBuilder transporter(Transporter transporter) {
-		settings.setTransporter(transporter);
+	public ServiceBrokerBuilder strategy(StrategyFactory strategyFactory) {
+		config.setStrategyFactory(strategyFactory);
 		return this;
 	}
 
-	public final ServiceBrokerBuilder cacher(Cacher cacher) {
-		settings.setCacher(cacher);
+	public ServiceBrokerBuilder transporter(Transporter transporter) {
+		config.setTransporter(transporter);
 		return this;
 	}
 
-	public final ServiceBrokerBuilder components(ComponentRegistry componentRegistry) {
-		settings.setComponents(componentRegistry);
+	public ServiceBrokerBuilder cacher(Cacher cacher) {
+		config.setCacher(cacher);
 		return this;
 	}
 
-	public final ServiceBrokerBuilder monitor(Monitor monitor) {
-		settings.setMonitor(Objects.requireNonNull(monitor));
+	public ServiceBrokerBuilder monitor(Monitor monitor) {
+		config.setMonitor(Objects.requireNonNull(monitor));
 		return this;
 	}
 
-	public final ServiceBrokerBuilder repl(Repl repl) {
-		settings.setRepl(repl);
+	public ServiceBrokerBuilder repl(Repl repl) {
+		config.setRepl(repl);
 		return this;
 	}
 
-	public final ServiceBrokerBuilder jsonReader(String jsonReader) {
-		settings.setJsonReader(jsonReader);
+	public ServiceBrokerBuilder reader(String jsonReader) {
+		config.setJsonReader(jsonReader);
 		return this;
 	}
 
-	public final ServiceBrokerBuilder jsonWriter(String jsonWriter) {
-		settings.setJsonWriter(jsonWriter);
-		return this;
-	}
-	
-	// --- ADD CUSTOM COMPONENT ---
-
-	public final ServiceBrokerBuilder add(MoleculerComponent component) {
-		return add(component, new Tree());
-	}
-
-	public final ServiceBrokerBuilder add(MoleculerComponent component, Tree config) {
-		return add(nameOf(component, false), component, config);
-	}
-
-	public final ServiceBrokerBuilder add(String id, MoleculerComponent component, Tree config) {
-		Objects.requireNonNull(component);
-		id = Objects.requireNonNull(id).trim();
-		if (id.isEmpty()) {
-			throw new IllegalArgumentException("Empty id is not allowed!");
-		}
-		if (config == null) {
-			config = new Tree();
-		}
-		settings.getComponentMap().put(id, new MoleculerComponentContainer(component, config));
+	public ServiceBrokerBuilder writer(String jsonWriter) {
+		config.setJsonWriter(jsonWriter);
 		return this;
 	}
 

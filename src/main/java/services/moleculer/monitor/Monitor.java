@@ -31,14 +31,12 @@
  */
 package services.moleculer.monitor;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
 import services.moleculer.service.Name;
 
 /**
@@ -48,7 +46,7 @@ import services.moleculer.service.Name;
  * @see JMXMonitor
  */
 @Name("Monitor")
-public abstract class Monitor implements MoleculerComponent {
+public abstract class Monitor {
 
 	// --- LOGGER ---
 
@@ -78,45 +76,29 @@ public abstract class Monitor implements MoleculerComponent {
 	 */
 	protected static long cpuDetectedAt;
 
-	// --- START MONITOR INSTANCE ---
-
-	/**
-	 * Initializes monitor instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Process config
-		cacheTimeout = config.get("cacheTimeout", cacheTimeout);
-	}
-
-	// --- STOP MONITOR INSTANCE ---
-
-	/**
-	 * Closes monitor.
-	 */
-	@Override
-	public void stop() {
-	}
-
 	// --- PUBLIC SYSTEM MONITORING METHODS ---
 
+	protected static final AtomicBoolean invalidMonitor = new AtomicBoolean();
+	
 	/**
 	 * Returns the cached system CPU usage, in percents, between 0 and 100.
 	 * 
 	 * @return total CPU usage of the current OS
 	 */
 	public int getTotalCpuPercent() {
+		if (invalidMonitor.get()) {
+			return 0;
+		}
 		long now = System.currentTimeMillis();
 		int cpu;
 		synchronized (Monitor.class) {
 			if (now - cpuDetectedAt > cacheTimeout) {
-				cachedCPU = detectTotalCpuPercent();
+				try {
+					cachedCPU = detectTotalCpuPercent();					
+				} catch (Exception cause) {
+					logger.info("Unable to detect CPU usage!", cause);
+					invalidMonitor.set(true);
+				}
 				cpuDetectedAt = now;
 			}
 			cpu = cachedCPU;
@@ -134,7 +116,11 @@ public abstract class Monitor implements MoleculerComponent {
 		if (currentPID != 0) {
 			return currentPID;
 		}
-		currentPID = detectPID();
+		try {
+			currentPID = detectPID();			
+		} catch (Exception cause) {
+			logger.info("Unable to detect process ID!", cause);
+		}
 		if (currentPID == 0) {
 			currentPID = System.nanoTime();
 			if (!cachedPID.compareAndSet(0, currentPID)) {
@@ -153,13 +139,13 @@ public abstract class Monitor implements MoleculerComponent {
 	 * 
 	 * @return total CPU usage of the current OS
 	 */
-	protected abstract int detectTotalCpuPercent();
+	protected abstract int detectTotalCpuPercent() throws Exception;
 
 	/**
 	 * Returns the system CPU usage, in percents, between 0 and 100.
 	 * 
 	 * @return total CPU usage of the current OS
 	 */
-	protected abstract long detectPID();
+	protected abstract long detectPID() throws Exception;
 
 }

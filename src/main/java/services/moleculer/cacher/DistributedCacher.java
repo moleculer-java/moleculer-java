@@ -38,7 +38,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import io.datatree.Tree;
 import io.datatree.dom.BASE64;
-import services.moleculer.ServiceBroker;
 
 /**
  * Abstract class of distributed cachers. Currently the {@link RedisCacher} and
@@ -71,33 +70,17 @@ public abstract class DistributedCacher extends Cacher {
 		setMaxKeyLength(maxKeyLength);
 	}
 
-	// --- START CACHER ---
-
-	/**
-	 * Initializes cacher instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Process config
-		setMaxKeyLength(config.get("maxKeyLength", maxKeyLength));
-	}
-
 	// --- GENERATE CACHE KEY ---
 
 	/**
 	 * Creates a cacher-specific key by name and params. Concatenates the name
 	 * and params.
 	 * 
-	 * @param name
-	 * @param params
-	 * @param keys
-	 * @return
+	 * @param name action name
+	 * @param params input (JSON) structure
+	 * @param keys keys in the "params" structure (optional)
+	 * 
+	 * @return generated cache key String
 	 */
 	@Override
 	public String getCacheKey(String name, Tree params, String... keys) {

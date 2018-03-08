@@ -1,59 +1,27 @@
-/**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
- * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
- * <br>
- * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:<br>
- * <br>
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.<br>
- * <br>
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
- * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
- * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
- * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
 package services.moleculer.config;
 
+import java.io.File;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.concurrent.atomic.AtomicReference;
 
-import services.moleculer.ServiceBroker;
-
-/**
- * Starts/stops Moleculer as a standalone application or as a Windows service.
- */
-public class MoleculerRunner {
+import org.springframework.context.support.AbstractXmlApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.springframework.context.support.FileSystemXmlApplicationContext;
+public final class MoleculerRunner {
 
 	// --- UDP PORT TO STOP MOLECULER SERVICE ---
 
-	protected static int stopPort = 6786;
+	private static int stopPort = 6786;
 
 	// --- UDP MESSAGE TO STOP MOLECULER SERVICE ---
 
-	protected static String stopMessage = "c8j3H9eV";
+	private static String stopMessage = "c8j3H9eV";
 
 	// --- SERVICE BROKER INSTANCE ---
 
-	protected static AtomicReference<ServiceBroker> broker = new AtomicReference<>();
+	private static final AtomicReference<AbstractXmlApplicationContext> context = new AtomicReference<>();
 
 	// --- MAIN ENTRY POINT (START / STOP SERVICE BROKER) ---
 
@@ -65,7 +33,7 @@ public class MoleculerRunner {
 	 *            configuration path or "STOP" to stop service, UDP port, and a
 	 *            "secret message" to stop Moleculer service
 	 */
-	public static void main(String[] args) throws Exception {
+	public static final void main(String[] args) throws Exception {
 		try {
 			if (args != null && args.length > 0) {
 
@@ -90,7 +58,8 @@ public class MoleculerRunner {
 					try {
 						socket = new DatagramSocket();
 						byte[] bytes = stopMessage.getBytes();
-						DatagramPacket packet = new DatagramPacket(bytes, bytes.length, InetAddress.getLocalHost(), stopPort);
+						DatagramPacket packet = new DatagramPacket(bytes, bytes.length, InetAddress.getLocalHost(),
+								stopPort);
 						socket.send(packet);
 						return;
 					} finally {
@@ -103,7 +72,7 @@ public class MoleculerRunner {
 					}
 				}
 			}
-			if (broker.get() != null) {
+			if (context.get() != null) {
 				return;
 			}
 
@@ -154,11 +123,19 @@ public class MoleculerRunner {
 			udp.start();
 
 			// Start ServiceBroker
-			String configPath = "/moleculer.config.json";
+			String configPath = "/moleculer.config.xml";
 			if (args != null && args.length > 0) {
 				configPath = args[0];
 			}
-			startBroker(configPath);
+			AbstractXmlApplicationContext ctx = null;
+			File file = new File(configPath);
+			if (file.isFile()) {
+				ctx = new FileSystemXmlApplicationContext(configPath);
+			} else {
+				ctx = new ClassPathXmlApplicationContext(configPath);
+			}
+			context.set(ctx);
+			ctx.start();
 
 		} catch (Exception cause) {
 
@@ -168,21 +145,10 @@ public class MoleculerRunner {
 		}
 	}
 
-	// --- START SERVICE BROKER ---
-
-	protected static void startBroker(String configPath) throws Exception {
-		if (broker.get() == null) {
-			ServiceBroker instance = new ServiceBroker(configPath);
-			if (broker.compareAndSet(null, instance)) {
-				instance.start();
-			}
-		}
-	}
-
 	// --- STOP SERVICE BROKER ---
 
-	protected static void stopBroker() {
-		ServiceBroker instance = broker.getAndSet(null);
+	private static final void stopBroker() {
+		AbstractXmlApplicationContext instance = context.getAndSet(null);
 		if (instance != null) {
 			Thread safetyTimer = new Thread() {
 

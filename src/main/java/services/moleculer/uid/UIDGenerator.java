@@ -31,10 +31,8 @@
  */
 package services.moleculer.uid;
 
-import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
 import services.moleculer.service.Name;
+import services.moleculer.service.Service;
 
 /**
  * Base superclass of all UID Generator implementations.
@@ -43,35 +41,7 @@ import services.moleculer.service.Name;
  * @see StandardUUIDGenerator
  */
 @Name("UID Generator")
-public abstract class UIDGenerator implements MoleculerComponent {
-
-	// --- CONSTUCTOR ---
-
-	public UIDGenerator() {
-	}
-
-	// --- START GENERATOR ---
-
-	/**
-	 * Initializes UID generator instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-	}
-
-	// --- STOP GENERATOR ---
-
-	/**
-	 * Closes UID generator.
-	 */
-	@Override
-	public void stop() {
-	}
+public abstract class UIDGenerator extends Service {
 
 	// --- GENERATE UID ---
 

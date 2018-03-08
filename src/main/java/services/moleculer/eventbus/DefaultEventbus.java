@@ -31,6 +31,8 @@
  */
 package services.moleculer.eventbus;
 
+import static services.moleculer.util.CommonUtils.nameOf;
+
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -55,7 +57,7 @@ import services.moleculer.util.CheckedTree;
  * Default EventBus implementation.
  */
 @Name("Default Event Bus")
-public class DefaultEventBus extends EventBus {
+public class DefaultEventbus extends Eventbus {
 
 	// --- REGISTERED EVENT LISTENERS ---
 
@@ -103,11 +105,11 @@ public class DefaultEventBus extends EventBus {
 
 	// --- CONSTRUCTORS ---
 
-	public DefaultEventBus() {
+	public DefaultEventbus() {
 		this(false);
 	}
 
-	public DefaultEventBus(boolean asyncLocalInvocation) {
+	public DefaultEventbus(boolean asyncLocalInvocation) {
 
 		// Async or direct local invocation
 		this.asyncLocalInvocation = asyncLocalInvocation;
@@ -129,36 +131,25 @@ public class DefaultEventBus extends EventBus {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Process config
-		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
-		checkVersion = config.get("checkVersion", checkVersion);
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 
 		// Set nodeID
-		nodeID = broker.nodeID();
+		this.nodeID = broker.getNodeID();
 
 		// Set components
 		this.broker = broker;
-		this.strategy = broker.components().strategy();
+		this.strategy = broker.getConfig().getStrategyFactory();
 	}
 
 	// --- STOP EVENT BUS ---
 
 	@Override
-	public void stop() {
+	public void stopped() {
 
-		// Stop listener endpoints
+		// Clear endpoints
 		writeLock.lock();
 		try {
-			for (HashMap<String, Strategy<ListenerEndpoint>> groups : listeners.values()) {
-				for (Strategy<ListenerEndpoint> strategy : groups.values()) {
-					for (ListenerEndpoint endpoint : strategy.getAllEndpoints()) {
-						endpoint.stop();
-					}
-					strategy.stop();
-				}
-			}
 			listeners.clear();
 		} finally {
 
@@ -226,58 +217,43 @@ public class DefaultEventBus extends EventBus {
 	// --- ADD LOCAL LISTENER ---
 
 	@Override
-	public void addListeners(Service service, Tree config) throws Exception {
+	public void addListeners(Service service) throws Exception {
+		
+		// Service name with version
+		String serviceName = service.getName();
+		Class<? extends Service> clazz = service.getClass();
+		Field[] fields = clazz.getFields();
+		
 		writeLock.lock();
 		try {
 
-			// Initialize actions in services
-			Class<? extends Service> clazz = service.getClass();
-			Field[] fields = clazz.getFields();
+			// Initialize listeners in service
 			for (Field field : fields) {
 
 				// Register event listener
 				if (Listener.class.isAssignableFrom(field.getType())) {
-					String listenerName = field.getName();
-					Tree listenerConfig = config.get(listenerName);
-					if (listenerConfig == null) {
-						if (config.isMap()) {
-							listenerConfig = config.putMap(listenerName);
-						} else {
-							listenerConfig = new Tree();
-						}
-					}
 
-					// Name of the listener (eg. "v2.service.listener")
-					// It's the subscribed event name by default
-					listenerName = service.name() + '.' + listenerName;
-					listenerConfig.put("name", listenerName);
-					listenerConfig.put("nodeID", nodeID);
-					listenerConfig.put("service", service.name());
+					// Name of the action (eg. "service.action")
+					String listenerName = nameOf(serviceName, field);
 
 					// Process "Subscribe" annotation
-					String subscribe = listenerConfig.get("subscribe", (String) null);
+					Subscribe s = field.getAnnotation(Subscribe.class);
+					String subscribe = null;
+					if (s != null) {
+						subscribe = s.value();
+					}
 					if (subscribe == null || subscribe.isEmpty()) {
-						Subscribe s = field.getAnnotation(Subscribe.class);
-						if (s != null) {
-							subscribe = s.value();
-						}
-						if (subscribe == null || subscribe.isEmpty()) {
-							subscribe = listenerName;
-						}
-						listenerConfig.put("subscribe", subscribe);
+						subscribe = listenerName;
 					}
 
 					// Process "Group" annotation
-					String group = listenerConfig.get("group", (String) null);
+					String group = null;
+					Group g = field.getAnnotation(Group.class);
+					if (g != null) {
+						group = g.value();
+					}
 					if (group == null || group.isEmpty()) {
-						Group g = field.getAnnotation(Group.class);
-						if (g != null) {
-							group = g.value();
-						}
-						if (group == null || group.isEmpty()) {
-							group = service.name();
-						}
-						listenerConfig.put("group", group);
+						group = serviceName;
 					}
 
 					// Register listener in EventBus
@@ -295,14 +271,12 @@ public class DefaultEventBus extends EventBus {
 					Strategy<ListenerEndpoint> strategy = groups.get(group);
 					if (strategy == null) {
 						strategy = this.strategy.create();
-						strategy.start(broker, config);
 						groups.put(group, strategy);
 					}
 
 					// Add endpoint to strategy
-					LocalListenerEndpoint endpoint = new LocalListenerEndpoint(listener, asyncLocalInvocation);
-					endpoint.start(broker, listenerConfig);
-					strategy.addEndpoint(endpoint);
+					strategy.addEndpoint(
+							new LocalListenerEndpoint(broker, serviceName, group, subscribe, listener, asyncLocalInvocation));
 				}
 			}
 		} finally {
@@ -330,14 +304,9 @@ public class DefaultEventBus extends EventBus {
 				for (Tree listenerConfig : events) {
 					String subscribe = listenerConfig.get("name", "");
 					String group = listenerConfig.get("group", serviceName);
-					listenerConfig.putObject("nodeID", nodeID, true);
-					listenerConfig.putObject("service", serviceName, true);
-					listenerConfig.putObject("group", group, true);
-					listenerConfig.putObject("subscribe", subscribe, true);
 
 					// Register remote listener
-					RemoteListenerEndpoint endpoint = new RemoteListenerEndpoint();
-					endpoint.start(broker, listenerConfig);
+					RemoteListenerEndpoint endpoint = new RemoteListenerEndpoint(nodeID, serviceName, group, subscribe);
 
 					// Get or create group map
 					HashMap<String, Strategy<ListenerEndpoint>> groups = listeners.get(subscribe);
@@ -349,8 +318,7 @@ public class DefaultEventBus extends EventBus {
 					// Get or create strategy
 					Strategy<ListenerEndpoint> listenerStrategy = groups.get(group);
 					if (listenerStrategy == null) {
-						listenerStrategy = this.strategy.create();
-						listenerStrategy.start(broker, config);
+						listenerStrategy = strategy.create();
 						groups.put(group, listenerStrategy);
 					}
 					listenerStrategy.addEndpoint(endpoint);
@@ -384,11 +352,6 @@ public class DefaultEventBus extends EventBus {
 					if (strategy.remove(nodeID)) {
 						found = true;
 						if (strategy.isEmpty()) {
-							try {
-								strategy.stop();
-							} catch (Throwable cause) {
-								logger.warn("Unable to stop strategy!", cause);
-							}
 							strategyIterator.remove();
 						}
 					}
@@ -488,10 +451,10 @@ public class DefaultEventBus extends EventBus {
 			for (int i = 0; i < strategies.length; i++) {
 				ListenerEndpoint endpoint = strategies[i].getEndpoint(null);
 				if (endpoint != null) {
-					HashSet<String> groupSet = groupsByNodeID.get(endpoint.nodeID);
+					HashSet<String> groupSet = groupsByNodeID.get(endpoint.getNodeID());
 					if (groupSet == null) {
 						groupSet = new HashSet<>(size);
-						groupsByNodeID.put(endpoint.nodeID, groupSet);
+						groupsByNodeID.put(endpoint.getNodeID(), groupSet);
 					}
 					groupSet.add(endpoint.group);
 					endpoints[i] = endpoint;
@@ -502,7 +465,7 @@ public class DefaultEventBus extends EventBus {
 			for (ListenerEndpoint endpoint : endpoints) {
 				if (endpoint != null) {
 					try {
-						HashSet<String> groupSet = groupsByNodeID.remove(endpoint.nodeID);
+						HashSet<String> groupSet = groupsByNodeID.remove(endpoint.getNodeID());
 						if (groupSet != null) {
 							String[] array = new String[groupSet.size()];
 							groupSet.toArray(array);
@@ -540,7 +503,7 @@ public class DefaultEventBus extends EventBus {
 									if (group.equals(testGroup)) {
 										for (ListenerEndpoint endpoint : test.getValue().getAllEndpoints()) {
 											if (local) {
-												if (endpoint.local()) {
+												if (endpoint.isLocal()) {
 													list.add(endpoint);
 												}
 											} else {
@@ -587,7 +550,7 @@ public class DefaultEventBus extends EventBus {
 		}
 		HashSet<String> nodeSet = new HashSet<>(endpoints.length * 2);
 		for (ListenerEndpoint endpoint : endpoints) {
-			if (nodeSet.add(endpoint.nodeID)) {
+			if (nodeSet.add(endpoint.getNodeID())) {
 				try {
 					endpoint.on(name, payload, groups, true);
 				} catch (Exception cause) {
@@ -622,7 +585,7 @@ public class DefaultEventBus extends EventBus {
 			for (HashMap<String, Strategy<ListenerEndpoint>> groups : listeners.values()) {
 				for (Strategy<ListenerEndpoint> strategy : groups.values()) {
 					for (ListenerEndpoint endpoint : strategy.getAllEndpoints()) {
-						if (endpoint.local() && endpoint.service.endsWith(service)) {
+						if (endpoint.isLocal() && endpoint.serviceName.endsWith(service)) {
 							LinkedHashMap<String, Object> map = new LinkedHashMap<>();
 							descriptor.put(endpoint.subscribe, map);
 							map.put("name", endpoint.subscribe);

@@ -59,10 +59,6 @@ import services.moleculer.transporter.Transporter;
 @Name("$node")
 public class NodeService extends Service {
 
-	// --- PARENT BROKER ---
-
-	protected ServiceBroker broker;
-
 	// --- VARIABLES ---
 
 	protected static final long startedAt = System.currentTimeMillis();
@@ -72,14 +68,16 @@ public class NodeService extends Service {
 	// --- COMPONENTS ---
 
 	protected Transporter transporter;
+	protected Monitor monitor;
 
 	// --- START SERVICE ---
 
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-		this.broker = broker;
-		this.transporter = broker.components().transporter();
-		this.localNodeID = broker.nodeID();
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
+		this.transporter = broker.getConfig().getTransporter();
+		this.monitor = broker.getConfig().getMonitor();
+		this.localNodeID = broker.getNodeID();
 	}
 
 	// --- ACTIONS ---
@@ -299,7 +297,6 @@ public class NodeService extends Service {
 
 		// CPU block
 		Tree cpu = root.putMap("cpu");
-		Monitor monitor = broker.components().monitor();
 		int cpuUsage = monitor.getTotalCpuPercent();
 
 		cpu.put("cores", r.availableProcessors());
@@ -332,7 +329,7 @@ public class NodeService extends Service {
 		process.put("uptime", System.currentTimeMillis() - startedAt);
 
 		// Client block
-		Tree descriptor = broker.components().registry().getDescriptor();
+		Tree descriptor = broker.getConfig().getServiceRegistry().getDescriptor();
 		root.putObject("client", descriptor.get("client"));
 
 		// Net block
@@ -370,7 +367,7 @@ public class NodeService extends Service {
 			if (nodeID.equals(localNodeID)) {
 				map.put("available", true);
 				map.put("lastHeartbeatTime", System.currentTimeMillis());
-				map.put("cpu", broker.components().monitor().getTotalCpuPercent());
+				map.put("cpu", monitor.getTotalCpuPercent());
 				if (transporter != null && transporter instanceof TcpTransporter) {
 					TcpTransporter tt = (TcpTransporter) transporter;
 					map.put("port", tt.getCurrentPort());
@@ -459,17 +456,5 @@ public class NodeService extends Service {
 		}
 		return list;
 	};
-
-	/**
-	 * Implementation of the "$node.stats" action
-	 */
-	public Action stats = (ctx) -> {
-
-		// Create response structure
-		Tree root = new Tree();
-
-		// TODO Implement "stats" action
-
-		return root;
-	};
+	
 }

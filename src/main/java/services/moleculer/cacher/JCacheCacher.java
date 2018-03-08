@@ -32,28 +32,26 @@
 package services.moleculer.cacher;
 
 import static services.moleculer.util.CommonUtils.nameOf;
-import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 
+import java.net.URI;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.cache.Cache.Entry;
 import javax.cache.CacheManager;
 import javax.cache.Caching;
-import javax.cache.spi.CachingProvider;
 
 import io.datatree.Tree;
-import io.datatree.dom.TreeWriterRegistry;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.Matcher;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
-import services.moleculer.serializer.SmileSerializer;
 import services.moleculer.service.Name;
 import services.moleculer.util.CheckedTree;
 
@@ -98,7 +96,7 @@ public class JCacheCacher extends DistributedCacher {
 
 	// --- SERIALIZER / DESERIALIZER ---
 
-	protected Serializer serializer;
+	protected Serializer serializer = new JsonSerializer();
 
 	// --- LOCKS ---
 
@@ -108,7 +106,11 @@ public class JCacheCacher extends DistributedCacher {
 	// --- CONSTUCTORS ---
 
 	public JCacheCacher() {
-		this(null);
+		this(Caching.getCachingProvider().getCacheManager());
+	}
+
+	public JCacheCacher(URI uri) {
+		this(Caching.getCachingProvider().getCacheManager(uri, JCacheCacher.class.getClassLoader()));
 	}
 
 	public JCacheCacher(CacheManager cacheManager) {
@@ -131,55 +133,15 @@ public class JCacheCacher extends DistributedCacher {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Process distributed properties
-		super.start(broker, config);
-
-		// Create serializer
-		Tree serializerNode = config.get("serializer");
-		if (serializerNode != null) {
-			String type;
-			if (serializerNode.isPrimitive()) {
-				type = serializerNode.asString();
-			} else {
-				type = serializerNode.get("type", "json");
-			}
-
-			@SuppressWarnings("unchecked")
-			Class<? extends Serializer> c = (Class<? extends Serializer>) Class.forName(serializerTypeToClass(type));
-			serializer = c.newInstance();
-		} else {
-			serializerNode = config.putMap("serializer");
-		}
-		if (serializer == null) {
-			try {
-				if (TreeWriterRegistry.isAvailable("smile")) {
-					serializer = new SmileSerializer();
-				}
-			} catch (Throwable notSupported) {
-			} finally {
-				if (serializer == null) {
-					serializer = new JsonSerializer();
-				}
-			}
-		}
-
-		// Start serializer
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
-		serializer.start(broker, serializerNode);
-
-		// Get cache manager
-		if (cacheManager == null) {
-			CachingProvider cachingProvider = Caching.getCachingProvider();
-			cacheManager = cachingProvider.getCacheManager();
-		}
 	}
 
 	// --- STOP CACHER ---
 
 	@Override
-	public void stop() {
+	public void stopped() {
 
 		// Close the cache manager
 		if (cacheManager != null) {
@@ -366,7 +328,7 @@ public class JCacheCacher extends DistributedCacher {
 	}
 
 	public void setCacheManager(CacheManager cacheManager) {
-		this.cacheManager = cacheManager;
+		this.cacheManager = Objects.requireNonNull(cacheManager);
 	}
 
 }

@@ -34,8 +34,6 @@ package services.moleculer.monitor;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
-import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
@@ -57,30 +55,6 @@ public class CommandMonitor extends Monitor {
 		this.command = command;
 	}
 
-	// --- START MONITOR ---
-
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-		super.start(broker, config);
-		if (command == null) {
-			String os = System.getProperty("os.name").toLowerCase();
-			if (os.indexOf("win") >= 0) {
-
-				// Windows command to query the actual CPU usage
-				command = "wmic cpu get loadpercentage";
-
-			} else {
-
-				// Linux command to query the actual CPU usage
-				command = "top -b -n2 -p 1 | fgrep \"Cpu(s)\" | tail -1 | awk -F'id,' -v prefix=\"$prefix\" "
-						+ "'{ split($1, vs, \",\"); v=vs[length(vs)]; sub(\"%\", \"\", v); printf \"%s%.1f%%\n\", prefix, 100 - v }'";
-			}
-
-			// Or, get the command from the config
-			command = config.get("command", command);
-		}
-	}
-
 	// --- SYSTEM MONITORING METHODS ---
 
 	/**
@@ -89,12 +63,29 @@ public class CommandMonitor extends Monitor {
 	 * @return total CPU usage of the current OS
 	 */
 	@Override
-	protected int detectTotalCpuPercent() {
+	protected int detectTotalCpuPercent() throws Exception{
 		Process process = null;
 		try {
 			
 			// Execute command
-			process = Runtime.getRuntime().exec(command);
+			String cmd;
+			if (command == null || command.isEmpty()) {
+				String os = System.getProperty("os.name").toLowerCase();
+				if (os.indexOf("win") >= 0) {
+
+					// Windows command to query the actual CPU usage
+					cmd = "wmic cpu get loadpercentage";
+
+				} else {
+
+					// Linux command to query the actual CPU usage
+					cmd = "top -b -n2 -p 1 | fgrep \"Cpu(s)\" | tail -1 | awk -F'id,' -v prefix=\"$prefix\" "
+							+ "'{ split($1, vs, \",\"); v=vs[length(vs)]; sub(\"%\", \"\", v); printf \"%s%.1f%%\n\", prefix, 100 - v }'";
+				}
+			} else {
+				cmd = command;
+			}
+			process = Runtime.getRuntime().exec(cmd);
 			BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
 			StringBuilder tmp = new StringBuilder();
 			String line = "";
@@ -116,8 +107,6 @@ public class CommandMonitor extends Monitor {
 					}
 				}
 			}
-		} catch (Exception cause) {
-			logger.error("Unable to execute command!", cause);
 		} finally {
 			if (process != null) {
 				try {

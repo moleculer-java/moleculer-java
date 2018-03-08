@@ -39,12 +39,14 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.URL;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
@@ -55,6 +57,7 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.service.Name;
+import services.moleculer.service.Version;
 import services.moleculer.transporter.Transporter;
 
 /**
@@ -62,12 +65,72 @@ import services.moleculer.transporter.Transporter;
  */
 public final class CommonUtils {
 
+	// --- PATH FORMATTER ---
+	
+	public static final String formatPath(String path) {
+		if (path == null) {
+			return "";
+		}
+		path = path.trim();
+		if (path.isEmpty()) {
+			return path;
+		}
+		if (!path.startsWith("/")) {
+			path = '/' + path;
+		}
+		while (path.endsWith("/")) {
+			path = path.substring(0, path.length() -1);
+		}
+		return path;
+	}
+	
+	// --- DURATION FORMATTER ---
+	
+	private static final NumberFormat numberFormatter = DecimalFormat.getInstance();
+	
+	public static final String formatNumber(Number number) {
+		synchronized (numberFormatter) {
+			return numberFormatter.format(number);
+		}
+	}
+	
+	public static final String formatNamoSec(long nanoSec) {
+		String test, test2;
+		if ((test = test(nanoSec, TimeUnit.HOURS, "hour")) != null) {
+			test2 = test(nanoSec, TimeUnit.MINUTES, "minute");
+			return test2 == null ? test : test + " (" + test2 + ")";
+		}
+		if ((test = test(nanoSec, TimeUnit.MINUTES, "minute")) != null) {
+			test2 = test(nanoSec, TimeUnit.SECONDS, "second");
+			return test2 == null ? test : test + " (" + test2 + ")";
+		}
+		if ((test = test(nanoSec, TimeUnit.SECONDS, "second")) != null) {
+			test2 = test(nanoSec, TimeUnit.MILLISECONDS, "millisecond");
+			return test2 == null ? test : test + " (" + test2 + ")";
+		}
+		if ((test = test(nanoSec, TimeUnit.MILLISECONDS, "millisecond")) != null) {
+			return test + " (" + formatNumber(nanoSec) + " nanoseconds)";				
+		}
+		return formatNumber(nanoSec) + " nanoseconds";
+	}
+	
+	private static final String test(long nanoSec, TimeUnit unit, String postfix) {
+		long converted = unit.convert(nanoSec, TimeUnit.NANOSECONDS);
+		if (converted > 0 && converted < 1000) {
+			if (converted == 1) {
+				return converted + " " + postfix;
+			}
+			return converted + " " + postfix + "s";
+		}
+		return null;
+	}
+	
 	// --- GET ALL NODE INFO STRUCTURES OF ALL NODES ---
 
 	public static final Tree getNodeInfos(ServiceBroker broker, Transporter transporter) {
 		Tree infos = new Tree();
 		if (transporter == null) {
-			infos.putObject(broker.nodeID(), broker.components().registry().getDescriptor());
+			infos.putObject(broker.getNodeID(), broker.getConfig().getServiceRegistry().getDescriptor());
 		} else {
 			Set<String> nodeIDset = transporter.getAllNodeIDs();
 			String[] nodeIDarray = new String[nodeIDset.size()];
@@ -83,7 +146,7 @@ public final class CommonUtils {
 		}
 		return infos;
 	}
-
+	
 	// --- GET HOSTNAME OR IP FROM AN INFO STRUCTURE ---
 
 	public static final String getHostOrIP(boolean preferHostname, Tree info) {
@@ -155,10 +218,6 @@ public final class CommonUtils {
 	}
 
 	// --- PARSE URL LIST OR URL ARRAY ---
-
-	public static final String[] parseURLs(Tree config, String[] defaultURLs) {
-		return parseURLs(config, "url", defaultURLs);
-	}
 
 	public static final String[] parseURLs(Tree config, String name, String[] defaultURLs) {
 		Tree urlNode = config.get(name);
@@ -232,32 +291,6 @@ public final class CommonUtils {
 		return new ParseResult(data, opts, groups);
 	}
 
-	public static final String serializerTypeToClass(String type) {
-		String test = type.toLowerCase();
-		if ("json".equals(test)) {
-			return "services.moleculer.serializer.JsonSerializer";
-		}
-		if ("msgpack".equals(test) || "messagepack".equals(test)) {
-			return "services.moleculer.serializer.MsgPackSerializer";
-		}
-		if ("smile".equals(test)) {
-			return "services.moleculer.serializer.SmileSerializer";
-		}
-		if ("bson".equals(test)) {
-			return "services.moleculer.serializer.BsonSerializer";
-		}
-		if ("ion".equals(test)) {
-			return "services.moleculer.serializer.IonSerializer";
-		}
-		if ("cbor".equals(test)) {
-			return "services.moleculer.serializer.CborSerializer";
-		}
-		if (test.indexOf('.') > -1) {
-			return type;
-		}
-		throw new IllegalArgumentException("Invalid serializer type (" + type + ")!");
-	}
-
 	public static final String nameOf(String prefix, Field field) {
 		Name n = field.getAnnotation(Name.class);
 		String name = null;
@@ -277,8 +310,25 @@ public final class CommonUtils {
 	}
 
 	public static final String nameOf(Object object, boolean addQuotes) {
-		Objects.requireNonNull(object);
 		Class<?> c = object.getClass();
+		Version v = c.getAnnotation(Version.class);
+		String version = null;
+		if (v != null) {
+			version = v.value();
+			if (version != null) {
+				version = version.trim();
+				if (version.isEmpty()) {
+					version = null;
+				}
+			}
+			if (version != null) {
+				try {
+					Double.parseDouble(version);
+					version = 'v' + version;
+				} catch (Exception ignored) {
+				}
+			}
+		}
 		Name n = c.getAnnotation(Name.class);
 		String name = null;
 		if (n != null) {
@@ -295,32 +345,13 @@ public final class CommonUtils {
 			}
 			name = Character.toLowerCase(name.charAt(0)) + name.substring(1);
 		}
+		if (version != null) {
+			name = version + '.' + name;
+		}
 		if (addQuotes && name.indexOf(' ') == -1) {
 			name = "\"" + name + "\"";
 		}
 		return name;
-	}
-
-	public static final String nameOf(Tree tree) {
-		String name = tree.get("name", "");
-		if (name == null || name.isEmpty()) {
-			name = tree.getName();
-		}
-		if (name == null) {
-			return "";
-		}
-		return name.trim();
-	}
-
-	public static final String typeOf(Tree tree) {
-		String type = tree.get("type", "");
-		if ((type == null || type.isEmpty()) && tree.isPrimitive()) {
-			type = tree.asString();
-		}
-		if (type == null) {
-			return "";
-		}
-		return type;
 	}
 
 	public static final Tree readTree(String resourceURL) throws Exception {
@@ -382,21 +413,19 @@ public final class CommonUtils {
 
 	// --- COMPRESSS / DECOMPRESS ---
 
-	public static final byte[] compress(byte[] data) throws IOException {
-		Deflater deflater = new Deflater(Deflater.BEST_SPEED, false);
+	public static final byte[] compress(byte[] data, int level) throws IOException {
+		final Deflater deflater = new Deflater(level, true);
 		deflater.setInput(data);
-		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);
 		deflater.finish();
-		byte[] buffer = new byte[1024];
-		while (!deflater.finished()) {
-			int count = deflater.deflate(buffer);
-			outputStream.write(buffer, 0, count);
-		}
-		return outputStream.toByteArray();
+		final byte[] buffer = new byte[data.length + 128];
+		final int length = deflater.deflate(buffer);
+		final byte[] compressed = new byte[length];
+		System.arraycopy(buffer, 0, compressed, 0, length);
+		return compressed;
 	}
 
 	public static final byte[] decompress(byte[] data) throws IOException, DataFormatException {
-		Inflater inflater = new Inflater(false);
+		Inflater inflater = new Inflater(true);
 		inflater.setInput(data);
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);
 		byte[] buffer = new byte[1024];

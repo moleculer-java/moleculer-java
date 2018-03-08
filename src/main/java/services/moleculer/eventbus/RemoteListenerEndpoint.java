@@ -31,65 +31,25 @@
  */
 package services.moleculer.eventbus;
 
-import static services.moleculer.transporter.Transporter.PACKET_EVENT;
-
-import java.util.LinkedHashMap;
-
 import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-import services.moleculer.transporter.Transporter;
-import services.moleculer.util.CheckedTree;
 
 public class RemoteListenerEndpoint extends ListenerEndpoint {
 
-	// --- COMPONENTS ---
-
-	protected Transporter transporter;
-
-	// --- START ENDPOINT ---
-
-	/**
-	 * Initializes Container instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Set base properties
-		super.start(broker, config);
-
-		// Set components
-		transporter = broker.components().transporter();
-	}
-
 	// --- INVOKE REMOTE LISTENER ---
+
+	protected RemoteListenerEndpoint(String nodeID, String service, String group, String subscribe) {
+		super(nodeID, service, group, subscribe);
+	}
 
 	@Override
 	public void on(String name, Tree payload, Groups groups, boolean broadcast) throws Exception {
-		LinkedHashMap<String, Object> map = new LinkedHashMap<String, Object>();
-		map.put("ver", ServiceBroker.PROTOCOL_VERSION);
-		map.put("sender", nodeID);
-		map.put("event", name);
-		map.put("broadcast", broadcast);
-		if (groups != null) {
-			String[] array = groups.groups();
-			if (array != null && array.length > 0) {
-				map.put("groups", array);
-			}
-		}
-		if (payload != null) {
-			map.put("data", payload.asObject());
-		}
-		transporter.publish(PACKET_EVENT, nodeID, new CheckedTree(map));
+		// TODO Implement remote listener
 	}
 
-	@Override
-	public boolean local() {
+	// --- LOCAL LISTENER? ---
+	
+	public boolean isLocal() {
 		return false;
 	}
-
+	
 }

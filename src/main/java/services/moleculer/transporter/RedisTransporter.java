@@ -31,8 +31,6 @@
  */
 package services.moleculer.transporter;
 
-import static services.moleculer.util.CommonUtils.parseURLs;
-
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.List;
@@ -48,7 +46,6 @@ import com.lambdaworks.redis.pubsub.RedisPubSubListener;
 import io.datatree.Tree;
 import rx.Observable;
 import services.moleculer.Promise;
-import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 import services.moleculer.util.redis.RedisPubSubClient;
 
@@ -108,28 +105,6 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 		this.password = password;
 		this.secure = secure;
 		this.urls = urls;
-	}
-
-	// --- START TRANSPORTER ---
-
-	/**
-	 * Initializes transporter instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Process basic properties (eg. "prefix")
-		super.start(broker, config);
-
-		// Process config
-		urls = parseURLs(config, urls);
-		password = config.get("password", password);
-		secure = config.get("secure", secure);
 	}
 
 	// --- CONNECT ---
@@ -198,7 +173,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 		disconnect().then(ok -> {
 			logger.info("Trying to reconnect...");
 			scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
-		}).Catch(cause -> {
+		}).catchError(cause -> {
 			logger.warn("Unable to disconnect from Redis server!", cause);
 			scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
 		});
@@ -218,12 +193,12 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	 * Closes transporter.
 	 */
 	@Override
-	public void stop() {
+	public void stopped() {
 		int s = status.getAndSet(STATUS_STOPPED);
 		if (s != STATUS_STOPPED) {
 			
 			// Stop timers
-			super.stop();
+			super.stopped();
 			
 			// Disconnect
 			disconnect();

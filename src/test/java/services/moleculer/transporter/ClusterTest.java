@@ -17,7 +17,7 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 
 import services.moleculer.ServiceBroker;
-import services.moleculer.config.ServiceBrokerSettings;
+import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.transporter.tcp.NodeDescriptor;
 
 public class ClusterTest extends JFrame implements Runnable {
@@ -141,7 +141,7 @@ public class ClusterTest extends JFrame implements Runnable {
 				transporter.setDebug(false);
 				transporter.setOfflineTimeout(0);
 
-				ServiceBrokerSettings settings = new ServiceBrokerSettings();
+				ServiceBrokerConfig settings = new ServiceBrokerConfig();
 				settings.setShutDownThreadPools(false);
 				settings.setExecutor(executor);
 				settings.setScheduler(scheduler);
@@ -171,7 +171,7 @@ public class ClusterTest extends JFrame implements Runnable {
 						for (int n = 0; n < NODES / 3; n++) {
 							int i = rnd.nextInt(NODES);
 							broker = brokers[i];
-							transporter = (TcpTransporter) broker.components().transporter();
+							transporter = (TcpTransporter) broker.getConfig().getTransporter();
 							if (transporter.writer == null) {
 								transporter.connect();
 							}
@@ -179,7 +179,7 @@ public class ClusterTest extends JFrame implements Runnable {
 					}
 					int i = rnd.nextInt(NODES);
 					broker = brokers[i];
-					transporter = (TcpTransporter) broker.components().transporter();
+					transporter = (TcpTransporter) broker.getConfig().getTransporter();
 					if (transporter.writer != null) {
 						transporter.nodes.clear();
 						transporter.disconnect();
@@ -189,13 +189,13 @@ public class ClusterTest extends JFrame implements Runnable {
 				maxSeqs.clear();
 				for (int i = 0; i < NODES; i++) {
 					broker = brokers[i];
-					transporter = (TcpTransporter) broker.components().transporter();
-					maxSeqs.put(broker.nodeID(), transporter.getDescriptor().cpuSeq);
+					transporter = (TcpTransporter) broker.getConfig().getTransporter();
+					maxSeqs.put(broker.getNodeID(), transporter.getDescriptor().cpuSeq);
 				}
 
 				for (int i = 0; i < NODES; i++) {
 					broker = brokers[i];
-					transporter = (TcpTransporter) broker.components().transporter();
+					transporter = (TcpTransporter) broker.getConfig().getTransporter();
 					for (int n = 0; n < NODES; n++) {
 						NodeDescriptor d = transporter.nodes.get("node-" + n);
 						boolean online = transporter.isOnline("node-" + n);

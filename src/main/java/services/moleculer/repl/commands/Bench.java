@@ -31,11 +31,12 @@
  */
 package services.moleculer.repl.commands;
 
+import static services.moleculer.util.CommonUtils.formatNamoSec;
+import static services.moleculer.util.CommonUtils.formatNumber;
+
 import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -82,7 +83,7 @@ public class Bench extends Command {
 
 	@Override
 	public void onCommand(ServiceBroker broker, PrintStream out, String[] parameters) throws Exception {
-		executor = broker.components().executor();
+		executor = broker.getConfig().getExecutor();
 
 		// Parse parameters
 		String action = parameters[0];
@@ -110,12 +111,12 @@ public class Bench extends Command {
 		if (timer != null) {
 			timer.cancel(true);
 		}
-		timer = broker.components().scheduler().schedule(() -> {
+		timer = broker.getConfig().getScheduler().schedule(() -> {
 			data.timeout.set(true);
 		}, time < 1 ? 60 : time, TimeUnit.SECONDS);
 
 		// Start benchmark...
-		String msg = num > 0 ? num + " times" : "for " + humanize(time * 1000000000);
+		String msg = num > 0 ? num + " times" : "for " + formatNamoSec(time * 1000000000);
 		out.println("Calling service " + msg + ", please wait...");
 		
 		long req, res;
@@ -141,7 +142,7 @@ public class Bench extends Command {
 		long startTime = System.nanoTime();		
 		broker.call(data.action, data.params, data.opts).then(res -> {
 			handleResponse(broker, data, startTime, null);
-		}).Catch(cause -> {
+		}).catchError(cause -> {
 			handleResponse(broker, data, startTime, cause);
 		});
 	}
@@ -200,8 +201,6 @@ public class Bench extends Command {
 		}
 	}
 
-	protected NumberFormat numberFormatter = DecimalFormat.getInstance();
-
 	protected void printResult(BenchData data) {
 		PrintStream out = data.out;
 		try {
@@ -226,56 +225,25 @@ public class Bench extends Command {
 			if (errorCount.compareTo(BigDecimal.ZERO) == 1) {
 				String percent = errorCount.multiply(new BigDecimal(100)).divide(resCount, RoundingMode.HALF_UP)
 						.toBigInteger().toString();
-				errStr = numberFormatter.format(data.errorCount) + " error(s) " + percent + "%";
+				errStr = formatNumber(data.errorCount) + " error(s) " + percent + "%";
 			} else {
 				errStr = "0 error";
 			}
 			out.println("Benchmark results:");
 			out.println(
-					"  " + numberFormatter.format(data.resCount) + " requests in " + humanize(total) + ", " + errStr);
-			out.println("  Requests per second: " + numberFormatter.format(reqPer));
+					"  " + formatNumber(data.resCount) + " requests in " + formatNamoSec(total) + ", " + errStr);
+			out.println("  Requests per second: " + formatNumber(reqPer));
 			out.println("  Latency: ");
-			out.println("    Average: " + humanize(dur) + " (" + inSec.toPlainString() + " second)");
+			out.println("    Average: " + formatNamoSec(dur) + " (" + inSec.toPlainString() + " second)");
 			if (data.minTime.get() != Long.MAX_VALUE) {
-				out.println("    Minimum: " + humanize(data.minTime.get()));
+				out.println("    Minimum: " + formatNamoSec(data.minTime.get()));
 			}
 			if (data.maxTime.get() != Long.MIN_VALUE) {
-				out.println("    Maximum: " + humanize(data.maxTime.get()));
+				out.println("    Maximum: " + formatNamoSec(data.maxTime.get()));
 			}
 		} catch (Exception e) {
 			e.printStackTrace(out);
 		}
-	}
-
-	protected String humanize(long nanoSec) {
-		String test, test2;
-		if ((test = test(nanoSec, TimeUnit.HOURS, "hour")) != null) {
-			test2 = test(nanoSec, TimeUnit.MINUTES, "minute");
-			return test2 == null ? test : test + " (" + test2 + ")";
-		}
-		if ((test = test(nanoSec, TimeUnit.MINUTES, "minute")) != null) {
-			test2 = test(nanoSec, TimeUnit.SECONDS, "second");
-			return test2 == null ? test : test + " (" + test2 + ")";
-		}
-		if ((test = test(nanoSec, TimeUnit.SECONDS, "second")) != null) {
-			test2 = test(nanoSec, TimeUnit.MILLISECONDS, "millisecond");
-			return test2 == null ? test : test + " (" + test2 + ")";
-		}
-		if ((test = test(nanoSec, TimeUnit.MILLISECONDS, "millisecond")) != null) {
-			return test + " (" + numberFormatter.format(nanoSec) + " nanoseconds)";
-		}
-		return numberFormatter.format(nanoSec) + " nanoseconds";
-	}
-
-	protected String test(long nanoSec, TimeUnit unit, String postfix) {
-		long converted = unit.convert(nanoSec, TimeUnit.NANOSECONDS);
-		if (converted > 0 && converted < 1000) {
-			if (converted == 1) {
-				return converted + " " + postfix;
-			}
-			return converted + " " + postfix + "s";
-		}
-		return null;
 	}
 
 	protected static final class BenchData {

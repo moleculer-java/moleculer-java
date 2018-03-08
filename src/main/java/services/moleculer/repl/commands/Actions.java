@@ -88,9 +88,9 @@ public class Actions extends Command {
 		boolean telnet = params.contains("telnet");
 
 		// Collect data
-		Transporter transporter = broker.components().transporter();
+		Transporter transporter = broker.getConfig().getTransporter();
 		Tree infos = getNodeInfos(broker, transporter);
-		String localNodeID = broker.nodeID();
+		String localNodeID = broker.getNodeID();
 
 		HashMap<String, HashMap<String, Tree>> actionMap = new HashMap<>();
 		for (Tree info : infos) {

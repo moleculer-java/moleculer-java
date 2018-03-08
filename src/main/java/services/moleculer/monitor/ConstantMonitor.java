@@ -31,12 +31,10 @@
  */
 package services.moleculer.monitor;
 
-import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * "Fake" system monitor, which returns constant values.
+ * "Fake" system monitor, which returns a constant value.
  */
 @Name("Constant-value System Monitor")
 public class ConstantMonitor extends Monitor {
@@ -52,24 +50,6 @@ public class ConstantMonitor extends Monitor {
 
 	public ConstantMonitor(int totalCpuPercent) {
 		this.totalCpuPercent = totalCpuPercent;
-	}
-
-	// --- START MONITOR ---
-
-	/**
-	 * Initializes monitor instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-		super.start(broker, config);
-		
-		// Process config
-		totalCpuPercent = config.get("totalCpuPercent", totalCpuPercent);
 	}
 
 	// --- SYSTEM MONITORING METHODS ---

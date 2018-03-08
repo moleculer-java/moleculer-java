@@ -29,48 +29,48 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer;
+package services.moleculer.eventbus;
+
+import com.lambdaworks.redis.event.DefaultEventBus;
 
 import io.datatree.Tree;
-import services.moleculer.eventbus.Listener;
-import services.moleculer.eventbus.Subscribe;
-import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 
-@Name("math")
-public class TestService extends Service {
+/**
+ * Base superclass of all Event Bus implementations.
+ * 
+ * @see DefaultEventBus
+ */
+@Name("Event Bus")
+public abstract class Eventbus extends Service {
 
-	// @Cache(keys = { "a", "b" }, ttl = 30)
-	public Action add = (ctx) -> {
-		return ctx.params.get("a", 0) + ctx.params.get("b", 0);
-	};
+	// --- RECEIVE EVENT FROM REMOTE SERVICE ---
 
-	@Subscribe("math.*")
-	public Listener evt = payload -> {
-		System.out.println(payload);
-	};
+	public abstract void receiveEvent(Tree message);
 
-	// --- LIFECYCLE ---
-	
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-		System.out.println("START: " + config);
-	}
+	// --- ADD LISTENERS OF A LOCAL SERVICE ---
 
-	@Override
-	public void created() throws Exception {
-		System.out.println("CREATED");
-	}
+	public abstract void addListeners(Service service) throws Exception;
 
-	@Override
-	public void started() throws Exception {
-		System.out.println("STARTED");
-	}
+	// --- ADD LISTENERS OF A REMOTE SERVICE ---
 
-	@Override
-	public void stop() {
-		System.out.println("STOP");
-	}
+	public abstract void addListeners(Tree config) throws Exception;
+
+	// --- REMOVE ALL LISTENERS OF A NODE ---
+
+	public abstract void removeListeners(String nodeID);
+
+	// --- SEND EVENT TO ONE LISTENER IN THE SPECIFIED GROUP ---
+
+	public abstract void emit(String name, Tree payload, Groups groups, boolean local);
+
+	// --- SEND EVENT TO ALL LISTENERS IN THE SPECIFIED GROUP ---
+
+	public abstract void broadcast(String name, Tree payload, Groups groups, boolean local);
+
+	// --- GENERATE LISTENER DESCRIPTOR ---
+
+	public abstract Tree generateListenerDescriptor(String service);
 
 }

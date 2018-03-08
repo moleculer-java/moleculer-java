@@ -91,7 +91,7 @@ public class Info extends Command {
 		printHeader(out, "General information");
 		TextTable table = new TextTable(false, "Name", "Value");
 		table.addRow("CPU", System.getProperty("os.arch", "unknown") + ", cores: " + r.availableProcessors());
-		int cpuUsage = broker.components().monitor().getTotalCpuPercent();
+		int cpuUsage = broker.getConfig().getMonitor().getTotalCpuPercent();
 		table.addRow("CPU usage", cpuUsage + "%");
 		long total = r.totalMemory();
 		long free = r.freeMemory();
@@ -136,12 +136,12 @@ public class Info extends Command {
 		out.println(table);
 
 		// Broker properties
-		Transporter t = broker.components().transporter();
+		Transporter t = broker.getConfig().getTransporter();
 		printHeader(out, "Properties of broker");
 		table = new TextTable(false, "Name", "Value");
-		table.addRow("Node ID", broker.nodeID());
+		table.addRow("Node ID", broker.getNodeID());
 
-		Tree info = broker.components().registry().getDescriptor();
+		Tree info = broker.getConfig().getServiceRegistry().getDescriptor();
 		Tree services = info.get("services");
 		if (services != null && !services.isNull()) {
 			int actionCounter = 0;
@@ -166,24 +166,24 @@ public class Info extends Command {
 		}
 
 		table.addRow("", "");
-		addType(table, "Invocation strategy", broker.components().strategy());
-		addType(table, "Cacher", broker.components().cacher());
+		addType(table, "Invocation strategy", broker.getConfig().getStrategyFactory());
+		addType(table, "Cacher", broker.getConfig().getCacher());
 		if (t == null) {
 			table.addRow("Nodes", "1");
 		} else {
 			table.addRow("Nodes", Integer.toString(t.getAllNodeIDs().size()));
 		}
 		table.addRow("", "");
-		addType(table, "Context factory", broker.components().context());
-		addType(table, "Event bus", broker.components().eventbus());
-		addType(table, "System monitor", broker.components().monitor());
-		addType(table, "Service registry", broker.components().registry());
-		addType(table, "REPL console", broker.components().repl());
-		addType(table, "UID generator", broker.components().uid());
+		addType(table, "Context factory", broker.getConfig().getContextFactory());
+		addType(table, "Event bus", broker.getConfig().getEventbus());
+		addType(table, "System monitor", broker.getConfig().getMonitor());
+		addType(table, "Service registry", broker.getConfig().getServiceRegistry());
+		addType(table, "REPL console", broker.getConfig().getRepl());
+		addType(table, "UID generator", broker.getConfig().getUidGenerator());
 		table.addRow("", "");
 
-		addType(table, "Task executor", broker.components().executor());
-		addType(table, "Task scheduler", broker.components().scheduler());
+		addType(table, "Task executor", broker.getConfig().getExecutor());
+		addType(table, "Task scheduler", broker.getConfig().getScheduler());
 		out.println(table);
 
 		// Transporter properties
@@ -193,7 +193,7 @@ public class Info extends Command {
 			Serializer s = t.getSerializer();
 			addType(table, "Serializer", s);
 			try {
-				if (s != null && "JSON".equalsIgnoreCase(s.format())) {
+				if (s != null && "JSON".equalsIgnoreCase(s.getFormat())) {
 					String readers = getAPIs(TreeReaderRegistry.getReader("json"), TreeReaderRegistry.getReadersByFormat("json"));
 					String writers = getAPIs(TreeWriterRegistry.getWriter("json"), TreeWriterRegistry.getWritersByFormat("json"));
 					if (readers.equals(writers)) {

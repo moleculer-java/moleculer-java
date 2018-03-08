@@ -33,13 +33,9 @@ package services.moleculer.repl;
 
 import static services.moleculer.util.CommonUtils.nameOf;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
 import services.moleculer.service.Name;
+import services.moleculer.service.Service;
 
 /**
  * Base superclass of all REPL (interactive console) implementations.
@@ -48,18 +44,14 @@ import services.moleculer.service.Name;
  * @see RemoteRepl
  */
 @Name("REPL Console")
-public abstract class Repl implements MoleculerComponent {
-
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
+public abstract class Repl extends Service {
 
 	// --- START CONSOLE INSTANCE ---
 
 	/**
 	 * Is console enabled?
 	 */
-	private boolean enabled;
+	private boolean enabled = true;
 
 	/**
 	 * Is console running?
@@ -75,18 +67,8 @@ public abstract class Repl implements MoleculerComponent {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Process config
-		Tree enabledNode = config.get("enabled");
-		if (enabledNode != null) {
-			enabled = enabledNode.asBoolean();			
-		} else {
-			Tree parent = config.getParent();
-			if (parent != null) {
-				enabled = parent.get("type") != null;
-			}
-		}
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 
 		// Start (if enabled)
 		startOrStopReading();
@@ -125,7 +107,7 @@ public abstract class Repl implements MoleculerComponent {
 	 * Closes console.
 	 */
 	@Override
-	public void stop() {
+	public void stopped() {
 		stopNow();
 	}
 

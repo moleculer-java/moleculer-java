@@ -31,8 +31,6 @@
  */
 package services.moleculer.transporter;
 
-import static services.moleculer.util.CommonUtils.parseURLs;
-
 import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -48,7 +46,6 @@ import net.sf.xenqtt.client.Subscription;
 import net.sf.xenqtt.message.ConnectReturnCode;
 import net.sf.xenqtt.message.QoS;
 import services.moleculer.Promise;
-import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
@@ -95,7 +92,7 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 
 	public MqttTransporter() {
 	}
-	
+
 	public MqttTransporter(String url) {
 		this.url = url;
 	}
@@ -104,37 +101,6 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 		this.username = username;
 		this.password = password;
 		this.url = url;
-	}
-
-	// --- START TRANSPORTER ---
-
-	/**
-	 * Initializes transporter instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Process basic properties (eg. "prefix")
-		super.start(broker, config);
-
-		// Process config
-		if (url == null || url.isEmpty()) {
-			url = "localhost";
-		}
-		url = parseURLs(config, new String[] { url })[0];
-		username = config.get("username", username);
-		password = config.get("password", password);
-		cleanSession = config.get("cleanSession", cleanSession);
-		keepAliveSeconds = config.get("keepAliveSeconds", keepAliveSeconds);
-		connectTimeoutSeconds = config.get("connectTimeoutSeconds", connectTimeoutSeconds);
-		messageResendIntervalSeconds = config.get("messageResendIntervalSeconds", messageResendIntervalSeconds);
-		blockingTimeoutSeconds = config.get("blockingTimeoutSeconds", blockingTimeoutSeconds);
-		maxInFlightMessages = config.get("maxInFlightMessages", maxInFlightMessages);
 	}
 
 	// --- CONNECT ---
@@ -165,7 +131,8 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 			// Create MQTT client
 			disconnect();
 			client = new AsyncMqttClient(uri, this, executor, config);
-			client.connect(nodeID + '-' + broker.components().uid().nextUID(), cleanSession, username, password);
+			client.connect(nodeID + '-' + broker.getConfig().getUidGenerator().nextUID(), cleanSession, username,
+					password);
 
 		} catch (Exception cause) {
 			reconnect(cause);
@@ -250,11 +217,11 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 	 * Closes transporter.
 	 */
 	@Override
-	public void stop() {
+	public void stopped() {
 		
 		// Stop timers
-		super.stop();
-		
+		super.stopped();
+
 		// Disconnect
 		disconnect();
 	}

@@ -48,7 +48,6 @@ import javax.naming.InitialContext;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
-import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
@@ -136,33 +135,6 @@ public class JmsTransporter extends Transporter {
 		this.username = username;
 		this.password = password;
 		this.factory = connectionFactory;
-	}
-
-	// --- START TRANSPORTER ---
-
-	/**
-	 * Initializes transporter instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Process basic properties (eg. "prefix")
-		super.start(broker, config);
-
-		// Process config
-		username = config.get("username", username);
-		password = config.get("password", password);
-		transacted = config.get("transacted", transacted);
-		acknowledgeMode = config.get("acknowledgeMode", acknowledgeMode);
-		deliveryMode = config.get("deliveryMode", deliveryMode);
-		priority = config.get("priority", priority);
-		ttl = config.get("ttl", ttl);
-		connectionFactoryJndiName = config.get("connectionFactoryJndiName", connectionFactoryJndiName);
 	}
 
 	// --- CONNECT ---
@@ -271,10 +243,10 @@ public class JmsTransporter extends Transporter {
 	 * Closes transporter.
 	 */
 	@Override
-	public void stop() {
+	public void stopped() {
 		
 		// Stop timers
-		super.stop();
+		super.stopped();
 		
 		// Disconnect
 		disconnect();

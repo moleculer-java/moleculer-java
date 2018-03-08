@@ -31,9 +31,10 @@
  */
 package services.moleculer.uid;
 
+import static services.moleculer.util.CommonUtils.getHostName;
+
 import java.util.concurrent.atomic.AtomicLong;
 
-import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
@@ -48,7 +49,7 @@ public class IncrementalUIDGenerator extends UIDGenerator {
 
 	// --- HOST/NODE PREFIX ---
 
-	protected char[] prefix;
+	protected char[] prefix = (getHostName() + ':').toCharArray();
 
 	// --- SEQUENCE ---
 
@@ -61,13 +62,13 @@ public class IncrementalUIDGenerator extends UIDGenerator {
 	 * 
 	 * @param broker
 	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-		String id = config.get("prefix", broker.nodeID());
-		prefix = (id + ':').toCharArray();
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
+		if (prefix == null) {
+			prefix = (broker.getNodeID() + ':').toCharArray();
+		}
 	}
 
 	// --- GENERATE UID ---

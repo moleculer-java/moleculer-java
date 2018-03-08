@@ -31,8 +31,6 @@
  */
 package services.moleculer.transporter;
 
-import static services.moleculer.util.CommonUtils.parseURLs;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,7 +48,6 @@ import com.rabbitmq.client.SslContextFactory;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
-import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
@@ -116,42 +113,6 @@ public class AmqpTransporter extends Transporter {
 		this.password = password;
 		this.sslContextFactory = sslContextFactory;
 		this.url = url;
-	}
-
-	// --- START TRANSPORTER ---
-
-	/**
-	 * Initializes transporter instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Process basic properties (eg. "prefix")
-		super.start(broker, config);
-
-		// Process config
-		if (url == null || url.isEmpty()) {
-			url = "localhost";
-		}
-		url = parseURLs(config, new String[] { url })[0];
-		username = config.get("username", username);
-		password = config.get("password", password);
-		mandatory = config.get("mandatory", mandatory);
-		immediate = config.get("immediate", immediate);
-		durable = config.get("durable", durable);
-		exclusive = config.get("exclusive", exclusive);
-		autoDelete = config.get("autoDelete", autoDelete);
-		Tree props = config.get("channelProperties");
-		if (props != null) {
-			for (Tree prop : props) {
-				channelProperties.put(prop.getName(), prop.asObject());
-			}
-		}
 	}
 
 	// --- CONNECT ---
@@ -252,10 +213,10 @@ public class AmqpTransporter extends Transporter {
 	 * Closes transporter.
 	 */
 	@Override
-	public void stop() {
+	public void stopped() {
 		
 		// Stop timers
-		super.stop();
+		super.stopped();
 		
 		// Disconnect
 		disconnect();

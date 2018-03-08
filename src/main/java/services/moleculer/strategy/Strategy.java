@@ -33,46 +33,14 @@ package services.moleculer.strategy;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
+import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
 /**
  * Base superclass of all Strategy implementations.
  */
 @Name("Strategy")
-public abstract class Strategy<T extends Endpoint> implements MoleculerComponent {
-
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
-
-	// --- START INVOCATION STRATEGY ---
-
-	/**
-	 * Initializes strategy instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-	}
-
-	// --- STOP INVOCATION STRATEGY ---
-
-	/**
-	 * Closes instance.
-	 */
-	@Override
-	public void stop() {
-	}
+public abstract class Strategy<T extends Endpoint> {
 
 	// --- ADD A LOCAL OR REMOTE ENDPOINT ---
 

@@ -33,7 +33,6 @@ package services.moleculer.transporter;
 
 import static services.moleculer.ServiceBroker.PROTOCOL_VERSION;
 import static services.moleculer.util.CommonUtils.nameOf;
-import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 
 import java.util.HashSet;
 import java.util.Iterator;
@@ -46,19 +45,17 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
+import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.Context;
-import services.moleculer.eventbus.EventBus;
+import services.moleculer.eventbus.Eventbus;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
 import services.moleculer.service.Name;
+import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.transporter.tcp.NodeDescriptor;
 import services.moleculer.transporter.tcp.RemoteAddress;
@@ -74,7 +71,7 @@ import services.moleculer.transporter.tcp.RemoteAddress;
  * @see GoogleTransporter
  */
 @Name("Transporter")
-public abstract class Transporter implements MoleculerComponent {
+public abstract class Transporter extends Service {
 
 	// --- CHANNEL NAMES / PACKET TYPES ---
 
@@ -103,10 +100,6 @@ public abstract class Transporter implements MoleculerComponent {
 	public String pingChannel;
 	public String pongChannel;
 
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
-
 	// --- PROPERTIES ---
 
 	protected String namespace = "";
@@ -131,14 +124,14 @@ public abstract class Transporter implements MoleculerComponent {
 
 	// --- SERIALIZER / DESERIALIZER ---
 
-	protected Serializer serializer;
+	protected Serializer serializer = new JsonSerializer();
 
 	// --- COMPONENTS ---
 
 	protected ExecutorService executor;
 	protected ScheduledExecutorService scheduler;
 	protected ServiceRegistry registry;
-	protected EventBus eventbus;
+	protected Eventbus eventbus;
 	protected Monitor monitor;
 
 	// --- REMOTE NODES ---
@@ -148,11 +141,10 @@ public abstract class Transporter implements MoleculerComponent {
 	// --- CONSTUCTORS ---
 
 	public Transporter() {
-		this(null);
 	}
 
 	public Transporter(Serializer serializer) {
-		this.serializer = serializer;
+		this.serializer = Objects.requireNonNull(serializer);
 	}
 
 	// --- START TRANSPORTER ---
@@ -166,78 +158,29 @@ public abstract class Transporter implements MoleculerComponent {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 
 		// Process config
-		namespace = config.get("namespace", namespace);
+		namespace = broker.getConfig().getNamespace();
 		if (namespace != null && !namespace.isEmpty()) {
 			prefix = prefix + '-' + namespace;
 		}
 
-		// Create serializer
-		Tree serializerNode = config.get("serializer");
-		if (serializerNode != null) {
-			String type;
-			if (serializerNode.isPrimitive()) {
-				type = serializerNode.asString();
-			} else {
-				type = serializerNode.get("type", "json");
-			}
-
-			@SuppressWarnings("unchecked")
-			Class<? extends Serializer> c = (Class<? extends Serializer>) Class.forName(serializerTypeToClass(type));
-			serializer = c.newInstance();
-		} else {
-			serializerNode = config.putMap("serializer");
-		}
-		if (serializer == null) {
-			serializer = new JsonSerializer();
-		}
-
-		// Heartbeat interval
-		heartbeatInterval = config.get("heartbeatInterval", heartbeatInterval);
-		if (heartbeatInterval > 0) {
-			logger.info(nameOf(this, true) + " sends heartbeat signal every " + heartbeatInterval + " seconds.");
-		}
-
-		// Heartbeat timeout
-		heartbeatTimeout = config.get("heartbeatTimeout", heartbeatTimeout);
-		if (heartbeatTimeout > 0 || heartbeatInterval > 0) {
-			if (heartbeatTimeout < 1) {
-				heartbeatTimeout = Math.max(30, heartbeatInterval * 2);
-			}
-			logger.info("Heartbeat timeout of " + nameOf(this, true) + " is " + heartbeatTimeout + " seconds.");
-		}
-
-		// Offline timeout
-		offlineTimeout = config.get("offlineTimeout", offlineTimeout);
-		if (offlineTimeout > 0) {
-			if (offlineTimeout < heartbeatTimeout) {
-				offlineTimeout = Math.max(heartbeatTimeout * 2, 180);
-			}
-			logger.info("Configuration timeout of offline nodes is " + offlineTimeout + " seconds.");
-		}
-
-		// Debug mode
-		debug = config.get("debug", debug);
-
-		// Start serializer
+		// Log serializer info
 		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
-		serializer.start(broker, serializerNode);
-
-		// Prefers hostname instead of IP
-		preferHostname = config.get("useHostname", preferHostname);
 
 		// Get components
-		executor = broker.components().executor();
-		scheduler = broker.components().scheduler();
-		registry = broker.components().registry();
-		monitor = broker.components().monitor();
-		eventbus = broker.components().eventbus();
+		ServiceBrokerConfig cfg = broker.getConfig();
+		executor = cfg.getExecutor();
+		scheduler = cfg.getScheduler();
+		registry = cfg.getServiceRegistry();
+		monitor = cfg.getMonitor();
+		eventbus = cfg.getEventbus();
 
 		// Get properties from broker
 		this.broker = broker;
-		this.nodeID = broker.nodeID();
+		this.nodeID = broker.getNodeID();
 
 		// Set channel names
 		eventChannel = channel(PACKET_EVENT, nodeID);
@@ -320,7 +263,7 @@ public abstract class Transporter implements MoleculerComponent {
 							heartbeatTimeout, TimeUnit.SECONDS);
 				}
 
-			}).Catch(error -> {
+			}).catchError(error -> {
 
 				logger.warn("Unable to subscribe channels!", error);
 				error(error);
@@ -335,7 +278,7 @@ public abstract class Transporter implements MoleculerComponent {
 	 * Closes transporter.
 	 */
 	@Override
-	public void stop() {
+	public void stopped() {
 
 		// Send "disconnected" packet
 		sendDisconnectPacket();
@@ -506,7 +449,7 @@ public abstract class Transporter implements MoleculerComponent {
 							registry.removeActions(sender);
 							eventbus.removeListeners(sender);
 							disconnected = true;
-							
+
 						}
 					} finally {
 						node.writeLock.unlock();
@@ -764,7 +707,7 @@ public abstract class Transporter implements MoleculerComponent {
 		NodeDescriptor node = nodes.get(nodeID);
 		return node == null ? 0 : node.cpuWhen;
 	}
-	
+
 	// --- IS NODE ONLINE? ---
 
 	public boolean isOnline(String nodeID) {
@@ -822,7 +765,7 @@ public abstract class Transporter implements MoleculerComponent {
 		}
 		RemoteAddress address;
 		node.readLock.lock();
-		try {			
+		try {
 			address = new RemoteAddress(node.host, node.port);
 		} finally {
 			node.readLock.unlock();

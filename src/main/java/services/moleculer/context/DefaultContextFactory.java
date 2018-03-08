@@ -33,7 +33,7 @@ package services.moleculer.context;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.eventbus.EventBus;
+import services.moleculer.eventbus.Eventbus;
 import services.moleculer.service.Name;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.uid.UIDGenerator;
@@ -47,7 +47,7 @@ public class DefaultContextFactory extends ContextFactory {
 	// --- COMPONENTS ---
 
 	protected ServiceRegistry registry;
-	protected EventBus eventbus;
+	protected Eventbus eventbus;
 	protected UIDGenerator uid;
 
 	// --- START CONTEXT FACTORY ---
@@ -61,29 +61,32 @@ public class DefaultContextFactory extends ContextFactory {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-		registry = broker.components().registry();
-		eventbus = broker.components().eventbus();
-		uid = broker.components().uid();		
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
+		registry = broker.getConfig().getServiceRegistry();
+		eventbus = broker.getConfig().getEventbus();
+		uid = broker.getConfig().getUidGenerator();	
 	}
 
 	// --- CREATE CONTEXT ---
 
 	@Override
-	public Context create(String name, Tree params, CallingOptions.Options opts, Context parent, boolean generateID) {
+	public Context create(String name, Tree params, CallingOptions.Options opts, Context parent) {
 
 		// Generate ID
-		String id;
-		if (generateID) {
-			id = uid.nextUID();
-		} else {
-			id = null;
-		}
+		String id = uid.nextUID();
 
-		// TODO Merge meta, set parent context ID
+		// Merge meta block
+		if (parent != null && parent.params != null) {
+			Tree parentMeta = parent.params.getMeta(false);
+			if (parentMeta != null && !parentMeta.isEmpty()) {
+				Tree currentMeta = params.getMeta(true);
+				currentMeta.copyFrom(parentMeta, false);
+			}
+		}
 
 		// Create context
 		return new Context(registry, eventbus, id, name, params, opts);
 	}
-
+	
 }

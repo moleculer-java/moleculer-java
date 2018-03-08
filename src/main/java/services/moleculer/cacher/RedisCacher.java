@@ -32,11 +32,8 @@
 package services.moleculer.cacher;
 
 import static services.moleculer.util.CommonUtils.nameOf;
-import static services.moleculer.util.CommonUtils.serializerTypeToClass;
 
 import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -95,7 +92,7 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 
 	// --- SERIALIZER / DESERIALIZER ---
 
-	protected Serializer serializer;
+	protected Serializer serializer = new JsonSerializer();
 
 	// --- COMPONENTS ---
 
@@ -131,68 +128,14 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Process distributed properties
-		super.start(broker, config);
-
-		// Process config
-		Tree urlNode = config.get("url");
-		if (urlNode != null) {
-			List<String> urlList;
-			if (urlNode.isPrimitive()) {
-				urlList = new LinkedList<>();
-				String url = urlNode.asString().trim();
-				if (!url.isEmpty()) {
-					urlList.add(url);
-				}
-			} else {
-				urlList = urlNode.asList(String.class);
-			}
-			if (!urlList.isEmpty()) {
-				urls = new String[urlList.size()];
-				urlList.toArray(urls);
-			}
-		}
-		password = config.get("password", password);
-		secure = config.get("secure", secure);
-		ttl = config.get("ttl", ttl);
-		if (ttl > 0) {
-
-			// Set the default expire time, in seconds.
-			expiration = SetArgs.Builder.ex(ttl);
-		} else {
-			expiration = null;
-		}
-
-		// Create serializer
-		Tree serializerNode = config.get("serializer");
-		if (serializerNode != null) {
-			String type;
-			if (serializerNode.isPrimitive()) {
-				type = serializerNode.asString();
-			} else {
-				type = serializerNode.get("type", "json");
-			}
-
-			@SuppressWarnings("unchecked")
-			Class<? extends Serializer> c = (Class<? extends Serializer>) Class.forName(serializerTypeToClass(type));
-			serializer = c.newInstance();
-		} else {
-			serializerNode = config.putMap("serializer");
-		}
-		if (serializer == null) {
-			serializer = new JsonSerializer();
-		}
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
+		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
 
 		// Get components
-		executor = broker.components().executor();
-		scheduler = broker.components().scheduler();
-
-		// Start serializer
-		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
-		serializer.start(broker, serializerNode);
-
+		executor = broker.getConfig().getExecutor();
+		scheduler = broker.getConfig().getScheduler();
+		
 		// Connect to Redis server
 		connect();
 	}
@@ -240,7 +183,7 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 		disconnect().then(ok -> {
 			logger.info("Trying to reconnect...");
 			scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
-		}).Catch(cause -> {
+		}).catchError(cause -> {
 			logger.warn("Unable to disconnect from Redis server!", cause);
 			scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
 		});
@@ -249,7 +192,7 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 	// --- CLOSE CACHE INSTANCE ---
 
 	@Override
-	public void stop() {
+	public void stopped() {
 		int s = status.getAndSet(STATUS_STOPPED);
 		if (s != STATUS_STOPPED) {
 			disconnect();

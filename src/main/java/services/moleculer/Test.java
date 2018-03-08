@@ -1,111 +1,99 @@
-/**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
- * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
- * <br>
- * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:<br>
- * <br>
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.<br>
- * <br>
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
- * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
- * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
- * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
 package services.moleculer;
 
 import io.datatree.Tree;
-import services.moleculer.cacher.Cache;
-import services.moleculer.eventbus.Group;
+import services.moleculer.config.ServiceBrokerConfig;
+import services.moleculer.context.Context;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
+import services.moleculer.repl.LocalRepl;
 import services.moleculer.service.Action;
+import services.moleculer.service.Middleware;
+import services.moleculer.service.Name;
 import services.moleculer.service.Service;
-import services.moleculer.transporter.TcpTransporter;
-import services.moleculer.web.NettyGateway;
+import services.moleculer.service.Version;
 
 public class Test {
 
 	public static void main(String[] args) throws Exception {
+		System.out.println("START");
+		try {
+			ServiceBrokerConfig cfg = new ServiceBrokerConfig();
+			
+			// RedisTransporter t = new RedisTransporter();
+			// t.setDebug(false);
+			// cfg.setTransporter(t);
+			
+			cfg.setRepl(new LocalRepl());
+					
+			ServiceBroker broker = new ServiceBroker(cfg);
+	
+			broker.createService(new Service("math") {
 
-		// Load Sigar DLLs
-		String nativeDir = "./native";
-		System.setProperty("java.library.path", nativeDir);
+				@Name("add")
+				//@Cache(keys = { "a", "b" }, ttl = 30)
+				public Action add = ctx -> {
 
-		// Define transporter
-		// TcpTransporter transporter = new TcpTransporter();
-		// RedisTransporter transporter = new RedisTransporter();
-		// transporter.setDebug(true);
+					//broker.getLogger().info("Call " + ctx.params);
+					return ctx.params.get("a", 0) + ctx.params.get("b", 0);
 
-		// Create broker
-		// ServiceBroker broker =
-		// ServiceBroker.builder().transporter(transporter).nodeID("node-1").build();
+				};
 
-		ServiceBroker broker = new ServiceBroker("c:\\temp\\moleculer-test\\conf\\moleculer.config.js");
+				@Name("test")
+				@Version("1")
+				public Action test = ctx -> {
 
-		// .repl(new RemoteRepl())
+					return ctx.params.get("a", 0) + ctx.params.get("b", 0);
 
-		Tree config = new Tree();
-		Tree routes = config.putList("routes");
+				};
 
-		Tree route = routes.addMap();
-		Tree whitelist = route.putList("whitelist");
-		whitelist.add("math.*");
+				@Subscribe("foo.*")
+				public Listener listener = payload -> {
+					System.out.println("Received: " + payload);
+				};
 
-		Tree aliasses = route.putMap("aliases");
+			});			
+			broker.start();
+			broker.use(new Middleware() {
 
-		aliasses.put("GET test", "$node.list");
+				@Override
+				public Action install(Action action, Tree config) {
+					int version = config.get("version", 0);
+					if (version > 0) {
+						broker.getLogger().info("Middleware installed to " + config.toString(false));
+						return new Action() {
 
-		NettyGateway gateway = new NettyGateway();
-		broker.createService(gateway, config);
+							@Override
+							public Object handler(Context ctx) throws Exception {
+								Object original = action.handler(ctx);
+								Object replaced = System.currentTimeMillis();
+								broker.getLogger()
+										.info("Middleware invoked! Replacing " + original + " to " + replaced);
+								return replaced;
+							}
 
-		broker.createService(new Service("math2") {
+						};
+					}
+					broker.getLogger().info("Middleware not installed to " + config.toString(false));
+					return null;
+				}
 
-			// @Cache(keys = { "a", "b" })
-			public Action add = ctx -> {
-				int a = ctx.params.get("a", 0);
-				int b = ctx.params.get("b", 0);
-				return a + b;
-			};
+			});
+			for (int i = 0; i < 2; i++) {
+				broker.call("math.add", "a", 3, "b", 5).then(in -> {
 
-			@Subscribe("user.*")
-			@Group("group1")
-			public Listener listener = payload -> {
-				System.out.println("group1,listener1: " + payload.get("a", -1));
-			};
+					broker.getLogger(Test.class).info("Result: " + in);
 
-		});
+				}).catchError(err -> {
 
-		broker.createService(new Service("test") {
+					broker.getLogger(Test.class).error("Error: " + err);
 
-			@Cache(keys = { "a", "b" })
-			public Action add = ctx -> {
-				int a = ctx.params.get("a", 0);
-				int b = ctx.params.get("b", 0);
-				return a + b;
-			};
-
-		});
-
-		broker.start();
-		broker.repl();
+				});
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		System.out.println("STOP");
 	}
 
 }

@@ -33,6 +33,8 @@ package services.moleculer.strategy;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+import services.moleculer.ServiceBroker;
+import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
 /**
@@ -52,8 +54,8 @@ public class XORShiftRandomStrategy<T extends Endpoint> extends ArrayBasedStrate
 
 	// --- CONSTRUCTOR ---
 
-	public XORShiftRandomStrategy(boolean preferLocal) {
-		super(preferLocal);
+	public XORShiftRandomStrategy(ServiceBroker broker, boolean preferLocal) {
+		super(broker, preferLocal);
 	}
 
 	// --- GET NEXT ENDPOINT ---
@@ -61,7 +63,7 @@ public class XORShiftRandomStrategy<T extends Endpoint> extends ArrayBasedStrate
 	@Override
 	public Endpoint next(Endpoint[] array) {
 
-		// Generate pseudo random long
+		// Generate pseudo random long (XORShift is the fastest random method)
 		long start, next;
 		do {
 			start = rnd.get();

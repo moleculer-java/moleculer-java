@@ -72,11 +72,6 @@ dependencies {
 	// https://mvnrepository.com/artifact/org.springframework/spring-core
 	compile group: 'org.springframework', name: 'spring-context', version: '5.0.0.RELEASE'
 
-    // --- GOOGLE GUICE DEPENDENCY INJECTION FRAMEWORK ---
-    
-	// https://mvnrepository.com/artifact/com.google.inject/guice
-	compile group: 'com.google.inject', name: 'guice', version: '4.1.0'
-	
 		
 	// =============== CACHES ===============
 	
@@ -92,15 +87,6 @@ dependencies {
 	compile group: 'javax.cache', name: 'cache-api', version: '1.0.0'
 
 
-	// =============== API GATEWAY ===============
-	
-		
-	// --- SERVLET 3 API ---
-	
-	// https://mvnrepository.com/artifact/javax.servlet/javax.servlet-api
-	compile group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
-
-	
 	// =============== TRANSPORTERS ===============
 	
 	

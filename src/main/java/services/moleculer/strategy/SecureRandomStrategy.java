@@ -33,6 +33,8 @@ package services.moleculer.strategy;
 
 import java.security.SecureRandom;
 
+import services.moleculer.ServiceBroker;
+import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
 /**
@@ -52,8 +54,8 @@ public class SecureRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy
 
 	// --- CONSTRUCTOR ---
 
-	public SecureRandomStrategy(boolean preferLocal) {
-		super(preferLocal);
+	public SecureRandomStrategy(ServiceBroker broker, boolean preferLocal) {
+		super(broker, preferLocal);
 	}
 
 	// --- GET NEXT ENDPOINT ---

@@ -87,9 +87,9 @@ public class Services extends Command {
 		boolean all = params.contains("--all") || params.contains("-a");
 
 		// Collect data
-		Transporter transporter = broker.components().transporter();
+		Transporter transporter = broker.getConfig().getTransporter();
 		Tree infos = getNodeInfos(broker, transporter);
-		String localNodeID = broker.nodeID();
+		String localNodeID = broker.getNodeID();
 
 		HashMap<String, HashMap<String, Tree>> serviceMap = new HashMap<>();
 		for (Tree info : infos) {

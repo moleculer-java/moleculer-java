@@ -1,34 +1,3 @@
-/**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
- * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
- * <br>
- * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:<br>
- * <br>
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.<br>
- * <br>
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
- * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
- * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
- * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
 package services.moleculer.service;
 
 import static services.moleculer.util.CommonUtils.getHostName;
@@ -36,15 +5,21 @@ import static services.moleculer.util.CommonUtils.nameOf;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.rmi.RemoteException;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -61,9 +36,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
-import services.moleculer.cacher.Cache;
+import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallingOptions;
-import services.moleculer.eventbus.EventBus;
+import services.moleculer.context.Context;
+import services.moleculer.context.ContextFactory;
+import services.moleculer.eventbus.Eventbus;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
@@ -72,11 +49,15 @@ import services.moleculer.transporter.Transporter;
  * Default implementation of the Service Registry.
  */
 @Name("Default Service Registry")
-public class DefaultServiceRegistry extends ServiceRegistry implements Runnable {
+public class DefaultServiceRegistry extends ServiceRegistry {
+
+	// --- REGISTERED MIDDLEWARES ---
+
+	protected final LinkedHashSet<Middleware> middlewares = new LinkedHashSet<>(32);
 
 	// --- REGISTERED LOCAL SERVICES ---
 
-	protected final HashMap<String, Service> services = new HashMap<>(64);
+	protected final LinkedHashMap<String, Service> services = new LinkedHashMap<>(64);
 
 	// --- REGISTERED STRATEGIES PER ACTIONS ---
 
@@ -84,7 +65,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 	// --- PENDING REMOTE INVOCATIONS ---
 
-	protected final ConcurrentHashMap<String, PendingPromise> promises = new ConcurrentHashMap<>(8192);
+	protected final ConcurrentHashMap<String, PendingPromise> promises = new ConcurrentHashMap<>(1024);
 
 	// --- PROPERTIES ---
 
@@ -125,11 +106,12 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 	// --- COMPONENTS ---
 
 	protected ServiceBroker broker;
-	protected StrategyFactory strategy;
 	protected ScheduledExecutorService scheduler;
+	protected StrategyFactory strategyFactory;
+	protected ContextFactory contextFactory;
 	protected Transporter transporter;
-	protected EventBus eventbus;
-
+	protected Eventbus eventbus;
+	
 	// --- CONSTRUCTORS ---
 
 	public DefaultServiceRegistry() {
@@ -147,10 +129,10 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		writeLock = configLock.writeLock();
 	}
 
-	// --- START SERVICE REGISTRY ---
+	// --- INIT SERVICE REGISTRY ---
 
 	/**
-	 * Initializes default ServiceRegistry instance.
+	 * Initializes ServiceRegistry instance.
 	 * 
 	 * @param broker
 	 *            parent ServiceBroker
@@ -158,37 +140,26 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 	 *            optional configuration of the current component
 	 */
 	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-		super.start(broker, config);
-
-		// Process config
-		asyncLocalInvocation = config.get("asyncLocalInvocation", asyncLocalInvocation);
-		cleanup = config.get("cleanup", cleanup);
-		defaultTimeout = config.get("defaultTimeout", defaultTimeout);
-		checkVersion = config.get("checkVersion", checkVersion);
-
-		// Node-style Service Registry config?
-		Tree parent = config.getParent();
-		if (parent != null && (parent.get("strategy", (String) null) != null
-				|| parent.get("preferLocal", (String) null) != null)) {
-			logger.warn("Service Registry has no \"strategy\" or \"preferLocal\" properties.");
-		}
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 
 		// Local nodeID
-		this.nodeID = broker.nodeID();
+		this.nodeID = broker.getNodeID();
 
 		// Set components
+		ServiceBrokerConfig cfg = broker.getConfig();
 		this.broker = broker;
-		this.strategy = broker.components().strategy();
-		this.scheduler = broker.components().scheduler();
-		this.transporter = broker.components().transporter();
-		this.eventbus = broker.components().eventbus();
+		this.scheduler = cfg.getScheduler();
+		this.strategyFactory = cfg.getStrategyFactory();
+		this.contextFactory = cfg.getContextFactory();
+		this.transporter = cfg.getTransporter();
+		this.eventbus = cfg.getEventbus();
 	}
 
 	// --- STOP SERVICE REGISTRY ---
 
 	@Override
-	public void stop() {
+	public void stopped() {
 
 		// Stop timer
 		ScheduledFuture<?> task = timer.get();
@@ -202,22 +173,25 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			pending.promise.complete(error);
 		}
 
-		// Stop action endpoints and services
+		// Stop all services
 		writeLock.lock();
 		try {
 
-			// Stop strategies (and registered actions)
-			for (Strategy<ActionEndpoint> strategy : strategies.values()) {
-				try {
-					strategy.stop();
-				} catch (Throwable cause) {
-					logger.warn("Unable to stop strategy!", cause);
-				}
-			}
-			strategies.clear();
-
 			// Stop registered services
 			stopAllLocalServices();
+
+			// Delete strategies (and registered actions)
+			strategies.clear();
+
+			// Stop middlewares
+			for (Middleware middleware : middlewares) {
+				try {
+					middleware.stopped();
+				} catch (Throwable cause) {
+					logger.warn("Unable to stop middleware!", cause);
+				}
+			}
+			middlewares.clear();
 
 		} finally {
 
@@ -230,7 +204,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 	// --- CALL TIMEOUT CHECKER TASK ---
 
-	public void run() {
+	protected void checkTimeouts() {
 		long now = System.currentTimeMillis();
 		PendingPromise pending;
 		Iterator<PendingPromise> i = promises.values().iterator();
@@ -306,7 +280,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 			// Schedule next socketTimeout timer
 			long delay = Math.max(1000, minTimeoutAt - now);
-			timer.set(scheduler.schedule(this, delay, TimeUnit.MILLISECONDS));
+			timer.set(scheduler.schedule(this::checkTimeouts, delay, TimeUnit.MILLISECONDS));
 		}
 	}
 
@@ -329,6 +303,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 	// --- RECEIVE REQUEST FROM REMOTE SERVICE ---
 
+	@Override
 	public void receiveRequest(Tree message) {
 
 		// Verify protocol version
@@ -394,10 +369,11 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		// String requestID = message.get("requestID", (String) null);
 
 		CallingOptions.Options opts = CallingOptions.nodeID(nodeID).timeout(timeout);
-
+		Context ctx = contextFactory.create(action, params, opts, null);
+		
 		// Invoke action
 		try {
-			endpoint.call(params, opts, null).then(data -> {
+			new Promise(endpoint.handler(ctx)).then(data -> {
 
 				// Send response
 				Tree response = new Tree();
@@ -408,7 +384,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 				response.putObject("data", data);
 				transporter.publish(Transporter.PACKET_RESPONSE, sender, response);
 
-			}).Catch(error -> {
+			}).catchError(error -> {
 
 				// Send error
 				transporter.publish(Transporter.PACKET_RESPONSE, sender, throwableToTree(id, error));
@@ -420,8 +396,11 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			transporter.publish(Transporter.PACKET_RESPONSE, sender, throwableToTree(id, error));
 
 		}
+
 	}
 
+	// --- CONVERT THROWABLE TO RESPONSE MESSAGE ---
+	
 	protected Tree throwableToTree(String id, Throwable error) {
 		Tree response = new Tree();
 		response.put("id", id);
@@ -443,7 +422,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		}
 		return response;
 	}
-
+	
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
 
 	@Override
@@ -507,104 +486,142 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		}
 	}
 
-	// --- ADD A LOCAL SERVICE ---
+	// --- ADD MIDDLEWARES ---
 
 	@Override
-	public void addActions(Service service, Tree config) throws Exception {
-			
+	public void use(Collection<Middleware> middlewares) {
+		LinkedList<Middleware> newMiddlewares = new LinkedList<>();
 		writeLock.lock();
 		try {
 
-			// Initialize actions in services
-			Class<? extends Service> clazz = service.getClass();
-			Field[] fields = clazz.getFields();
+			// Register middlewares
+			for (Middleware middleware : middlewares) {
+				if (this.middlewares.add(middleware)) {
+					newMiddlewares.add(middleware);
+				}
+			}
+
+			// Start middlewares
+			for (Middleware middleware : newMiddlewares) {
+				try {
+					middleware.started(broker);
+				} catch (Exception cause) {
+					throw new RuntimeException("Unable to start middleware!", cause);
+				}
+			}
+
+			// Apply new middlewares
+			for (Strategy<ActionEndpoint> strategy : strategies.values()) {
+				List<ActionEndpoint> endpoints = strategy.getAllEndpoints();
+				for (ActionEndpoint endpoint : endpoints) {
+					for (Middleware middleware : newMiddlewares) {
+						endpoint.use(middleware);
+					}
+				}
+			}
+
+		} finally {
+			writeLock.unlock();
+		}
+	}
+
+	// --- ADD A LOCAL SERVICE ---
+
+	@Override
+	public void addActions(String serviceName, Service service) {
+		
+		// Service name with version
+		if (serviceName == null || serviceName.isEmpty()) {
+			serviceName = service.getName();
+		}
+		serviceName = serviceName.replace(' ', '-');
+		Class<? extends Service> clazz = service.getClass();
+		Field[] fields = clazz.getFields();
+		
+		writeLock.lock();
+		try {
+
+			// Initialize actions in service
 			for (Field field : fields) {
+				if (!Action.class.isAssignableFrom(field.getType())) {
+					continue;
+				}
+				field.setAccessible(true);
+				Action action = (Action) field.get(service);
+
+				// Name of the action (eg. "service.action")
+				String actionName = nameOf(serviceName, field);
+
+				Tree actionConfig = new Tree();
+				actionConfig.put("name", actionName);
+
+				Annotation[] annotations = field.getAnnotations();
+				for (Annotation annotation : annotations) {
+
+					// Create entry for annotation
+					String annotationName = annotation.toString();
+					int i = annotationName.lastIndexOf('.');
+					if (i > -1) {
+						annotationName = annotationName.substring(i + 1);
+					}
+					i = annotationName.indexOf('(');
+					if (i > -1) {
+						annotationName = annotationName.substring(0, i);
+					}
+					annotationName = annotationName.toLowerCase();
+					if ("name".equals(annotationName) || "override".equals(annotationName)) {
+						continue;
+					}
+					Tree annotationMap = actionConfig.putMap(annotationName);
+
+					// Add annotation values
+					Class<? extends Annotation> type = annotation.annotationType();
+					Method[] members = type.getDeclaredMethods();
+					for (Method member : members) {
+						member.setAccessible(true);
+						String propName = member.getName();
+						Object propValue = member.invoke(annotation);
+						annotationMap.putObject(propName, propValue);
+						Tree newChild = annotationMap.get(propName);
+						if (newChild.size() < 1) {
+							newChild.remove();
+						}
+					}
+					int size = annotationMap.size();
+					if (size == 0) {
+						annotationMap.remove();
+					} else if (size == 1) {
+						Tree value = annotationMap.getFirstChild();
+						if (value != null && "value".equals(value.getName())) {
+							annotationMap.setObject(value.asObject());
+						}
+					}
+				}
 
 				// Register action
-				if (Action.class.isAssignableFrom(field.getType())) {
+				LocalActionEndpoint endpoint = new LocalActionEndpoint(nodeID, actionConfig, action);
+				Strategy<ActionEndpoint> actionStrategy = strategies.get(actionName);
+				if (actionStrategy == null) {
 
-					// Name of the action (eg. "v2.service.add")
-					String actionFullName = nameOf(service.name, field);
-					String actionShortName = actionFullName;
-					int i = actionFullName.indexOf('.');
-					if (i > -1) {
-						actionShortName = actionShortName.substring(i + 1);
-					}
-					String actionNodePath = "actions." + actionShortName;
-					Tree actionConfig = config.get(actionNodePath);
-					if (actionConfig == null) {
-						if (config.isMap()) {
-							actionConfig = config.putMap(actionNodePath);
-						} else {
-							actionConfig = new Tree();
-						}
-					}
-					actionConfig.put("name", actionFullName);
+					// Create strategy
+					actionStrategy = strategyFactory.create();
+					strategies.put(actionName, actionStrategy);
+				}
+				actionStrategy.addEndpoint(endpoint);
 
-					// Process "Cache" annotation
-					if (actionConfig.get("cache") == null) {
-						Cache cache = field.getAnnotation(Cache.class);
-						boolean cached = false;
-						String[] keys = null;
-						int ttl = 0;
-						if (cache != null) {
-							cached = true;
-							if (cached) {
-								keys = cache.keys();
-								if (keys != null && keys.length == 0) {
-									keys = null;
-								}
-								ttl = cache.ttl();
-							}
-						}
-						actionConfig.put("cache", cached);
-						if (ttl > 0) {
-							actionConfig.put("ttl", ttl);
-						}
-						if (keys != null && keys.length > 0) {
-							actionConfig.put("cacheKeys", String.join(",", keys));
-						}
-					}
-
-					// Register actions
-					field.setAccessible(true);
-					Action action = (Action) field.get(service);
-					LocalActionEndpoint endpoint = new LocalActionEndpoint(this, action, asyncLocalInvocation);
-					endpoint.start(broker, actionConfig);
-					Strategy<ActionEndpoint> actionStrategy = strategies.get(actionFullName);
-					if (actionStrategy == null) {
-						Tree strategyConfig = actionConfig.get("strategy");
-						if (strategyConfig == null) {
-							actionStrategy = strategy.create();
-							strategyConfig = config.getRoot().get("strategy");
-							if (strategyConfig == null) {
-								strategyConfig = new Tree();
-							}
-						} else {
-							// TODO invoke strategy factory
-						}
-						actionStrategy.start(broker, strategyConfig);
-						strategies.put(actionFullName, actionStrategy);
-					}
-					actionStrategy.addEndpoint(endpoint);
+				// Apply middlewares
+				for (Middleware middleware : middlewares) {
+					endpoint.use(middleware);
 				}
 			}
-
-			// Start service
-			Tree settings = config.get("settings");
-			if (settings == null) {
-				if (config.isMap()) {
-					settings = config.putMap("settings");
-				} else {
-					settings = new Tree();
-				}
-			}
-			service.start(broker, settings);
-			services.put(service.name, service);
+			services.put(serviceName, service);
+			service.started(broker);
 
 			// Notify local listeners about the new LOCAL service
 			broadcastServicesChanged(true);
 
+		} catch (Exception cause) {
+			logger.error("Unable to register local service!", cause);
 		} finally {
 
 			// Delete cached node descriptor
@@ -614,16 +631,18 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		}
 	}
 
+	// --- NOTIFY OTHER SERVICES ---
+	
 	protected void broadcastServicesChanged(boolean local) {
 		Tree message = new Tree();
 		message.put("localService", true);
 		eventbus.broadcast("$services.changed", message, null, true);
 	}
-
+	
 	// --- ADD A REMOTE SERVICE ---
 
 	@Override
-	public void addActions(Tree config) throws Exception {
+	public void addActions(Tree config) {
 		Tree actions = config.get("actions");
 		if (actions != null && actions.isMap()) {
 			String nodeID = Objects.requireNonNull(config.get("nodeID", (String) null));
@@ -634,12 +653,10 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 					String actionName = actionConfig.get("name", "");
 
 					// Register remote action
-					RemoteActionEndpoint endpoint = new RemoteActionEndpoint(this);
-					endpoint.start(broker, actionConfig);
+					RemoteActionEndpoint endpoint = new RemoteActionEndpoint(nodeID, actionConfig);
 					Strategy<ActionEndpoint> actionStrategy = strategies.get(actionName);
 					if (actionStrategy == null) {
-						actionStrategy = strategy.create();
-						actionStrategy.start(broker, actionConfig);
+						actionStrategy = strategyFactory.create();
 						strategies.put(actionName, actionStrategy);
 					}
 					actionStrategy.addEndpoint(endpoint);
@@ -664,11 +681,6 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 				Strategy<ActionEndpoint> strategy = endpoints.next();
 				strategy.remove(nodeID);
 				if (strategy.isEmpty()) {
-					try {
-						strategy.stop();
-					} catch (Throwable cause) {
-						logger.warn("Unable to stop strategy!", cause);
-					}
 					endpoints.remove();
 				}
 			}
@@ -697,12 +709,13 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 	}
 
 	protected void stopAllLocalServices() {
-		for (Service service : services.values()) {
+		for (Map.Entry<String, Service> serviceEntry : services.entrySet()) {
+			String name = serviceEntry.getKey();
 			try {
-				service.stop();
-				logger.info("Service \"" + service.name + "\" stopped.");
+				serviceEntry.getValue().stopped();
+				logger.info("Service \"" + name + "\" stopped.");
 			} catch (Throwable cause) {
-				logger.warn("Unable to stop \"" + service.name + "\" service!", cause);
+				logger.warn("Unable to stop \"" + name + "\" service!", cause);
 			}
 		}
 		services.clear();
@@ -725,10 +738,10 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 		return service;
 	}
 
-	// --- GET LOCAL OR REMOTE ACTION CONTAINER ---
+	// --- GET LOCAL OR REMOTE ACTION ---
 
 	@Override
-	public ActionEndpoint getAction(String name, String nodeID) {
+	public Action getAction(String name, String nodeID) {
 		Strategy<ActionEndpoint> strategy;
 		readLock.lock();
 		try {
@@ -760,8 +773,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 
 	@Override
 	public Tree getDescriptor() {
-		Tree current = currentDescriptor();
-		return current.clone();
+		return currentDescriptor().clone();
 	}
 
 	protected synchronized void clearDescriptorCache() {
@@ -809,27 +821,12 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 					@SuppressWarnings("unchecked")
 					Map<String, Object> actionBlock = (Map<String, Object>) serviceMap.putMap("actions", true)
 							.asObject();
-					LinkedHashMap<String, Object> map = new LinkedHashMap<>();
-					actionBlock.put(name, map);
-					Tree actionMap = new Tree(map);
-
-					actionMap.put("name", name);
-					boolean cached = endpoint.cached();
-					actionMap.put("cache", cached);
-					if (cached) {
-						String[] keys = endpoint.cacheKeys();
-						if (keys != null) {
-							Tree cacheKeys = actionMap.putList("cacheKeys");
-							for (String key : keys) {
-								cacheKeys.add(key);
-							}
-						}
-					}
+					actionBlock.put(name, endpoint.getConfig().asObject());
 
 					// Listener block
 					Tree listeners = eventbus.generateListenerDescriptor(service);
 					if (listeners != null && !listeners.isEmpty()) {
-						serviceMap.putMap("events").assign(listeners);
+						serviceMap.putObject("events", listeners);
 					}
 
 					// Not used
@@ -889,40 +886,6 @@ public class DefaultServiceRegistry extends ServiceRegistry implements Runnable 
 			timestamp.set(System.currentTimeMillis());
 		}
 		return descriptor;
-	}
-
-	// --- GETTERS / SETTERS ---
-
-	public boolean isAsyncLocalInvocation() {
-		return asyncLocalInvocation;
-	}
-
-	public void setAsyncLocalInvocation(boolean asyncLocalInvocation) {
-		this.asyncLocalInvocation = asyncLocalInvocation;
-	}
-
-	public int getDefaultTimeout() {
-		return defaultTimeout;
-	}
-
-	public void setDefaultTimeout(int defaultTimeoutSeconds) {
-		this.defaultTimeout = defaultTimeoutSeconds;
-	}
-
-	public int getCleanup() {
-		return cleanup;
-	}
-
-	public void setCleanup(int cleanupSeconds) {
-		this.cleanup = cleanupSeconds;
-	}
-
-	public boolean isCheckVersion() {
-		return checkVersion;
-	}
-
-	public void setCheckVersion(boolean checkVersion) {
-		this.checkVersion = checkVersion;
 	}
 
 }

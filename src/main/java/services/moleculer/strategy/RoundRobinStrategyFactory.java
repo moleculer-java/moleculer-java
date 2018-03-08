@@ -31,6 +31,7 @@
  */
 package services.moleculer.strategy;
 
+import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
 /**
@@ -58,7 +59,7 @@ public class RoundRobinStrategyFactory extends ArrayBasedStrategyFactory {
 
 	@Override
 	public <T extends Endpoint> Strategy<T> create() {
-		return new RoundRobinStrategy<T>(preferLocal);
+		return new RoundRobinStrategy<T>(broker, preferLocal);
 	}
 
 }

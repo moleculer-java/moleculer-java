@@ -53,7 +53,6 @@ import com.google.pubsub.v1.TopicName;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
-import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
@@ -97,29 +96,6 @@ public class GoogleTransporter extends Transporter {
 	// --- CHANNEL NAME/SUBSCRIBER MAP ---
 
 	protected final HashMap<String, Subscriber> subscribers = new HashMap<>(64);
-
-	// --- CONSTUCTOR ---
-
-	public GoogleTransporter() {
-	}
-
-	// --- START TRANSPORTER ---
-
-	/**
-	 * Initializes transporter instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Process basic properties (eg. "prefix")
-		super.start(broker, config);
-
-	}
 
 	// --- CONNECT ---
 
@@ -207,10 +183,10 @@ public class GoogleTransporter extends Transporter {
 	 * Closes transporter.
 	 */
 	@Override
-	public void stop() {
+	public void stopped() {
 		
 		// Stop timers
-		super.stop();
+		super.stopped();
 		
 		// Disconnect
 		disconnect();

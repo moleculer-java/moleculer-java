@@ -202,92 +202,6 @@ public class TcpTransporter extends Transporter {
 		this.urls = parseURLs(readTree(urlList.toString()), "nodes", null);
 	}
 
-	// --- START TRANSPORTER ---
-
-	/**
-	 * Initializes transporter instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Disable offline timeout when use host list
-		if (urls != null && urls.length > 0) {
-			offlineTimeout = 0;
-		} else if (offlineTimeout > 0 && offlineTimeout < 15) {
-			offlineTimeout = 15;
-		}
-
-		// Process basic properties (eg. "prefix")
-		heartbeatTimeout = 0;
-		heartbeatInterval = 0;
-		super.start(broker, config);
-
-		// Gossiper's gossiping period in seconds
-		gossipPeriod = config.get("gossipPeriod", gossipPeriod);
-
-		// TCP socket properties
-		maxConnections = config.get("maxConnections", maxConnections);
-
-		// Maxiumum enabled size of a packet, in bytes
-		maxPacketSize = config.get("maxPacketSize", maxPacketSize);
-
-		// UDP discovery ("zero config" mode)
-		udpPort = config.get("udpPort", udpPort);
-		udpBindAddress = config.get("udpBindAddress", udpBindAddress);
-		udpPeriod = config.get("udpPeriod", udpPeriod);
-		udpReuseAddr = config.get("udpReuseAddr", udpReuseAddr);
-		udpMaxDiscovery = config.get("udpMaxDiscovery", udpMaxDiscovery);
-		udpMulticast = config.get("udpMulticast", udpMulticast);
-		udpMulticastTTL = config.get("udpMulticastTTL", udpMulticastTTL);
-		udpBroadcast = config.get("udpBroadcast", udpBroadcast);
-
-		// Use hostname instead of IP address
-		useHostname = config.get("useHostname", useHostname);
-
-		// Parse URLs (in "full TCP mode")
-		urls = parseURLs(config, urls);
-		if (urls != null && urls.length > 0) {
-			for (String url : urls) {
-				int i = url.indexOf("://");
-				if (i > -1 && i < url.length() - 4) {
-					url = url.substring(i + 3);
-				}
-				url = url.replace('/', ':');
-				String[] parts = url.split(":");
-				if (parts.length < 3) {
-					logger.warn("Invalid URL format (" + url
-							+ ")! Valid syntax is \"tcp://host:port/nodeID\" or \"host:port/nodeID\"!");
-					continue;
-				}
-				int port;
-				try {
-					port = Integer.parseInt(parts[1]);
-				} catch (Exception e) {
-					logger.warn("Invalid URL format (" + url
-							+ ")! Valid syntax is \"tcp://host:port/nodeID\" or \"host:port/nodeID\"!");
-					continue;
-				}
-				String sender = parts[2];
-				if (sender.equals(nodeID)) {
-
-					// TCP server's port (port in URL list)
-					this.port = port;
-					continue;
-				}
-				String host = parts[0];
-				nodes.put(sender, new NodeDescriptor(sender, useHostname, host, port));
-			}
-		}
-
-		// TCP server's port (port in a particular property)
-		port = config.get("port", port);
-	}
-
 	// --- CONNECT ---
 
 	/**
@@ -324,6 +238,48 @@ public class TcpTransporter extends Transporter {
 			reader = new TcpReader(this);
 			writer = new TcpWriter(this);
 
+			// Disable offline timeout when use host list
+			if (urls != null && urls.length > 0) {
+				offlineTimeout = 0;
+				nodes.clear();
+				for (String url : urls) {
+					int i = url.indexOf("://");
+					if (i > -1 && i < url.length() - 4) {
+						url = url.substring(i + 3);
+					}
+					url = url.replace('/', ':');
+					String[] parts = url.split(":");
+					if (parts.length < 3) {
+						logger.warn("Invalid URL format (" + url
+								+ ")! Valid syntax is \"tcp://host:port/nodeID\" or \"host:port/nodeID\"!");
+						continue;
+					}
+					int port;
+					try {
+						port = Integer.parseInt(parts[1]);
+					} catch (Exception e) {
+						logger.warn("Invalid URL format (" + url
+								+ ")! Valid syntax is \"tcp://host:port/nodeID\" or \"host:port/nodeID\"!");
+						continue;
+					}
+					String sender = parts[2];
+					if (sender.equals(nodeID)) {
+
+						// TCP server's port (port in URL list)
+						this.port = port;
+						continue;
+					}
+					String host = parts[0];
+					nodes.put(sender, new NodeDescriptor(sender, useHostname, host, port));
+				}				
+			} else if (offlineTimeout > 0 && offlineTimeout < 15) {
+				offlineTimeout = 15;
+			}
+			
+			// Process basic properties (eg. "prefix")
+			heartbeatTimeout = 0;
+			heartbeatInterval = 0;
+			
 			// Start TCP server
 			reader.connect();
 			currentPort = reader.getCurrentPort();
@@ -412,10 +368,10 @@ public class TcpTransporter extends Transporter {
 	 * Closes transporter.
 	 */
 	@Override
-	public void stop() {
+	public void stopped() {
 
 		// Stop timers
-		super.stop();
+		super.stopped();
 
 		// Disconnect
 		disconnect();

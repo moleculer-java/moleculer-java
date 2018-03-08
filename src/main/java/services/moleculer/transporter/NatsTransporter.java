@@ -31,8 +31,6 @@
  */
 package services.moleculer.transporter;
 
-import static services.moleculer.util.CommonUtils.parseURLs;
-
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLContext;
@@ -46,7 +44,6 @@ import io.nats.client.MessageHandler;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 import services.moleculer.Promise;
-import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
@@ -103,35 +100,6 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 		this.password = password;
 		this.secure = secure;
 		this.urls = urls;
-	}
-
-	// --- START TRANSPORTER ---
-
-	/**
-	 * Initializes transporter instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-
-		// Process basic properties (eg. "prefix")
-		super.start(broker, config);
-
-		// Process config
-		urls = parseURLs(config, urls);
-		username = config.get("username", username);
-		password = config.get("password", password);
-		secure = config.get("secure", secure);
-		dontRandomize = config.get("dontRandomize", dontRandomize);
-		maxPingsOut = config.get("maxPingsOut", maxPingsOut);
-		pingInterval = config.get("pingInterval", pingInterval);
-		timeout = config.get("socketTimeout", timeout);
-		tlsDebug = config.get("tlsDebug", tlsDebug);
-		verbose = config.get("verbose", verbose);
 	}
 
 	// --- CONNECT ---
@@ -239,10 +207,10 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 	 * Closes transporter.
 	 */
 	@Override
-	public void stop() {
+	public void stopped() {
 		
 		// Stop timers
-		super.stop();
+		super.stopped();
 		
 		// Disconnect
 		disconnect();

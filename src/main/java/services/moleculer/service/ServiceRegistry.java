@@ -31,12 +31,9 @@
  */
 package services.moleculer.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.Collection;
 
 import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-import services.moleculer.config.MoleculerComponent;
 
 /**
  * Base superclass of all Service Registry implementations.
@@ -44,31 +41,7 @@ import services.moleculer.config.MoleculerComponent;
  * @see DefaultServiceRegistry
  */
 @Name("Service Registry")
-public abstract class ServiceRegistry implements MoleculerComponent {
-
-	// --- LOGGER ---
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
-
-	// --- INIT SERVICE REGISTRY ---
-
-	/**
-	 * Initializes ServiceRegistry instance.
-	 * 
-	 * @param broker
-	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
-	 */
-	@Override
-	public void start(ServiceBroker broker, Tree config) throws Exception {
-	}
-
-	// --- STOP SERVICE REGISTRY ---
-
-	@Override
-	public void stop() {
-	}
+public abstract class ServiceRegistry extends Service {
 
 	// --- RECEIVE REQUEST FROM REMOTE SERVICE ---
 
@@ -78,13 +51,17 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 
 	public abstract void receiveResponse(Tree message);
 
-	// --- ADD ACTIONS OF A LOCAL SERVICE ---
+	// --- ADD MIDDLEWARES ---
 
-	public abstract void addActions(Service service, Tree config) throws Exception;
+	public abstract void use(Collection<Middleware> middlewares);
+	
+	// --- ADD ACTION OF A LOCAL SERVICE ---
+
+	public abstract void addActions(String name, Service service);
 
 	// --- ADD ACTIONS OF A REMOTE SERVICE ---
 
-	public abstract void addActions(Tree config) throws Exception;
+	public abstract void addActions(Tree config);
 
 	// --- REMOVE ALL ACTIONS OF A NODE ---
 
@@ -96,7 +73,7 @@ public abstract class ServiceRegistry implements MoleculerComponent {
 
 	// --- GET LOCAL OR REMOTE ACTION CONTAINER ---
 
-	public abstract ActionEndpoint getAction(String name, String nodeID);
+	public abstract Action getAction(String name, String nodeID);
 
 	// --- GENERATE SERVICE DESCRIPTOR ---
 

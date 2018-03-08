@@ -1,40 +1,12 @@
-/**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
- * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
- * <br>
- * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:<br>
- * <br>
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.<br>
- * <br>
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
- * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
- * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
- * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
 package services.moleculer;
 
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.parseParams;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -42,26 +14,24 @@ import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
 import services.moleculer.cacher.Cacher;
-import services.moleculer.config.ComponentRegistry;
 import services.moleculer.config.ServiceBrokerBuilder;
-import services.moleculer.config.ServiceBrokerSettings;
+import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallingOptions;
 import services.moleculer.context.Context;
-import services.moleculer.eventbus.EventBus;
+import services.moleculer.context.ContextFactory;
+import services.moleculer.eventbus.Eventbus;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.internal.NodeService;
 import services.moleculer.repl.Repl;
-import services.moleculer.service.ActionEndpoint;
-import services.moleculer.service.Name;
+import services.moleculer.service.Action;
+import services.moleculer.service.Middleware;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
+import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
+import services.moleculer.uid.UIDGenerator;
 import services.moleculer.util.ParseResult;
 
-/**
- * Service Broker.
- */
-@Name("Service Broker")
 public class ServiceBroker {
 
 	// --- VERSIONS ---
@@ -81,113 +51,79 @@ public class ServiceBroker {
 	/**
 	 * SLF4J logger of this class.
 	 */
-	protected final static Logger logger = LoggerFactory.getLogger(ServiceBroker.class);
+	protected static final Logger logger = LoggerFactory.getLogger(ServiceBroker.class);
 
-	// --- UNIQUE NODE IDENTIFIER ---
+	// --- CONFIGURATION ---
 
-	/**
-	 * Unique server ID (eg. "node1", "server-2", etc.)
-	 */
-	protected final String nodeID;
+	protected final ServiceBrokerConfig config;
 
-	// --- CONFIGURATIONS ---
-
-	/**
-	 * Configuration (created by the {@link ServiceBrokerBuilder}).
-	 */
-	protected final ServiceBrokerSettings settings;
-
-	/**
-	 * Optional configuration (loaded from JSON/YAML/TOML/XML/JS file).
-	 */
-	protected final Tree config;
-
-	// --- INERNAL AND USER-DEFINED COMPONENTS ---
-
-	/**
-	 * Component Registry of the Service Broker instance. ComponentRegistry has
-	 * similar functionality to Spring's ApplicationContext; stores "beans"
-	 * (MoleculerComponents), and by using the method "get(id)" you can retrieve
-	 * instances of your component.
-	 */
-	protected final ComponentRegistry components;
-
-	/**
-	 * Registry of local and remote Moleculer Services.
-	 */
-	protected ServiceRegistry registry;
-
-	/**
-	 * Local EventBus.
-	 */
-	protected EventBus eventbus;
-
-	// --- SERVICES AND CONFIGURATIONS ---
+	// --- ENQUED SERVICES ---
 
 	/**
 	 * Services which defined and added to the Broker before the boot process.
 	 */
-	protected final LinkedHashMap<Service, Tree> services = new LinkedHashMap<>();
+	protected final LinkedHashMap<String, Service> services = new LinkedHashMap<>();
+
+	// --- ENQUED MIDDLEWARES ---
+
+	/**
+	 * Middlewares which defined and added to the Broker before the boot
+	 * process.
+	 */
+	protected final LinkedHashSet<Middleware> middlewares = new LinkedHashSet<>();
+
+	// --- INTERNAL COMPONENTS ---
+
+	protected UIDGenerator uidGenerator;
+	protected StrategyFactory strategyFactory;
+	protected ContextFactory contextFactory;
+	protected Eventbus eventbus;
+	protected Cacher cacher;
+	protected ServiceRegistry serviceRegistry;
+	protected Transporter transporter;
+	protected Repl repl;
 
 	// --- STATIC SERVICE BROKER BUILDER ---
 
 	/**
-	 * Creates a new {@link ServiceBrokerBuilder} instance.
+	 * Creates a new {@link ServiceBrokerBuilder} instance. Sample of usage:<br>
+	 * <br>
+	 * ServiceBroker broker = ServiceBroker.builder().cacher(cacher).build();
 	 * 
 	 * @return builder instance
 	 */
 	public static ServiceBrokerBuilder builder() {
-		return new ServiceBrokerBuilder(new ServiceBrokerSettings());
+		return new ServiceBrokerBuilder();
 	}
 
 	// --- CONSTRUCTORS ---
+	
+	public ServiceBroker(ServiceBrokerConfig config) {
+		this.config = config;
+	}
 
 	public ServiceBroker() {
-		this(new ServiceBrokerSettings());
+		this(null, null, null);
 	}
 
-	public ServiceBroker(String configPath) throws Exception {
-		this(new ServiceBrokerSettings(configPath));
+	public ServiceBroker(String nodeID) {
+		this(nodeID, null, null);
 	}
 
-	public ServiceBroker(String nodeID, Transporter transporter, Cacher cacher) {
-		this(new ServiceBrokerSettings(nodeID, transporter, cacher));
+	public ServiceBroker(String nodeID, Cacher cacher, Transporter transporter) {
+		this(new ServiceBrokerConfig(nodeID, cacher, transporter));		
+	}
+	
+	// --- GET CONFIGURATION ---
+
+	public ServiceBrokerConfig getConfig() {
+		return config;
 	}
 
-	public ServiceBroker(ServiceBrokerSettings settings) {
+	// --- PROPERTY GETTERS ---
 
-		// Configuration (created by builder)
-		this.settings = settings;
-
-		// Optional configuration (loaded from file)
-		config = settings.getConfig();
-
-		// Set nodeID
-		nodeID = settings.getNodeID();
-
-		// Set the component registry
-		components = settings.getComponents();
-		
-		// Install internal services
-		if (settings.isInternalServices()) {
-			try {
-				createService(new NodeService());				
-			} catch (Exception cause) {
-				logger.error("Unable to install \"$node\" service!", cause);
-			}
-		}
-	}
-
-	// --- GET NODE ID ---
-
-	public String nodeID() {
-		return nodeID;
-	}
-
-	// --- GET COMPONENT REGISTRY ---
-
-	public ComponentRegistry components() {
-		return components;
+	public String getNodeID() {
+		return config.getNodeID();
 	}
 
 	// --- START BROKER INSTANCE ---
@@ -195,53 +131,75 @@ public class ServiceBroker {
 	/**
 	 * Start broker. If has transporter, transporter.connect will be called.
 	 */
-	public void start() {
+	public void start() throws Exception {
 
 		// Check state
-		if (registry != null) {
+		if (serviceRegistry != null) {
 			throw new IllegalStateException("Moleculer Service Broker has already been started!");
 		}
 		try {
 
-			// Start internal and custom components
+			// Start internal components, services, middlewares...
 			logger.info("Starting Moleculer Service Broker (version " + SOFTWARE_VERSION + ")...");
-			String name = nameOf(components, true);
-			logger.info("Using " + name + " to load service classes.");
-			components.start(this, settings, config);
-			logger.info("Node \"" + nodeID + "\" started successfully.");
 
-			// Set the pointers of frequently used components
-			registry = components.registry();
-			eventbus = components.eventbus();
-			
-			// Register and start pending services
-			for (Map.Entry<Service, Tree> entry : services.entrySet()) {
-				Service service = entry.getKey();
-				Tree cfg = entry.getValue();
-				if (cfg == null) {
-					cfg = new Tree();
-				}
+			// Set internal components
+			uidGenerator = start(config.getUidGenerator());
+			strategyFactory = start(config.getStrategyFactory());
+			contextFactory = start(config.getContextFactory());
+			eventbus = start(config.getEventbus());
+			cacher = start(config.getCacher());
+			serviceRegistry = start(config.getServiceRegistry());
+			transporter = start(config.getTransporter());
 
-				// Register actions
-				registry.addActions(service, cfg);
+			// Register enqued middlewares
+			if (cacher != null) {
+				middlewares.add(cacher);
+			}
+			serviceRegistry.use(middlewares);
 
-				// Register listeners
-				eventbus.addListeners(service, cfg);
+			// Install internal services
+			if (config.isInternalServices()) {
+				services.put("$node", new NodeService());
 			}
 
-			// All components and services started successfully
-			services.clear();
-			
+			// Register and start enqued services and listeners
+			for (Map.Entry<String, Service> entry : services.entrySet()) {
+				Service service = entry.getValue();
+				
+				// Register actions
+				serviceRegistry.addActions(entry.getKey(), service);
+
+				// Register listeners
+				eventbus.addListeners(service);
+			}
+
 			// Start transporter's connection loop
-			Transporter transporter = components.transporter();
 			if (transporter != null) {
 				transporter.connect();
 			}
 
+			// Ok, services, transporter and gateway started
+			logger.info("Node \"" + config.getNodeID() + "\" started successfully.");
+
+			// Start repl console
+			repl = start(config.getRepl());
+
 		} catch (Throwable cause) {
 			logger.error("Moleculer Service Broker could not be started!", cause);
 			stop();
+		} finally {
+			middlewares.clear();
+			services.clear();
 		}
+	}
+
+	protected <TYPE extends Service> TYPE start(TYPE component) throws Exception {
+		if (component == null) {
+			return null;
+		}
+		component.started(this);
+		logger.info(nameOf(component, true) + " started.");
+		return component;
 	}
 
 	// --- STOP BROKER INSTANCE ---
@@ -251,75 +209,61 @@ public class ServiceBroker {
 	 * be called.
 	 */
 	public void stop() {
-		if (registry != null) {
 
-			// Stop internal and custom components
-			logger.info("Moleculer Service Broker stopping node \"" + nodeID + "\"...");
-			components.stop();
-			logger.info("Node \"" + nodeID + "\" stopped.");
+		// Stop internal components
+		stop(repl);
+		stop(serviceRegistry);
+		stop(eventbus);
+		stop(contextFactory);
+		stop(strategyFactory);
+		stop(uidGenerator);
+	}
 
-			// Clear variables
-			services.clear();
-			registry = null;
+	protected void stop(Service component) {
+		if (component == null) {
+			return;
+		}
+		try {
+			component.stopped();
+			logger.info(nameOf(component, true) + " stopped.");
+		} catch (Exception cause) {
+			logger.warn("Unable to stop component!", cause);
 		}
 	}
 
-	// --- PUBLIC BROKER FUNCTIONS ---
+	// --- LOGGING ---
 
-	/**
-	 * Switch the console to REPL mode
-	 */
-	public void repl() {
-		Repl repl = components.repl();
-		if (repl != null) {
-			repl.setEnabled(true);
-		}
+	public Logger getLogger() {
+		return logger;
 	}
 
-	/**
-	 * Registers a new local service.
-	 * 
-	 * @param service
-	 *            Service instance
-	 * @return optional service configuration
-	 * 
-	 * @throws Exception
-	 *             any exception
-	 */
-	public <T extends Service> T createService(T service) throws Exception {
-		return createService(service, new Tree());
+	public Logger getLogger(Class<?> clazz) {
+		return LoggerFactory.getLogger(clazz);
 	}
 
-	/**
-	 * Registers a new local service.
-	 * 
-	 * @param service
-	 *            Service instance
-	 * @return optional service configuration
-	 * 
-	 * @throws Exception
-	 *             any exception
-	 */
-	public <T extends Service> T createService(T service, Tree config) throws Exception {
-		if (registry == null) {
+	public Logger getLogger(String name) {
+		return LoggerFactory.getLogger(name);
+	}
+
+	// --- ADD LOCAL SERVICE ---
+
+	public void createService(Service service) {
+		createService(service.getName(), service);
+	}
+	
+	public void createService(String name, Service service) {
+		if (serviceRegistry == null) {
 
 			// Start service later
-			services.put(service, config);
+			services.put(name, service);
 		} else {
 
 			// Start service now
-			registry.addActions(service, config);
+			serviceRegistry.addActions(name, service);
 		}
-		return service;
 	}
 
-	/**
-	 * Destroys a local service
-	 * 
-	 * @param service
-	 */
-	public void destroyService(Service service) {
-	}
+	// --- GET LOCAL SERVICE ---
 
 	/**
 	 * Returns a local service by name
@@ -328,8 +272,28 @@ public class ServiceBroker {
 	 * @return
 	 */
 	public Service getLocalService(String serviceName) {
-		return registry.getService(serviceName);
+		return serviceRegistry.getService(serviceName);
 	}
+
+	// --- ADD MIDDLEWARE ---
+
+	public void use(Collection<Middleware> middlewares) {
+		if (serviceRegistry == null) {
+
+			// Apply middlewares later
+			this.middlewares.addAll(middlewares);
+		} else {
+
+			// Apply middlewares now
+			serviceRegistry.use(middlewares);
+		}
+	}
+
+	public void use(Middleware... middlewares) {
+		use(Arrays.asList(middlewares));
+	}
+
+	// --- GET LOCAL OR REMOTE ACTION ---
 
 	/**
 	 * Returns an action by name
@@ -337,16 +301,19 @@ public class ServiceBroker {
 	 * @param actionName
 	 * @return
 	 */
-	public ActionEndpoint getAction(String actionName) {
-		return registry.getAction(actionName, null);
+	public Action getAction(String actionName) {
+		return serviceRegistry.getAction(actionName, null);
 	}
 
 	/**
-	 * Adds a middleware to the broker
+	 * Returns an action by name
 	 * 
-	 * @param mws
+	 * @param actionName
+	 * @param nodeID
+	 * @return
 	 */
-	public void use(Object... mws) {
+	public Action getAction(String actionName, String nodeID) {
+		return serviceRegistry.getAction(actionName, nodeID);
 	}
 
 	// --- INVOKE LOCAL OR REMOTE ACTION ---
@@ -362,17 +329,24 @@ public class ServiceBroker {
 	 */
 	public Promise call(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		String targetID = res.opts == null ? null : res.opts.nodeID;
-		return registry.getAction(name, targetID).call(res.data, res.opts, (Context) null);
+		return call(name, res.data, res.opts);
 	}
 
 	public Promise call(String name, Tree params) {
-		return registry.getAction(name, null).call(params, (CallingOptions.Options) null, (Context) null);
+		return call(name, params, null);
 	}
 
 	public Promise call(String name, Tree params, CallingOptions.Options opts) {
-		String targetID = opts == null ? null : opts.nodeID;
-		return registry.getAction(name, targetID).call(params, opts, (Context) null);
+		return new Promise(result -> {
+			try {
+				String targetID = opts == null ? null : opts.nodeID;
+				Action action = serviceRegistry.getAction(name, targetID);
+				Context ctx = contextFactory.create(name, params, opts, null);
+				result.resolve(action.handler(ctx));
+			} catch (Throwable cause) {
+				result.reject(cause);
+			}
+		});
 	}
 
 	// --- EMIT EVENT TO EVENT GROUP ---
@@ -384,7 +358,7 @@ public class ServiceBroker {
 		ParseResult res = parseParams(params);
 		eventbus.emit(name, res.data, res.groups, false);
 	}
-	
+
 	/**
 	 * Emits an event (grouped & balanced global event)
 	 */
@@ -398,9 +372,9 @@ public class ServiceBroker {
 	public void emit(String name, Tree payload) {
 		eventbus.emit(name, payload, null, false);
 	}
-	
+
 	// --- BROADCAST EVENT TO ALL LISTENERS ---
-	
+
 	/**
 	 * Emits an event for all local & remote services
 	 */
@@ -408,7 +382,7 @@ public class ServiceBroker {
 		ParseResult res = parseParams(params);
 		eventbus.broadcast(name, res.data, res.groups, false);
 	}
-	
+
 	/**
 	 * Emits an event for all local & remote services
 	 */
@@ -422,9 +396,9 @@ public class ServiceBroker {
 	public void broadcast(String name, Tree payload) {
 		eventbus.broadcast(name, payload, null, false);
 	}
-	
+
 	// --- BROADCAST EVENT TO LOCAL LISTENERS ---
-	
+
 	/**
 	 * Emits an event for all local services.
 	 */
@@ -432,7 +406,7 @@ public class ServiceBroker {
 		ParseResult res = parseParams(params);
 		eventbus.broadcast(name, res.data, res.groups, true);
 	}
-	
+
 	/**
 	 * Emits an event for all local services.
 	 */
@@ -446,5 +420,5 @@ public class ServiceBroker {
 	public void broadcastLocal(String name, Tree payload) {
 		eventbus.broadcast(name, payload, null, true);
 	}
-	
+
 }
