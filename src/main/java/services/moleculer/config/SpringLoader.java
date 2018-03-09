@@ -28,7 +28,6 @@ package services.moleculer.config;
 import java.util.Map;
 
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 
@@ -43,24 +42,24 @@ public class SpringLoader implements ApplicationContextAware {
 
 		// Get Service Broker
 		ServiceBroker broker = ctx.getBean(ServiceBroker.class);
-		if (broker == null) {
-			throw new NoSuchBeanDefinitionException(ServiceBroker.class);
-		}
 
 		// Find Middlewares in Spring Application Context
 		Map<String, Middleware> middlewareMap = ctx.getBeansOfType(Middleware.class);
-		if (!middlewareMap.isEmpty()) {
-			Middleware[] middlewares = new Middleware[middlewareMap.size()];
-			middlewareMap.values().toArray(middlewares);
-			broker.use(middlewares);
+		if (middlewareMap != null && !middlewareMap.isEmpty()) {
+			broker.use(middlewareMap.values());
 		}
 
 		// Find Services in Spring Application Context
 		Map<String, Service> serviceMap = ctx.getBeansOfType(Service.class);
-		for (Service service : serviceMap.values()) {
-			broker.createService(service);
+		if (serviceMap != null && !serviceMap.isEmpty()) {
+			for (Service service : serviceMap.values()) {
+				if (service instanceof Middleware) {
+					continue;
+				}
+				broker.createService(service);
+			}
 		}
-
+		
 	}
 
 }
