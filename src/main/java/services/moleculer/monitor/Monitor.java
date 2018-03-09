@@ -1,15 +1,9 @@
 /**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -41,7 +35,7 @@ import services.moleculer.service.Name;
 
 /**
  * Base superclass of all System Monitor implementations.
- * 
+ *
  * @see SigarMonitor
  * @see JMXMonitor
  */
@@ -79,10 +73,10 @@ public abstract class Monitor {
 	// --- PUBLIC SYSTEM MONITORING METHODS ---
 
 	protected static final AtomicBoolean invalidMonitor = new AtomicBoolean();
-	
+
 	/**
 	 * Returns the cached system CPU usage, in percents, between 0 and 100.
-	 * 
+	 *
 	 * @return total CPU usage of the current OS
 	 */
 	public int getTotalCpuPercent() {
@@ -94,7 +88,7 @@ public abstract class Monitor {
 		synchronized (Monitor.class) {
 			if (now - cpuDetectedAt > cacheTimeout) {
 				try {
-					cachedCPU = detectTotalCpuPercent();					
+					cachedCPU = detectTotalCpuPercent();
 				} catch (Exception cause) {
 					logger.info("Unable to detect CPU usage!", cause);
 					invalidMonitor.set(true);
@@ -108,7 +102,7 @@ public abstract class Monitor {
 
 	/**
 	 * Returns the cached PID of Java VM.
-	 * 
+	 *
 	 * @return current Java VM's process ID
 	 */
 	public long getPID() {
@@ -117,7 +111,7 @@ public abstract class Monitor {
 			return currentPID;
 		}
 		try {
-			currentPID = detectPID();			
+			currentPID = detectPID();
 		} catch (Exception cause) {
 			logger.info("Unable to detect process ID!", cause);
 		}
@@ -136,14 +130,14 @@ public abstract class Monitor {
 
 	/**
 	 * Returns the system CPU usage, in percents, between 0 and 100.
-	 * 
+	 *
 	 * @return total CPU usage of the current OS
 	 */
 	protected abstract int detectTotalCpuPercent() throws Exception;
 
 	/**
 	 * Returns the system CPU usage, in percents, between 0 and 100.
-	 * 
+	 *
 	 * @return total CPU usage of the current OS
 	 */
 	protected abstract long detectPID() throws Exception;

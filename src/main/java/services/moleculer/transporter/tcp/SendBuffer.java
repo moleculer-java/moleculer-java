@@ -1,15 +1,9 @@
 /**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -95,10 +89,10 @@ public class SendBuffer {
 
 	/**
 	 * Adds a packet to the buffer's queue.
-	 * 
+	 *
 	 * @param packet
 	 *            packet to write
-	 * 
+	 *
 	 * @return true, if success (false = buffer is closed)
 	 */
 	protected boolean append(byte[] packet) {
@@ -120,7 +114,7 @@ public class SendBuffer {
 
 	/**
 	 * Tries to close this buffer.
-	 * 
+	 *
 	 * @return true, is closed (false = buffer is not empty)
 	 */
 	protected boolean tryToClose() {
@@ -178,7 +172,7 @@ public class SendBuffer {
 
 	/**
 	 * Writes N bytes to the target channel.
-	 * 
+	 *
 	 * @throws Exception
 	 *             any I/O exception
 	 */

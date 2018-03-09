@@ -1,15 +1,9 @@
 /**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -42,7 +36,7 @@ import services.moleculer.transporter.TcpTransporter;
 public class UDPMulticastReceiver extends UDPReceiver {
 
 	// --- PROPERTIES ---
-	
+
 	/**
 	 * Multicast receiver
 	 */
@@ -52,9 +46,9 @@ public class UDPMulticastReceiver extends UDPReceiver {
 	 * Network interface (or null)
 	 */
 	protected final NetworkInterface netIf;
-	
+
 	// --- CONSTRUCTOR ---
-	
+
 	protected UDPMulticastReceiver(String nodeID, String udpAddress, TcpTransporter transporter) {
 		super(nodeID, udpAddress, transporter);
 		this.netIf = null;
@@ -66,34 +60,34 @@ public class UDPMulticastReceiver extends UDPReceiver {
 	}
 
 	// --- CONNECT ---
-	
+
 	@Override
 	protected void connect() throws Exception {
-		
+
 		// Start multicast receiver
 		multicastReceiver = new MulticastSocket(udpPort);
 		multicastReceiver.setReuseAddress(udpReuseAddr);
-		
+
 		InetAddress inetAddress = InetAddress.getByName(udpAddress);
 		if (netIf == null) {
-			multicastReceiver.joinGroup(inetAddress);			
+			multicastReceiver.joinGroup(inetAddress);
 		} else {
 			InetSocketAddress socketAddress = new InetSocketAddress(inetAddress, udpPort);
 			try {
-				multicastReceiver.joinGroup(socketAddress, netIf);				
+				multicastReceiver.joinGroup(socketAddress, netIf);
 			} catch (Exception unsupportedAddress) {
 				disconnect();
 				return;
 			}
 		}
-		
+
 		// Start thread
 		super.connect();
 
 		// Log
 		String msg = "Multicast discovery service started on udp://" + udpAddress + ':' + udpPort;
 		if (netIf == null) {
-			logger.info(msg + '.');			
+			logger.info(msg + '.');
 		} else {
 			logger.info(msg + " (" + netIf.getDisplayName() + ").");
 		}
@@ -103,10 +97,10 @@ public class UDPMulticastReceiver extends UDPReceiver {
 
 	@Override
 	protected void disconnect() {
-		
+
 		// Stop thread
 		super.disconnect();
-		
+
 		// Stop multicast receiver
 		if (multicastReceiver != null) {
 			try {
@@ -121,19 +115,19 @@ public class UDPMulticastReceiver extends UDPReceiver {
 			multicastReceiver = null;
 			String msg = "Multicast discovery service stopped on udp://" + udpAddress + ':' + udpPort;
 			if (netIf == null) {
-				logger.info(msg + '.');			
+				logger.info(msg + '.');
 			} else {
 				logger.info(msg + " (" + netIf.getDisplayName() + ").");
 			}
 		}
 	}
-	
+
 	// --- MESSAGE SENDER ---
-	
+
 	@Override
 	protected void send() {
 		String msg = namespace + '|' + nodeID + '|' + port;
-		
+
 		// Send multicast packet
 		MulticastSocket udpSocket = null;
 		try {
@@ -160,7 +154,7 @@ public class UDPMulticastReceiver extends UDPReceiver {
 			}
 		}
 	}
-	
+
 	// --- UDP MULTICAST RECEIVER ---
 
 	@Override
@@ -191,5 +185,5 @@ public class UDPMulticastReceiver extends UDPReceiver {
 			}
 		}
 	}
-	
+
 }

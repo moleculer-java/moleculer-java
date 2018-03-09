@@ -1,15 +1,9 @@
 /**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -37,7 +31,7 @@ import io.datatree.Tree;
 
 /**
  * Base superclass of all Service Registry implementations.
- * 
+ *
  * @see DefaultServiceRegistry
  */
 @Name("Service Registry")
@@ -54,7 +48,7 @@ public abstract class ServiceRegistry extends Service {
 	// --- ADD MIDDLEWARES ---
 
 	public abstract void use(Collection<Middleware> middlewares);
-	
+
 	// --- ADD ACTION OF A LOCAL SERVICE ---
 
 	public abstract void addActions(String name, Service service);
@@ -80,7 +74,7 @@ public abstract class ServiceRegistry extends Service {
 	public abstract Tree getDescriptor();
 
 	// --- TIMESTAMP OF SERVICE DESCRIPTOR ---
-	
+
 	public abstract long getTimestamp();
-	
+
 }

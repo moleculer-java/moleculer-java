@@ -1,15 +1,9 @@
 /**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -127,7 +121,7 @@ public class TcpTransporter extends Transporter {
 	 * false results. Therefore, use hostnames if you are using DHCP.
 	 */
 	protected boolean useHostname = true;
-	
+
 	/**
 	 * UDP broadcast/multicast port
 	 */
@@ -137,7 +131,7 @@ public class TcpTransporter extends Transporter {
 	 * UDP bind address (null = autodetect)
 	 */
 	protected String udpBindAddress;
-	
+
 	/**
 	 * UDP broadcast/multicast period in SECONDS
 	 */
@@ -162,7 +156,7 @@ public class TcpTransporter extends Transporter {
 	 * TTL of UDP multicast packets
 	 */
 	protected int udpMulticastTTL = 1;
-	
+
 	/**
 	 * Use UDP broadcast WITH UDP multicast (false = use UDP multicast only)
 	 */
@@ -271,15 +265,15 @@ public class TcpTransporter extends Transporter {
 					}
 					String host = parts[0];
 					nodes.put(sender, new NodeDescriptor(sender, useHostname, host, port));
-				}				
+				}
 			} else if (offlineTimeout > 0 && offlineTimeout < 15) {
 				offlineTimeout = 15;
 			}
-			
+
 			// Process basic properties (eg. "prefix")
 			heartbeatTimeout = 0;
 			heartbeatInterval = 0;
-			
+
 			// Start TCP server
 			reader.connect();
 			currentPort = reader.getCurrentPort();

@@ -1,15 +1,9 @@
 /**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -41,13 +35,13 @@ import io.datatree.dom.Cache;
 public final class Matcher {
 
 	// --- CACHE OF COMPILED PATTERNS ---
-	
+
 	private static final Cache<String, Pattern> regexCache = new Cache<>(128, true);
-	
+
 	// --- MATCHER ---
-	
+
 	public static final boolean matches(String text, String pattern) {
-		
+
 		// Simple patterns
 		if (pattern.indexOf('?') == -1) {
 
@@ -56,14 +50,14 @@ public final class Matcher {
 			if (firstStarPosition == -1) {
 				return pattern.equals(text);
 			}
-			
+
 			// Eg. "prefix**"
 			final int len = pattern.length();
 			if (len > 2 && pattern.endsWith("**") && firstStarPosition > len - 3) {
-				pattern = pattern.substring(0, len - 2);				
+				pattern = pattern.substring(0, len - 2);
 				return text.startsWith(pattern);
 			}
-			
+
 			// Eg. "prefix*"
 			if (len > 1 && pattern.endsWith("*") && firstStarPosition > len - 2) {
 				pattern = pattern.substring(0, len - 1);
@@ -72,18 +66,18 @@ public final class Matcher {
 				}
 				return false;
 			}
-			
+
 			// Accept simple text, without point character (*)
 			if (len == 1 && firstStarPosition == 0) {
 				return text.indexOf('.') == -1;
 			}
-			
+
 			// Accept all inputs (**)
 			if (len == 2 && firstStarPosition == 0 && pattern.lastIndexOf('*') == 1) {
 				return true;
 			}
 		}
-		
+
 		// Regex (eg. "prefix.ab?cd.*.foo")
 		Pattern regex = regexCache.get(pattern);
 		if (regex == null) {
@@ -92,7 +86,7 @@ public final class Matcher {
 			}
 			pattern = pattern.replace("?", ".");
 			pattern = pattern.replace("**", ".+");
-			pattern = pattern.replace("*", "[^\\.]+");	
+			pattern = pattern.replace("*", "[^\\.]+");
 			regex = Pattern.compile(pattern);
 			regexCache.put(pattern, regex);
 		}

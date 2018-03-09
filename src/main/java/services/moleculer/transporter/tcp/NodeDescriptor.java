@@ -1,15 +1,9 @@
 /**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -103,7 +97,7 @@ public class NodeDescriptor {
 			throw new IllegalArgumentException("Info block is required!");
 		}
 		this.info = info;
-		
+
 		// Set non-final properties
 		host = Objects.requireNonNull(getHostOrIP(preferHostname, info), "Hostname can't be null!");
 		port = info.get("port", 0);
@@ -181,7 +175,7 @@ public class NodeDescriptor {
 			String host = getHostOrIP(preferHostname, info);
 			if (host == null || host.isEmpty()) {
 				throw new IllegalArgumentException("Empty or undefined hostname (" + host + ")!");
-			}		
+			}
 			int port = info.get("port", 0);
 			if (port < 1) {
 				throw new IllegalArgumentException("Invalid port number (" + port + ")!");

@@ -1,15 +1,9 @@
 /**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -40,29 +34,29 @@ import services.moleculer.transporter.TcpTransporter;
 public class UDPBroadcastReceiver extends UDPReceiver {
 
 	// --- PROPERTIES ---
-	
+
 	/**
 	 * Broadcast receiver
 	 */
 	protected DatagramSocket broadcastReceiver;
-	
+
 	// --- CONSTRUCTOR ---
-	
+
 	protected UDPBroadcastReceiver(String nodeID, String udpAddress, TcpTransporter transporter) {
 		super(nodeID, udpAddress, transporter);
 	}
 
 	// --- CONNECT ---
-	
+
 	@Override
 	protected void connect() throws Exception {
-		
+
 		// Start broadcast receiver
 		broadcastReceiver = new DatagramSocket();
 		broadcastReceiver.setReuseAddress(udpReuseAddr);
 		broadcastReceiver.setBroadcast(true);
 		broadcastReceiver.connect(InetAddress.getByName(udpAddress), udpPort);
-		
+
 		// Start thread
 		super.connect();
 
@@ -73,7 +67,7 @@ public class UDPBroadcastReceiver extends UDPReceiver {
 
 	@Override
 	protected void disconnect() {
-		
+
 		// Stop thread
 		super.disconnect();
 
@@ -87,13 +81,13 @@ public class UDPBroadcastReceiver extends UDPReceiver {
 			logger.info("Broadcast discovery service stopped on udp://" + udpAddress + ':' + udpPort + '.');
 		}
 	}
-	
+
 	// --- MESSAGE SENDER ---
-	
+
 	@Override
 	protected void send() {
 		String msg = namespace + '|' + nodeID + '|' + port;
-		
+
 		// Send broadcast packet
 		DatagramSocket udpSocket = null;
 		try {
@@ -120,7 +114,7 @@ public class UDPBroadcastReceiver extends UDPReceiver {
 			}
 		}
 	}
-	
+
 	// --- UDP BROADCAST RECEIVER ---
 
 	@Override
@@ -144,9 +138,9 @@ public class UDPBroadcastReceiver extends UDPReceiver {
 					Thread.sleep(1000);
 				} catch (Exception interrupt) {
 					return;
-				}				
+				}
 			}
 		}
 	}
-	
+
 }

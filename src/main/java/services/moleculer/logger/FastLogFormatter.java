@@ -1,15 +1,9 @@
 /**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -51,27 +45,27 @@ import java.util.logging.LogRecord;
  * The lines of the generated log file are readable by humans and machines.
  */
 public class FastLogFormatter extends Formatter {
-	
+
 	// --- CONSTANTS ---
-	
+
 	protected static final char[] BREAK = System.getProperty("line.separator", "\r\n").toCharArray();
 	protected static final String BREAK_STRING = new String(BREAK);
 	protected static final char[] AT = " at ".toCharArray();
 	protected static final char[] JAVA = ".java:".toCharArray();
 
 	// --- PROPERTIES ---
-	
+
 	protected final StringBuilder line = new StringBuilder(512);
 
 	protected volatile int position = 83;
-	
+
 	// --- CONSTRUCTOR ---
-	
+
 	public FastLogFormatter() {
 	}
 
 	// --- FORMATTER ---
-	
+
 	public String format(LogRecord record) {
 		line.setLength(0);
 		line.append('[');
@@ -118,7 +112,7 @@ public class FastLogFormatter extends Formatter {
 		}
 		line.append(formatMessage(record));
 		line.append(BREAK);
-		
+
 		// Dump error
 		final Throwable cause = record.getThrown();
 		if (cause != null) {
@@ -172,7 +166,7 @@ public class FastLogFormatter extends Formatter {
 		}
 		return max;
 	}
-	
+
 	protected void appendMessages(LinkedList<String> list, Throwable t, int level) throws Exception {
 		if (level > 10) {
 			return;

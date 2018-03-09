@@ -1,15 +1,9 @@
 /**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -46,26 +40,26 @@ public abstract class UDPReceiver {
 	// --- LOGGER ---
 
 	protected static final Logger logger = LoggerFactory.getLogger(UDPReceiver.class);
-	
+
 	// --- PROPERTIES ---
-		
+
 	/**
 	 * Current namespace
 	 */
 	protected final String namespace;
-	
+
 	/**
 	 * Debug mode
 	 */
 	protected final boolean debug;
-	
+
 	/**
 	 * Use hostnames instead of IP addresses As the DHCP environment is dynamic,
 	 * any later attempt to use IPs instead hostnames would most likely yield
 	 * false results. Therefore, use hostnames if you are using DHCP.
 	 */
 	protected final boolean useHostname;
-	
+
 	/**
 	 * Current NodeID
 	 */
@@ -75,7 +69,7 @@ public abstract class UDPReceiver {
 	 * IP address
 	 */
 	protected final String udpAddress;
-	
+
 	/**
 	 * Resuse addresses
 	 */
@@ -90,7 +84,7 @@ public abstract class UDPReceiver {
 	 * UDP multicast TTL
 	 */
 	protected final int udpMulticastTTL;
-	
+
 	/**
 	 * TCP port (used by the Transporter and Gossiper services)
 	 */
@@ -102,16 +96,16 @@ public abstract class UDPReceiver {
 	 * Receiver's executor
 	 */
 	protected ExecutorService executor;
-	
+
 	// --- COMPONENTS ---
 
 	/**
 	 * Parent transporter
 	 */
 	protected final TcpTransporter transporter;
-	
+
 	// --- CONSTRUCTOR ---
-	
+
 	protected UDPReceiver(String nodeID, String udpAddress, TcpTransporter transporter) {
 		this.nodeID = nodeID;
 		this.udpAddress = udpAddress;
@@ -124,11 +118,11 @@ public abstract class UDPReceiver {
 		this.udpMulticastTTL = transporter.getUdpMulticastTTL();
 		this.port = transporter.getCurrentPort();
 	}
-	
+
 	// --- CONNECT ---
-	
+
 	protected void connect() throws Exception {
-		
+
 		// Start packet receiver
 		executor = Executors.newSingleThreadExecutor();
 		executor.execute(this::receive);
@@ -137,7 +131,7 @@ public abstract class UDPReceiver {
 	// --- DISCONNECT ---
 
 	protected void disconnect() {
-		
+
 		// Stop receiver thread
 		if (executor != null) {
 			try {
@@ -149,13 +143,13 @@ public abstract class UDPReceiver {
 	}
 
 	// --- MESSAGE SENDER ---
-	
+
 	protected abstract void send();
-	
+
 	// --- MESSAGE RECEIVER ---
-	
+
 	protected abstract void receive();
-	
+
 	// --- COMMON MESSAGE PROCESSOR ---
 
 	protected void processReceivedMessage(DatagramPacket packet, byte[] buffer) {
@@ -214,5 +208,5 @@ public abstract class UDPReceiver {
 		// Notify TCP Transporter
 		transporter.udpPacketReceived(tokens[1], host.toLowerCase(), port);
 	}
-	
+
 }

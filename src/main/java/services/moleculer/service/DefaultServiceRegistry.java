@@ -1,3 +1,28 @@
+/**
+ * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
+ * <br>
+ * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:<br>
+ * <br>
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.<br>
+ * <br>
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package services.moleculer.service;
 
 import static services.moleculer.util.CommonUtils.convertAnnotations;
@@ -111,7 +136,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected ContextFactory contextFactory;
 	protected Transporter transporter;
 	protected Eventbus eventbus;
-	
+
 	// --- CONSTRUCTORS ---
 
 	public DefaultServiceRegistry() {
@@ -133,7 +158,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	/**
 	 * Initializes ServiceRegistry instance.
-	 * 
+	 *
 	 * @param broker
 	 *            parent ServiceBroker
 	 * @param config
@@ -370,7 +395,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		CallingOptions.Options opts = CallingOptions.nodeID(nodeID).timeout(timeout);
 		Context ctx = contextFactory.create(action, params, opts, null);
-		
+
 		// Invoke action
 		try {
 			new Promise(endpoint.handler(ctx)).then(data -> {
@@ -400,7 +425,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	}
 
 	// --- CONVERT THROWABLE TO RESPONSE MESSAGE ---
-	
+
 	protected Tree throwableToTree(String id, Throwable error) {
 		Tree response = new Tree();
 		response.put("id", id);
@@ -422,7 +447,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		}
 		return response;
 	}
-	
+
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
 
 	@Override
@@ -529,7 +554,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	@Override
 	public void addActions(String serviceName, Service service) {
-		
+
 		// Service name with version
 		if (serviceName == null || serviceName.isEmpty()) {
 			serviceName = service.getName();
@@ -537,7 +562,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		serviceName = serviceName.replace(' ', '-');
 		Class<? extends Service> clazz = service.getClass();
 		Field[] fields = clazz.getFields();
-		
+
 		writeLock.lock();
 		try {
 
@@ -592,13 +617,13 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	}
 
 	// --- NOTIFY OTHER SERVICES ---
-	
+
 	protected void broadcastServicesChanged(boolean local) {
 		Tree message = new Tree();
 		message.put("localService", true);
 		eventbus.broadcast("$services.changed", message, null, true);
 	}
-	
+
 	// --- ADD A REMOTE SERVICE ---
 
 	@Override

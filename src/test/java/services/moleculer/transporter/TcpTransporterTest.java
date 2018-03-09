@@ -1,15 +1,9 @@
 /**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -132,49 +126,49 @@ public class TcpTransporterTest extends TestCase {
 		});
 		assertException(() -> {
 			tr.registerAsNewNode(null, "node6", 1006);
-		});		
+		});
 		assertException(() -> {
 			tr.registerAsNewNode("node6", null, 1006);
-		});		
+		});
 		assertException(() -> {
 			tr.registerAsNewNode("node6", "", 1006);
-		});		
+		});
 		assertException(() -> {
 			tr.registerAsNewNode("", "node6", 1006);
-		});		
+		});
 		assertException(() -> {
 			tr.registerAsNewNode("node6", "node6", 0);
-		});		
+		});
 		assertException(() -> {
 			tr.udpPacketReceived("node7", "", 1007);
-		});		
+		});
 		assertException(() -> {
 			tr.udpPacketReceived(null, "node7", 1007);
-		});				
+		});
 		assertException(() -> {
 			tr.udpPacketReceived("node7", "node7", 0);
 		});
 		assertException(() -> {
 			tr.nodes.get("node2").markAsOnline(null);
-		});						
+		});
 		assertException(() -> {
 			tr.nodes.get("node2").markAsOnline(new Tree());
-		});						
+		});
 	}
 
 	// --- GOSSIP REQUEST PROCESSING ---
-	
+
 	@Test
 	public void testProcessGossipRequest() throws Exception {
-		
+
 		// Add "node2" (hidden)
 		tr.nodes.put("node2", createOfflineDescriptor(false, "node2"));
-		
+
 		// Simple request
 		Tree req = createGossipRequest("node3", 1, 2, 3);
-		
+
 		Tree rsp = tr.processGossipRequest(req);
-		
+
 		assertEquals(1, rsp.get("online").size());
 		assertNull(rsp.get("offline"));
 		assertEquals(1, rsp.get("online.node1").size());
@@ -182,7 +176,7 @@ public class TcpTransporterTest extends TestCase {
 		assertTrue(rsp.get("online.node1[0].port", 0) > 0);
 		assertTrue(rsp.get("online.node1[0].seq", 0) > 0);
 		assertTrue(rsp.get("online.node1[0].services").size() > 0);
-		
+
 		// Update local CPU
 		tr.getDescriptor().updateCpu(4);
 
@@ -190,34 +184,34 @@ public class TcpTransporterTest extends TestCase {
 		assertEquals(3, rsp.get("online.node1").size());
 		assertEquals(1, rsp.get("online.node1[1]", 0));
 		assertEquals(4, rsp.get("online.node1[2]", 0));
-		
+
 		tr.getDescriptor().updateCpu(5);
-		
+
 		rsp = tr.processGossipRequest(req);
 		assertEquals(2, rsp.get("online.node1[1]", 0));
 		assertEquals(5, rsp.get("online.node1[2]", 0));
-		
+
 		tr.getDescriptor().updateCpu(0);
 		rsp = tr.processGossipRequest(req);
 		assertEquals(3, rsp.get("online.node1[1]", 0));
 		assertEquals(0, rsp.get("online.node1[2]", 0));
 
 		// Add offline node
-		
+
 		// Node4 -> offline & hidden
 		tr.registerAsNewNode("node3", "host3", 1003);
 		rsp = tr.processGossipRequest(req);
 		assertEquals(1, rsp.get("online").size());
 		assertNull(rsp.get("offline"));
 		assertEquals(3, rsp.get("online.node1").size());
-		
+
 		// Node5 -> online
 		NodeDescriptor node4 = createOnlineDescriptorWithInfo(false, "node4");
 		node4.info.put("seq", "3");
 		node4.seq = 3;
 		tr.nodes.put("node4", node4);
-		
-		rsp = tr.processGossipRequest(req);		
+
+		rsp = tr.processGossipRequest(req);
 		assertEquals(2, rsp.get("online").size());
 		assertNull(rsp.get("offline"));
 		assertEquals(3, rsp.get("online.node1").size());
@@ -225,20 +219,20 @@ public class TcpTransporterTest extends TestCase {
 		assertEquals(1, rsp.get("online.node4[0].port", 0));
 		assertEquals(3, rsp.get("online.node4[0].seq", 0));
 		assertEquals("node4", rsp.get("online.node4[0].hostname", "?"));
-		
+
 		// Add "node4" to request (low seq)
 		req.get("online").putList("node4").add(1).add(1).add(0);
-		
+
 		rsp = tr.processGossipRequest(req);
 		assertEquals(2, rsp.get("online").size());
 		assertNull(rsp.get("offline"));
 		assertEquals(3, rsp.get("online.node1").size());
 		assertEquals(3, rsp.get("online.node1[1]", 0));
 		assertEquals(0, rsp.get("online.node1[2]", 0));
-		
+
 		// Add "node4" to request (correct seq)
 		req.get("online").get("node4").clear().add(3).add(1).add(0);
-		
+
 		rsp = tr.processGossipRequest(req);
 		assertEquals(1, rsp.get("online").size());
 		assertEquals(3, rsp.get("online.node1").size());
@@ -250,17 +244,17 @@ public class TcpTransporterTest extends TestCase {
 		assertEquals(1, rsp.get("online").size());
 		assertNull(rsp.get("offline"));
 		assertEquals(3, rsp.get("online.node1").size());
-		
+
 		// Add "node4" to request (higher CPU seq)
 		req.get("online").get("node4").clear().add(3).add(2).add(1);
-		
+
 		rsp = tr.processGossipRequest(req);
 		assertEquals(1, rsp.get("online").size());
 		assertEquals(1, tr.getCpuUsage("node4"));
 
 		// Add "node4" to request (lower CPU seq)
 		req.get("online").get("node4").clear().add(3).add(1).add(2);
-		
+
 		rsp = tr.processGossipRequest(req);
 
 		assertEquals(2, rsp.get("online").size());
@@ -269,7 +263,7 @@ public class TcpTransporterTest extends TestCase {
 		assertEquals(2, rsp.get("online.node4[0]", 0));
 		assertEquals(1, rsp.get("online.node4[1]", 0));
 		assertEquals(1, tr.getCpuUsage("node4"));
-		
+
 		// Add "node4" to request (same CPU seq)
 		req.get("online").get("node4").clear().add(3).add(2).add(2);
 
@@ -281,8 +275,8 @@ public class TcpTransporterTest extends TestCase {
 
 		// Add "node4" to request (higher CPU seq)
 		req.get("online").get("node4").clear().add(3).add(3).add(5);
-		
-		rsp = tr.processGossipRequest(req);		
+
+		rsp = tr.processGossipRequest(req);
 		assertEquals(1, rsp.get("online").size());
 		assertNull(rsp.get("offline"));
 		assertNull(rsp.get("online.node4"));
@@ -291,7 +285,7 @@ public class TcpTransporterTest extends TestCase {
 		// Add "node4" to request (lower CPU seq)
 		req.get("online").get("node4").clear().add(3).add(1).add(2);
 
-		rsp = tr.processGossipRequest(req);		
+		rsp = tr.processGossipRequest(req);
 		assertEquals(2, rsp.get("online").size());
 		assertNull(rsp.get("offline"));
 		assertEquals(2, rsp.get("online.node4").size());
@@ -300,23 +294,23 @@ public class TcpTransporterTest extends TestCase {
 		assertEquals(5, tr.getCpuUsage("node4"));
 		assertEquals(1, tr.getDescriptor().seq);
 	}
-	
+
 	// --- GOSSIP RESPONSE PROCESSING ---
-	
+
 	@Test
 	public void testProcessGossipResponse() throws Exception {
-		
+
 		// Target is offline
 		Tree rsp = createGossipOfflineMessage("node1", 1);
 		tr.processGossipResponse(rsp);
-		
+
 		assertEquals(0, tr.getDescriptor().offlineSince);
 		assertEquals(0, tr.nodes.size());
 		assertEquals(2, tr.getDescriptor().seq);
-		
+
 		// Unknown node is offline
 		rsp = createGossipOfflineMessage("node2", 1);
-		
+
 		tr.processGossipResponse(rsp);
 		assertEquals(0, tr.nodes.size());
 
@@ -328,36 +322,36 @@ public class TcpTransporterTest extends TestCase {
 		info.put("port", 11);
 		rsp = createGossipOnlineResponse("node4", info, 1, 1);
 		tr.processGossipResponse(rsp);
-		
-		assertEquals(1, rsp.get("online").size());	
+
+		assertEquals(1, rsp.get("online").size());
 		assertEquals("y", tr.nodes.get("node4").info.get("x", "?"));
-		
+
 		// Seq not changed
 		info = info.clone().put("x", "z");
 		rsp = createGossipOnlineResponse("node4", info, 2, 3);
 		tr.processGossipResponse(rsp);
-		assertEquals(1, rsp.get("online").size());	
+		assertEquals(1, rsp.get("online").size());
 		assertEquals("y", tr.nodes.get("node4").info.get("x", "?"));
 		assertEquals(3, tr.getCpuUsage("node4"));
-		
+
 		// Seq changed
 		info.put("seq", "4");
 		rsp = createGossipOnlineResponse("node4", info, 1, 1);
 		tr.processGossipResponse(rsp);
 		assertEquals("z", tr.nodes.get("node4").info.get("x", "?"));
 		assertEquals(3, tr.getCpuUsage("node4"));
-		
+
 		// Target is offline
-		rsp = createGossipOfflineMessage("node1", 1);		
+		rsp = createGossipOfflineMessage("node1", 1);
 		tr.processGossipResponse(rsp);
 		assertEquals(2, tr.getDescriptor().seq);
-		
-		rsp = createGossipOfflineMessage("node1", 2);		
+
+		rsp = createGossipOfflineMessage("node1", 2);
 		tr.processGossipResponse(rsp);
 		assertEquals(3, tr.getDescriptor().seq);
 	}
-	
-	// --- UTILITIES --
+
+	// --- UTILITIES -- ---
 
 	protected Tree createGossipOfflineMessage(String nodeID, int seq) {
 		Tree rsp = new Tree();
@@ -367,7 +361,7 @@ public class TcpTransporterTest extends TestCase {
 		offline.put(nodeID, seq);
 		return rsp;
 	}
-	
+
 	protected Tree createGossipOnlineResponse(String nodeID, Tree info, int cpuSeq, int cpu) {
 		Tree rsp = new Tree();
 		rsp.put("sender", nodeID);
@@ -378,7 +372,7 @@ public class TcpTransporterTest extends TestCase {
 		list.add(cpuSeq).add(cpu);
 		return rsp;
 	}
-	
+
 	protected Tree createGossipRequest(String nodeID, int seq, int cpuSeq, int cpu) {
 		Tree req = new Tree();
 		req.put("sender", nodeID);
@@ -389,7 +383,7 @@ public class TcpTransporterTest extends TestCase {
 		}
 		return req;
 	}
-	
+
 	protected void assertException(Runnable runnable) {
 		try {
 			runnable.run();
@@ -424,7 +418,7 @@ public class TcpTransporterTest extends TestCase {
 		nd.offlineSince = 1;
 		return nd;
 	}
-	
+
 	protected NodeDescriptor createOnlineDescriptorWithoutInfo(boolean local, String nodeID) {
 		Tree info = new Tree();
 		info.put("seq", 1);
@@ -441,5 +435,5 @@ public class TcpTransporterTest extends TestCase {
 		info.putList("services").putMap("test");
 		return new NodeDescriptor(nodeID, true, local, info);
 	}
-	
+
 }

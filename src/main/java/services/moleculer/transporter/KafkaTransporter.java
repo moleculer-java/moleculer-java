@@ -1,3 +1,28 @@
+/**
+ * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
+ * <br>
+ * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:<br>
+ * <br>
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.<br>
+ * <br>
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package services.moleculer.transporter;
 
 import java.util.HashSet;
@@ -38,7 +63,7 @@ import services.moleculer.service.Name;
  * // https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients<br>
  * compile group: 'org.apache.kafka', name: 'kafka-clients', version: '1.0.0'
  * <br>
- * 
+ *
  * @see RedisTransporter
  * @see NatsTransporter
  * @see MqttTransporter
@@ -53,7 +78,7 @@ public class KafkaTransporter extends Transporter {
 
 	protected Properties producerProperties = new Properties();
 	protected Properties consumerProperties = new Properties();
-	
+
 	protected String[] urls = { "localhost:9092" };
 
 	// --- KAFKA PRODUCER / MESSAGE SENDER ---
@@ -63,7 +88,7 @@ public class KafkaTransporter extends Transporter {
 	// --- KAFKA CONSUMER / MESSAGE RECEIVER ---
 
 	protected KafkaPoller poller;
-	
+
 	// --- CONSTUCTORS ---
 
 	public KafkaTransporter() {
@@ -72,7 +97,7 @@ public class KafkaTransporter extends Transporter {
 	public KafkaTransporter(String... urls) {
 		this.urls = urls;
 	}
-	
+
 	// --- CONNECT ---
 
 	/**
@@ -109,7 +134,7 @@ public class KafkaTransporter extends Transporter {
 
 			// Set unique "node ID" as Kafka "group ID"
 			consumerProperties.setProperty("group.id", nodeID);
-			
+
 			// Create producer
 			ByteArraySerializer byteArraySerializer = new ByteArraySerializer();
 			producer = new KafkaProducer<>(producerProperties, byteArraySerializer, byteArraySerializer);
@@ -153,15 +178,15 @@ public class KafkaTransporter extends Transporter {
 	}
 
 	// --- INPROCESS READER ---
-	
+
 	protected static class KafkaPoller implements Runnable {
 
 		// --- STATUS CODES ---
-		
+
 		protected static final int UNSUBSCRIBED = 0;
 		protected static final int SUBSCRIBED = 1;
 		protected static final int STOPPING = 2;
-		
+
 		// --- KAFKA CONSUMER / MESSAGE RECEIVER ---
 
 		protected KafkaConsumer<byte[], byte[]> consumer;
@@ -171,14 +196,14 @@ public class KafkaTransporter extends Transporter {
 		protected final KafkaTransporter transporter;
 
 		// --- STATUS ---
-		
+
 		protected final AtomicInteger status = new AtomicInteger(UNSUBSCRIBED);
-		
+
 		// --- CONSTRUCTOR ---
 
 		protected KafkaPoller(KafkaTransporter transporter) {
 			this.transporter = transporter;
-			
+
 			// Create consumer
 			ByteArrayDeserializer deserializer = new ByteArrayDeserializer();
 			consumer = new KafkaConsumer<>(transporter.consumerProperties, deserializer, deserializer);
@@ -187,14 +212,14 @@ public class KafkaTransporter extends Transporter {
 		// --- SET OF SUBSCRIPTIONS ---
 
 		protected HashSet<String> subscriptions = new HashSet<>();
-		
-		// --- READER LOOP --
+
+		// --- READER LOOP -- ---
 
 		protected static boolean firstError = true;
-		
+
 		public void run() {
 			try {
-				
+
 				// Loop
 				int current;
 				while ((current = status.get()) != STOPPING) {
@@ -215,23 +240,23 @@ public class KafkaTransporter extends Transporter {
 					}
 				}
 			} catch (WakeupException wakeUp) {
-				
+
 				// Stopping...
-				
+
 			} catch (Exception cause) {
 				if (firstError) {
 					firstError = false;
 					transporter.logger.error("Unable to connect to Kafka server!", cause);
 				}
 				if (cause != null && !(cause instanceof InterruptedException)) {
-					
+
 					// Reconnect
 					transporter.error(cause);
 				}
 			} finally {
 				if (consumer != null) {
 					try {
-						consumer.close();						
+						consumer.close();
 					} catch (Exception cause) {
 						transporter.logger.warn("Unable to close Kafka consumer!", cause);
 					}
@@ -241,17 +266,17 @@ public class KafkaTransporter extends Transporter {
 		}
 
 		// --- SUBSCRIBE ---
-		
+
 		protected void subscribe(String channel) {
 			subscriptions.add(channel);
 			consumer.subscribe(subscriptions);
 			status.set(SUBSCRIBED);
 		}
-		
+
 		// --- STOP ---
-		
+
 		protected void stop() {
-			status.set(STOPPING);			
+			status.set(STOPPING);
 			consumer.wakeup();
 		}
 
@@ -279,10 +304,10 @@ public class KafkaTransporter extends Transporter {
 	 */
 	@Override
 	public void stopped() {
-		
+
 		// Stop timers
 		super.stopped();
-		
+
 		// Disconnect
 		disconnect();
 	}

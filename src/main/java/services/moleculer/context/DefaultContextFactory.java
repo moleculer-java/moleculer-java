@@ -1,15 +1,9 @@
 /**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -54,7 +48,7 @@ public class DefaultContextFactory extends ContextFactory {
 
 	/**
 	 * Initializes Default Context Factory instance.
-	 * 
+	 *
 	 * @param broker
 	 *            parent ServiceBroker
 	 * @param config
@@ -65,7 +59,7 @@ public class DefaultContextFactory extends ContextFactory {
 		super.started(broker);
 		registry = broker.getConfig().getServiceRegistry();
 		eventbus = broker.getConfig().getEventbus();
-		uid = broker.getConfig().getUidGenerator();	
+		uid = broker.getConfig().getUidGenerator();
 	}
 
 	// --- CREATE CONTEXT ---
@@ -88,5 +82,5 @@ public class DefaultContextFactory extends ContextFactory {
 		// Create context
 		return new Context(registry, eventbus, id, name, params, opts);
 	}
-	
+
 }

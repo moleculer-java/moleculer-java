@@ -1,15 +1,9 @@
 /**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -73,7 +67,7 @@ import java.util.zip.ZipOutputStream;
 public class AsyncFileLogger extends Handler implements Runnable {
 
 	// --- CONSTANTS ---
-	
+
 	protected static final char[] SEVERE  = "SEVERE  ".toCharArray();
 	protected static final char[] WARNING = "WARNING ".toCharArray();
 	protected static final char[] INFO    = "INFO    ".toCharArray();
@@ -81,11 +75,11 @@ public class AsyncFileLogger extends Handler implements Runnable {
 	protected static final char[] FINE    = "FINE    ".toCharArray();
 	protected static final char[] FINER   = "FINER   ".toCharArray();
 	protected static final char[] FINEST  = "FINEST  ".toCharArray();
-	
+
 	// --- FILE NAME FORMATTER ---
 
 	protected DateFormat FILE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
-	
+
 	// --- PROPERTIES ---
 
 	protected String prefix;

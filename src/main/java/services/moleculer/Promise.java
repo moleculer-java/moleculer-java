@@ -1,15 +1,9 @@
 /**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -45,42 +39,42 @@ import services.moleculer.util.CheckedTree;
  * resolved value, or a reason that it's not resolved (e.g., a network error
  * occurred). Promise users can attach callbacks to handle the fulfilled value
  * or the reason for rejection. Sample waterfall processing:<br>
- * 
+ *
  * <pre>
  * Promise.resolve().then(in -> {
- * 
+ *
  *   Tree out = new Tree();
  *   out.put("a", 1);
  *   out.put("b", 2);
  *   return out;
- * 
+ *
  * }).then(in -> {
- * 
+ *
  *   int a = in.get("a", -1);
  *   int b = in.get("b", -1);
  *   return a + b;
- * 
+ *
  * }).then(in -> {
- * 
+ *
  *   int sub = in.asInteger();
- * 
+ *
  *   // You can return an another Promise:
  *   return Promise.resolve("OK!");
- * 
+ *
  * }).then(in -> {
- * 
+ *
  *   if (!"OK".equals(in.asString())) {
  *     throw new Exception("Invalid value!");
  *   }
- *   
+ *
  *   // The "catch" is a protected name in Java,
  *   // use "catchError" instead:
- *  
+ *
  * }).catchError(err -> {
- * 
+ *
  *   System.out.println("Error: " + err);
  *   return "foo";
- * 
+ *
  * });
  * </pre>
  */
@@ -98,7 +92,7 @@ public class Promise {
 
 	/**
 	 * Returns a Promise object that is resolved with {@code null} value.
-	 * 
+	 *
 	 * @return new RESOLVED/COMPLETED Promise
 	 */
 	public static final Promise resolve() {
@@ -110,10 +104,10 @@ public class Promise {
 	 * Object types of the "value" parameter are: Tree, String, int, double,
 	 * byte, float, short, long, boolean, byte[], UUID, Date, InetAddress,
 	 * BigInteger, BigDecimal, and Java Collections with these types.
-	 * 
+	 *
 	 * @param value
 	 *            value of the new Promise
-	 * 
+	 *
 	 * @return new RESOLVED/COMPLETED Promise
 	 */
 	public static final Promise resolve(Object value) {
@@ -122,10 +116,10 @@ public class Promise {
 
 	/**
 	 * Returns a Promise object that is rejected with the given reason.
-	 * 
+	 *
 	 * @param error
 	 *            error state of the new Promise
-	 * 
+	 *
 	 * @return new REJECTED/COMPLETED EXCEPTIONALLY Promise
 	 */
 	public static final Promise reject(Throwable error) {
@@ -136,10 +130,10 @@ public class Promise {
 
 	/**
 	 * Returns a Promise object that is rejected with an empty Exception.
-	 * 
+	 *
 	 * @param error
 	 *            error state of the new Promise
-	 * 
+	 *
 	 * @return new REJECTED/COMPLETED EXCEPTIONALLY Promise
 	 */
 	public static final Promise reject() {
@@ -175,7 +169,7 @@ public class Promise {
 
 	/**
 	 * Creates a Promise.
-	 * 
+	 *
 	 * @param value
 	 *            Promise, CompletableFuture, Tree, String, int, double, byte,
 	 *            float, short, long, boolean, byte[], UUID, Date, InetAddress,
@@ -208,13 +202,13 @@ public class Promise {
 	 * <i>// ...error handling...</i><br>
 	 * return value;<br>
 	 * });
-	 * 
+	 *
 	 * @param action
 	 *            next action in the invocation chain (allowed return types:
 	 *            Promise, CompletableFuture, Tree, String, int, double, byte,
 	 *            float, short, long, boolean, byte[], UUID, Date, InetAddress,
 	 *            BigInteger, BigDecimal, and Java Collections with these types)
-	 * 
+	 *
 	 * @return output Promise
 	 */
 	public Promise then(CheckedFunction<Tree> action) {
@@ -238,10 +232,10 @@ public class Promise {
 	 * return Promise.resolve().<b>then((value) -> {</b><br>
 	 * <i>// ...do something without any return value...</i><br>
 	 * <b>});</b>
-	 * 
+	 *
 	 * @param action
 	 *            next action in the invocation chain
-	 * 
+	 *
 	 * @return output Promise
 	 */
 	public Promise then(CheckedConsumer<Tree> action) {
@@ -271,10 +265,10 @@ public class Promise {
 	 * <i>// Catch error</i><br>
 	 * return 456;<br>
 	 * });
-	 * 
+	 *
 	 * @param action
 	 *            error handler of the previous "next" handlers
-	 * 
+	 *
 	 * @return output Promise (allowed return types: Tree, String, int, double,
 	 *         byte, float, short, long, boolean, byte[], UUID, Date,
 	 *         InetAddress, BigInteger, BigDecimal, and Java Collections with
@@ -303,10 +297,10 @@ public class Promise {
 	 * <b>}).catchError(error -> {</b><br>
 	 * <i>// ...do something without any return value...</i><br>
 	 * });
-	 * 
+	 *
 	 * @param action
 	 *            error handler of the previous "next" handlers
-	 * 
+	 *
 	 * @return output Promise
 	 */
 	public Promise catchError(CheckedConsumer<Throwable> action) {
@@ -336,7 +330,7 @@ public class Promise {
 	 * });<br>
 	 * // Invoke chain:<br>
 	 * p.complete();
-	 * 
+	 *
 	 * @return {@code true} if this invocation caused this Promise to transition
 	 *         to a completed state, else {@code false}
 	 */
@@ -357,13 +351,13 @@ public class Promise {
 	 * // Invoke chain:<br>
 	 * Tree t = new Tree().put("a", "b");<br>
 	 * p.complete(t);
-	 * 
+	 *
 	 * @param value
 	 *            the result value (allowed types: Tree, String, int, double,
 	 *            byte, float, short, long, boolean, byte[], UUID, Date,
 	 *            InetAddress, BigInteger, BigDecimal, and Java Collections with
 	 *            these types)
-	 * 
+	 *
 	 * @return {@code true} if this invocation caused this Promise to transition
 	 *         to a completed state, else {@code false}
 	 */
@@ -386,7 +380,7 @@ public class Promise {
 	 *
 	 * @param error
 	 *            the exception
-	 * 
+	 *
 	 * @return {@code true} if this invocation caused this Promise to transition
 	 *         to a completed state, else {@code false}
 	 */
@@ -428,7 +422,7 @@ public class Promise {
 
 	/**
 	 * Returns the internal CompletableFuture.
-	 * 
+	 *
 	 * @return internal CompletableFuture
 	 */
 	public CompletableFuture<Tree> toCompletableFuture() {
@@ -451,10 +445,10 @@ public class Promise {
 	 * complete. If any of the given Promise complete exceptionally, then the
 	 * returned Promise also does so, with a Promise holding this exception as
 	 * its cause.
-	 * 
+	 *
 	 * @param promises
 	 *            array of Promises
-	 * 
+	 *
 	 * @return a new Promise that is completed when all of the given Promises
 	 *         complete
 	 */
@@ -504,10 +498,10 @@ public class Promise {
 	 * complete, with the same result. Otherwise, if it completed exceptionally,
 	 * the returned Promise also does so, with a CompletionException holding
 	 * this exception as its cause.
-	 * 
+	 *
 	 * @param promises
 	 *            array of Promises
-	 * 
+	 *
 	 * @return a new Promise that is completed with the result or exception of
 	 *         any of the given Promises when one completes
 	 */
@@ -613,7 +607,7 @@ public class Promise {
 		 * double, byte, float, short, long, boolean, byte[], UUID, Date,
 		 * InetAddress, BigInteger, BigDecimal, and Java Collections with these
 		 * types.
-		 * 
+		 *
 		 * @param value
 		 *            value of the current Promise
 		 */

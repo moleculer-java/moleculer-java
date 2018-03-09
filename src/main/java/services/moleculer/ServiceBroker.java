@@ -1,3 +1,28 @@
+/**
+ * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
+ * <br>
+ * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:<br>
+ * <br>
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.<br>
+ * <br>
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package services.moleculer;
 
 import static services.moleculer.util.CommonUtils.nameOf;
@@ -35,23 +60,23 @@ import services.moleculer.util.ParseResult;
  * The ServiceBroker is the main component of Moleculer. It handles services &
  * events, calls actions and communicates with remote nodes. You need to create
  * an instance of ServiceBroker for every node. Sample of usage:<br>
- * 
+ *
  * <pre>
  * ServiceBroker broker = new ServiceBroker("node-1");
- * 
+ *
  * broker.createService(new Service("math") {
  * 	public Action add = ctx -> {
  * 		return ctx.params.get("a", 0) + ctx.params.get("b", 0);
  * 	};
  * });
- * 
+ *
  * broker.start();
- * 
+ *
  * broker.call("math.add", "a", 5, "b", 3).then(rsp -> {
  * 	broker.getLogger().info("Response: " + rsp.asInteger());
  * });
  * </pre>
- * 
+ *
  * This project is based on the idea of Moleculer Microservices Framework for
  * NodeJS (https://moleculer.services). Special thanks to the Moleculer's
  * project owner (https://github.com/icebob) for the consultations.
@@ -112,7 +137,7 @@ public class ServiceBroker {
 	 * Creates a new {@link ServiceBrokerBuilder} instance. Sample of usage:<br>
 	 * <br>
 	 * ServiceBroker broker = ServiceBroker.builder().cacher(cacher).build();
-	 * 
+	 *
 	 * @return builder instance
 	 */
 	public static ServiceBrokerBuilder builder() {
@@ -286,7 +311,7 @@ public class ServiceBroker {
 
 	/**
 	 * Returns a local service by name
-	 * 
+	 *
 	 * @param serviceName
 	 * @return
 	 */
@@ -316,7 +341,7 @@ public class ServiceBroker {
 
 	/**
 	 * Returns an action by name
-	 * 
+	 *
 	 * @param actionName
 	 * @return
 	 */
@@ -326,7 +351,7 @@ public class ServiceBroker {
 
 	/**
 	 * Returns an action by name
-	 * 
+	 *
 	 * @param actionName
 	 * @param nodeID
 	 * @return

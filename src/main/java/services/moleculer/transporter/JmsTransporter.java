@@ -1,15 +1,9 @@
 /**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -65,7 +59,7 @@ import services.moleculer.service.Name;
  * compile group: 'javax.jms', name: 'javax.jms-api', version: '2.0.1'<br>
  * <br>
  * + dependencies of the JMS driver.
- * 
+ *
  * @see RedisTransporter
  * @see NatsTransporter
  * @see MqttTransporter
@@ -244,10 +238,10 @@ public class JmsTransporter extends Transporter {
 	 */
 	@Override
 	public void stopped() {
-		
+
 		// Stop timers
 		super.stopped();
-		
+
 		// Disconnect
 		disconnect();
 	}

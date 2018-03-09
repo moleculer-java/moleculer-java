@@ -1,15 +1,9 @@
 /**
- * MOLECULER MICROSERVICES FRAMEWORK<br>
- * <br>
- * This project is based on the idea of Moleculer Microservices
- * Framework for NodeJS (https://moleculer.services). Special thanks to
- * the Moleculer's project owner (https://github.com/icebob) for the
- * consultations.<br>
- * <br>
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
- * <br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -42,7 +36,7 @@ import services.moleculer.service.Name;
 
 /**
  * Base superclass of all Cacher implementations.
- * 
+ *
  * @see MemoryCacher
  * @see OHCacher
  * @see RedisCacher
@@ -108,7 +102,7 @@ public abstract class Cacher extends Middleware {
 	/**
 	 * Creates a cacher-specific key by name and params. Concatenates the name
 	 * and params.
-	 * 
+	 *
 	 * @param name
 	 * @param params
 	 * @param keys
@@ -164,14 +158,14 @@ public abstract class Cacher extends Middleware {
 
 	/**
 	 * Gets a cached content by a key.
-	 * 
+	 *
 	 * @param key
 	 */
 	public abstract Promise get(String key);
 
 	/**
 	 * Sets a content by key into the cache.
-	 * 
+	 *
 	 * @param key
 	 * @param value
 	 * @param ttl
@@ -181,7 +175,7 @@ public abstract class Cacher extends Middleware {
 
 	/**
 	 * Deletes a content from this cache.
-	 * 
+	 *
 	 * @param key
 	 */
 	public abstract Promise del(String key);
@@ -189,7 +183,7 @@ public abstract class Cacher extends Middleware {
 	/**
 	 * Cleans this cache. Removes every key by a match string. The default match
 	 * string is "**".
-	 * 
+	 *
 	 * @param match
 	 */
 	public abstract Promise clean(String match);
