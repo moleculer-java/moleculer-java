@@ -32,12 +32,12 @@ import services.moleculer.service.Name;
 /**
  * Sigar API-based System Monitor. You need to copy Sigar natives (DLLs, etc.)
  * into the directory which is defined by the "java.library.path" System
- * Property. This monitor is more accurate than the {@link JMXMonitor}.<br>
+ * Property. This monitor is more accurate than the {@link JmxMonitor}.<br>
  * <br>
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/org.fusesource/sigar<br>
- * compile (group: 'org.fusesource', name: 'sigar', version: '1.6.4')<br>
+ * compile group: 'org.fusesource', name: 'sigar', version: '1.6.4'<br>
  * <br>
  * + Sigar DLLs (eg. "sigar-amd64-winnt.dll" and "sigar-x86-winnt.dll")
  */

@@ -35,6 +35,10 @@ import org.springframework.context.support.AbstractXmlApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
+/**
+ * Runs Service Broker as a standalone Java application (or Windows service).
+ * The configuration is loaded with Spring Framework.
+ */
 public final class MoleculerRunner {
 
 	// --- UDP PORT TO STOP MOLECULER SERVICE ---

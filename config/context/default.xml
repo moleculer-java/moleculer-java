@@ -7,6 +7,9 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
-
+	<!-- DEFAULT CONTEXT FACTORY -->
+	<!-- REQUIRED DEPENDENCY: nothing -->
+	
+	<bean id="context" class="services.moleculer.context.DefaultContextFactory" />
 
 </beans>

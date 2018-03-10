@@ -37,7 +37,7 @@ import services.moleculer.service.Name;
  * @see SigarMonitor
  */
 @Name("JMX System Monitor")
-public class JMXMonitor extends Monitor {
+public class JmxMonitor extends Monitor {
 
 	// --- PROPERTIES ---
 
@@ -45,7 +45,7 @@ public class JMXMonitor extends Monitor {
 
 	// --- CONSTRUCTOR ---
 
-	public JMXMonitor() {
+	public JmxMonitor() {
 		if (!invalidMonitor.get()) {
 			try {
 				mxBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);

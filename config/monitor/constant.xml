@@ -7,6 +7,14 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
-
+	<!-- FAKE CPU MONITOR -->
+	<!-- REQUIRED DEPENDENCY: nothing -->
+	
+	<bean id="monitor" class="services.moleculer.monitor.ConstantMonitor">
+	
+		<!-- Value of the CPU usage, between 0 and 100 -->	
+		<property name="totalCpuPercent" value="0" />
+		
+	</bean>
 
 </beans>

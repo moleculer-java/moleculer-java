@@ -7,6 +7,14 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
-
+	<!-- CONSOLE COMMAND-BASED CPU MONITOR -->
+	<!-- REQUIRED DEPENDENCY: nothing -->
+	
+	<bean id="monitor" class="services.moleculer.monitor.CommandMonitor">
+	
+		<!-- Command to query the actual CPU usage (empty = auto) -->	
+		<property name="command" value="" />
+		
+	</bean>
 
 </beans>

@@ -7,6 +7,30 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
-
+	<!-- OFF-HEAP HIGH-CAPACITY CACHE -->
+	<!-- REQUIRED DEPENDENCY: group: 'org.caffinitas.ohc', name: 'ohc-core-j8', version: '0.6.1' -->
+	<!-- URL: https://mvnrepository.com/artifact/org.caffinitas.ohc/ohc-core-j8 -->
+	
+	<bean id="cacher" class="services.moleculer.cacher.OHCacher">
+	
+		<!-- Maximum capacity of whole cache in MEGABYTES -->	
+		<property name="capacity"         value="2048" />
+		
+		<!-- Number of segments (must be a power of 2, 0 = auto) -->
+		<property name="segmentCount"     value="0" />
+		
+		<!-- Hash table size (must be a power of 2) -->
+		<property name="hashTableSize"    value="8192" />
+		
+		<!-- Default expire time, in SECONDS (0 = never) -->
+		<property name="ttl"              value="0" />
+		
+		<!-- Compress key and/or value above this size (BYTES) -->
+		<property name="compressAbove"    value="1024" />
+		
+		<!-- Compression level (best speed = 1, best compression = 9) -->
+		<property name="compressionLevel" value="1" />
+		
+	</bean>
 
 </beans>

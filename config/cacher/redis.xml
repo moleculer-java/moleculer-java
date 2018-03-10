@@ -7,6 +7,24 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
+	<!-- NODEJS-COMPATIBLE DISTRIBUTED REDIS CACHE -->
+	<!-- REQUIRED DEPENDENCY: group: 'biz.paluch.redis', name: 'lettuce', version: '4.4.1.Final' -->
+	<!-- URL: https://mvnrepository.com/artifact/biz.paluch.redis/lettuce -->
 
+	<bean id="cacher" class="services.moleculer.cacher.RedisCacher">
+	
+		<!-- URLs of the Redis servers (comma-separated list) -->	
+		<property name="urls"      value="redis://localhost:6379" />
+		
+		<!-- Default expiration time, in SECONDS (0 = never) -->
+		<property name="ttl"       value="0" />
+		
+		<!-- Use secure connection? -->
+		<property name="secure"    value="false" />
+
+		<!-- Optional password -->
+		<property name="password"  value="" />
+		
+	</bean>
 
 </beans>

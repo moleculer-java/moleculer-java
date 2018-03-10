@@ -91,7 +91,6 @@ import services.moleculer.util.CheckedTree;
  * compile group: 'org.caffinitas.ohc', name: 'ohc-core-j8', version: '0.6.1'
  * <br>
  * <br>
- *
  * @see MemoryCacher
  * @see RedisCacher
  */
@@ -132,7 +131,7 @@ public class OHCacher extends Cacher {
 	protected int compressAbove = 1024;
 
 	/**
-	 * Compression level (best speed = 1, best compression = 9).
+	 * Compression level (best speed = 1, best compression = 9)
 	 */
 	protected int compressionLevel = Deflater.BEST_SPEED;
 

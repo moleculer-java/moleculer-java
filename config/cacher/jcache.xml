@@ -7,6 +7,14 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
-
+	<!-- JCACHE-BASED CACHE -->
+	<!-- REQUIRED DEPENDENCY: group: 'javax.cache', name: 'cache-api', version: '1.0.0' -->
+	<!-- URL: https://mvnrepository.com/artifact/javax.cache/cache-api -->
+	
+	<bean id="cacher" class="services.moleculer.cacher.JCacheCacher">
+	
+		<!-- The constructor may include URI or CacheManager instance -->
+		
+	</bean>
 
 </beans>

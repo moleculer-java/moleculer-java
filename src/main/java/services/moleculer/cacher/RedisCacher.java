@@ -54,6 +54,11 @@ import services.moleculer.util.redis.RedisGetSetClient;
  * Redis-based <b>distributed</b> cache. Supports SSL, clustering and password
  * authentication. It's the one of the fastest distributed cache. Supports
  * global and entry-level TTL configuration. <br>
+ * <br>
+ * <b>Required dependency:</b><br>
+ * <br>
+ * // https://mvnrepository.com/artifact/biz.paluch.redis/lettuce<br>
+ * compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.4.1.Final'
  *
  * @see MemoryCacher
  * @see OHCacher

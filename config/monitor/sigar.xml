@@ -7,6 +7,10 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
-
-
+	<!-- CPU MONITOR BASED ON SIGAR API (RECOMMENDED) -->
+	<!-- REQUIRED DEPENDENCY: group: 'org.fusesource', name: 'sigar', version: '1.6.4' -->
+	<!-- URL: https://mvnrepository.com/artifact/org.fusesource/sigar -->
+	
+	<bean id="monitor" class="services.moleculer.monitor.SigarMonitor" />
+	
 </beans>

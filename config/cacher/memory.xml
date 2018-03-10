@@ -7,6 +7,20 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
+	<!-- ON-HEAP HIGH-PERFORMANCE CACHE -->
+	<!-- REQUIRED DEPENDENCY: nothing -->
 
+	<bean id="cacher" class="services.moleculer.cacher.MemoryCacher">
+	
+		<!-- Maximum number of entries per partition -->	
+		<property name="capacity" value="2048" />
+		
+		<!-- Default expiration time, in SECONDS (0 = never) -->
+		<property name="ttl"      value="0" />
+		
+		<!-- Cleanup period time, in SECONDS -->
+		<property name="cleanup"  value="5" />
+		
+	</bean>
 
 </beans>

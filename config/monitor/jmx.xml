@@ -7,6 +7,9 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
-
+	<!-- JMX-BASED CPU MONITOR -->
+	<!-- REQUIRED DEPENDENCY: nothing -->
+	
+	<bean id="monitor" class="services.moleculer.monitor.JmxMonitor" />
 
 </beans>
