@@ -26,8 +26,8 @@
 package services.moleculer.context;
 
 import io.datatree.Tree;
+import services.moleculer.service.MoleculerComponent;
 import services.moleculer.service.Name;
-import services.moleculer.service.Service;
 
 /**
  * Base superclass of all Context Factory implementations.
@@ -35,7 +35,7 @@ import services.moleculer.service.Service;
  * @see DefaultContextFactory
  */
 @Name("Context Factory")
-public abstract class ContextFactory extends Service {
+public abstract class ContextFactory extends MoleculerComponent {
 
 	// --- CREATE CONTEXT ---
 

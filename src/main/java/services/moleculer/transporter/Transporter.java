@@ -48,8 +48,8 @@ import services.moleculer.eventbus.Eventbus;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
+import services.moleculer.service.MoleculerComponent;
 import services.moleculer.service.Name;
-import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.transporter.tcp.NodeDescriptor;
 import services.moleculer.transporter.tcp.RemoteAddress;
@@ -65,7 +65,7 @@ import services.moleculer.transporter.tcp.RemoteAddress;
  * @see GoogleTransporter
  */
 @Name("Transporter")
-public abstract class Transporter extends Service {
+public abstract class Transporter extends MoleculerComponent {
 
 	// --- CHANNEL NAMES / PACKET TYPES ---
 

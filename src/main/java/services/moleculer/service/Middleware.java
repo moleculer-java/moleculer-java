@@ -27,7 +27,7 @@ package services.moleculer.service;
 
 import io.datatree.Tree;
 
-public abstract class Middleware extends Service {
+public abstract class Middleware extends MoleculerComponent {
 
 	// --- CONSTRUCTORS ---
 

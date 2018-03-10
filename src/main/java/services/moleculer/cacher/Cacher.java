@@ -46,6 +46,7 @@ public abstract class Cacher extends Middleware {
 
 	// --- ADD MIDDLEWARE TO ACTION ---
 
+	@Override
 	public Action install(Action action, Tree config) {
 
 		// Is caching enabled?

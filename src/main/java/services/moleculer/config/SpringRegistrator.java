@@ -32,10 +32,13 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 
 import services.moleculer.ServiceBroker;
-import services.moleculer.service.Middleware;
 import services.moleculer.service.Service;
 
-public class SpringLoader implements ApplicationContextAware {
+/**
+ * Register Spring Components as Moleculer Services in ServiceBroker.
+ * ServiceBroker must be a Spring Component also.
+ */
+public class SpringRegistrator implements ApplicationContextAware {
 
 	@Override
 	public void setApplicationContext(ApplicationContext ctx) throws BeansException {
@@ -43,23 +46,15 @@ public class SpringLoader implements ApplicationContextAware {
 		// Get Service Broker
 		ServiceBroker broker = ctx.getBean(ServiceBroker.class);
 
-		// Find Middlewares in Spring Application Context
-		Map<String, Middleware> middlewareMap = ctx.getBeansOfType(Middleware.class);
-		if (middlewareMap != null && !middlewareMap.isEmpty()) {
-			broker.use(middlewareMap.values());
-		}
-
 		// Find Services in Spring Application Context
 		Map<String, Service> serviceMap = ctx.getBeansOfType(Service.class);
 		if (serviceMap != null && !serviceMap.isEmpty()) {
 			for (Service service : serviceMap.values()) {
-				if (service instanceof Middleware) {
-					continue;
-				}
+
+				// Register Service in Broker
 				broker.createService(service);
 			}
 		}
-		
 	}
 
 }

@@ -26,8 +26,8 @@
 package services.moleculer.strategy;
 
 import services.moleculer.service.Endpoint;
+import services.moleculer.service.MoleculerComponent;
 import services.moleculer.service.Name;
-import services.moleculer.service.Service;
 
 /**
  * Base class of Invocation Strategies. An Invocation Strategy is a
@@ -49,7 +49,7 @@ import services.moleculer.service.Service;
  * @see CpuUsageStrategyFactory
  */
 @Name("Strategy Factory")
-public abstract class StrategyFactory extends Service {
+public abstract class StrategyFactory extends MoleculerComponent {
 
 	// --- FACTORY METHOD ---
 

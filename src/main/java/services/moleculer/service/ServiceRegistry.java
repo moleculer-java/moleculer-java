@@ -35,7 +35,7 @@ import io.datatree.Tree;
  * @see DefaultServiceRegistry
  */
 @Name("Service Registry")
-public abstract class ServiceRegistry extends Service {
+public abstract class ServiceRegistry extends MoleculerComponent {
 
 	// --- RECEIVE REQUEST FROM REMOTE SERVICE ---
 

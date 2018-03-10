@@ -25,8 +25,8 @@
  */
 package services.moleculer.uid;
 
+import services.moleculer.service.MoleculerComponent;
 import services.moleculer.service.Name;
-import services.moleculer.service.Service;
 
 /**
  * Base superclass of all UID Generator implementations.
@@ -35,7 +35,7 @@ import services.moleculer.service.Service;
  * @see StandardUUIDGenerator
  */
 @Name("UID Generator")
-public abstract class UIDGenerator extends Service {
+public abstract class UIDGenerator extends MoleculerComponent {
 
 	// --- GENERATE UID ---
 

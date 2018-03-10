@@ -28,6 +28,7 @@ package services.moleculer.eventbus;
 import com.lambdaworks.redis.event.DefaultEventBus;
 
 import io.datatree.Tree;
+import services.moleculer.service.MoleculerComponent;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 
@@ -37,7 +38,7 @@ import services.moleculer.service.Service;
  * @see DefaultEventBus
  */
 @Name("Event Bus")
-public abstract class Eventbus extends Service {
+public abstract class Eventbus extends MoleculerComponent {
 
 	// --- RECEIVE EVENT FROM REMOTE SERVICE ---
 

@@ -49,6 +49,7 @@ import services.moleculer.eventbus.Groups;
 import services.moleculer.internal.NodeService;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
+import services.moleculer.service.MoleculerComponent;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.StrategyFactory;
@@ -66,7 +67,8 @@ import services.moleculer.util.ParseResult;
  *
  * broker.createService(new Service("math") {
  * 	public Action add = ctx -> {
- * 		return ctx.params.get("a", 0) + ctx.params.get("b", 0);
+ * 		return ctx.params.get("a").asInteger()
+ *                     + ctx.params.get("b").asInteger();
  * 	};
  * });
  *
@@ -238,7 +240,7 @@ public class ServiceBroker {
 		}
 	}
 
-	protected <TYPE extends Service> TYPE start(TYPE component) throws Exception {
+	protected <TYPE extends MoleculerComponent> TYPE start(TYPE component) throws Exception {
 		if (component == null) {
 			return null;
 		}
@@ -263,7 +265,7 @@ public class ServiceBroker {
 		stop(uidGenerator);
 	}
 
-	protected void stop(Service component) {
+	protected void stop(MoleculerComponent component) {
 		if (component == null) {
 			return;
 		}

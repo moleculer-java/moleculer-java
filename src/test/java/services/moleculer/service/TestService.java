@@ -47,6 +47,7 @@ public class TestService extends Service {
 
 	@Override
 	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 		System.out.println("STARTED");
 	}
 
@@ -76,6 +77,7 @@ public class TestService extends Service {
 
 	@Override
 	public void stopped() {
+		super.stopped();
 		System.out.println("STOPPED");
 	}
 

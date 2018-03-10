@@ -23,57 +23,61 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.config;
+package services.moleculer.service;
 
-import java.nio.charset.StandardCharsets;
+import static services.moleculer.util.CommonUtils.nameOf;
 
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
+import java.util.Objects;
 
-import io.datatree.dom.TreeReader;
-import io.datatree.dom.TreeReaderRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * JS to JSON converter. Converts<br>
- * <pre>
- * {
- *   ttl: 10*1000
- * }
- * </pre>
- * to<br>
- * <pre>
- * {
- *   "ttl": 10000
- * }
- * </pre>
- */
-public final class JSReader implements TreeReader {
+import services.moleculer.ServiceBroker;
 
-	@Override
-	public final Object parse(byte[] source) throws Exception {
-		return parse(new String(source, StandardCharsets.UTF_8));
+public abstract class MoleculerComponent {
+
+	// --- LOGGER ---
+
+	protected final Logger logger = LoggerFactory.getLogger(getClass());
+
+	// --- PROPERTIES ---
+
+	protected final String name;
+	protected ServiceBroker broker;
+
+	// --- CONSTRUCTORS ---
+
+	public MoleculerComponent() {
+		this.name = nameOf(this, false);
 	}
 
-	@Override
-	public final Object parse(String source) throws Exception {
-		ScriptEngineManager mgr = new ScriptEngineManager();
-		ScriptEngine engine = mgr.getEngineByName("JavaScript");
-
-		// Load as JavaScript object, then convert to JSON
-		StringBuilder js = new StringBuilder(source.length() + 64);
-		js.append("module  = {};\r\n");
-		js.append("exports = null;\r\n");
-		js.append(source);
-		js.append("\r\nJSON.stringify(exports ? exports : module.exports);");
-		String json = String.valueOf(engine.eval(js.toString()));
-
-		// Parse JSON to Tree
-		return TreeReaderRegistry.getReader(null).parse(json.toString());
+	public MoleculerComponent(String name) {
+		this.name = Objects.requireNonNull(name);
 	}
 
-	@Override
-	public final String getFormat() {
-		return "js";
+	// --- INSTANCE STARTED ---
+
+	public void started(ServiceBroker broker) throws Exception {
+		this.broker = broker;
+	}
+
+	// --- INSTANCE STOPPED ---
+
+	public void stopped() {
+	}
+
+	// --- PROPERTY GETTERS ---
+
+	public ServiceBroker getBroker() {
+		return broker;
+	}
+
+	public Logger getLogger() {
+		return logger;
+	}
+
+	public String getName() {
+		return name;
 	}
 
 }
