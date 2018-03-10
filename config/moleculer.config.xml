@@ -24,16 +24,66 @@
 		<property name="cacher"              ref="cacher"/>
 		<property name="monitor"             ref="monitor"/>
 		
-		<property name="uidGenerator"        ref="uidGenerator"/>
-		<property name="strategyFactory"     ref="strategyFactory"/>
-		<property name="contextFactory"      ref="contextFactory"/>
+		<property name="uid"                 ref="uid"/>
+		<property name="strategy"            ref="strategy"/>
+		<property name="context"             ref="context"/>
 		<property name="eventbus"            ref="eventbus"/>
-		<property name="serviceRegistry"     ref="serviceRegistry"/>
+		<property name="registry"            ref="registry"/>
 		
 		<property name="jsonReader"><null/></property>
 		<property name="jsonWriter"><null/></property>
 		
 	</bean>
+
+	<!-- TRANSPORTER -->
+
+	<!-- import resource="transporter/amqp.xml" / -->
+	<!-- import resource="transporter/google.xml" / -->
+	<!-- import resource="transporter/jms.xml" / -->
+	<!-- import resource="transporter/kafka.xml" / -->
+	<!-- import resource="transporter/mqtt.xml" / -->
+	<!-- import resource="transporter/nats.xml" / -->
+	<!-- import resource="transporter/redis.xml" / -->
+	<!-- import resource="transporter/tcp.xml" / -->
+
+	<!-- CACHER -->
+
+	<import resource="cacher/memory.xml" />
+	<!-- import resource="cacher/offheap.xml" / -->
+	<!-- import resource="cacher/redis.xml" / -->
+	<!-- import resource="cacher/jcache.xml" / -->
+
+	<!-- CPU MONITOR -->
+
+	<import resource="monitor/sigar.xml" />
+	<!-- import resource="monitor/command.xml" / -->
+	<!-- import resource="monitor/jmx.xml" / -->
+	<!-- import resource="monitor/constant.xml" / -->
+	
+	<!-- UID GENERATOR -->
+	
+	<import resource="uid/sequential.xml" />
+	<!-- import resource="uid/standard.xml" / -->
+	
+	<!-- SERVICE INVOCATION STRATEGY -->
+	
+	<import resource="strategy/round-robin.xml" />
+	<!-- import resource="strategy/random-xorshift.xml" / -->
+	<!-- import resource="strategy/random-nanosec.xml" / -->
+	<!-- import resource="strategy/random-secure.xml" / -->
+	<!-- import resource="strategy/cpu.xml" / -->
+	
+	<!-- CONTEXT FACTORY -->
+	
+	<import resource="context/default.xml" />
+	
+	<!-- EVENT BUS -->
+	
+	<import resource="eventbus/default.xml" />
+
+	<!-- SERVICE REGISTRY -->
+	
+	<import resource="registry/default.xml" />
 
 	<!-- SERVICE BROKER -->
 
@@ -41,52 +91,8 @@
 		<constructor-arg ref="brokerConfig"/>
 	</bean>
 	
-	<!-- MOLECULER SERVICE REGSITRATOR -->
+	<!-- MOLECULER SERVICE REGISTRATOR -->
 		
-	<bean id="registrator" class="services.moleculer.config.SpringRegistrator" dependsOn="broker" />
-
-	<!-- TRANSPORTER -->
-
-	<!-- import resource="transporter.redis.xml" / -->
-	<!-- import resource="transporter.nats.xml" / -->
-
-	<!-- CACHER -->
-
-	<import resource="cacher.memory.xml" />
-	<!-- import resource="cacher.offheap.xml" / -->
-	<!-- import resource="cacher.redis.xml" / -->
-	<!-- import resource="cacher.jcache.xml" / -->
-
-	<!-- CPU MONITOR -->
-
-	<import resource="monitor.sigar.xml" />
-	<!-- import resource="monitor.command.xml" / -->
-	<!-- import resource="monitor.jmx.xml" / -->
-	<!-- import resource="monitor.constant.xml" / -->
-	
-	<!-- UID GENERATOR -->
-	
-	<import resource="uid.sequential.xml" />
-	<!-- import resource="uid.standard.xml" / -->
-	
-	<!-- SERVICE INVOCATION STRATEGY -->
-	
-	<import resource="strategy.roundrobin.xml" />
-	<!-- import resource="strategy.xorshift.xml" / -->
-	<!-- import resource="strategy.nanosec.xml" / -->
-	<!-- import resource="strategy.secure.xml" / -->
-	<!-- import resource="strategy.cpu.xml" / -->
-	
-	<!-- CONTEXT FACTORY -->
-	
-	<import resource="context.default.xml" />
-	
-	<!-- EVENT BUS -->
-	
-	<import resource="eventbus.default.xml" />
-
-	<!-- SERVICE REGISTRY -->
-	
-	<import resource="registry.default.xml" />
-	
+	<bean id="registrator" class="services.moleculer.config.SpringRegistrator" />
+		
 </beans>
