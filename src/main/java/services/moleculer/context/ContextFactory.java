@@ -39,6 +39,6 @@ public abstract class ContextFactory extends MoleculerComponent {
 
 	// --- CREATE CONTEXT ---
 
-	public abstract Context create(String name, Tree params, CallingOptions.Options opts, Context parent);
+	public abstract Context create(String name, Tree params, CallOptions.Options opts, Context parent);
 
 }

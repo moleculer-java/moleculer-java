@@ -41,7 +41,7 @@ import io.datatree.Tree;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.config.ServiceBrokerBuilder;
 import services.moleculer.config.ServiceBrokerConfig;
-import services.moleculer.context.CallingOptions;
+import services.moleculer.context.CallOptions;
 import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.Eventbus;
@@ -369,9 +369,9 @@ public class ServiceBroker {
 	 * <br>
 	 * Promise promise = broker.call("math.add", "a", 1, "b", 2);<br>
 	 * <br>
-	 * ...or with CallingOptions:<br>
+	 * ...or with CallOptions:<br>
 	 * <br>
-	 * broker.call("math.add", "a", 1, "b", 2, CallingOptions.nodeID("node2"));
+	 * broker.call("math.add", "a", 1, "b", 2, CallOptions.nodeID("node2"));
 	 */
 	public Promise call(String name, Object... params) {
 		ParseResult res = parseParams(params);
@@ -382,7 +382,7 @@ public class ServiceBroker {
 		return call(name, params, null);
 	}
 
-	public Promise call(String name, Tree params, CallingOptions.Options opts) {
+	public Promise call(String name, Tree params, CallOptions.Options opts) {
 		return new Promise(result -> {
 			try {
 				String targetID = opts == null ? null : opts.nodeID;

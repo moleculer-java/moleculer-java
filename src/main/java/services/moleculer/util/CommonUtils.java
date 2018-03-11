@@ -51,7 +51,7 @@ import java.util.zip.Inflater;
 import io.datatree.Tree;
 import io.datatree.dom.TreeReaderRegistry;
 import services.moleculer.ServiceBroker;
-import services.moleculer.context.CallingOptions;
+import services.moleculer.context.CallOptions;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.service.Name;
 import services.moleculer.service.Version;
@@ -298,7 +298,7 @@ public final class CommonUtils {
 
 	public static final ParseResult parseParams(Object[] params) {
 		Tree data = null;
-		CallingOptions.Options opts = null;
+		CallOptions.Options opts = null;
 		Groups groups = null;
 		if (params != null) {
 			if (params.length == 1) {
@@ -315,8 +315,8 @@ public final class CommonUtils {
 					value = params[i];
 					if (prev == null) {
 						if (!(value instanceof String)) {
-							if (value instanceof CallingOptions.Options) {
-								opts = (CallingOptions.Options) value;
+							if (value instanceof CallOptions.Options) {
+								opts = (CallOptions.Options) value;
 								continue;
 							}
 							if (value instanceof Groups) {
@@ -325,7 +325,7 @@ public final class CommonUtils {
 							}
 							i++;
 							throw new IllegalArgumentException("Parameter #" + i + " (\"" + value
-									+ "\") must be String, Context, Groups, or CallingOptions!");
+									+ "\") must be String, Context, Groups, or CallOptions!");
 						}
 						prev = (String) value;
 						continue;

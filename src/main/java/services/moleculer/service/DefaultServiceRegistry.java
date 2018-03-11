@@ -62,7 +62,7 @@ import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
-import services.moleculer.context.CallingOptions;
+import services.moleculer.context.CallOptions;
 import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.Eventbus;
@@ -382,7 +382,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			return;
 		}
 
-		// Create CallingOptions
+		// Create CallOptions
 		int timeout = message.get("timeout", 0);
 		Tree params = message.get("params");
 
@@ -393,7 +393,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		// String parentID = message.get("parentID", (String) null);
 		// String requestID = message.get("requestID", (String) null);
 
-		CallingOptions.Options opts = CallingOptions.nodeID(nodeID).timeout(timeout);
+		CallOptions.Options opts = CallOptions.nodeID(nodeID).timeout(timeout);
 		Context ctx = contextFactory.create(action, params, opts, null);
 
 		// Invoke action

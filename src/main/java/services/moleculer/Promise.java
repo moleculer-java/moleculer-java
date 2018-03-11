@@ -29,6 +29,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 
 import io.datatree.Tree;
 import services.moleculer.util.CheckedTree;
@@ -43,37 +44,37 @@ import services.moleculer.util.CheckedTree;
  * <pre>
  * Promise.resolve().then(in -> {
  *
- *   Tree out = new Tree();
- *   out.put("a", 1);
- *   out.put("b", 2);
- *   return out;
+ * 	Tree out = new Tree();
+ * 	out.put("a", 1);
+ * 	out.put("b", 2);
+ * 	return out;
  *
  * }).then(in -> {
  *
- *   int a = in.get("a", -1);
- *   int b = in.get("b", -1);
- *   return a + b;
+ * 	int a = in.get("a", -1);
+ * 	int b = in.get("b", -1);
+ * 	return a + b;
  *
  * }).then(in -> {
  *
- *   int sub = in.asInteger();
+ * 	int sub = in.asInteger();
  *
- *   // You can return an another Promise:
- *   return Promise.resolve("OK!");
+ * 	// You can return an another Promise:
+ * 	return Promise.resolve("OK!");
  *
  * }).then(in -> {
  *
- *   if (!"OK".equals(in.asString())) {
- *     throw new Exception("Invalid value!");
- *   }
+ * 	if (!"OK".equals(in.asString())) {
+ * 		throw new Exception("Invalid value!");
+ * 	}
  *
- *   // The "catch" is a protected name in Java,
- *   // use "catchError" instead:
+ * 	// The "catch" is a protected name in Java,
+ * 	// use "catchError" instead:
  *
  * }).catchError(err -> {
  *
- *   System.out.println("Error: " + err);
- *   return "foo";
+ * 	System.out.println("Error: " + err);
+ * 	return "foo";
  *
  * });
  * </pre>
@@ -324,7 +325,7 @@ public class Promise {
 	 * <br>
 	 * Promise p = new Promise();<br>
 	 * // Listener:<br>
-	 * p.next(value -> {<br>
+	 * p.then(value -> {<br>
 	 * System.out.println("Completed!");<br>
 	 * return value;<br>
 	 * });<br>
@@ -344,7 +345,7 @@ public class Promise {
 	 * <br>
 	 * Promise p = new Promise();<br>
 	 * // Listener:<br>
-	 * p.next(value -> {<br>
+	 * p.then(value -> {<br>
 	 * System.out.println("Received: " + value);<br>
 	 * return value;<br>
 	 * });<br>
@@ -427,6 +428,25 @@ public class Promise {
 	 */
 	public CompletableFuture<Tree> toCompletableFuture() {
 		return future;
+	}
+
+	// --- BLOCK CURRENT THREAD ---
+
+	/**
+	 * Waits if necessary for this future to complete, and then returns its
+	 * result. It's a blocking operation, do not use this method unless it is
+	 * absolutely necessary for something. Rather use the "then" and
+	 * "catchError" methods.
+	 * 
+	 * @return result Tree structure
+	 * 
+	 * @throws InterruptedException
+	 *             if the current thread was interrupted while waiting
+	 * @throws ExecutionException
+	 *             if this future completed exceptionally
+	 */
+	public Tree waitFor() throws InterruptedException, ExecutionException {
+		return future.get();
 	}
 
 	// --- PARALLEL ALL / ALLOF FUNCTION ---

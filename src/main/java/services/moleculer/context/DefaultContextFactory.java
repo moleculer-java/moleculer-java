@@ -27,6 +27,7 @@ package services.moleculer.context;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.service.Name;
 import services.moleculer.service.ServiceRegistry;
@@ -40,8 +41,9 @@ public class DefaultContextFactory extends ContextFactory {
 
 	// --- COMPONENTS ---
 
-	protected ServiceRegistry registry;
+	protected ServiceRegistry serviceRegistry;
 	protected Eventbus eventbus;
+	protected ContextFactory contextFactory;
 	protected UIDGenerator uid;
 
 	// --- START CONTEXT FACTORY ---
@@ -57,30 +59,39 @@ public class DefaultContextFactory extends ContextFactory {
 	@Override
 	public void started(ServiceBroker broker) throws Exception {
 		super.started(broker);
-		registry = broker.getConfig().getServiceRegistry();
-		eventbus = broker.getConfig().getEventbus();
-		uid = broker.getConfig().getUidGenerator();
+		ServiceBrokerConfig cfg = broker.getConfig();
+		serviceRegistry = cfg.getServiceRegistry();
+		eventbus = cfg.getEventbus();
+		contextFactory = cfg.getContextFactory();
+		uid = cfg.getUidGenerator();
 	}
 
 	// --- CREATE CONTEXT ---
 
 	@Override
-	public Context create(String name, Tree params, CallingOptions.Options opts, Context parent) {
+	public Context create(String name, Tree params, CallOptions.Options opts, Context parent) {
 
 		// Generate ID
 		String id = uid.nextUID();
 
+		// Create new Context
+		if (parent == null) {
+			return new Context(serviceRegistry, eventbus, contextFactory, id, name, params, opts);
+		}
+
 		// Merge meta block
-		if (parent != null && parent.params != null) {
+		if (parent.params != null) {
 			Tree parentMeta = parent.params.getMeta(false);
 			if (parentMeta != null && !parentMeta.isEmpty()) {
 				Tree currentMeta = params.getMeta(true);
-				currentMeta.copyFrom(parentMeta, false);
+				if (currentMeta.isEmpty()) {
+					currentMeta.setObject(parentMeta.asObject());
+				} else {
+					currentMeta.copyFrom(parentMeta, false);
+				}
 			}
 		}
-
-		// Create context
-		return new Context(registry, eventbus, id, name, params, opts);
+		return new Context(id, name, params, opts, parent);
 	}
 
 }

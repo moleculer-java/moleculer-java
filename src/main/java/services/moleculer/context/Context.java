@@ -25,34 +25,206 @@
  */
 package services.moleculer.context;
 
+import static services.moleculer.util.CommonUtils.parseParams;
+
 import io.datatree.Tree;
+import services.moleculer.Promise;
 import services.moleculer.eventbus.Eventbus;
+import services.moleculer.eventbus.Groups;
+import services.moleculer.service.Action;
 import services.moleculer.service.ServiceRegistry;
+import services.moleculer.util.ParseResult;
 
 public class Context {
 
 	// --- PROPERTIES ---
 
+	/**
+	 * Unique context ID
+	 */
 	public final String id;
+
+	/**
+	 * Action name
+	 */
 	public final String name;
+
+	/**
+	 * Request parameters (including {@link io.datatree.Tree#getMeta() meta})
+	 * 
+	 * @see Tree.getMeta
+	 */
 	public final Tree params;
-	public final CallingOptions.Options opts;
+
+	/**
+	 * Request level (in nested-calls) - the first level is 1
+	 */
+	public final int level;
+
+	/**
+	 * Parent context ID (in nested-calls)
+	 */
+	public final String parentID;
+
+	/**
+	 * Calling options
+	 */
+	public final CallOptions.Options opts;
 
 	// --- COMPONENTS ---
 
 	protected final ServiceRegistry serviceRegistry;
 	protected final Eventbus eventbus;
+	protected final ContextFactory contextFactory;
 
-	// --- CONSTRUCTOR ---
+	// --- CONSTRUCTORS ---
 
-	public Context(ServiceRegistry serviceRegistry, Eventbus eventbus, String id, String name, Tree params,
-			CallingOptions.Options opts) {
+	public Context(ServiceRegistry serviceRegistry, Eventbus eventbus, ContextFactory contextFactory, String id,
+			String name, Tree params, CallOptions.Options opts) {
+
+		// Set components
 		this.serviceRegistry = serviceRegistry;
 		this.eventbus = eventbus;
+		this.contextFactory = contextFactory;
+
+		// Set properties
 		this.id = id;
 		this.name = name;
 		this.params = params;
+		this.level = 1;
+		this.parentID = null;
 		this.opts = opts;
+	}
+
+	public Context(String id, String name, Tree params, CallOptions.Options opts, Context parent) {
+
+		// Set components
+		this.serviceRegistry = parent.serviceRegistry;
+		this.eventbus = parent.eventbus;
+		this.contextFactory = parent.contextFactory;
+
+		// Set properties
+		this.id = id;
+		this.name = name;
+		this.params = params;
+		this.level = parent.level + 1;
+		this.parentID = parent.id;
+		this.opts = opts;
+	}
+
+	// --- INVOKE LOCAL OR REMOTE ACTION ---
+
+	/**
+	 * Calls an action (local or remote). Sample code:<br>
+	 * <br>
+	 * Promise promise = broker.call("math.add", "a", 1, "b", 2);<br>
+	 * <br>
+	 * ...or with CallOptions:<br>
+	 * <br>
+	 * broker.call("math.add", "a", 1, "b", 2, CallOptions.nodeID("node2"));
+	 */
+	public Promise call(String name, Object... params) {
+		ParseResult res = parseParams(params);
+		return call(name, res.data, res.opts);
+	}
+
+	public Promise call(String name, Tree params) {
+		return call(name, params, null);
+	}
+
+	public Promise call(String name, Tree params, CallOptions.Options opts) {
+		return new Promise(result -> {
+			try {
+				String targetID;
+				int retryCount;
+				if (opts == null) {
+					targetID = null;
+					retryCount = 0;
+				} else {
+					targetID = opts.nodeID;
+					retryCount = opts.retryCount;
+				}
+				
+				// TODO implement retry logic
+				Action action = serviceRegistry.getAction(name, targetID);
+				Context ctx = contextFactory.create(name, params, opts, this);
+				result.resolve(action.handler(ctx));
+			} catch (Throwable cause) {
+				result.reject(cause);
+			}
+		});
+	}
+	
+	// --- EMIT EVENT TO EVENT GROUP ---
+
+	/**
+	 * Emits an event (grouped & balanced global event)
+	 */
+	public void emit(String name, Object... params) {
+		ParseResult res = parseParams(params);
+		eventbus.emit(name, res.data, res.groups, false);
+	}
+
+	/**
+	 * Emits an event (grouped & balanced global event)
+	 */
+	public void emit(String name, Tree payload, Groups groups) {
+		eventbus.emit(name, payload, groups, false);
+	}
+
+	/**
+	 * Emits an event (grouped & balanced global event)
+	 */
+	public void emit(String name, Tree payload) {
+		eventbus.emit(name, payload, null, false);
+	}
+
+	// --- BROADCAST EVENT TO ALL LISTENERS ---
+
+	/**
+	 * Emits an event for all local & remote services
+	 */
+	public void broadcast(String name, Object... params) {
+		ParseResult res = parseParams(params);
+		eventbus.broadcast(name, res.data, res.groups, false);
+	}
+
+	/**
+	 * Emits an event for all local & remote services
+	 */
+	public void broadcast(String name, Tree payload, Groups groups) {
+		eventbus.broadcast(name, payload, groups, false);
+	}
+
+	/**
+	 * Emits an event for all local & remote services
+	 */
+	public void broadcast(String name, Tree payload) {
+		eventbus.broadcast(name, payload, null, false);
+	}
+
+	// --- BROADCAST EVENT TO LOCAL LISTENERS ---
+
+	/**
+	 * Emits an event for all local services.
+	 */
+	public void broadcastLocal(String name, Object... params) {
+		ParseResult res = parseParams(params);
+		eventbus.broadcast(name, res.data, res.groups, true);
+	}
+
+	/**
+	 * Emits an event for all local services.
+	 */
+	public void broadcastLocal(String name, Tree payload, Groups groups) {
+		eventbus.broadcast(name, payload, groups, true);
+	}
+
+	/**
+	 * Emits an event for all local services.
+	 */
+	public void broadcastLocal(String name, Tree payload) {
+		eventbus.broadcast(name, payload, null, true);
 	}
 
 }
