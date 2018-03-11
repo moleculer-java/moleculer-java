@@ -28,6 +28,7 @@ package services.moleculer.service;
 import org.springframework.stereotype.Component;
 
 import io.datatree.Tree;
+import services.moleculer.context.Context;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.Name;
@@ -38,9 +39,14 @@ public class Filter2 extends Middleware {
 
 	@Override
 	public Action install(Action action, Tree config) {
-
-		// TODO Auto-generated method stub
-		return null;
+		return new Action() {
+			
+			@Override
+			public Object handler(Context ctx) throws Exception {
+				return action.handler(ctx);
+			}
+			
+		};
 	}
 
 }

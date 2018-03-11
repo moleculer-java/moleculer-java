@@ -26,32 +26,66 @@
 package services.moleculer.service;
 
 import io.datatree.Tree;
+import services.moleculer.Promise;
 import services.moleculer.context.Context;
+import services.moleculer.transporter.Transporter;
 
 public class RemoteActionEndpoint extends ActionEndpoint {
 
 	// --- CONSTRUCTOR ---
 
-	public RemoteActionEndpoint(String nodeID, Tree config) {
+	public RemoteActionEndpoint(DefaultServiceRegistry registry, Transporter transporter, String nodeID, Tree config) {
 		super(nodeID, config);
-		this.current = new RemoteAction(this);
+		this.current = new RemoteAction(registry, nodeID, transporter, this);
 	}
 
 	// --- REMOTE ACTION ---
 
 	protected static class RemoteAction implements Action {
 
+		// --- COMPONENTS ---
+
+		protected Transporter transporter;
+		protected DefaultServiceRegistry registry;
+
+		// --- PROPERTIES ---
+
+		protected final String nodeID;
 		protected final RemoteActionEndpoint endpoint;
 
-		protected RemoteAction(RemoteActionEndpoint endpoint) {
+		// --- CONSTRUCTOR ---
+
+		protected RemoteAction(DefaultServiceRegistry registry, String nodeID, Transporter transporter,
+				RemoteActionEndpoint endpoint) {
+			this.registry = registry;
+			this.nodeID = nodeID;
+			this.transporter = transporter;
 			this.endpoint = endpoint;
 		}
 
 		@Override
 		public Object handler(Context ctx) throws Exception {
 
-			// TODO Return promise
-			return null;
+			// Create new promise
+			Promise promise = new Promise();
+
+			// Set timeout
+			long timeoutAt;
+			if (ctx.opts != null && ctx.opts.timeout > 0) {
+				timeoutAt = System.currentTimeMillis() + (ctx.opts.timeout * 1000L);
+			} else {
+				timeoutAt = 0;
+			}
+
+			// Register promise (socketTimeout and response handling)
+			registry.register(ctx.id, promise, timeoutAt);
+
+			// Send request via transporter
+			Tree message = transporter.createRequestPacket(ctx);
+			transporter.publish(Transporter.PACKET_REQUEST, nodeID, message);
+
+			// Return promise
+			return promise;
 		}
 
 	}

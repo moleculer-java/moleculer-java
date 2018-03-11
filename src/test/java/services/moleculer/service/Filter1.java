@@ -38,8 +38,6 @@ public class Filter1 extends Middleware {
 
 	@Override
 	public Action install(Action action, Tree config) {
-
-		// TODO Auto-generated method stub
 		return null;
 	}
 

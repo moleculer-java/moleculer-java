@@ -23,55 +23,49 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.eventbus;
-
-import static services.moleculer.transporter.Transporter.PACKET_EVENT;
+package services.moleculer.util;
 
 import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
-import services.moleculer.transporter.Transporter;
-import services.moleculer.util.FastBuildTree;
 
-public class RemoteListenerEndpoint extends ListenerEndpoint {
+/**
+ * This Tree is optimized for fast building and serialization.
+ */
+public class FastBuildTree extends Tree {
 
-	// --- COMPONENTS ---
-
-	protected Transporter transporter;
-
-	// --- CONSTRUCTOR ---
+	// --- SERIAL VERSION UID ---
 	
-	protected RemoteListenerEndpoint(Transporter transporter, String nodeID, String service, String group, String subscribe) {
-		super(nodeID, service, group, subscribe);
-		
-		// Set components
-		this.transporter = transporter;
+	private static final long serialVersionUID = 8897557340559995525L;
+
+	// --- INTERNAL MAP ---
+	
+	protected FastBuildMap map;
+	
+	// --- CONSTRUCTORS ---
+	
+	public FastBuildTree() {
+		this(16);
+	}
+	
+	public FastBuildTree(int size) {
+		super(new FastBuildMap(size), null);
+		map = (FastBuildMap) asObject();
 	}
 
-	// --- INVOKE REMOTE LISTENER ---
-
-	@Override
-	public void on(String name, Tree payload, Groups groups, boolean broadcast) throws Exception {
-		FastBuildTree msg = new FastBuildTree(6);
-		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
-		msg.putUnsafe("sender", nodeID);
-		msg.putUnsafe("event", name);
-		msg.putUnsafe("broadcast", broadcast);
-		if (groups != null) {
-			String[] array = groups.groups();
-			if (array != null && array.length > 0) {
-				msg.putUnsafe("groups", array);
-			}
-		}
-		if (payload != null) {
-			msg.putUnsafe("data", payload);
-		}
-		transporter.publish(PACKET_EVENT, nodeID, msg);
+	// --- FAST AND UNSAFE PUT ---
+	
+	public Tree putUnsafe(String path, Object value) {
+		map.put(path, value);
+		return this;
+	}
+	
+	public Tree putUnsafe(String path, Tree value) {
+		map.put(path, value == null ? null : value.asObject());
+		return this;
 	}
 
-	// --- IS A LOCAL EVENT LISTENER? ---
-
-	public boolean isLocal() {
-		return false;
+	public Tree putUnsafe(String path, FastBuildTree value) {
+		map.put(path, value == null ? null : value.map);
+		return this;
 	}
 
 }

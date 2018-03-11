@@ -69,6 +69,7 @@ import services.moleculer.eventbus.Eventbus;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
+import services.moleculer.util.FastBuildTree;
 
 /**
  * Default implementation of the Service Registry.
@@ -100,7 +101,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected boolean asyncLocalInvocation;
 
 	/**
-	 * Default action invocation socketTimeout (seconds)
+	 * Default action invocation timeout (seconds)
 	 */
 	protected int defaultTimeout;
 
@@ -265,7 +266,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected final AtomicLong prevTimeoutAt = new AtomicLong();
 
 	/**
-	 * Recalculates the next socketTimeout checking time
+	 * Recalculates the next timeout checking time
 	 */
 	protected void reschedule(long minTimeoutAt) {
 		if (minTimeoutAt == Long.MAX_VALUE) {
@@ -303,7 +304,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				t.cancel(false);
 			}
 
-			// Schedule next socketTimeout timer
+			// Schedule next timeout timer
 			long delay = Math.max(1000, minTimeoutAt - now);
 			timer.set(scheduler.schedule(this::checkTimeouts, delay, TimeUnit.MILLISECONDS));
 		}
@@ -382,11 +383,10 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		}
 
 		// Create CallingOptions
-		int timeout = message.get("socketTimeout", 0);
+		int timeout = message.get("timeout", 0);
 		Tree params = message.get("params");
 
 		// TODO Process other properties:
-		//
 		// Tree meta = message.get("meta");
 		// int level = message.get("level", 1);
 		// boolean metrics = message.get("metrics", false);
@@ -401,24 +401,24 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			new Promise(endpoint.handler(ctx)).then(data -> {
 
 				// Send response
-				Tree response = new Tree();
-				response.put("sender", nodeID);
-				response.put("id", id);
-				response.put("ver", ServiceBroker.PROTOCOL_VERSION);
-				response.put("success", true);
-				response.putObject("data", data);
-				transporter.publish(Transporter.PACKET_RESPONSE, sender, response);
+				FastBuildTree msg = new FastBuildTree(5);
+				msg.putUnsafe("sender", nodeID);
+				msg.putUnsafe("id", id);
+				msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+				msg.putUnsafe("success", true);
+				msg.putUnsafe("data", data);
+				transporter.publish(Transporter.PACKET_RESPONSE, sender, msg);
 
 			}).catchError(error -> {
 
 				// Send error
-				transporter.publish(Transporter.PACKET_RESPONSE, sender, throwableToTree(id, error));
+				transporter.publish(Transporter.PACKET_RESPONSE, sender, throwableToTree(id, sender, error));
 
 			});
 		} catch (Throwable error) {
 
 			// Send error
-			transporter.publish(Transporter.PACKET_RESPONSE, sender, throwableToTree(id, error));
+			transporter.publish(Transporter.PACKET_RESPONSE, sender, throwableToTree(id, sender, error));
 
 		}
 
@@ -426,26 +426,28 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	// --- CONVERT THROWABLE TO RESPONSE MESSAGE ---
 
-	protected Tree throwableToTree(String id, Throwable error) {
-		Tree response = new Tree();
-		response.put("id", id);
-		response.put("ver", ServiceBroker.PROTOCOL_VERSION);
-		response.put("success", false);
-		response.put("data", (String) null);
+	protected Tree throwableToTree(String id, String sender, Throwable error) {
+		FastBuildTree msg = new FastBuildTree(6);
+		msg.putUnsafe("id", id);
+		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+		msg.putUnsafe("sender", sender);
+		msg.putUnsafe("success", false);
+		msg.putUnsafe("data", null);
 		if (error != null) {
 
 			// Add message
-			Tree errorMap = response.putMap("error");
-			errorMap.put("message", error.getMessage());
+			FastBuildTree errorMap = new FastBuildTree(2);
+			msg.putUnsafe("error", errorMap);
+			errorMap.putUnsafe("message", error.getMessage());
 
 			// Add trace
 			StringWriter sw = new StringWriter(128);
 			PrintWriter pw = new PrintWriter(sw);
 			error.printStackTrace(pw);
-			errorMap.put("trace", sw.toString());
+			errorMap.putUnsafe("trace", sw.toString());
 
 		}
-		return response;
+		return msg;
 	}
 
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
@@ -638,7 +640,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					String actionName = actionConfig.get("name", "");
 
 					// Register remote action
-					RemoteActionEndpoint endpoint = new RemoteActionEndpoint(nodeID, actionConfig);
+					RemoteActionEndpoint endpoint = new RemoteActionEndpoint(this, transporter, nodeID, actionConfig);
 					Strategy<ActionEndpoint> actionStrategy = strategies.get(actionName);
 					if (actionStrategy == null) {
 						actionStrategy = strategyFactory.create();
@@ -793,12 +795,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					Tree serviceMap = servicesMap.putMap(service, true);
 					serviceMap.put("name", service);
 
-					// TODO Store settings block
-					// serviceMap.putMap("settings");
-
-					// Not used
-					// serviceMap.putMap("metadata");
-
 					// Node ID
 					serviceMap.put("nodeID", nodeID);
 
@@ -813,10 +809,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					if (listeners != null && !listeners.isEmpty()) {
 						serviceMap.putObject("events", listeners);
 					}
-
-					// Not used
-					// actionMap.putMap("params");
-
 				}
 			} finally {
 				readLock.unlock();

@@ -35,16 +35,19 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.datatree.Tree;
 import io.datatree.dom.Cache;
 import services.moleculer.ServiceBroker;
+import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
+import services.moleculer.transporter.Transporter;
 import services.moleculer.util.CheckedTree;
 
 /**
@@ -96,6 +99,8 @@ public class DefaultEventbus extends Eventbus {
 
 	protected ServiceBroker broker;
 	protected StrategyFactory strategy;
+	protected Transporter transporter;
+	protected ExecutorService executor;
 
 	// --- CONSTRUCTORS ---
 
@@ -132,8 +137,11 @@ public class DefaultEventbus extends Eventbus {
 		this.nodeID = broker.getNodeID();
 
 		// Set components
+		ServiceBrokerConfig cfg = broker.getConfig();
 		this.broker = broker;
-		this.strategy = broker.getConfig().getStrategyFactory();
+		this.strategy = cfg.getStrategyFactory();
+		this.transporter = cfg.getTransporter();
+		this.executor = cfg.getExecutor();
 	}
 
 	// --- STOP EVENT BUS ---
@@ -269,8 +277,8 @@ public class DefaultEventbus extends Eventbus {
 					}
 
 					// Add endpoint to strategy
-					strategy.addEndpoint(
-							new LocalListenerEndpoint(broker, serviceName, group, subscribe, listener, asyncLocalInvocation));
+					strategy.addEndpoint(new LocalListenerEndpoint(executor, nodeID, serviceName, group, subscribe,
+							listener, asyncLocalInvocation));
 				}
 			}
 		} finally {
@@ -300,7 +308,8 @@ public class DefaultEventbus extends Eventbus {
 					String group = listenerConfig.get("group", serviceName);
 
 					// Register remote listener
-					RemoteListenerEndpoint endpoint = new RemoteListenerEndpoint(nodeID, serviceName, group, subscribe);
+					RemoteListenerEndpoint endpoint = new RemoteListenerEndpoint(transporter, nodeID, serviceName,
+							group, subscribe);
 
 					// Get or create group map
 					HashMap<String, Strategy<ListenerEndpoint>> groups = listeners.get(subscribe);

@@ -47,6 +47,7 @@ import services.moleculer.transporter.tcp.NodeDescriptor;
 import services.moleculer.transporter.tcp.TcpReader;
 import services.moleculer.transporter.tcp.TcpWriter;
 import services.moleculer.transporter.tcp.UDPLocator;
+import services.moleculer.util.FastBuildTree;
 
 /**
  * TCP Transporter with optional UDP discovery ("zero configuration") module.
@@ -501,19 +502,18 @@ public class TcpTransporter extends Transporter {
 
 				// Send error back to the source
 				if (packets != null) {
-					Tree errorMap = null;
+					FastBuildTree errorMap = null;
 					if (cause != null) {
-						Tree error = new Tree();
+						errorMap = new FastBuildTree(2);
 
 						// Add message
-						errorMap = error.putMap("error");
-						errorMap.put("message", cause.getMessage());
+						errorMap.putUnsafe("message", cause.getMessage());
 
 						// Add trace
 						StringWriter sw = new StringWriter(128);
 						PrintWriter pw = new PrintWriter(sw);
 						cause.printStackTrace(pw);
-						errorMap.put("trace", sw.toString());
+						errorMap.putUnsafe("trace", sw.toString());
 					}
 					for (byte[] packet : packets) {
 						try {
@@ -535,14 +535,14 @@ public class TcpTransporter extends Transporter {
 								}
 
 								// Create response message
-								Tree response = new Tree();
-								response.put("id", id);
-								response.put("ver", ServiceBroker.PROTOCOL_VERSION);
-								response.put("sender", nodeID);
-								response.put("success", false);
-								response.put("data", (String) null);
+								FastBuildTree response = new FastBuildTree(6);
+								response.putUnsafe("id", id);
+								response.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+								response.putUnsafe("sender", nodeID);
+								response.putUnsafe("success", false);
+								response.putUnsafe("data", (String) null);
 								if (errorMap != null) {
-									response.putObject("error", errorMap);
+									response.putUnsafe("error", errorMap);
 								}
 								registry.receiveResponse(response);
 							}
@@ -1254,15 +1254,15 @@ public class TcpTransporter extends Transporter {
 			return cachedHelloMessage;
 		}
 		try {
-			Tree root = new Tree();
-			root.put("ver", ServiceBroker.PROTOCOL_VERSION);
-			root.put("sender", nodeID);
+			FastBuildTree root = new FastBuildTree(4);
+			root.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+			root.putUnsafe("sender", nodeID);
 			if (useHostname) {
-				root.put("host", getHostName());
+				root.putUnsafe("host", getHostName());
 			} else {
-				root.put("host", InetAddress.getLocalHost().getHostAddress());
+				root.putUnsafe("host", InetAddress.getLocalHost().getHostAddress());
 			}
-			root.put("port", reader.getCurrentPort());
+			root.putUnsafe("port", reader.getCurrentPort());
 			cachedHelloMessage = serialize(PACKET_GOSSIP_HELLO_ID, root);
 		} catch (Exception error) {
 			throw new RuntimeException("Unable to create HELLO message!", error);

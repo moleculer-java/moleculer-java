@@ -53,6 +53,7 @@ import services.moleculer.service.Name;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.transporter.tcp.NodeDescriptor;
 import services.moleculer.transporter.tcp.RemoteAddress;
+import services.moleculer.util.FastBuildTree;
 
 /**
  * Base superclass of all Transporter implementations.
@@ -296,26 +297,30 @@ public abstract class Transporter extends MoleculerComponent {
 	// --- REQUEST PACKET ---
 
 	public Tree createRequestPacket(Context ctx) {
-
-		// TODO Add more properties
-		Tree message = new Tree();
-		message.put("ver", ServiceBroker.PROTOCOL_VERSION);
-		message.put("sender", nodeID);
-		message.put("id", ctx.id);
-		message.put("action", ctx.name);
-
-		message.putObject("params", ctx.params);
-		message.put("meta", (String) null);
-
-		if (ctx.opts != null) {
-			message.put("socketTimeout", ctx.opts.timeout);
+		FastBuildTree msg = new FastBuildTree(7);
+		
+		// Add basic properties
+		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+		msg.putUnsafe("sender", nodeID);
+		msg.putUnsafe("id", ctx.id);
+		msg.putUnsafe("action", ctx.name);
+		
+		// Add params and meta
+		if (ctx.params != null) {
+			msg.putUnsafe("params", ctx.params.asObject());
+			Tree meta = ctx.params.getMeta(false);
+			if (meta != null) {
+				msg.putUnsafe("meta", meta.asObject());
+			}
 		}
-
-		message.put("level", 1);
-		message.put("metrics", false);
-		message.put("parentID", (String) null);
-		message.put("requestID", (String) null);
-		return message;
+		
+		// Add opts
+		if (ctx.opts != null) {
+			msg.putUnsafe("timeout", ctx.opts.timeout);
+		}
+		
+		// Return message
+		return msg;
 	}
 
 	// --- PUBLISH ---
@@ -564,58 +569,58 @@ public abstract class Transporter extends MoleculerComponent {
 
 	protected void broadcastNodeConnected(Tree info, boolean reconnected) {
 		if (info != null) {
-			Tree message = new Tree();
-			message.putObject("node", info);
-			message.put("reconnected", reconnected);
-			eventbus.broadcast("$node.connected", message, null, true);
+			Tree msg = new Tree();
+			msg.putObject("node", info);
+			msg.put("reconnected", reconnected);
+			eventbus.broadcast("$node.connected", msg, null, true);
 		}
 	}
 
 	protected void broadcastNodeUpdated(Tree info) {
 		if (info != null) {
-			Tree message = new Tree();
-			message.putObject("node", info);
-			eventbus.broadcast("$node.updated", message, null, true);
+			Tree msg = new Tree();
+			msg.putObject("node", info);
+			eventbus.broadcast("$node.updated", msg, null, true);
 		}
 	}
 
 	protected void broadcastNodeDisconnected(Tree info, boolean unexpected) {
 		if (info != null) {
-			Tree message = new Tree();
-			message.putObject("node", info);
-			message.put("unexpected", unexpected);
-			eventbus.broadcast("$node.disconnected", message, null, true);
+			Tree msg = new Tree();
+			msg.putObject("node", info);
+			msg.put("unexpected", unexpected);
+			eventbus.broadcast("$node.disconnected", msg, null, true);
 		}
 	}
 
 	// --- GENERIC MOLECULER PACKETS ---
 
 	protected void sendDiscoverPacket(String channel) {
-		Tree message = new Tree();
-		message.put("ver", PROTOCOL_VERSION);
-		message.put("sender", nodeID);
-		publish(channel, message);
+		FastBuildTree msg = new FastBuildTree(2);
+		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("sender", nodeID);
+		publish(channel, msg);
 	}
 
 	protected void sendInfoPacket(String channel) {
-		Tree message = registry.getDescriptor();
-		message.put("ver", PROTOCOL_VERSION);
-		message.put("sender", nodeID);
-		publish(channel, message);
+		Tree msg = registry.getDescriptor();
+		msg.put("ver", PROTOCOL_VERSION);
+		msg.put("sender", nodeID);
+		publish(channel, msg);
 	}
 
 	protected void sendHeartbeatPacket() {
-		Tree message = new Tree();
-		message.put("ver", PROTOCOL_VERSION);
-		message.put("sender", nodeID);
-		message.put("cpu", monitor.getTotalCpuPercent());
-		publish(heartbeatChannel, message);
+		FastBuildTree msg = new FastBuildTree(3);
+		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("sender", nodeID);
+		msg.putUnsafe("cpu", monitor.getTotalCpuPercent());
+		publish(heartbeatChannel, msg);
 	}
 
 	protected void sendDisconnectPacket() {
-		Tree message = new Tree();
-		message.put("sender", nodeID);
-		publish(disconnectChannel, message);
+		FastBuildTree msg = new FastBuildTree(1);
+		msg.putUnsafe("sender", nodeID);
+		publish(disconnectChannel, msg);
 	}
 
 	// --- TIMEOUT PROCESS ---

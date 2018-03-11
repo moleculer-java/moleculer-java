@@ -28,7 +28,6 @@ package services.moleculer.eventbus;
 import java.util.concurrent.ExecutorService;
 
 import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
 
 public class LocalListenerEndpoint extends ListenerEndpoint {
 
@@ -50,11 +49,12 @@ public class LocalListenerEndpoint extends ListenerEndpoint {
 
 	// --- CONSTRUCTOR ---
 
-	public LocalListenerEndpoint(ServiceBroker broker, String service, String group, String subscribe, Listener listener, boolean asyncLocalInvocation) {
-		super(broker.getNodeID(), service, group, subscribe);
+	public LocalListenerEndpoint(ExecutorService executor, String nodeID, String service, String group,
+			String subscribe, Listener listener, boolean asyncLocalInvocation) {
+		super(nodeID, service, group, subscribe);
 		this.listener = listener;
 		this.asyncLocalInvocation = asyncLocalInvocation;
-		this.executor = broker.getConfig().getExecutor();
+		this.executor = executor;
 	}
 
 	// --- INVOKE LOCAL LISTENER ---
@@ -78,9 +78,10 @@ public class LocalListenerEndpoint extends ListenerEndpoint {
 		listener.on(payload);
 	}
 
-	// --- LOCAL LISTENER? ---
+	// --- IS A LOCAL EVENT LISTENER? ---
 
 	public boolean isLocal() {
 		return true;
 	}
+
 }
