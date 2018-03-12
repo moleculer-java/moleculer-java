@@ -245,15 +245,15 @@ public final class RedisGetSetClient {
 			keys.toArray(array);
 			return client.del(array).thenApply(nul -> keyScanCursor);
 		}).thenApply(keyScanCursor -> {
-			if (keyScanCursor.isFinished()) {
+			if (((KeyScanCursor<byte[]>)keyScanCursor).isFinished()) {
 				return null;
 			}
-			return keyScanCursor.getCursor();
+			return ((KeyScanCursor<byte[]>)keyScanCursor).getCursor();
 		}).thenCompose(currentCursor -> {
 			if (currentCursor == null) {
 				return CompletableFuture.completedFuture(null);
 			}
-			return clean(new ScanCursor(currentCursor, false), args);
+			return clean(new ScanCursor((String) currentCursor, false), args);
 		});
 	}
 

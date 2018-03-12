@@ -13,9 +13,24 @@ buildscript {
     }
 }
 
+// --- THERE IS NO JAVADOC ---
+
+javadoc {
+	failOnError = false
+}
+
+// --- CONFIGURATIONS ---
+
+configurations {
+    runtime
+    ecj
+}
+
 configurations.all {
     // resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
 }
+
+// --- REPOSITORIES ---
 
 repositories {
     mavenCentral()
@@ -23,11 +38,13 @@ repositories {
     maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
 }
 
+// --- DEPENDENCIES ---
+
 dependencies {
-    compile 'org.slf4j:slf4j-api:1.7.21'
+
     testCompile 'junit:junit:4.12'
-    
-			
+	ecj 'org.eclipse.jdt.core.compiler:ecj:4.4.2'
+				
 	// =============== LOGGING ===============
 	
 	
@@ -188,4 +205,21 @@ nexus {
 
 test {
     exclude '**/Performance*'
+}
+
+// --- COMPILATION ---
+
+compileJava {
+	options.fork = true
+	options.forkOptions.with {
+		executable = 'java'
+		jvmArgs = ['-classpath', project.configurations.ecj.asPath, 'org.eclipse.jdt.internal.compiler.batch.Main', '-nowarn']
+	}
+}
+
+// --- JAR ---
+
+jar {
+    baseName = 'moleculer'
+    version =  '1.3'
 }
