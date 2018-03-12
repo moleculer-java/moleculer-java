@@ -484,4 +484,106 @@ public final class CommonUtils {
 		return outputStream.toByteArray();
 	}
 
+	// --- UNIT PARSER ---
+
+	public static final long resolveUnit(String string) throws NumberFormatException {
+		if (string == null || "null".equals(string)) {
+			return 0l;
+		}
+		StringBuffer buffer = new StringBuffer(string.toLowerCase());
+
+		// eg. 1KByte -> 1024byte
+		long unit = resolveUnit(buffer);
+		String number = buffer.toString().trim();
+		number = number.replace(',', '.');
+		int i = number.indexOf('.');
+		if (i > -1) {
+			number = number.substring(0, i);
+		}
+		if (number.length() == 0) {
+			return 0;
+		}
+		long value = Long.parseLong(number);
+		if (unit != 1) {
+			value *= unit;
+		}
+		return value;
+	}
+
+	private static final long resolveUnit(StringBuffer buffer) {
+		long unit = 1;
+		int i = -1;
+		for (;;) {
+			i = buffer.indexOf("msec", 0);
+			if (i != -1) {
+				break;
+			}
+			i = buffer.indexOf("mill", 0);
+			if (i != -1) {
+				break;
+			}
+			i = buffer.indexOf("sec", 0);
+			if (i != -1) {
+				unit = 1000;
+				break;
+			}
+			i = buffer.indexOf("min", 0);
+			if (i != -1) {
+				unit = 1000 * 60;
+				break;
+			}
+			i = buffer.indexOf("hour", 0);
+			if (i != -1) {
+				unit = 1000 * 60 * 60;
+				break;
+			}
+			i = buffer.indexOf("day", 0);
+			if (i != -1) {
+				unit = 1000 * 60 * 60 * 24;
+				break;
+			}
+			i = buffer.indexOf("week", 0);
+			if (i != -1) {
+				unit = 1000 * 60 * 60 * 24 * 7;
+				break;
+			}
+			i = buffer.indexOf("month", 0);
+			if (i != -1) {
+				unit = 1000 * 60 * 60 * 24 * 30;
+				break;
+			}
+			i = buffer.indexOf("year", 0);
+			if (i != -1) {
+				unit = 1000 * 60 * 60 * 24 * 365;
+				break;
+			}
+			i = buffer.indexOf("kbyte", 0);
+			if (i != -1) {
+				unit = 1024;
+				break;
+			}
+			i = buffer.indexOf("mbyte", 0);
+			if (i != -1) {
+				unit = 1024 * 1024;
+				break;
+			}
+			i = buffer.indexOf("gbyte", 0);
+			if (i != -1) {
+				unit = 1024 * 1024 * 1024;
+				break;
+			}
+			i = buffer.indexOf("tbyte", 0);
+			if (i != -1) {
+				unit = 1024 * 1024 * 1024 * 1024;
+				break;
+			}
+			i = buffer.indexOf("byte", 0);
+			break;
+		}
+		if (i != -1) {
+			buffer.setLength(i);
+		}
+		return unit;
+	}
+
 }
