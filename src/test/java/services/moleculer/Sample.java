@@ -59,9 +59,7 @@ public class Sample {
 
 				@Override
 				public Action install(Action action, Tree config) {
-					int version = config.get("version", 0);
-					if (version > 0) {
-						broker.getLogger().info("Middleware installed to " + config.toString(false));
+					if (config.get("name", "?").equals("v1.math.test")) {
 						return new Action() {
 
 							@Override
@@ -75,14 +73,13 @@ public class Sample {
 
 						};
 					}
-					broker.getLogger().info("Middleware not installed to " + config.toString(false));
 					return null;
 				}
 
 			});
-			broker.waitForServices("math").then(ok -> {
+			broker.waitForServices("v1.math").then(ok -> {
 				for (int i = 0; i < 2; i++) {
-					broker.call("math.add", "a", 3, "b", 5).then(in -> {
+					broker.call("v1.math.add", "a", 3, "b", 5).then(in -> {
 
 						broker.getLogger(Sample.class).info("Result: " + in);
 
@@ -94,18 +91,11 @@ public class Sample {
 				}
 			});
 
-			Thread.sleep(4000);
+			Thread.sleep(3000);
+			broker.createService(new Service2Service());
 
-			broker.createService(new Service("service2") {
-
-				@SuppressWarnings("unused")
-				public Action test2 = ctx -> {
-
-					return ctx.params.get("a", 0) + ctx.params.get("b", 0);
-
-				};
-
-			});
+			Thread.sleep(3000);
+			broker.createService(new Service3Service());
 
 			Thread.sleep(60000);
 
@@ -116,7 +106,8 @@ public class Sample {
 	}
 
 	@Name("math")
-	@Dependencies({ "service2" })
+	@Dependencies({ "service2", "service3" })
+	@Version("1")
 	public static class MathService extends Service {
 
 		@Name("add")
@@ -129,7 +120,6 @@ public class Sample {
 		};
 
 		@Name("test")
-		@Version("1")
 		public Action test = ctx -> {
 
 			return ctx.params.get("a", 0) + ctx.params.get("b", 0);
@@ -143,4 +133,16 @@ public class Sample {
 
 	};
 
+	@Name("service2")
+	@Dependencies({ "service3" })
+	public static class Service2Service extends Service {
+
+	};
+
+	@Name("service3")
+	// @Dependencies({ "service2" })
+	public static class Service3Service extends Service {
+
+	};
+	
 }

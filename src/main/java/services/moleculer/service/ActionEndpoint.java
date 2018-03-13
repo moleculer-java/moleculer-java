@@ -27,17 +27,26 @@ package services.moleculer.service;
 
 import java.util.HashSet;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.datatree.Tree;
 import services.moleculer.context.Context;
 
 public abstract class ActionEndpoint extends Endpoint implements Action {
 
+	// --- LOGGER ---
+
+	protected static final Logger logger = LoggerFactory.getLogger(ActionEndpoint.class);
+	
 	// --- CONFIGURATION OF ACTION ---
 
 	protected final Tree config;
 
 	protected final int hashCode;
 
+	protected final String name;
+	
 	// --- ACTION WITH MIDDLEWARES ---
 
 	protected Action current;
@@ -48,6 +57,7 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 		super(nodeID);
 		this.config = config;
 		this.hashCode = config.hashCode();
+		this.name = config.get("name", "unknown");
 	}
 
 	// --- INVOKE ACTION ---
@@ -65,6 +75,7 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 		if (checkedMiddlewares.add(middleware)) {
 			Action action = middleware.install(current, config);
 			if (action != null) {
+				logger.info("Middleware \"" + middleware.getName() + "\" installed to action \"" + name + "\".");
 				current = action;
 				return true;
 			}

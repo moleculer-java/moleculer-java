@@ -67,7 +67,6 @@ import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallOptions;
 import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
-import services.moleculer.error.ServiceNotAvailable;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
@@ -570,7 +569,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 						name = service.getName();
 					}
 					name = name.replace(' ', '-');
-					StringBuilder msg = new StringBuilder();
+					StringBuilder msg = new StringBuilder(64);
 					msg.append("Starting \"");
 					msg.append(name);
 					msg.append("\" service because ");
@@ -583,10 +582,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 						}
 					}
 					if (services.length == 1) {
-						msg.append(" service is available.");
+						msg.append(" service is");
 					} else {
-						msg.append(" services are available.");
+						msg.append(" services are");
 					}
+					msg.append(" available...");
 					logger.info(msg.toString());
 					addOnlineActions(name, service);
 				}).catchError(cause -> {
@@ -607,6 +607,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		serviceName = serviceName.replace(' ', '-');
 		Class<? extends Service> clazz = service.getClass();
 		Field[] fields = clazz.getFields();
+		int actionCounter = 0;
 
 		writeLock.lock();
 		try {
@@ -643,6 +644,10 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				for (Middleware middleware : middlewares) {
 					endpoint.use(middleware);
 				}
+
+				// Write log about this action
+				logger.info("Action \"" + actionName + "\" registered.");
+				actionCounter++;
 			}
 			services.put(serviceName, service);
 			service.started(broker);
@@ -662,7 +667,20 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		broadcastServicesChanged(true);
 
 		// Write log about this service
-		logger.info("Service \"" + serviceName + "\" deployed successfully.");
+		StringBuilder msg = new StringBuilder(64);
+		msg.append("Service \"");
+		msg.append(serviceName);
+		msg.append("\" started ");
+		if (actionCounter == 0) {
+			msg.append("without any actions.");			
+		} else if (actionCounter == 1) {
+			msg.append("with 1 action.");
+		} else {
+			msg.append("with ");
+			msg.append(actionCounter);
+			msg.append(" actions.");	
+		}
+		logger.info(msg.toString());
 	}
 
 	// --- NOTIFY OTHER SERVICES ---
@@ -861,10 +879,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 							break;
 						}
 					}
-					Tree data = new Tree();
-					data.putObject("services", listener.services);
-					ServiceNotAvailable timeoutException = new ServiceNotAvailable(nodeID, missingService, data);
-					listener.promise.complete(timeoutException);
+					listener.promise.complete(new NoSuchElementException("Missing service (" + missingService + ")!"));
 				} catch (Exception ignored) {
 				}
 			}

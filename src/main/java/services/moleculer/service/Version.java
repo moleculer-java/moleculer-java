@@ -34,7 +34,7 @@ import java.lang.annotation.Target;
  * Optional version of a Moleculer Service.
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ ElementType.TYPE, ElementType.FIELD })
+@Target({ ElementType.TYPE })
 public @interface Version {
 
 	String value();
