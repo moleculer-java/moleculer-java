@@ -36,7 +36,9 @@ import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.rmi.RemoteException;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -65,6 +67,7 @@ import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallOptions;
 import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
+import services.moleculer.error.ServiceNotAvailable;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
@@ -188,7 +191,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	public void stopped() {
 
 		// Stop timer
-		ScheduledFuture<?> task = timer.get();
+		ScheduledFuture<?> task = callTimeoutTimer.get();
 		if (task != null) {
 			task.cancel(false);
 		}
@@ -253,12 +256,12 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		}
 	}
 
-	// --- SCHEDULER ---
+	// --- CALL TIMEOUT HANDLING ---
 
 	/**
-	 * Cancelable timer
+	 * Cancelable timer for handling timeouts of action calls
 	 */
-	protected final AtomicReference<ScheduledFuture<?>> timer = new AtomicReference<>();
+	protected final AtomicReference<ScheduledFuture<?>> callTimeoutTimer = new AtomicReference<>();
 
 	/**
 	 * Next scheduled time to check timeouts
@@ -278,13 +281,13 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		}
 		long now = System.currentTimeMillis();
 		if (minTimeoutAt == Long.MAX_VALUE) {
-			ScheduledFuture<?> t = timer.get();
+			ScheduledFuture<?> t = callTimeoutTimer.get();
 			if (t != null) {
 				if (prevTimeoutAt.get() > now) {
 					t.cancel(false);
 					prevTimeoutAt.set(0);
 				} else {
-					timer.set(null);
+					callTimeoutTimer.set(null);
 					prevTimeoutAt.set(0);
 				}
 			}
@@ -299,14 +302,14 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			}
 
 			// Stop previous timer
-			ScheduledFuture<?> t = timer.get();
+			ScheduledFuture<?> t = callTimeoutTimer.get();
 			if (t != null) {
 				t.cancel(false);
 			}
 
 			// Schedule next timeout timer
 			long delay = Math.max(1000, minTimeoutAt - now);
-			timer.set(scheduler.schedule(this::checkTimeouts, delay, TimeUnit.MILLISECONDS));
+			callTimeoutTimer.set(scheduler.schedule(this::checkTimeouts, delay, TimeUnit.MILLISECONDS));
 		}
 	}
 
@@ -556,6 +559,46 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	@Override
 	public void addActions(String serviceName, Service service) {
+		Class<? extends Service> clazz = service.getClass();
+		Dependencies dependencies = clazz.getAnnotation(Dependencies.class);
+		if (dependencies != null) {
+			String[] services = dependencies.value();
+			if (services != null && services.length > 0) {
+				waitForServices(0, Arrays.asList(services)).then(ok -> {
+					String name = serviceName;
+					if (name == null || name.isEmpty()) {
+						name = service.getName();
+					}
+					name = name.replace(' ', '-');
+					StringBuilder msg = new StringBuilder();
+					msg.append("Starting \"");
+					msg.append(name);
+					msg.append("\" service because ");
+					for (int i = 0; i < services.length; i++) {
+						msg.append('\"');
+						msg.append(services[i]);
+						msg.append('\"');
+						if (i < services.length - 1) {
+							msg.append(", ");
+						}
+					}
+					if (services.length == 1) {
+						msg.append(" service is available.");
+					} else {
+						msg.append(" services are available.");
+					}
+					logger.info(msg.toString());
+					addOnlineActions(name, service);
+				}).catchError(cause -> {
+					logger.error("Unable to deploy service!", cause);
+				});
+				return;
+			}
+		}
+		addOnlineActions(serviceName, service);
+	}
+
+	protected void addOnlineActions(String serviceName, Service service) {
 
 		// Service name with version
 		if (serviceName == null || serviceName.isEmpty()) {
@@ -604,11 +647,9 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			services.put(serviceName, service);
 			service.started(broker);
 
-			// Notify local listeners about the new LOCAL service
-			broadcastServicesChanged(true);
-
 		} catch (Exception cause) {
 			logger.error("Unable to register local service!", cause);
+			return;
 		} finally {
 
 			// Delete cached node descriptor
@@ -616,6 +657,12 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 			writeLock.unlock();
 		}
+
+		// Notify local listeners about the new LOCAL service
+		broadcastServicesChanged(true);
+
+		// Write log about this service
+		logger.info("Service \"" + serviceName + "\" deployed successfully.");
 	}
 
 	// --- NOTIFY OTHER SERVICES ---
@@ -746,10 +793,125 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		return endpoint;
 	}
 
+	// --- WAIT FOR SERVICE(S) ---
+
+	/**
+	 * Cancelable timer for handling "wait for service" calls
+	 */
+	protected ScheduledFuture<?> servicesOnlineTimer;
+
+	/**
+	 * Promises of the "waitingForServices" calls
+	 */
+	protected final LinkedList<ServiceListener> serviceListeners = new LinkedList<>();
+
+	@Override
+	public Promise waitForServices(int timeout, Collection<String> services) {
+		if (services == null || services.isEmpty() || isServicesOnline(services)) {
+			return Promise.resolve();
+		}
+		Promise promise = new Promise();
+		long timeoutAt;
+		if (timeout > 0) {
+			timeoutAt = System.currentTimeMillis() + (1000L * timeout);
+		} else {
+			timeoutAt = 0;
+		}
+		ServiceListener listener = new ServiceListener(promise, timeoutAt, services);
+		synchronized (serviceListeners) {
+			serviceListeners.addLast(listener);
+			if (servicesOnlineTimer == null) {
+				servicesOnlineTimer = scheduler.scheduleWithFixedDelay(this::checkServicesOnline, 1, 1,
+						TimeUnit.SECONDS);
+			}
+		}
+		return promise;
+	}
+
+	protected void checkServicesOnline() {
+		LinkedList<ServiceListener> onlineListeners = new LinkedList<>();
+		LinkedList<ServiceListener> timeoutedListeners = new LinkedList<>();
+		long now = System.currentTimeMillis();
+		synchronized (serviceListeners) {
+			Iterator<ServiceListener> i = serviceListeners.iterator();
+			while (i.hasNext()) {
+				ServiceListener listener = i.next();
+				if (isServicesOnline(listener.services)) {
+					onlineListeners.addLast(listener);
+					i.remove();
+					continue;
+				}
+				if (listener.timeoutAt > 0 && listener.timeoutAt <= now) {
+					timeoutedListeners.addLast(listener);
+					i.remove();
+				}
+			}
+			if (serviceListeners.isEmpty() && servicesOnlineTimer != null) {
+				servicesOnlineTimer.cancel(false);
+				servicesOnlineTimer = null;
+			}
+		}
+		if (!timeoutedListeners.isEmpty()) {
+			for (ServiceListener listener : timeoutedListeners) {
+				try {
+					String missingService = "unknown";
+					for (String service : listener.services) {
+						if (!isServicesOnline(Collections.singleton(service))) {
+							missingService = service;
+							break;
+						}
+					}
+					Tree data = new Tree();
+					data.putObject("services", listener.services);
+					ServiceNotAvailable timeoutException = new ServiceNotAvailable(nodeID, missingService, data);
+					listener.promise.complete(timeoutException);
+				} catch (Exception ignored) {
+				}
+			}
+		}
+		for (ServiceListener listener : onlineListeners) {
+			try {
+				listener.promise.complete();
+			} catch (Exception ignored) {
+			}
+		}
+	}
+
+	protected boolean isServicesOnline(Collection<String> requiredServices) {
+		int foundCounter = 0;
+		readLock.lock();
+		try {
+			for (String service : requiredServices) {
+				if (services.containsKey(service)) {
+					foundCounter++;
+					continue;
+				}
+				String test = service + '.';
+				for (String action : strategies.keySet()) {
+					if (action.startsWith(test)) {
+						foundCounter++;
+						break;
+					}
+				}
+				if (foundCounter == 0) {
+					break;
+				}
+			}
+		} finally {
+			readLock.unlock();
+		}
+		return foundCounter == requiredServices.size();
+	}
+
 	// --- TIMESTAMP OF SERVICE DESCRIPTOR ---
 
+	/**
+	 * Timestamp of the service descriptor of this Moleculer Node (~=
+	 * "generated at" timestamp)
+	 */
 	private AtomicLong timestamp = new AtomicLong();
 
+	@Override
 	public long getTimestamp() {
 		return timestamp.get();
 	}

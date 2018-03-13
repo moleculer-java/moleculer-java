@@ -44,20 +44,20 @@ public class RequestSkipped extends MoleculerException {
 	
 	// --- CONSTRUCTORS ---
 
-	public RequestSkipped(String type, Tree data, String action, String nodeID) {
-		super(false, "Request skipped (" + action + " on " + nodeID + ")!", 514, type, data);
+	public RequestSkipped(Tree data, String action, String nodeID) {
+		super(false, "Request skipped (" + action + " on " + nodeID + ")!", 514, data);
 		this.action = action;
 		this.nodeID = nodeID;
 	}
 
 	// --- PROPERTY GETTERS ---
 	
-	public String getAction() {
-		return action;
-	}
-
 	public String getNodeID() {
 		return nodeID;
+	}
+	
+	public String getAction() {
+		return action;
 	}
 	
 }

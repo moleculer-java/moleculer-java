@@ -467,6 +467,20 @@ public class ServiceBroker {
 		eventbus.broadcast(name, payload, null, true);
 	}
 
+	// --- WAIT FOR SERVICE(S) ---
+
+	public Promise waitForServices(String... services) {
+		return waitForServices(0, services);
+	}
+
+	public Promise waitForServices(int timeout, String... services) {
+		return waitForServices(timeout, Arrays.asList(services));
+	}
+	
+	public Promise waitForServices(int timeout, Collection<String> services) {
+		return serviceRegistry.waitForServices(timeout, services);
+	}
+	
 	// --- START DEVELOPER CONSOLE ---
 
 	public boolean repl() {

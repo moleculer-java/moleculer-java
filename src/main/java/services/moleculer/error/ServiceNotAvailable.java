@@ -40,25 +40,25 @@ public class ServiceNotAvailable extends MoleculerException {
 
 	// --- PROPERTIES ---
 	
-	protected final String action;
 	protected final String nodeID;
+	protected final String service;
 	
 	// --- CONSTRUCTORS ---
 	
-	public ServiceNotAvailable(String type, Tree data, String action, String nodeID) {
-		super(true, "Service not available (" + action + " on " + nodeID + ")!", 404, type, data);
-		this.action = action;
+	public ServiceNotAvailable(String nodeID, String service, Tree data) {
+		super(true, "Service not available (" + service + " on " + nodeID + ")!", 404, data);
+		this.service = service;
 		this.nodeID = nodeID;
 	}
 
 	// --- PROPERTY GETTERS ---
 	
-	public String getAction() {
-		return action;
-	}
-
 	public String getNodeID() {
 		return nodeID;
+	}
+	
+	public String getService() {
+		return service;
 	}
 	
 }

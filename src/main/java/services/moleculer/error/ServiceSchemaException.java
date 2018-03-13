@@ -39,8 +39,8 @@ public class ServiceSchemaException extends MoleculerException {
 
 	// --- CONSTRUCTORS ---
 
-	public ServiceSchemaException(String message, String type, Tree data) {
-		super(false, message, 500, type, data);
+	public ServiceSchemaException(String message, Tree data) {
+		super(false, message, 500, data);
 	}
 
 }

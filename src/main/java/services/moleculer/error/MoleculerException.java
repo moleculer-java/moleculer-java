@@ -40,16 +40,14 @@ public abstract class MoleculerException extends Exception {
 
 	protected final boolean retriable;
 	protected final int code;
-	protected final String type;
 	protected final Tree data;
 
 	// --- CONSTRUCTOR ---
 
-	public MoleculerException(boolean retriable, String message, int code, String type, Tree data) {
+	public MoleculerException(boolean retriable, String message, int code, Tree data) {
 		super(message);
 		this.retriable = retriable;
 		this.code = code;
-		this.type = type;
 		this.data = data;
 	}
 
@@ -57,10 +55,6 @@ public abstract class MoleculerException extends Exception {
 
 	public int getCode() {
 		return code;
-	}
-
-	public String getType() {
-		return type;
 	}
 
 	public Tree getData() {

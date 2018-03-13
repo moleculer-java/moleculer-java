@@ -39,8 +39,8 @@ public class ValidationError extends MoleculerException {
 
 	// --- CONSTRUCTORS ---
 
-	public ValidationError(String message, String type, Tree data) {
-		super(false, message, 422, type, data);
+	public ValidationError(String message, Tree data) {
+		super(false, message, 422, data);
 	}
 	
 }

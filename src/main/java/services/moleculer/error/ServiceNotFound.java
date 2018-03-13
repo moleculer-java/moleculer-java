@@ -39,25 +39,25 @@ public class ServiceNotFound extends MoleculerException {
 
 	// --- PROPERTIES ---
 	
-	protected final String action;
 	protected final String nodeID;
+	protected final String service;
 	
 	// --- CONSTRUCTORS ---
 
-	public ServiceNotFound(String type, Tree data, String action, String nodeID) {
-		super(true, "Service not found (" + action + " on " + nodeID + ")!", 404, type, data);
-		this.action = action;
+	public ServiceNotFound(Tree data, String service, String nodeID) {
+		super(true, "Service not found (" + service + ")!", 404, data);
+		this.service = service;
 		this.nodeID = nodeID;
 	}
 
 	// --- PROPERTY GETTERS ---
 	
-	public String getAction() {
-		return action;
-	}
-
 	public String getNodeID() {
 		return nodeID;
 	}
-	
+
+	public String getService() {
+		return service;
+	}
+
 }

@@ -28,14 +28,14 @@ package services.moleculer.service;
 import services.moleculer.Promise;
 
 /**
- * Promise container of a pending invocation.
+ * Promise container of a pending action calls.
  */
 public class PendingPromise {
 
 	// --- PROPERTIES ---
 
-	public final Promise promise;
-	public final long timeoutAt;
+	protected final Promise promise;
+	protected final long timeoutAt;
 
 	// --- CONSTRUCTOR ---
 

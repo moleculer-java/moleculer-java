@@ -39,8 +39,8 @@ public class MoleculerClientException extends MoleculerException {
 
 	// --- CONSTRUCTORS ---
 
-	public MoleculerClientException(String message, int code, String type, Tree data) {
-		super(false, message, code, type, data);
+	public MoleculerClientException(String message, int code, Tree data) {
+		super(false, message, code, data);
 	}
 
 }

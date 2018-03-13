@@ -23,40 +23,29 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.error;
+package services.moleculer.service;
 
-import io.datatree.Tree;
+import java.util.Collection;
+
+import services.moleculer.Promise;
 
 /**
- * Throw it if your broker.call is timed out (error code: 504, retriable: true).
+ * Promise container of a "waitingForServices" calls.
  */
-public class RequestTimeouted extends MoleculerException {
-
-	// --- SERIAL VERSION UID ---
-
-	private static final long serialVersionUID = -7962922699989859974L;
+public class ServiceListener {
 
 	// --- PROPERTIES ---
 
-	protected final String nodeID;
-	protected final String action;
+	protected final Promise promise;
+	protected final long timeoutAt;
+	protected final Collection<String> services;
+	
+	// --- CONSTRUCTOR ---
 
-	// --- CONSTRUCTORS ---
-
-	public RequestTimeouted(Tree data, String action, String nodeID) {
-		super(true, "Request timeouted (" + action + " on " + nodeID + ")!", 504, data);
-		this.action = action;
-		this.nodeID = nodeID;
-	}
-
-	// --- PROPERTY GETTERS ---
-
-	public String getNodeID() {
-		return nodeID;
-	}
-
-	public String getAction() {
-		return action;
+	ServiceListener(Promise promise, long timeoutAt, Collection<String> services) {
+		this.promise = promise;
+		this.timeoutAt = timeoutAt;
+		this.services = services;
 	}
 	
 }

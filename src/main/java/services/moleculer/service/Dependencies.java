@@ -31,7 +31,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ ElementType.FIELD, ElementType.TYPE, ElementType.LOCAL_VARIABLE })
+@Target({ ElementType.TYPE })
 public @interface Dependencies {
 
 	String[] value();

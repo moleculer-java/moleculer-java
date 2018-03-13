@@ -28,6 +28,7 @@ package services.moleculer.service;
 import java.util.Collection;
 
 import io.datatree.Tree;
+import services.moleculer.Promise;
 
 /**
  * Base superclass of all Service Registry implementations.
@@ -69,6 +70,10 @@ public abstract class ServiceRegistry extends MoleculerComponent {
 
 	public abstract Action getAction(String name, String nodeID);
 
+	// --- WAIT FOR SERVICE(S) ---
+	
+	public abstract Promise waitForServices(int timeout, Collection<String> services);
+	
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
 	public abstract Tree getDescriptor();

@@ -26,11 +26,13 @@
 package services.moleculer;
 
 import io.datatree.Tree;
+import services.moleculer.cacher.Cache;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.Context;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
+import services.moleculer.service.Dependencies;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
@@ -50,32 +52,8 @@ public class Sample {
 
 			ServiceBroker broker = new ServiceBroker(cfg);
 
-			broker.createService(new Service("math") {
-
-				@Name("add")
-
-				//@Cache(keys = { "a", "b" }, ttl = 30)
-				public Action add = ctx -> {
-
-					//broker.getLogger().info("Call " + ctx.params);
-					return ctx.params.get("a", 0) + ctx.params.get("b", 0);
-
-				};
-
-				@Name("test")
-				@Version("1")
-				public Action test = ctx -> {
-
-					return ctx.params.get("a", 0) + ctx.params.get("b", 0);
-
-				};
-
-				@Subscribe("foo.*")
-				public Listener listener = payload -> {
-					System.out.println("Received: " + payload);
-				};
-
-			});
+			MathService math = new MathService();
+			broker.createService(math);
 			broker.start();
 			broker.use(new Middleware() {
 
@@ -102,22 +80,67 @@ public class Sample {
 				}
 
 			});
-			for (int i = 0; i < 2; i++) {
-				broker.call("math.add", "a", 3, "b", 5).then(in -> {
+			broker.waitForServices("math").then(ok -> {
+				for (int i = 0; i < 2; i++) {
+					broker.call("math.add", "a", 3, "b", 5).then(in -> {
 
-					broker.getLogger(Sample.class).info("Result: " + in);
+						broker.getLogger(Sample.class).info("Result: " + in);
 
-				}).catchError(err -> {
+					}).catchError(err -> {
 
-					broker.getLogger(Sample.class).error("Error: " + err);
+						broker.getLogger(Sample.class).error("Error: " + err);
 
-				});
-			}
+					});
+				}
+			});
+
+			Thread.sleep(4000);
+
+			broker.createService(new Service("service2") {
+
+				@SuppressWarnings("unused")
+				public Action test2 = ctx -> {
+
+					return ctx.params.get("a", 0) + ctx.params.get("b", 0);
+
+				};
+
+			});
+
+			Thread.sleep(60000);
 
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		System.out.println("STOP");
 	}
+
+	@Name("math")
+	@Dependencies({ "service2" })
+	public static class MathService extends Service {
+
+		@Name("add")
+		@Cache(keys = { "a", "b" }, ttl = 30)
+		public Action add = ctx -> {
+
+			// broker.getLogger().info("Call " + ctx.params);
+			return ctx.params.get("a", 0) + ctx.params.get("b", 0);
+
+		};
+
+		@Name("test")
+		@Version("1")
+		public Action test = ctx -> {
+
+			return ctx.params.get("a", 0) + ctx.params.get("b", 0);
+
+		};
+
+		@Subscribe("foo.*")
+		public Listener listener = payload -> {
+			System.out.println("Received: " + payload);
+		};
+
+	};
 
 }

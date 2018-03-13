@@ -46,8 +46,8 @@ public class ProtocolVersionMismatch extends MoleculerException {
 
 	// --- CONSTRUCTORS ---
 
-	public ProtocolVersionMismatch(String type, Tree data, String nodeID, String received) {
-		super(false, "Invalid protocol version (" + received + ")!", 500, type, data);
+	public ProtocolVersionMismatch(Tree data, String nodeID, String received) {
+		super(false, "Invalid protocol version (" + received + ")!", 500, data);
 		this.nodeID = nodeID;
 		this.received = received;
 	}

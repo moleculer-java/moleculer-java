@@ -39,8 +39,8 @@ public class MoleculerServerException extends MoleculerException {
 
 	// --- CONSTRUCTORS ---
 
-	public MoleculerServerException(String message, int code, String type, Tree data) {
-		super(true, message, code, type, data);
+	public MoleculerServerException(String message, int code, Tree data) {
+		super(true, message, code, data);
 	}
 
 }

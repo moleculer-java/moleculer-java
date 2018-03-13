@@ -39,8 +39,8 @@ public class MoleculerRetryableException extends MoleculerException {
 
 	// --- CONSTRUCTORS ---
 
-	public MoleculerRetryableException(String message, int code, String type, Tree data) {
-		super(true, message, code, type, data);
+	public MoleculerRetryableException(String message, int code, Tree data) {
+		super(true, message, code, data);
 	}
 
 }

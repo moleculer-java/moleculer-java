@@ -43,8 +43,8 @@ public class MaxCallLevelException extends MoleculerException {
 
 	// --- CONSTRUCTORS ---
 
-	public MaxCallLevelException(String type, Tree data, int level) {
-		super(false, "Max call level reached (" + level + ")!", 500, type, data);
+	public MaxCallLevelException(Tree data, int level) {
+		super(false, "Max call level reached (" + level + ")!", 500, data);
 		this.level = level;
 	}
 
