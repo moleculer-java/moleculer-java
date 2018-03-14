@@ -67,6 +67,11 @@ public class Context {
 	public final String parentID;
 
 	/**
+	 * Request ID (= first context ID) 
+	 */
+	public final String requestID;
+	
+	/**
 	 * Calling options
 	 */
 	public final CallOptions.Options opts;
@@ -94,6 +99,9 @@ public class Context {
 		this.level = 1;
 		this.parentID = null;
 		this.opts = opts;
+		
+		// Set the first ID
+		this.requestID = id;
 	}
 
 	public Context(String id, String name, Tree params, CallOptions.Options opts, Context parent) {
@@ -110,6 +118,9 @@ public class Context {
 		this.level = parent.level + 1;
 		this.parentID = parent.id;
 		this.opts = opts;
+		
+		// Get the request ID from parent
+		this.requestID = parent.requestID;
 	}
 
 	// --- INVOKE LOCAL OR REMOTE ACTION ---

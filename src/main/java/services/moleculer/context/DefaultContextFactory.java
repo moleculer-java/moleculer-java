@@ -39,6 +39,10 @@ import services.moleculer.uid.UIDGenerator;
 @Name("Default Context Factory")
 public class DefaultContextFactory extends ContextFactory {
 
+	// --- PROPERTIES ---
+	
+	protected int maxCallLevel;
+	
 	// --- COMPONENTS ---
 
 	protected ServiceRegistry serviceRegistry;
@@ -91,7 +95,24 @@ public class DefaultContextFactory extends ContextFactory {
 				}
 			}
 		}
+		
+		// Verify call level
+		if (maxCallLevel > 0 && parent.level >= maxCallLevel) {
+			throw new IllegalStateException("Max call level limit reached (" + maxCallLevel + ")!");
+		}
+		
+		// Create context (nested call)
 		return new Context(id, name, params, opts, parent);
+	}
+
+	// --- PROPERTY GETTERS AND SETTERS ---
+	
+	public int getMaxCallLevel() {
+		return maxCallLevel;
+	}
+
+	public void setMaxCallLevel(int maxCallLevel) {
+		this.maxCallLevel = maxCallLevel;
 	}
 
 }

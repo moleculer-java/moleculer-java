@@ -29,6 +29,7 @@ import io.datatree.Tree;
 import services.moleculer.cacher.Cache;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.Context;
+import services.moleculer.context.DefaultContextFactory;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
@@ -89,16 +90,23 @@ public class Sample {
 
 					});
 				}
+				
+				System.out.println("FIRST CALL ->3");
+				broker.call("service3.test", new Tree()).catchError(cause -> {
+					cause.printStackTrace();
+				});
 			});
 
-			Thread.sleep(3000);
+			((DefaultContextFactory) broker.getConfig().getContextFactory()).setMaxCallLevel(3);
+			
+			Thread.sleep(1000);
 			broker.createService(new Service2Service());
 
-			Thread.sleep(3000);
+			Thread.sleep(1000);
 			broker.createService(new Service3Service());
 
 			Thread.sleep(60000);
-
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -137,11 +145,23 @@ public class Sample {
 	@Dependencies({ "service3" })
 	public static class Service2Service extends Service {
 
+		@Name("test")
+		public Action test = ctx -> {		
+			System.out.println("CALL 2->3");
+			return ctx.call("service3.test", ctx.params);
+		};
+		
 	};
 
 	@Name("service3")
 	// @Dependencies({ "service2" })
 	public static class Service3Service extends Service {
+
+		@Name("test")
+		public Action test = ctx -> {
+			System.out.println("CALL 3->2");
+			return ctx.call("service2.test", ctx.params);
+		};
 
 	};
 	
