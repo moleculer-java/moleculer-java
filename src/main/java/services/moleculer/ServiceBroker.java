@@ -67,8 +67,7 @@ import services.moleculer.util.ParseResult;
  *
  * broker.createService(new Service("math") {
  * 	public Action add = ctx -> {
- * 		return ctx.params.get("a").asInteger()
- *                     + ctx.params.get("b").asInteger();
+ * 		return ctx.params.get("a").asInteger() + ctx.params.get("b").asInteger();
  * 	};
  * });
  *
@@ -383,16 +382,38 @@ public class ServiceBroker {
 	}
 
 	public Promise call(String name, Tree params, CallOptions.Options opts) {
-		return new Promise(result -> {
-			try {
-				String targetID = opts == null ? null : opts.nodeID;
-				Action action = serviceRegistry.getAction(name, targetID);
-				Context ctx = contextFactory.create(name, params, opts, null);
-				result.resolve(action.handler(ctx));
-			} catch (Throwable cause) {
-				result.reject(cause);
-			}
-		});
+		String targetID;
+		int retryCount;
+		if (opts == null) {
+			targetID = null;
+			retryCount = 0;
+		} else {
+			targetID = opts.nodeID;
+			retryCount = opts.retryCount;
+		}
+		return call(name, params, opts, targetID, retryCount);
+	}
+
+	protected Promise call(String name, Tree params, CallOptions.Options opts, String targetID, int retryCount) {
+		try {
+			Action action = serviceRegistry.getAction(name, targetID);
+			Context ctx = contextFactory.create(name, params, opts, null);
+			return Promise.resolve(action.handler(ctx)).catchError(cause -> {
+				return retry(cause, name, params, opts, targetID, retryCount);
+			});
+		} catch (Throwable cause) {
+			return retry(cause, name, params, opts, targetID, retryCount);
+		}
+	}
+
+	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, String targetID,
+			int retryCount) {
+		if (retryCount > 0) {
+			int remaining = retryCount - 1;
+			logger.warn("Retrying request (" + remaining + " attempts left)...", cause);
+			return call(name, params, opts, targetID, remaining);
+		}
+		return Promise.reject(cause);
 	}
 
 	// --- EMIT EVENT TO EVENT GROUP ---
@@ -476,11 +497,11 @@ public class ServiceBroker {
 	public Promise waitForServices(int timeout, String... services) {
 		return waitForServices(timeout, Arrays.asList(services));
 	}
-	
+
 	public Promise waitForServices(int timeout, Collection<String> services) {
 		return serviceRegistry.waitForServices(timeout, services);
 	}
-	
+
 	// --- START DEVELOPER CONSOLE ---
 
 	public boolean repl() {

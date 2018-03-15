@@ -80,7 +80,7 @@ public final class CommonUtils {
 		}
 		return path;
 	}
-
+	
 	// --- ANNOTATION TO JSON CONVERTER ---
 
 	public static final void convertAnnotations(Tree config, Annotation[] annotations)
