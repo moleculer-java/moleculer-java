@@ -40,7 +40,7 @@ import services.moleculer.service.Name;
  * @see CpuUsageStrategy
  */
 @Name("XORSHIFT Pseudorandom Strategy")
-public class XORShiftRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
+public class XorShiftRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
 
 	// --- PROPERTIES ---
 
@@ -48,7 +48,7 @@ public class XORShiftRandomStrategy<T extends Endpoint> extends ArrayBasedStrate
 
 	// --- CONSTRUCTOR ---
 
-	public XORShiftRandomStrategy(ServiceBroker broker, boolean preferLocal) {
+	public XorShiftRandomStrategy(ServiceBroker broker, boolean preferLocal) {
 		super(broker, preferLocal);
 	}
 

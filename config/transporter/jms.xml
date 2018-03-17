@@ -7,6 +7,13 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
+	<!-- TRANSPORTER FOR JMS-COMPATIBLE MESSAGE BROKERS -->
+	<!-- REQUIRED DEPENDENCY: group: 'javax.jms', name: 'javax.jms-api', version: '2.0.1' -->
+	<!-- (+ dependencies of the JMS driver) -->
+	<!-- URL: https://mvnrepository.com/artifact/javax.jms/javax.jms-api -->
 
+	<bean id="transporter" class="services.moleculer.transporter.JmsTransporter">
+		
+	</bean>
 
 </beans>

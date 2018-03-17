@@ -7,6 +7,12 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
+	<!-- APACHE KAFKA PUB/SUB TRANSPORTER -->
+	<!-- REQUIRED DEPENDENCY: group: 'org.apache.kafka', name: 'kafka-clients', version: '1.0.0' -->
+	<!-- URL: https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients -->
 
+	<bean id="transporter" class="services.moleculer.transporter.KafkaTransporter">
+		
+	</bean>
 
 </beans>

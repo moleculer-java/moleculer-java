@@ -103,20 +103,12 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected boolean asyncLocalInvocation;
 
 	/**
-	 * Default action invocation timeout (seconds)
-	 */
-	protected int defaultTimeout;
-
-	/**
-	 * Timeout-checker's period delay (seconds)
-	 */
-	protected int cleanup = 1;
-
-	/**
 	 * Check protocol version
 	 */
 	protected boolean checkVersion;
 
+	// --- LOCKS ---
+	
 	/**
 	 * Reader lock of configuration
 	 */

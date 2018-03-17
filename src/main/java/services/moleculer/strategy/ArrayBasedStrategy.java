@@ -39,7 +39,7 @@ import services.moleculer.service.Endpoint;
  * @see RoundRobinStrategy
  * @see NanoSecRandomStrategy
  * @see SecureRandomStrategy
- * @see XORShiftRandomStrategy
+ * @see XorShiftRandomStrategy
  * @see CpuUsageStrategy
  */
 public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T> {

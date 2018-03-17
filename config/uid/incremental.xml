@@ -7,6 +7,14 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
-
+	<!-- FAST SEQUENCE-BASED UID GENERATOR -->
+	<!-- REQUIRED DEPENDENCY: nothing -->
+	
+	<bean id="uid" class="services.moleculer.uid.IncrementalUIDGenerator">
+	
+		<!-- UID prefix (empty = hostname) -->	
+		<property name="prefix" value="" />
+		
+	</bean>
 
 </beans>

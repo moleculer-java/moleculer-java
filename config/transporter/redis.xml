@@ -7,6 +7,12 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
+	<!-- REDIS PUB/SUB TRANSPORTER -->
+	<!-- REQUIRED DEPENDENCY: group: 'biz.paluch.redis', name: 'lettuce', version: '4.4.1.Final' -->
+	<!-- URL: https://mvnrepository.com/artifact/biz.paluch.redis/lettuce -->
 
+	<bean id="transporter" class="services.moleculer.transporter.RedisTransporter">
+		
+	</bean>
 
 </beans>

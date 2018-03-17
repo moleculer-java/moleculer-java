@@ -1,12 +1,58 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
-	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	   xmlns:context="http://www.springframework.org/schema/context"
-	   xsi:schemaLocation="http://www.springframework.org/schema/beans
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
 	   http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
+	<!-- "ZERO-CONFIG" TCP TRANSPORTER WITH GOSSIP-BASED SERVICE DISCOVERY -->
+	<!-- REQUIRED DEPENDENCY: nothing -->
 
+	<bean id="transporter" class="services.moleculer.transporter.TcpTransporter">
+
+		<!-- List of URLs, when UDP discovery is disabled -->
+		<property name="urls"><null /></property>
+
+		<!-- TCP port (used by the Transporter and Gossiper services) -->
+		<property name="port" value="0" />
+
+		<!-- Gossiping period time, in SECONDS -->
+		<property name="gossipPeriod" value="2" />
+
+		<!-- Max number of keep-alive connections (-1 = unlimited, 0 = disabled) -->
+		<property name="maxConnections" value="32" />
+
+		<!-- Max enabled packet size in BYTES -->
+		<property name="maxPacketSize" value="1048576" />
+
+		<!-- Use hostnames instead of IP addresses -->
+		<property name="useHostname" value="true" />
+
+		<!-- UDP broadcast/multicast port -->
+		<property name="udpPort" value="4445" />
+
+		<!-- UDP bind address (null = autodetect) -->
+		<property name="udpBindAddress"><null /></property>
+
+		<!-- UDP broadcast/multicast period in SECONDS -->
+		<property name="udpPeriod" value="30" />
+
+		<!-- Resuse addresses -->
+		<property name="udpReuseAddr" value="true" />
+
+		<!-- Maximum number of outgoing multicast packets (0 = runs forever) -->
+		<property name="udpMaxDiscovery" value="0" />
+
+		<!-- UDP multicast address of automatic discovery service -->
+		<property name="udpMulticast" value="239.0.0.0" />
+
+		<!-- TTL of UDP multicast packets -->
+		<property name="udpMulticastTTL" value="1" />
+
+		<!-- Use UDP broadcast WITH UDP multicast (false = use UDP multicast only) -->
+		<property name="udpBroadcast" value="false" />
+
+	</bean>
 
 </beans>

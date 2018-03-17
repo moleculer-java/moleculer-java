@@ -31,7 +31,7 @@ package services.moleculer.strategy;
  * @see RoundRobinStrategyFactory
  * @see NanoSecRandomStrategyFactory
  * @see SecureRandomStrategyFactory
- * @see XORShiftRandomStrategyFactory
+ * @see XorShiftRandomStrategyFactory
  * @see CpuUsageStrategyFactory
  */
 public abstract class ArrayBasedStrategyFactory extends StrategyFactory {

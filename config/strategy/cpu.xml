@@ -7,6 +7,15 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
-
+	<!-- LEAST CPU-USAGE ACTION CALL INVOCATION STRATEGY -->
+	<!-- RECOMMENDED DEPENDENCY: Sigar-based CPU monitor -->
+	<!-- REQUIRED DEPENDENCY: nothing -->
+		
+	<bean id="uid" class="services.moleculer.strategy.CpuUsageStrategyFactory">
+	
+		<!-- Invoke local actions if possible -->	
+		<property name="preferLocal" value="true" />
+		
+	</bean>
 
 </beans>

@@ -7,6 +7,9 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
-
+	<!-- STANDARD UUID GENERATOR -->
+	<!-- REQUIRED DEPENDENCY: nothing -->
+	
+	<bean id="uid" class="services.moleculer.uid.StandardUUIDGenerator" />
 
 </beans>

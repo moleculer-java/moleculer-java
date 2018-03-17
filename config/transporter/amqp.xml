@@ -7,6 +7,15 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
+	<!-- TRANSPORTER FOR AMQP-COMPATIBLE MESSAGE BROKERS -->
+	<!-- REQUIRED DEPENDENCY: group: 'com.rabbitmq', name: 'amqp-client', version: '5.0.0' -->
+	<!-- URL: https://mvnrepository.com/artifact/com.rabbitmq/amqp-client -->
 
+	<bean id="transporter" class="services.moleculer.transporter.AmqpTransporter">
+	
+		<!-- URLs of the AMQP servers (comma-separated list) -->	
+		<property name="urls"      value="amqp://localhost:6379" />
+		
+	</bean>
 
 </beans>

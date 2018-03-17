@@ -7,6 +7,17 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
-
+	<!-- DEFAULT SERVICE REGISTRY -->
+	<!-- REQUIRED DEPENDENCY: nothing -->
+	
+	<bean id="eventbus" class="services.moleculer.service.DefaultServiceRegistry">
+	
+		<!-- Invoke local actions via Thread pool (true) or directly (false) -->	
+		<property name="asyncLocalInvocation" value="false" />
+		
+		<!-- Check protocol version of Moleculer -->
+		<property name="checkVersion"         value="false" />
+		
+	</bean>
 
 </beans>

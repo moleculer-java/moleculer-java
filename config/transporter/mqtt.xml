@@ -7,6 +7,12 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
+	<!-- TRANSPORTER FOR MQTT-COMPATIBLE MESSAGE BROKERS -->
+	<!-- REQUIRED DEPENDENCY: group: 'net.sf.xenqtt', name: 'xenqtt', version: '0.9.7' -->
+	<!-- URL: https://mvnrepository.com/artifact/net.sf.xenqtt/xenqtt -->
 
+	<bean id="transporter" class="services.moleculer.transporter.MqttTransporter">
+		
+	</bean>
 
 </beans>
