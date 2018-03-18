@@ -60,7 +60,7 @@ import services.moleculer.service.Name;
  * compile group: 'com.google.cloud', name: 'google-cloud-pubsub', version:
  * '0.30.0-beta'<br>
  * <br>
- * DRAFT / UNFINISHED VERSION
+ * UNTESTED
  *
  * @see RedisTransporter
  * @see NatsTransporter
@@ -334,7 +334,9 @@ public class GoogleTransporter extends Transporter {
 	}
 
 	public void setProjectID(String projectID) {
-		this.projectID = projectID;
+		if (projectID != null) {
+			this.projectID = projectID;
+		}
 	}
 
 	public BatchingSettings getBatchingSettings() {

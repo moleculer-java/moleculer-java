@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
-	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	   xmlns:context="http://www.springframework.org/schema/context"
-	   xsi:schemaLocation="http://www.springframework.org/schema/beans
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
 	   http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
@@ -12,7 +11,26 @@
 	<!-- URL: https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients -->
 
 	<bean id="transporter" class="services.moleculer.transporter.KafkaTransporter">
-		
+
+		<!-- Kafka server URLs (comma-separated list) -->
+		<property name="urls" value="kafka://127.0.0.0:9092" />
+
+		<!-- Producer properties -->
+		<!-- More info: https://kafka.apache.org/documentation/#producerconfigs -->
+		<property name="producerProperties">
+			<props>
+				<prop key="retries">0</prop>
+			</props>
+		</property>
+
+		<!-- Consumer properties -->
+		<!-- More info: https://kafka.apache.org/documentation/#consumerconfigs -->
+		<property name="consumerProperties">
+			<props>
+				<prop key="session.timeout.ms">10000</prop>
+			</props>
+		</property>
+
 	</bean>
 
 </beans>

@@ -76,7 +76,7 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 	protected int messageResendIntervalSeconds = 30;
 	protected int blockingTimeoutSeconds = 0;
 	protected int maxInFlightMessages = 0xffff;
-	protected QoS qos = QoS.AT_LEAST_ONCE;
+	protected QoS qos = QoS.AT_MOST_ONCE;
 
 	// --- MQTT CONNECTION ---
 
