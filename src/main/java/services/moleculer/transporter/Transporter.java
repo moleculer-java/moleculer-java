@@ -53,6 +53,7 @@ import services.moleculer.service.Name;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.transporter.tcp.NodeDescriptor;
 import services.moleculer.transporter.tcp.RemoteAddress;
+import services.moleculer.uid.UIDGenerator;
 import services.moleculer.util.FastBuildTree;
 
 /**
@@ -91,7 +92,6 @@ public abstract class Transporter extends MoleculerComponent {
 	public String infoChannel;
 	public String disconnectChannel;
 	public String heartbeatChannel;
-	public String pingBroadcastChannel;
 	public String pingChannel;
 	public String pongChannel;
 
@@ -128,6 +128,7 @@ public abstract class Transporter extends MoleculerComponent {
 	protected ServiceRegistry registry;
 	protected Eventbus eventbus;
 	protected Monitor monitor;
+	protected UIDGenerator uid;
 
 	// --- REMOTE NODES ---
 
@@ -172,6 +173,7 @@ public abstract class Transporter extends MoleculerComponent {
 		registry = cfg.getServiceRegistry();
 		monitor = cfg.getMonitor();
 		eventbus = cfg.getEventbus();
+		uid = cfg.getUidGenerator();
 
 		// Get properties from broker
 		this.broker = broker;
@@ -187,7 +189,6 @@ public abstract class Transporter extends MoleculerComponent {
 		infoChannel = channel(PACKET_INFO, nodeID);
 		disconnectChannel = channel(PACKET_DISCONNECT, null);
 		heartbeatChannel = channel(PACKET_HEARTBEAT, null);
-		pingBroadcastChannel = channel(PACKET_PING, null);
 		pingChannel = channel(PACKET_PING, nodeID);
 		pongChannel = channel(PACKET_PONG, nodeID);
 	}
@@ -223,9 +224,8 @@ public abstract class Transporter extends MoleculerComponent {
 	protected void connected() {
 		executor.execute(() -> {
 
-			// Subscribe channels
-			Promise.all( // Waiting for all subscriptions...
-					subscribe(eventChannel), // EVENT
+			// Subscribe all required channels
+			Promise.all(subscribe(eventChannel), // EVENT
 					subscribe(requestChannel), // REQ
 					subscribe(responseChannel), // RES
 					subscribe(discoverBroadcastChannel), // DISCOVER
@@ -234,13 +234,12 @@ public abstract class Transporter extends MoleculerComponent {
 					subscribe(infoChannel), // INFO
 					subscribe(disconnectChannel), // DISCONNECT
 					subscribe(heartbeatChannel), // HEARTBEAT
-					subscribe(pingBroadcastChannel), // PING
 					subscribe(pingChannel), // PING
 					subscribe(pongChannel) // PONG
 			).then(in -> {
 
 				// Redis transporter is ready for use
-				logger.info("All channels subscribed.");
+				logger.info("All channels subscribed successfully.");
 
 				// Do the discovery process
 				sendDiscoverPacket(discoverBroadcastChannel);
@@ -294,17 +293,28 @@ public abstract class Transporter extends MoleculerComponent {
 		nodes.clear();
 	}
 
+	// --- PING PACKET ---
+	
+	public Tree createPingPacket(String id) {
+		FastBuildTree msg = new FastBuildTree(4);
+		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+		msg.putUnsafe("sender", nodeID);
+		msg.putUnsafe("id", id);
+		msg.putUnsafe("time", System.currentTimeMillis());	
+		return msg;
+	}
+	
 	// --- REQUEST PACKET ---
 
 	public Tree createRequestPacket(Context ctx) {
 		FastBuildTree msg = new FastBuildTree(7);
-		
+
 		// Add basic properties
 		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
 		msg.putUnsafe("sender", nodeID);
 		msg.putUnsafe("id", ctx.id);
 		msg.putUnsafe("action", ctx.name);
-		
+
 		// Add params and meta
 		if (ctx.params != null) {
 			msg.putUnsafe("params", ctx.params.asObject());
@@ -313,12 +323,12 @@ public abstract class Transporter extends MoleculerComponent {
 				msg.putUnsafe("meta", meta.asObject());
 			}
 		}
-		
+
 		// Add opts
 		if (ctx.opts != null) {
 			msg.putUnsafe("timeout", ctx.opts.timeout);
 		}
-		
+
 		// Return message
 		return msg;
 	}
@@ -429,8 +439,15 @@ public abstract class Transporter extends MoleculerComponent {
 
 					// Send node desriptor to the sender
 					sendInfoPacket(channel(PACKET_INFO, sender));
+					return;
 				}
 
+				// Ping packet
+				if (channel.equals(pingChannel)) {
+					sendPongPacket(sender, data);
+					return;
+				}
+				
 				// Disconnect packet
 				if (channel.equals(disconnectChannel)) {
 
@@ -459,7 +476,9 @@ public abstract class Transporter extends MoleculerComponent {
 						logger.info("Node \"" + sender + "\" disconnected.");
 						broadcastNodeDisconnected(node.info, false);
 					}
+					return;
 				}
+				
 			} catch (Exception cause) {
 				logger.warn("Unable to process incoming message!", cause);
 			}
@@ -623,6 +642,21 @@ public abstract class Transporter extends MoleculerComponent {
 		publish(disconnectChannel, msg);
 	}
 
+	protected void sendPongPacket(String sender, Tree ping) {
+		String id = ping.get("id", "");
+		if (id == null || id.isEmpty()) {
+			return;
+		}
+		long time = ping.get("time", 0L);
+		FastBuildTree msg = new FastBuildTree(5);
+		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("sender", this.nodeID);
+		msg.putUnsafe("id", id);
+		msg.putUnsafe("received", time);
+		msg.putUnsafe("time", System.currentTimeMillis());
+		publish(channel(pongChannel, sender), msg);
+	}
+
 	// --- TIMEOUT PROCESS ---
 
 	protected void checkTimeouts() {
@@ -733,7 +767,7 @@ public abstract class Transporter extends MoleculerComponent {
 		return ids;
 	}
 
-	// --- GET NODE DESCRIPTOR ---
+	// --- GET DESCRIPTOR OF A NODE ---
 
 	public Tree getDescriptor(String nodeID) {
 		if (this.nodeID.equals(nodeID)) {
@@ -755,7 +789,7 @@ public abstract class Transporter extends MoleculerComponent {
 		return info;
 	}
 
-	// --- GET SOCKET ADDRESS ---
+	// --- GET SOCKET ADDRESS OF A NODE ---
 
 	public RemoteAddress getAddress(String nodeID) {
 		NodeDescriptor node = nodes.get(nodeID);

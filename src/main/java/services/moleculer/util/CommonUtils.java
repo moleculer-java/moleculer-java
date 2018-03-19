@@ -80,6 +80,26 @@ public final class CommonUtils {
 		}
 		return path;
 	}
+	
+	// --- MISSING DEPENDENCY ---
+
+	public static final void suggestDependency(String groupId, String artifactId, String version) {
+		System.err.println("It looks like you are missing some dependencies! Maven dependency:");
+		System.err.println();
+		System.err.println("<dependency>");
+		System.err.println("    <groupId>" + groupId + "</groupId>");
+		System.err.println("    <artifactId>" + artifactId + "</artifactId>");
+		System.err.println("    <version>" + version + "</version>");
+		System.err.println("</dependency>");
+		System.err.println();
+		System.err.println("Gradle dependency:");
+		System.err.println();
+		System.err.println("compile group: '" + groupId + "', name: '" + artifactId + "', version: '" + version + "'");
+		System.err.println();
+		System.err.println(
+				"...or download the JAR from https://mvnrepository.com/artifact/" + groupId + "/" + artifactId);
+		System.err.println();
+	}
 
 	// --- ANNOTATION TO JSON CONVERTER ---
 

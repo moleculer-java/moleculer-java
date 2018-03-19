@@ -71,6 +71,7 @@ import services.moleculer.eventbus.Eventbus;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
+import services.moleculer.uid.UIDGenerator;
 import services.moleculer.util.FastBuildTree;
 
 /**
@@ -103,20 +104,12 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected boolean asyncLocalInvocation;
 
 	/**
-	 * Default action invocation timeout (seconds)
-	 */
-	protected int defaultTimeout;
-
-	/**
-	 * Timeout-checker's period delay (seconds)
-	 */
-	protected int cleanup = 1;
-
-	/**
 	 * Check protocol version
 	 */
 	protected boolean checkVersion;
 
+	// --- LOCKS ---
+	
 	/**
 	 * Reader lock of configuration
 	 */
@@ -139,6 +132,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected ContextFactory contextFactory;
 	protected Transporter transporter;
 	protected Eventbus eventbus;
+	protected UIDGenerator uid;
 
 	// --- CONSTRUCTORS ---
 
@@ -182,6 +176,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		this.contextFactory = cfg.getContextFactory();
 		this.transporter = cfg.getTransporter();
 		this.eventbus = cfg.getEventbus();
+		this.uid = cfg.getUidGenerator();
 	}
 
 	// --- STOP SERVICE REGISTRY ---
@@ -918,6 +913,33 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		return foundCounter == requiredServices.size();
 	}
 
+	// --- PING / PONG HANDLING ---
+	
+	public Promise ping(int timeout, String nodeID) {
+		
+		// Create new promise
+		Promise promise = new Promise();
+
+		// Set timeout
+		long timeoutAt;
+		if (timeout > 0) {
+			timeoutAt = System.currentTimeMillis() + (timeout * 1000L);
+		} else {
+			timeoutAt = 0;
+		}
+
+		// Register promise (timeout and response handling)
+		String id = uid.nextUID();
+		register(id, promise, timeoutAt);
+
+		// Send request via transporter
+		Tree message = transporter.createPingPacket(id);
+		transporter.publish(Transporter.PACKET_PING, nodeID, message);
+
+		// Return promise
+		return promise;
+	}
+	
 	// --- TIMESTAMP OF SERVICE DESCRIPTOR ---
 
 	/**

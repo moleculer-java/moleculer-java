@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
-	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	   xmlns:context="http://www.springframework.org/schema/context"
-	   xsi:schemaLocation="http://www.springframework.org/schema/beans
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
 	   http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
@@ -10,33 +9,41 @@
 	<!-- PACKAGES OF MOLECULER SERVICES AND OTHER SPRING COMPONENTS -->
 
 	<context:component-scan base-package="services.moleculer" />
-			
+
 	<!-- SERVICE BROKER CONFIGURATION -->
 
 	<bean id="brokerConfig" class="services.moleculer.config.ServiceBrokerConfig">
-	
+
 		<property name="namespace"           value="" />
 		<property name="nodeID"              value="node-1" />
 		<property name="internalServices"    value="true" />
 		<property name="shutDownThreadPools" value="true" />
 
-		<property name="transporter"         ref="transporter"/>
-		<property name="cacher"              ref="cacher"/>
-		<property name="monitor"             ref="monitor"/>
-		
-		<property name="uid"                 ref="uid"/>
-		<property name="strategy"            ref="strategy"/>
-		<property name="context"             ref="context"/>
-		<property name="eventbus"            ref="eventbus"/>
-		<property name="registry"            ref="registry"/>
-		
-		<property name="jsonReader"><null/></property>
-		<property name="jsonWriter"><null/></property>
-		
+		<property name="transporter"         ref="transporter" />
+		<property name="cacher"              ref="cacher" />
+		<property name="monitor"             ref="monitor" />
+
+		<property name="uid"                 ref="uid" />
+		<property name="strategy"            ref="strategy" />
+		<property name="context"             ref="context" />
+		<property name="eventbus"            ref="eventbus" />
+		<property name="registry"            ref="registry" />
+
+		<property name="executor"            ref="executor" />
+		<property name="scheduler"           ref="scheduler" />
+
+		<property name="jsonReader">
+			<null />
+		</property>
+		<property name="jsonWriter">
+			<null />
+		</property>
+
 	</bean>
 
 	<!-- TRANSPORTER -->
 
+	<import resource="transporter/null.xml" />
 	<!-- import resource="transporter/amqp.xml" / -->
 	<!-- import resource="transporter/google.xml" / -->
 	<!-- import resource="transporter/jms.xml" / -->
@@ -59,40 +66,53 @@
 	<!-- import resource="monitor/command.xml" / -->
 	<!-- import resource="monitor/jmx.xml" / -->
 	<!-- import resource="monitor/constant.xml" / -->
-	
+
 	<!-- UID GENERATOR -->
-	
-	<import resource="uid/sequential.xml" />
+
+	<import resource="uid/incremental.xml" />
 	<!-- import resource="uid/standard.xml" / -->
-	
+
 	<!-- SERVICE INVOCATION STRATEGY -->
-	
+
 	<import resource="strategy/round-robin.xml" />
 	<!-- import resource="strategy/random-xorshift.xml" / -->
 	<!-- import resource="strategy/random-nanosec.xml" / -->
 	<!-- import resource="strategy/random-secure.xml" / -->
 	<!-- import resource="strategy/cpu.xml" / -->
-	
+
+	<!-- COMMON TASK EXECUTOR -->
+
+	<bean id="executor" class="java.util.concurrent.ForkJoinPool"
+		factory-method="commonPool" />
+
+	<!-- COMMON TASK SCHEDULER -->
+
+	<bean id="scheduler" class="java.util.concurrent.Executors"
+		factory-method="newScheduledThreadPool">
+		<constructor-arg ref="3" />
+	</bean>
+
 	<!-- CONTEXT FACTORY -->
-	
+
 	<import resource="context/default.xml" />
-	
+
 	<!-- EVENT BUS -->
-	
+
 	<import resource="eventbus/default.xml" />
 
 	<!-- SERVICE REGISTRY -->
-	
+
 	<import resource="registry/default.xml" />
 
 	<!-- SERVICE BROKER -->
 
-	<bean id="broker" class="services.moleculer.ServiceBroker" init-method="start" destroy-method="stop">
-		<constructor-arg ref="brokerConfig"/>
+	<bean id="broker" class="services.moleculer.ServiceBroker"
+		init-method="start" destroy-method="stop">
+		<constructor-arg ref="brokerConfig" />
 	</bean>
-	
+
 	<!-- MOLECULER SERVICE REGISTRATOR -->
-		
+
 	<bean id="registrator" class="services.moleculer.config.SpringRegistrator" />
-		
+
 </beans>

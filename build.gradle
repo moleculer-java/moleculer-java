@@ -223,3 +223,8 @@ jar {
     baseName = 'moleculer'
     version =  '1.3'
 }
+
+// task copyRuntimeLibs(type: Copy) {
+// into "lib"
+// from configurations.runtime
+// }

@@ -27,6 +27,7 @@ package services.moleculer;
 
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.parseParams;
+import static services.moleculer.util.CommonUtils.suggestDependency;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -67,8 +68,7 @@ import services.moleculer.util.ParseResult;
  *
  * broker.createService(new Service("math") {
  * 	public Action add = ctx -> {
- * 		return ctx.params.get("a").asInteger()
- *                     + ctx.params.get("b").asInteger();
+ * 		return ctx.params.get("a").asInteger() + ctx.params.get("b").asInteger();
  * 	};
  * });
  *
@@ -103,6 +103,10 @@ public class ServiceBroker {
 	 * SLF4J logger of this class.
 	 */
 	protected static final Logger logger = LoggerFactory.getLogger(ServiceBroker.class);
+
+	// --- CURRENT NODE ID ---
+
+	protected final String nodeID;
 
 	// --- CONFIGURATION ---
 
@@ -150,6 +154,7 @@ public class ServiceBroker {
 
 	public ServiceBroker(ServiceBrokerConfig config) {
 		this.config = config;
+		this.nodeID = config.getNodeID();
 	}
 
 	public ServiceBroker() {
@@ -173,7 +178,7 @@ public class ServiceBroker {
 	// --- PROPERTY GETTERS ---
 
 	public String getNodeID() {
-		return config.getNodeID();
+		return nodeID;
 	}
 
 	// --- START BROKER INSTANCE ---
@@ -383,16 +388,38 @@ public class ServiceBroker {
 	}
 
 	public Promise call(String name, Tree params, CallOptions.Options opts) {
-		return new Promise(result -> {
-			try {
-				String targetID = opts == null ? null : opts.nodeID;
-				Action action = serviceRegistry.getAction(name, targetID);
-				Context ctx = contextFactory.create(name, params, opts, null);
-				result.resolve(action.handler(ctx));
-			} catch (Throwable cause) {
-				result.reject(cause);
-			}
-		});
+		String targetID;
+		int retryCount;
+		if (opts == null) {
+			targetID = null;
+			retryCount = 0;
+		} else {
+			targetID = opts.nodeID;
+			retryCount = opts.retryCount;
+		}
+		return call(name, params, opts, targetID, retryCount);
+	}
+
+	protected Promise call(String name, Tree params, CallOptions.Options opts, String targetID, int retryCount) {
+		try {
+			Action action = serviceRegistry.getAction(name, targetID);
+			Context ctx = contextFactory.create(name, params, opts, null);
+			return Promise.resolve(action.handler(ctx)).catchError(cause -> {
+				return retry(cause, name, params, opts, targetID, retryCount);
+			});
+		} catch (Throwable cause) {
+			return retry(cause, name, params, opts, targetID, retryCount);
+		}
+	}
+
+	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, String targetID,
+			int retryCount) {
+		if (retryCount > 0) {
+			int remaining = retryCount - 1;
+			logger.warn("Retrying request (" + remaining + " attempts left)...", cause);
+			return call(name, params, opts, targetID, remaining);
+		}
+		return Promise.reject(cause);
 	}
 
 	// --- EMIT EVENT TO EVENT GROUP ---
@@ -476,11 +503,21 @@ public class ServiceBroker {
 	public Promise waitForServices(int timeout, String... services) {
 		return waitForServices(timeout, Arrays.asList(services));
 	}
-	
+
 	public Promise waitForServices(int timeout, Collection<String> services) {
 		return serviceRegistry.waitForServices(timeout, services);
 	}
-	
+
+	// --- PING LOCAL OR REMOTE NODE ---
+
+	public Promise ping(String nodeID) {
+		return ping(nodeID, 3);
+	}
+
+	public Promise ping(String nodeID, int timeout) {
+		return serviceRegistry.ping(timeout, nodeID);
+	}
+
 	// --- START DEVELOPER CONSOLE ---
 
 	public boolean repl() {
@@ -499,8 +536,11 @@ public class ServiceBroker {
 			createService(serviceName,
 					(Service) Class.forName("services.moleculer.repl." + className + "Repl").newInstance());
 			return true;
+		} catch (ClassNotFoundException notFound) {
+			logger.error("Unable to start REPL console!");
+			suggestDependency("com.github.berkesa", "moleculer-java-repl", "1.0.3");
 		} catch (Exception cause) {
-			logger.error("REPL package not installed!");
+			logger.error("Unable to start REPL console!", cause);
 		}
 		return false;
 	}

@@ -25,6 +25,7 @@
  */
 package services.moleculer.transporter;
 
+import static services.moleculer.ServiceBroker.PROTOCOL_VERSION;
 import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.parseURLs;
 import static services.moleculer.util.CommonUtils.readTree;
@@ -33,6 +34,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.URL;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.concurrent.ScheduledFuture;
@@ -47,6 +49,7 @@ import services.moleculer.transporter.tcp.NodeDescriptor;
 import services.moleculer.transporter.tcp.TcpReader;
 import services.moleculer.transporter.tcp.TcpWriter;
 import services.moleculer.transporter.tcp.UDPLocator;
+import services.moleculer.util.FastBuildMap;
 import services.moleculer.util.FastBuildTree;
 
 /**
@@ -419,18 +422,37 @@ public class TcpTransporter extends Transporter {
 
 				case PACKET_PING_ID:
 
-					// TODO Not implemented
+					// Send pong
 					if (debug) {
 						logger.info("Ping message received:\r\n" + data);
 					}
+					String id = data.get("id", "");
+					if (id == null || id.isEmpty()) {
+						logger.warn("Missing \"id\" property:\r\n" + data);
+						return;
+					}
+					String sender = data.get("sender", "");
+					if (sender == null || sender.isEmpty()) {
+						logger.warn("Missing \"sender\" property:\r\n" + data);
+						return;
+					}
+					long time = data.get("time", 0L);
+					FastBuildTree msg = new FastBuildTree(5);
+					msg.putUnsafe("ver", PROTOCOL_VERSION);
+					msg.putUnsafe("sender", this.nodeID);
+					msg.putUnsafe("id", id);
+					msg.putUnsafe("received", time);
+					msg.putUnsafe("time", System.currentTimeMillis());
+					writer.send(sender, serialize(PACKET_PONG_ID, msg));
 					return;
 
 				case PACKET_PONG_ID:
 
-					// TODO Not implemented
+					// Pong received
 					if (debug) {
 						logger.info("Pong message received:\r\n" + data);
 					}
+					registry.receiveResponse(data);
 					return;
 
 				case PACKET_GOSSIP_REQ_ID:
@@ -827,26 +849,25 @@ public class TcpTransporter extends Transporter {
 			}
 
 			// Create gossip request
-			Tree root = new Tree();
-			root.put("ver", ServiceBroker.PROTOCOL_VERSION);
-			root.put("sender", nodeID);
+			FastBuildTree root = new FastBuildTree(4);
+			root.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+			root.putUnsafe("sender", nodeID);
 
 			// Add "online" and "offline" blocks
-			Tree online = root.putMap("online");
-			Tree offline = root.putMap("offline");
+			Collection<NodeDescriptor> descriptors = nodes.values();
+			int size = nodes.size() + 32;
+			FastBuildMap online = new FastBuildMap(size);
+			FastBuildMap offline = new FastBuildMap(size);
 
 			// Add current node
 			descriptor.readLock.lock();
 			try {
-				Tree node = online.putList(nodeID);
-				node.add(descriptor.seq);
-				node.add(descriptor.cpuSeq).add(descriptor.cpu);
+				online.put(nodeID, new Long[] { descriptor.seq, descriptor.cpuSeq, (long) descriptor.cpu });
 			} finally {
 				descriptor.readLock.unlock();
 			}
 
 			// Separate online and offline nodes
-			int size = nodes.size() * 2;
 			String[] liveEndpoints = new String[size];
 			String[] unreachableEndpoints = new String[size];
 
@@ -854,7 +875,7 @@ public class TcpTransporter extends Transporter {
 			int unreachableEndpointCount = 0;
 
 			// Loop on registered nodes
-			for (NodeDescriptor node : nodes.values()) {
+			for (NodeDescriptor node : descriptors) {
 				node.readLock.lock();
 				try {
 					if (node.offlineSince > 0) {
@@ -874,7 +895,7 @@ public class TcpTransporter extends Transporter {
 								liveEndpoints[liveEndpointCount++] = node.nodeID;
 							}
 							if (node.seq > 0) {
-								online.putList(node.nodeID).add(node.seq).add(node.cpuSeq).add(node.cpu);
+								online.put(node.nodeID, new Long[] { node.seq, node.cpuSeq, (long) node.cpu });
 							}
 						}
 					}
@@ -882,10 +903,9 @@ public class TcpTransporter extends Transporter {
 					node.readLock.unlock();
 				}
 			}
-
-			// Remove empty "offline" node
-			if (offline.isEmpty()) {
-				offline.remove();
+			root.putUnsafe("online", online);
+			if (!offline.isEmpty()) {
+				root.putUnsafe("offline", offline);
 			}
 
 			// Serialize gossip packet (JSON, MessagePack, etc.)
@@ -953,12 +973,17 @@ public class TcpTransporter extends Transporter {
 		}
 
 		// Create gossip response
-		Tree root = new Tree();
-		root.put("ver", ServiceBroker.PROTOCOL_VERSION);
-		root.put("sender", this.nodeID);
+		FastBuildTree root = new FastBuildTree(4);
+		root.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+		root.putUnsafe("sender", nodeID);
 
-		Tree onlineRsp = root.putMap("online");
-		Tree offlineRsp = root.putMap("offline");
+		// Add "online" and "offline" response blocks
+		LinkedList<NodeDescriptor> allNodes = new LinkedList<>(nodes.values());
+		NodeDescriptor descriptor = getDescriptor();
+		allNodes.add(descriptor);
+		int size = allNodes.size() + 1;
+		FastBuildMap onlineRsp = new FastBuildMap(size);
+		FastBuildMap offlineRsp = new FastBuildMap(size);
 
 		// Online / offline nodes in request
 		Tree onlineReq = data.get("online");
@@ -966,9 +991,6 @@ public class TcpTransporter extends Transporter {
 
 		// Loop in nodes
 		LinkedList<NodeDescriptor> disconnectedNodes = new LinkedList<>();
-		LinkedList<NodeDescriptor> allNodes = new LinkedList<>(nodes.values());
-		NodeDescriptor descriptor = getDescriptor();
-		allNodes.add(descriptor);
 		for (NodeDescriptor node : allNodes) {
 			node.writeLock.lock();
 			try {
@@ -1004,10 +1026,11 @@ public class TcpTransporter extends Transporter {
 					// We have newer info or requester doesn't know it
 					if (node.offlineSince == 0) {
 						if (!node.info.isEmpty()) {
-							Tree row = onlineRsp.putList(node.nodeID);
-							row.addObject(node.info);
 							if ((cpuSeq == 0 || cpuSeq < node.cpuSeq) && node.cpuSeq > 0) {
-								row.add(node.cpuSeq).add(node.cpu);
+								onlineRsp.put(node.nodeID,
+										new Object[] { node.info.asObject(), node.cpuSeq, node.cpu });
+							} else {
+								onlineRsp.put(node.nodeID, new Object[] { node.info.asObject() });
 							}
 						}
 					} else {
@@ -1041,10 +1064,11 @@ public class TcpTransporter extends Transporter {
 								// We send back that this node is online
 								node.seq = seq + 1;
 								node.info.put("seq", node.seq);
-								Tree row = onlineRsp.putList(node.nodeID);
-								row.addObject(node.info);
 								if (cpuSeq < node.cpuSeq && node.cpuSeq > 0) {
-									row.add(node.cpuSeq).add(node.cpu);
+									onlineRsp.put(node.nodeID,
+											new Object[] { node.info.asObject(), node.cpuSeq, node.cpu });
+								} else {
+									onlineRsp.put(node.nodeID, new Object[] { node.info.asObject() });
 								}
 							}
 						}
@@ -1062,7 +1086,7 @@ public class TcpTransporter extends Transporter {
 						} else if (cpuSeq < node.cpuSeq && node.cpuSeq > 0) {
 
 							// We have newer CPU value, send back
-							onlineRsp.putList(node.nodeID).add(node.cpuSeq).add(node.cpu);
+							onlineRsp.put(node.nodeID, new Object[] { node.cpuSeq, node.cpu });
 						}
 					} else {
 
@@ -1090,11 +1114,11 @@ public class TcpTransporter extends Transporter {
 			// Message is empty
 			return root;
 		}
-		if (emptyOnlineBlock) {
-			onlineRsp.remove();
+		if (!emptyOnlineBlock) {
+			root.putUnsafe("online", onlineRsp);
 		}
-		if (emptyOfflineBlock) {
-			offlineRsp.remove();
+		if (!emptyOfflineBlock) {
+			root.putUnsafe("offline", offlineRsp);
 		}
 
 		// Debug
