@@ -27,6 +27,9 @@ package services.moleculer.context;
 
 import static services.moleculer.util.CommonUtils.parseParams;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.eventbus.Eventbus;
@@ -37,6 +40,10 @@ import services.moleculer.util.ParseResult;
 
 public class Context {
 
+	// --- LOGGER ---
+
+	protected static final Logger logger = LoggerFactory.getLogger(Context.class);
+	
 	// --- PROPERTIES ---
 
 	/**
@@ -67,10 +74,10 @@ public class Context {
 	public final String parentID;
 
 	/**
-	 * Request ID (= first context ID) 
+	 * Request ID (= first context ID)
 	 */
 	public final String requestID;
-	
+
 	/**
 	 * Calling options
 	 */
@@ -99,7 +106,7 @@ public class Context {
 		this.level = 1;
 		this.parentID = null;
 		this.opts = opts;
-		
+
 		// Set the first ID
 		this.requestID = id;
 	}
@@ -118,7 +125,7 @@ public class Context {
 		this.level = parent.level + 1;
 		this.parentID = parent.id;
 		this.opts = opts;
-		
+
 		// Get the request ID from parent
 		this.requestID = parent.requestID;
 	}
@@ -126,13 +133,17 @@ public class Context {
 	// --- INVOKE LOCAL OR REMOTE ACTION ---
 
 	/**
-	 * Calls an action (local or remote). Sample code:<br>
-	 * <br>
-	 * Promise promise = broker.call("math.add", "a", 1, "b", 2);<br>
-	 * <br>
-	 * ...or with CallOptions:<br>
-	 * <br>
+	 * Calls an action (local or remote). Sample code:
+	 * 
+	 * <pre>
+	 * Promise promise = broker.call("math.add", "a", 1, "b", 2);
+	 * </pre>
+	 * 
+	 * ...or with CallOptions:
+	 * 
+	 * <pre>
 	 * broker.call("math.add", "a", 1, "b", 2, CallOptions.nodeID("node2"));
+	 * </pre>
 	 */
 	public Promise call(String name, Object... params) {
 		ParseResult res = parseParams(params);
@@ -144,28 +155,40 @@ public class Context {
 	}
 
 	public Promise call(String name, Tree params, CallOptions.Options opts) {
-		return new Promise(result -> {
-			try {
-				String targetID;
-				int retryCount;
-				if (opts == null) {
-					targetID = null;
-					retryCount = 0;
-				} else {
-					targetID = opts.nodeID;
-					retryCount = opts.retryCount;
-				}
-				
-				// TODO implement retry logic
-				Action action = serviceRegistry.getAction(name, targetID);
-				Context ctx = contextFactory.create(name, params, opts, this);
-				result.resolve(action.handler(ctx));
-			} catch (Throwable cause) {
-				result.reject(cause);
-			}
-		});
+		String targetID;
+		int retryCount;
+		if (opts == null) {
+			targetID = null;
+			retryCount = 0;
+		} else {
+			targetID = opts.nodeID;
+			retryCount = opts.retryCount;
+		}
+		return call(name, params, opts, targetID, retryCount);
 	}
-	
+
+	protected Promise call(String name, Tree params, CallOptions.Options opts, String targetID, int retryCount) {
+		try {
+			Action action = serviceRegistry.getAction(name, targetID);
+			Context ctx = contextFactory.create(name, params, opts, null);
+			return Promise.resolve(action.handler(ctx)).catchError(cause -> {
+				return retry(cause, name, params, opts, targetID, retryCount);
+			});
+		} catch (Throwable cause) {
+			return retry(cause, name, params, opts, targetID, retryCount);
+		}
+	}
+
+	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, String targetID,
+			int retryCount) {
+		if (retryCount > 0) {
+			int remaining = retryCount - 1;
+			logger.warn("Retrying request (" + remaining + " attempts left)...", cause);
+			return call(name, params, opts, targetID, remaining);
+		}
+		return Promise.reject(cause);
+	}
+
 	// --- EMIT EVENT TO EVENT GROUP ---
 
 	/**

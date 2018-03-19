@@ -7,6 +7,14 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
-
+	<!-- SECURE RANDOM ACTION CALL INVOCATION STRATEGY -->
+	<!-- REQUIRED DEPENDENCY: nothing -->
+	
+	<bean id="uid" class="services.moleculer.strategy.SecureRandomStrategyFactory">
+	
+		<!-- Invoke local actions if possible -->	
+		<property name="preferLocal" value="true" />
+		
+	</bean>
 
 </beans>

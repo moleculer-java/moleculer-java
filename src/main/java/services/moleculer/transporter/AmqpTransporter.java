@@ -349,7 +349,9 @@ public class AmqpTransporter extends Transporter {
 	}
 
 	public void setFactory(ConnectionFactory factory) {
-		this.factory = factory;
+		if (factory != null) {
+			this.factory = factory;
+		}
 	}
 
 	public boolean isMandatory() {

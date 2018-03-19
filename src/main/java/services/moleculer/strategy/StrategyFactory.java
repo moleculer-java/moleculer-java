@@ -45,7 +45,7 @@ import services.moleculer.service.Name;
  * @see RoundRobinStrategyFactory
  * @see NanoSecRandomStrategyFactory
  * @see SecureRandomStrategyFactory
- * @see XORShiftRandomStrategyFactory
+ * @see XorShiftRandomStrategyFactory
  * @see CpuUsageStrategyFactory
  */
 @Name("Strategy Factory")

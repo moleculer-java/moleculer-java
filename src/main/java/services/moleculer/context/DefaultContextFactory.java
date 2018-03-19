@@ -42,7 +42,7 @@ public class DefaultContextFactory extends ContextFactory {
 	// --- PROPERTIES ---
 	
 	/**
-	 * Max call level (on nested calls, 0 = disabled / unlimited)
+	 * Max call level (0 = disabled / unlimited)
 	 */
 	protected int maxCallLevel = 100;
 	

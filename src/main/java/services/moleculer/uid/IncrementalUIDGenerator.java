@@ -43,6 +43,9 @@ public class IncrementalUIDGenerator extends UIDGenerator {
 
 	// --- HOST/NODE PREFIX ---
 
+	/**
+	 * UID prefix (empty = hostname)
+	 */
 	protected char[] prefix = (getHostName() + ':').toCharArray();
 
 	// --- SEQUENCE ---
@@ -82,7 +85,9 @@ public class IncrementalUIDGenerator extends UIDGenerator {
 	}
 
 	public void setPrefix(String prefix) {
-		this.prefix = prefix.toCharArray();
+		if (prefix != null && !prefix.isEmpty()) {
+			this.prefix = prefix.toCharArray();
+		}
 	}
 
 }

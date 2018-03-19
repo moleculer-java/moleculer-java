@@ -7,6 +7,40 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
+	<!-- GOOGLE CLUOUD PUB/SUB TRANSPORTER -->
+	<!-- REQUIRED DEPENDENCY: group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '0.30.0-beta' -->
+	<!-- URL: https://mvnrepository.com/artifact/com.google.cloud/google-cloud-pubsub -->
+	<!-- SOURCE CODE: services.moleculer.transporter.GoogleTransporter.java -->
 
+	<bean id="transporter" class="services.moleculer.transporter.GoogleTransporter">
+
+		<!-- Project ID (null = default) -->
+		<property name="projectID"><null/></property>
+
+		<!-- Batching options (null = default) -->		
+		<property name="batchingSettings"><null/></property>
+		
+		<!-- ChannelProvider to use to create Channels (null = default) -->
+		<property name="channelProvider"><null/></property>
+
+		<!-- CredentialsProvider to use to create Credentials to authenticate calls (null = default) -->
+		<property name="credentialsProvider"><null/></property>
+		
+		<!-- Gives the ability to set a custom executor to be used by the library (null = default) -->
+		<property name="executorProvider"><null/></property>
+		
+		<!-- Optional HeaderProvider (null = default) -->
+		<property name="headerProvider"><null/></property>
+		
+		<!-- Configures the Publisher's retry parameters (null = default) -->
+		<property name="retrySettings"><null/></property>
+		
+		<!-- Set the maximum period a message ack deadline will be extended (null = default) -->
+		<property name="maxAckExtensionPeriod"><null/></property>
+		
+		<!-- Sets the number of pullers used to pull messages from the subscription (0 = default) -->
+		<property name="parallelPullCount" value="0" />
+			
+	</bean>
 
 </beans>

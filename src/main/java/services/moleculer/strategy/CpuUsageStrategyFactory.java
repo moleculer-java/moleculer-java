@@ -42,7 +42,7 @@ import services.moleculer.util.CommonUtils;
  * 
  * @see RoundRobinStrategyFactory
  * @see SecureRandomStrategyFactory
- * @see XORShiftRandomStrategyFactory
+ * @see XorShiftRandomStrategyFactory
  * @see NanoSecRandomStrategyFactory
  */
 @Name("Lowest CPU Usage Strategy Factory")

@@ -33,7 +33,7 @@ import services.moleculer.service.Name;
  *
  * @see RoundRobinStrategyFactory
  * @see NanoSecRandomStrategyFactory
- * @see XORShiftRandomStrategyFactory
+ * @see XorShiftRandomStrategyFactory
  * @see CpuUsageStrategyFactory
  */
 @Name("Secure Random Strategy Factory")

@@ -41,11 +41,11 @@ import services.moleculer.transporter.Transporter;
  * 
  * @see RoundRobinStrategy
  * @see NanoSecRandomStrategy
- * @see XORShiftRandomStrategy
+ * @see XorShiftRandomStrategy
  * @see SecureRandomStrategy
  */
 @Name("Lowest CPU Usage Strategy")
-public class CpuUsageStrategy<T extends Endpoint> extends XORShiftRandomStrategy<T> {
+public class CpuUsageStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T> {
 
 	// --- PROPERTIES ---
 	

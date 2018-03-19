@@ -38,15 +38,15 @@ import services.moleculer.service.Name;
  * @see CpuUsageStrategyFactory
  */
 @Name("XORSHIFT Pseudorandom Strategy Factory")
-public class XORShiftRandomStrategyFactory extends ArrayBasedStrategyFactory {
+public class XorShiftRandomStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- CONSTRUCTORS ---
 
-	public XORShiftRandomStrategyFactory() {
+	public XorShiftRandomStrategyFactory() {
 		super();
 	}
 
-	public XORShiftRandomStrategyFactory(boolean preferLocal) {
+	public XorShiftRandomStrategyFactory(boolean preferLocal) {
 		super(preferLocal);
 	}
 
@@ -54,7 +54,7 @@ public class XORShiftRandomStrategyFactory extends ArrayBasedStrategyFactory {
 
 	@Override
 	public <T extends Endpoint> Strategy<T> create() {
-		return new XORShiftRandomStrategy<T>(broker, preferLocal);
+		return new XorShiftRandomStrategy<T>(broker, preferLocal);
 	}
 
 }

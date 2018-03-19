@@ -10,6 +10,11 @@
 	<!-- DEFAULT CONTEXT FACTORY -->
 	<!-- REQUIRED DEPENDENCY: nothing -->
 	
-	<bean id="context" class="services.moleculer.context.DefaultContextFactory" />
+	<bean id="context" class="services.moleculer.context.DefaultContextFactory">
+	
+		<!-- Max call level (0 = disabled / unlimited) -->
+		<property name="maxCallLevel" value="100" />
+	
+	</bean>
 
 </beans>

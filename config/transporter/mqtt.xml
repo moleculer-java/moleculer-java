@@ -7,6 +7,39 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
+	<!-- TRANSPORTER FOR MQTT-COMPATIBLE MESSAGE BROKERS -->
+	<!-- REQUIRED DEPENDENCY: group: 'net.sf.xenqtt', name: 'xenqtt', version: '0.9.7' -->
+	<!-- URL: https://mvnrepository.com/artifact/net.sf.xenqtt/xenqtt -->
 
+	<bean id="transporter" class="services.moleculer.transporter.MqttTransporter">
+
+		<!-- MQTT server URL -->
+		<property name="url" value="mqtt://localhost:1883" />
+
+		<!-- Optional user name -->
+		<property name="username"><null/></property>
+		
+		<!-- Optional password -->
+		<property name="password"><null/></property>
+
+		<!-- Clean session flag -->
+		<property name="cleanSession" value="true" />
+		
+		<!-- Keep-alive timeout in SECONDS -->
+		<property name="keepAliveSeconds" value="300" />
+		
+		<!-- Connection timeout in SECONDS -->
+		<property name="connectTimeoutSeconds" value="30" />
+		
+		<!-- Resend interval in SECONDS -->
+		<property name="messageResendIntervalSeconds" value="30" />
+		
+		<!-- Blocking timeout in SECONDS -->
+		<property name="blockingTimeoutSeconds" value="0" />
+		
+		<!-- Maximum number of inflight messages -->
+		<property name="maxInFlightMessages" value="65535" />
+	
+	</bean>
 
 </beans>

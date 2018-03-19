@@ -36,7 +36,7 @@ import services.moleculer.service.Name;
  *
  * @see RoundRobinStrategy
  * @see NanoSecRandomStrategy
- * @see XORShiftRandomStrategy
+ * @see XorShiftRandomStrategy
  * @see CpuUsageStrategy
  */
 @Name("Secure Random Strategy")

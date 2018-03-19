@@ -7,6 +7,46 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
+	<!-- TRANSPORTER FOR JMS-COMPATIBLE MESSAGE BROKERS -->
+	<!-- REQUIRED DEPENDENCY: group: 'javax.jms', name: 'javax.jms-api', version: '2.0.1' -->
+	<!-- (+ dependencies of the JMS driver) -->
+	<!-- URL: https://mvnrepository.com/artifact/javax.jms/javax.jms-api -->
 
+	<bean id="transporter" class="services.moleculer.transporter.JmsTransporter">
+
+		<!-- Optional user name -->
+		<property name="username"><null/></property>
+		
+		<!-- Optional password -->
+		<property name="password"><null/></property>
+
+		<!-- Transacted -->
+		<property name="transacted" value="false" />
+		
+		<!-- Acknowledge mode (1 = auto ) -->
+		<property name="acknowledgeMode" value="1" />
+		
+		<!-- Delivery mode (1 = non-persistent ) -->
+		<property name="deliveryMode" value="1" />
+		
+		<!-- Message priority -->
+		<property name="priority" value="5" />
+
+		<!-- Message TTL in MILLISECONDS -->		
+		<property name="ttl" value="3000" />
+
+		<!-- Connection factory (if using JNDI) -->
+		<property name="connectionFactoryJndiName" value="moleculerConnectionFactory" />
+		
+		<!-- Connection factory (direct declaration) -->		
+		<property name="topicConnectionFactory"><null/></property>
+
+		<!-- Connection factory (direct declaration, ActiveMQ sample) -->		
+		<!-- property name="topicConnectionFactory" ref="topicConnectionFactory" / -->
+		
+	</bean>
+
+	<!-- SAMPLE CONNECTION FACTORY DEFINITION -->
+	<!-- bean id="topicConnectionFactory" class="org.apache.activemq.ActiveMQConnectionFactory" / -->
 
 </beans>

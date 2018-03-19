@@ -69,7 +69,11 @@
 
 	<!-- UID GENERATOR -->
 
+<<<<<<< HEAD
 	<import resource="uid/incremental.xml" />
+=======
+	<import resource="uid/sequential.xml" />
+>>>>>>> branch 'master' of https://github.com/berkesa/moleculer-java.git
 	<!-- import resource="uid/standard.xml" / -->
 
 	<!-- SERVICE INVOCATION STRATEGY -->
