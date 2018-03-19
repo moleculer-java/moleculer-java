@@ -23,11 +23,11 @@
 		<property name="cacher"              ref="cacher" />
 		<property name="monitor"             ref="monitor" />
 
-		<property name="uid"                 ref="uid" />
-		<property name="strategy"            ref="strategy" />
-		<property name="context"             ref="context" />
+		<property name="uidGenerator"        ref="uidGenerator" />
+		<property name="strategyFactory"     ref="strategyFactory" />
+		<property name="contextFactory"      ref="contextFactory" />
+		<property name="serviceRegistry"     ref="serviceRegistry" />
 		<property name="eventbus"            ref="eventbus" />
-		<property name="registry"            ref="registry" />
 
 		<property name="executor"            ref="executor" />
 		<property name="scheduler"           ref="scheduler" />
@@ -69,11 +69,7 @@
 
 	<!-- UID GENERATOR -->
 
-<<<<<<< HEAD
 	<import resource="uid/incremental.xml" />
-=======
-	<import resource="uid/sequential.xml" />
->>>>>>> branch 'master' of https://github.com/berkesa/moleculer-java.git
 	<!-- import resource="uid/standard.xml" / -->
 
 	<!-- SERVICE INVOCATION STRATEGY -->
@@ -93,20 +89,20 @@
 
 	<bean id="scheduler" class="java.util.concurrent.Executors"
 		factory-method="newScheduledThreadPool">
-		<constructor-arg ref="3" />
+		<constructor-arg index="0" value="3" />
 	</bean>
 
 	<!-- CONTEXT FACTORY -->
 
 	<import resource="context/default.xml" />
 
-	<!-- EVENT BUS -->
-
-	<import resource="eventbus/default.xml" />
-
 	<!-- SERVICE REGISTRY -->
 
 	<import resource="registry/default.xml" />
+
+	<!-- EVENT BUS -->
+
+	<import resource="eventbus/default.xml" />
 
 	<!-- SERVICE BROKER -->
 

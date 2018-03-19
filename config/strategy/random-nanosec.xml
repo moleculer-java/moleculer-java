@@ -10,7 +10,7 @@
 	<!-- TIME-BASED PSEUDO-RANDOM ACTION CALL INVOCATION STRATEGY -->
 	<!-- REQUIRED DEPENDENCY: nothing -->
 	
-	<bean id="uid" class="services.moleculer.strategy.NanoSecRandomStrategyFactory">
+	<bean id="strategyFactory" class="services.moleculer.strategy.NanoSecRandomStrategyFactory">
 	
 		<!-- Invoke local actions if possible -->	
 		<property name="preferLocal" value="true" />

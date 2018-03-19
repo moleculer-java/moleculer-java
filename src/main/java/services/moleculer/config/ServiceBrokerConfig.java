@@ -45,6 +45,7 @@ import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.RoundRobinStrategyFactory;
 import services.moleculer.strategy.StrategyFactory;
+import services.moleculer.transporter.NullTransporter;
 import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.IncrementalUIDGenerator;
 import services.moleculer.uid.UIDGenerator;
@@ -147,11 +148,11 @@ public class ServiceBrokerConfig {
 
 		// Set cacher
 		if (cacher != null) {
-			this.cacher = cacher;
+			setCacher(cacher);
 		}
 
 		// Set transporter
-		this.transporter = transporter;
+		setTransporter(transporter);
 	}
 
 	// --- GETTERS AND SETTERS ---
@@ -281,7 +282,12 @@ public class ServiceBrokerConfig {
 	}
 
 	public void setTransporter(Transporter transporter) {
-		this.transporter = transporter;
+		if (transporter != null) {
+			if (transporter instanceof NullTransporter) {
+				transporter = null;
+			}
+			this.transporter = transporter;
+		}
 	}
 
 }

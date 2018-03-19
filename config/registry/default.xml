@@ -10,7 +10,7 @@
 	<!-- DEFAULT SERVICE REGISTRY -->
 	<!-- REQUIRED DEPENDENCY: nothing -->
 	
-	<bean id="eventbus" class="services.moleculer.service.DefaultServiceRegistry">
+	<bean id="serviceRegistry" class="services.moleculer.service.DefaultServiceRegistry">
 	
 		<!-- Invoke local actions via Thread pool (true) or directly (false) -->	
 		<property name="asyncLocalInvocation" value="false" />

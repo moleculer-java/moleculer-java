@@ -109,7 +109,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected boolean checkVersion;
 
 	// --- LOCKS ---
-	
+
 	/**
 	 * Reader lock of configuration
 	 */
@@ -524,26 +524,28 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					newMiddlewares.add(middleware);
 				}
 			}
+			if (!newMiddlewares.isEmpty()) {
 
-			// Start middlewares
-			for (Middleware middleware : newMiddlewares) {
-				try {
-					middleware.started(broker);
-				} catch (Exception cause) {
-					throw new RuntimeException("Unable to start middleware!", cause);
-				}
-			}
-
-			// Apply new middlewares
-			for (Strategy<ActionEndpoint> strategy : strategies.values()) {
-				List<ActionEndpoint> endpoints = strategy.getAllEndpoints();
-				for (ActionEndpoint endpoint : endpoints) {
-					for (Middleware middleware : newMiddlewares) {
-						endpoint.use(middleware);
+				// Start new middlewares
+				for (Middleware middleware : newMiddlewares) {
+					try {
+						middleware.started(broker);
+					} catch (Exception cause) {
+						throw new RuntimeException("Unable to start middleware!", cause);
 					}
 				}
-			}
 
+				// Apply new middlewares
+				for (Strategy<ActionEndpoint> strategy : strategies.values()) {
+					List<ActionEndpoint> endpoints = strategy.getAllEndpoints();
+					for (ActionEndpoint endpoint : endpoints) {
+						for (Middleware middleware : newMiddlewares) {
+							endpoint.use(middleware);
+						}
+					}
+				}
+				
+			}
 		} finally {
 			writeLock.unlock();
 		}
@@ -667,13 +669,13 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		msg.append(serviceName);
 		msg.append("\" started ");
 		if (actionCounter == 0) {
-			msg.append("without any actions.");			
+			msg.append("without any actions.");
 		} else if (actionCounter == 1) {
 			msg.append("with 1 action.");
 		} else {
 			msg.append("with ");
 			msg.append(actionCounter);
-			msg.append(" actions.");	
+			msg.append(" actions.");
 		}
 		logger.info(msg.toString());
 	}
@@ -914,9 +916,9 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	}
 
 	// --- PING / PONG HANDLING ---
-	
+
 	public Promise ping(int timeout, String nodeID) {
-		
+
 		// Create new promise
 		Promise promise = new Promise();
 
@@ -939,7 +941,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		// Return promise
 		return promise;
 	}
-	
+
 	// --- TIMESTAMP OF SERVICE DESCRIPTOR ---
 
 	/**
@@ -1062,6 +1064,24 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			timestamp.set(System.currentTimeMillis());
 		}
 		return descriptor;
+	}
+
+	// --- GETTERS / SETTERS ---
+
+	public boolean isCheckVersion() {
+		return checkVersion;
+	}
+
+	public void setCheckVersion(boolean checkVersion) {
+		this.checkVersion = checkVersion;
+	}
+
+	public boolean isAsyncLocalInvocation() {
+		return asyncLocalInvocation;
+	}
+
+	public void setAsyncLocalInvocation(boolean asyncLocalInvocation) {
+		this.asyncLocalInvocation = asyncLocalInvocation;
 	}
 
 }

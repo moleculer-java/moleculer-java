@@ -57,15 +57,29 @@ public final class MoleculerRunner {
 
 	/**
 	 * Starts/stops Moleculer as a standalone application or as a Windows
-	 * service.
-	 *
+	 * service. Optional start parameters:
+	 * <ul>
+	 * <li>First: Relative or absolute config path (eg. "/conf/moleculer.config.xml")
+	 * <li>Second: port number (eg. "6788")
+	 * <li>Third: command to stop service (eg. "secret432")
+	 * </ul>
+	 * Optional stop parameters:
+	 * <ul>
+	 * <li>First: STOP (exactly this word)
+	 * <li>Second: port number (eg. "6788")
+	 * <li>Third: command to stop service (eg. "secret432")
+	 * </ul>
+	 * 
 	 * @param args
 	 *            configuration path or "STOP" to stop service, UDP port, and a
 	 *            "secret message" to stop Moleculer service
 	 */
 	public static final void main(String[] args) throws Exception {
 		try {
-			if (args != null && args.length > 0) {
+			if (args == null) {
+				args = new String[0];
+			}
+			if (args.length > 0) {
 
 				// Second optional argument is stop port
 				if (args.length > 1) {

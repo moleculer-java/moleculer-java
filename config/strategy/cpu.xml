@@ -11,7 +11,7 @@
 	<!-- RECOMMENDED DEPENDENCY: Sigar-based CPU monitor -->
 	<!-- REQUIRED DEPENDENCY: nothing -->
 		
-	<bean id="uid" class="services.moleculer.strategy.CpuUsageStrategyFactory">
+	<bean id="strategyFactory" class="services.moleculer.strategy.CpuUsageStrategyFactory">
 	
 		<!-- Invoke local actions if possible -->	
 		<property name="preferLocal" value="true" />

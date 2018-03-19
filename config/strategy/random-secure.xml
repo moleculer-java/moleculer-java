@@ -10,7 +10,7 @@
 	<!-- SECURE RANDOM ACTION CALL INVOCATION STRATEGY -->
 	<!-- REQUIRED DEPENDENCY: nothing -->
 	
-	<bean id="uid" class="services.moleculer.strategy.SecureRandomStrategyFactory">
+	<bean id="strategyFactory" class="services.moleculer.strategy.SecureRandomStrategyFactory">
 	
 		<!-- Invoke local actions if possible -->	
 		<property name="preferLocal" value="true" />

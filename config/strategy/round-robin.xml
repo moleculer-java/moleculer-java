@@ -10,7 +10,7 @@
 	<!-- ROUND-ROBIN ACTION CALL INVOCATION STRATEGY -->
 	<!-- REQUIRED DEPENDENCY: nothing -->
 	
-	<bean id="uid" class="services.moleculer.strategy.RoundRobinStrategyFactory">
+	<bean id="strategyFactory" class="services.moleculer.strategy.RoundRobinStrategyFactory">
 	
 		<!-- Invoke local actions if possible -->	
 		<property name="preferLocal" value="true" />

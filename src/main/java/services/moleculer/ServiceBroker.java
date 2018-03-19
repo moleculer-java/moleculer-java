@@ -133,7 +133,6 @@ public class ServiceBroker {
 	protected StrategyFactory strategyFactory;
 	protected ContextFactory contextFactory;
 	protected Eventbus eventbus;
-	protected Cacher cacher;
 	protected ServiceRegistry serviceRegistry;
 	protected Transporter transporter;
 
@@ -202,12 +201,13 @@ public class ServiceBroker {
 			strategyFactory = start(config.getStrategyFactory());
 			contextFactory = start(config.getContextFactory());
 			eventbus = start(config.getEventbus());
-			cacher = start(config.getCacher());
 			serviceRegistry = start(config.getServiceRegistry());
 			transporter = start(config.getTransporter());
-
+			
 			// Register enqued middlewares
+			Cacher cacher = config.getCacher();
 			if (cacher != null) {
+				logger.info(nameOf(cacher, true) + " started.");
 				middlewares.add(cacher);
 			}
 			serviceRegistry.use(middlewares);
@@ -263,6 +263,7 @@ public class ServiceBroker {
 	public void stop() {
 
 		// Stop internal components
+		stop(transporter);
 		stop(serviceRegistry);
 		stop(eventbus);
 		stop(contextFactory);
