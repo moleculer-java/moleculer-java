@@ -63,6 +63,8 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 			this.endpoint = endpoint;
 		}
 
+		// --- INVOKE REMOTE ENDPOINT ---
+		
 		@Override
 		public Object handler(Context ctx) throws Exception {
 
@@ -72,7 +74,7 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 			// Set timeout
 			long timeoutAt;
 			if (ctx.opts != null && ctx.opts.timeout > 0) {
-				timeoutAt = System.currentTimeMillis() + (ctx.opts.timeout * 1000L);
+				timeoutAt = System.currentTimeMillis() + ctx.opts.timeout;
 			} else {
 				timeoutAt = 0;
 			}

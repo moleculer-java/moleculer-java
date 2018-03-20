@@ -45,14 +45,14 @@ public class CallOptions {
 	public static class Options {
 
 		public final String nodeID;
-		public final int timeout;
+		public final long timeout;
 		public final int retryCount;
 
 		// --- CONSTRUCTOR ---
 
-		protected Options(String nodeID, int timeout, int retryCount) {
+		protected Options(String nodeID, long timeoutMillis, int retryCount) {
 			this.nodeID = nodeID;
-			this.timeout = timeout;
+			this.timeout = timeoutMillis;
 			this.retryCount = retryCount;
 		}
 
@@ -62,8 +62,8 @@ public class CallOptions {
 			return new Options(nodeID, timeout, retryCount);
 		}
 
-		public Options timeout(int timeout) {
-			return new Options(nodeID, timeout, retryCount);
+		public Options timeout(long timeoutMillis) {
+			return new Options(nodeID, timeoutMillis, retryCount);
 		}
 
 		public Options retryCount(int retryCount) {
@@ -83,8 +83,8 @@ public class CallOptions {
 		return new Options(nodeID, 0, 0);
 	}
 
-	public static Options timeout(int timeout) {
-		return new Options(null, timeout, 0);
+	public static Options timeout(long timeoutMillis) {
+		return new Options(null, timeoutMillis, 0);
 	}
 
 	public static Options retryCount(int retryCount) {

@@ -146,7 +146,7 @@ public class Sample {
 	@Dependencies({ "service3" })
 	public static class Service2Service extends Service {
 
-		@Name("test")
+		@Name("test")	
 		public Action test = ctx -> {
 			System.out.println("CALL 2->3");
 			return ctx.call("service3.test", ctx.params);
@@ -155,7 +155,7 @@ public class Sample {
 	};
 
 	@Name("service3")
-	// @Dependencies({ "service2" })
+	// @Dependencies({ "service2" })	
 	public static class Service3Service extends Service {
 
 		@Name("test")

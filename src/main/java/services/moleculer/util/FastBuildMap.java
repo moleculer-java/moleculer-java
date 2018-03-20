@@ -48,11 +48,7 @@ public class FastBuildMap extends AbstractMap<String, Object> {
 
 	// --- CONSTRUCTORS ---
 	
-	public FastBuildMap() {
-		this(16);
-	}
-
-	public FastBuildMap(int size) {
+	protected FastBuildMap(int size) {
 		keys = new String[size];
 		values = new Object[size];
 	}

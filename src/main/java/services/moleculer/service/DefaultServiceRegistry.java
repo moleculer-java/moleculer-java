@@ -917,6 +917,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	// --- PING / PONG HANDLING ---
 
+	@Override
 	public Promise ping(int timeout, String nodeID) {
 
 		// Create new promise

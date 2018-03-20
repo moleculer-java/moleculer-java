@@ -34,7 +34,9 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.concurrent.ScheduledFuture;
@@ -49,7 +51,6 @@ import services.moleculer.transporter.tcp.NodeDescriptor;
 import services.moleculer.transporter.tcp.TcpReader;
 import services.moleculer.transporter.tcp.TcpWriter;
 import services.moleculer.transporter.tcp.UDPLocator;
-import services.moleculer.util.FastBuildMap;
 import services.moleculer.util.FastBuildTree;
 
 /**
@@ -847,22 +848,21 @@ public class TcpTransporter extends Transporter {
 			if (nodes.isEmpty()) {
 				return null;
 			}
-
-			// Create gossip request
-			FastBuildTree root = new FastBuildTree(4);
-			root.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
-			root.putUnsafe("sender", nodeID);
-
+			
 			// Add "online" and "offline" blocks
 			Collection<NodeDescriptor> descriptors = nodes.values();
 			int size = nodes.size() + 32;
-			FastBuildMap online = new FastBuildMap(size);
-			FastBuildMap offline = new FastBuildMap(size);
+			FastBuildTree online = new FastBuildTree(size);
+			FastBuildTree offline = new FastBuildTree(size);
 
 			// Add current node
 			descriptor.readLock.lock();
 			try {
-				online.put(nodeID, new Long[] { descriptor.seq, descriptor.cpuSeq, (long) descriptor.cpu });
+				ArrayList<Object> array = new ArrayList<>(3);
+				array.add(descriptor.seq);
+				array.add(descriptor.cpuSeq);
+				array.add(descriptor.cpu);
+				online.putUnsafe(nodeID, array);
 			} finally {
 				descriptor.readLock.unlock();
 			}
@@ -895,7 +895,11 @@ public class TcpTransporter extends Transporter {
 								liveEndpoints[liveEndpointCount++] = node.nodeID;
 							}
 							if (node.seq > 0) {
-								online.put(node.nodeID, new Long[] { node.seq, node.cpuSeq, (long) node.cpu });
+								ArrayList<Object> array = new ArrayList<>(3);
+								array.add(node.seq);
+								array.add(node.cpuSeq);
+								array.add(node.cpu);
+								online.putUnsafe(node.nodeID, array);
 							}
 						}
 					}
@@ -903,9 +907,14 @@ public class TcpTransporter extends Transporter {
 					node.readLock.unlock();
 				}
 			}
-			root.putUnsafe("online", online);
+			
+			// Create gossip request
+			FastBuildTree root = new FastBuildTree(4);
+			root.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+			root.putUnsafe("sender", nodeID);
+			root.putUnsafe("online", online.asObject());
 			if (!offline.isEmpty()) {
-				root.putUnsafe("offline", offline);
+				root.putUnsafe("offline", offline.asObject());
 			}
 
 			// Serialize gossip packet (JSON, MessagePack, etc.)
@@ -972,18 +981,13 @@ public class TcpTransporter extends Transporter {
 			logger.info("Gossip request received from \"" + sender + "\" node:\r\n" + data);
 		}
 
-		// Create gossip response
-		FastBuildTree root = new FastBuildTree(4);
-		root.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
-		root.putUnsafe("sender", nodeID);
-
 		// Add "online" and "offline" response blocks
 		LinkedList<NodeDescriptor> allNodes = new LinkedList<>(nodes.values());
 		NodeDescriptor descriptor = getDescriptor();
 		allNodes.add(descriptor);
 		int size = allNodes.size() + 1;
-		FastBuildMap onlineRsp = new FastBuildMap(size);
-		FastBuildMap offlineRsp = new FastBuildMap(size);
+		FastBuildTree onlineRsp = new FastBuildTree(size);
+		FastBuildTree offlineRsp = new FastBuildTree(size);
 
 		// Online / offline nodes in request
 		Tree onlineReq = data.get("online");
@@ -1027,14 +1031,17 @@ public class TcpTransporter extends Transporter {
 					if (node.offlineSince == 0) {
 						if (!node.info.isEmpty()) {
 							if ((cpuSeq == 0 || cpuSeq < node.cpuSeq) && node.cpuSeq > 0) {
-								onlineRsp.put(node.nodeID,
-										new Object[] { node.info.asObject(), node.cpuSeq, node.cpu });
+								ArrayList<Object> array = new ArrayList<>(3);
+								array.add(node.info.asObject());
+								array.add(node.cpuSeq);
+								array.add(node.cpu);
+								onlineRsp.putUnsafe(node.nodeID, array);
 							} else {
-								onlineRsp.put(node.nodeID, new Object[] { node.info.asObject() });
+								onlineRsp.putUnsafe(node.nodeID, Collections.singletonList(node.info.asObject()));
 							}
 						}
 					} else {
-						offlineRsp.put(node.nodeID, node.seq);
+						offlineRsp.putUnsafe(node.nodeID, node.seq);
 					}
 				}
 
@@ -1065,10 +1072,13 @@ public class TcpTransporter extends Transporter {
 								node.seq = seq + 1;
 								node.info.put("seq", node.seq);
 								if (cpuSeq < node.cpuSeq && node.cpuSeq > 0) {
-									onlineRsp.put(node.nodeID,
-											new Object[] { node.info.asObject(), node.cpuSeq, node.cpu });
+									ArrayList<Object> array = new ArrayList<>(3);
+									array.add(node.info.asObject());
+									array.add(node.cpuSeq);
+									array.add(node.cpu);
+									onlineRsp.putUnsafe(node.nodeID, array);
 								} else {
-									onlineRsp.put(node.nodeID, new Object[] { node.info.asObject() });
+									onlineRsp.putUnsafe(node.nodeID, Collections.singletonList(node.info.asObject()));
 								}
 							}
 						}
@@ -1086,7 +1096,10 @@ public class TcpTransporter extends Transporter {
 						} else if (cpuSeq < node.cpuSeq && node.cpuSeq > 0) {
 
 							// We have newer CPU value, send back
-							onlineRsp.put(node.nodeID, new Object[] { node.cpuSeq, node.cpu });
+							ArrayList<Object> array = new ArrayList<>(2);
+							array.add(node.cpuSeq);
+							array.add(node.cpu);
+							onlineRsp.putUnsafe(node.nodeID, array);
 						}
 					} else {
 
@@ -1099,13 +1112,12 @@ public class TcpTransporter extends Transporter {
 				node.writeLock.unlock();
 			}
 		}
-		for (NodeDescriptor node : disconnectedNodes) {
 
-			// Notify listeners (unexpected disconnection)
-			logger.info("Node \"" + node.nodeID + "\" disconnected.");
-			broadcastNodeDisconnected(node.info, true);
-		}
-
+		// Create gossip response
+		FastBuildTree root = new FastBuildTree(4);
+		root.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+		root.putUnsafe("sender", nodeID);
+		
 		// Remove empty blocks
 		boolean emptyOnlineBlock = onlineRsp.isEmpty();
 		boolean emptyOfflineBlock = offlineRsp.isEmpty();
@@ -1115,10 +1127,10 @@ public class TcpTransporter extends Transporter {
 			return root;
 		}
 		if (!emptyOnlineBlock) {
-			root.putUnsafe("online", onlineRsp);
+			root.putUnsafe("online", onlineRsp.asObject());
 		}
 		if (!emptyOfflineBlock) {
-			root.putUnsafe("offline", offlineRsp);
+			root.putUnsafe("offline", offlineRsp.asObject());
 		}
 
 		// Debug
@@ -1132,6 +1144,12 @@ public class TcpTransporter extends Transporter {
 		// Send response
 		writer.send(sender, packet);
 
+		// Notify listeners (unexpected disconnection)
+		for (NodeDescriptor node : disconnectedNodes) {
+			logger.info("Node \"" + node.nodeID + "\" disconnected.");
+			broadcastNodeDisconnected(node.info, true);
+		}
+		
 		// For unit testing
 		return root;
 	}
