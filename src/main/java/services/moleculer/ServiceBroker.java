@@ -501,12 +501,12 @@ public class ServiceBroker {
 		return waitForServices(0, services);
 	}
 
-	public Promise waitForServices(int timeout, String... services) {
-		return waitForServices(timeout, Arrays.asList(services));
+	public Promise waitForServices(long timeoutMillis, String... services) {
+		return waitForServices(timeoutMillis, Arrays.asList(services));
 	}
 
-	public Promise waitForServices(int timeout, Collection<String> services) {
-		return serviceRegistry.waitForServices(timeout, services);
+	public Promise waitForServices(long timeoutMillis, Collection<String> services) {
+		return serviceRegistry.waitForServices(timeoutMillis, services);
 	}
 
 	// --- PING LOCAL OR REMOTE NODE ---
@@ -515,8 +515,8 @@ public class ServiceBroker {
 		return ping(nodeID, 3);
 	}
 
-	public Promise ping(String nodeID, int timeout) {
-		return serviceRegistry.ping(timeout, nodeID);
+	public Promise ping(String nodeID, long timeoutMillis) {
+		return serviceRegistry.ping(timeoutMillis, nodeID);
 	}
 
 	// --- START DEVELOPER CONSOLE ---

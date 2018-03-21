@@ -72,11 +72,11 @@ public abstract class ServiceRegistry extends MoleculerComponent {
 
 	// --- WAIT FOR SERVICE(S) ---
 	
-	public abstract Promise waitForServices(int timeout, Collection<String> services);
+	public abstract Promise waitForServices(long timeoutMillis, Collection<String> services);
 	
 	// --- PING / PONG HANDLING ---
 	
-	public abstract Promise ping(int timeout, String nodeID);
+	public abstract Promise ping(long timeoutMillis, String nodeID);
 	
 	// --- GENERATE SERVICE DESCRIPTOR ---
 

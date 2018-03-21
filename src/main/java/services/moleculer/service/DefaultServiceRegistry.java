@@ -821,14 +821,14 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected final LinkedList<ServiceListener> serviceListeners = new LinkedList<>();
 
 	@Override
-	public Promise waitForServices(int timeout, Collection<String> services) {
+	public Promise waitForServices(long timeoutMillis, Collection<String> services) {
 		if (services == null || services.isEmpty() || isServicesOnline(services)) {
 			return Promise.resolve();
 		}
 		Promise promise = new Promise();
 		long timeoutAt;
-		if (timeout > 0) {
-			timeoutAt = System.currentTimeMillis() + (1000L * timeout);
+		if (timeoutMillis > 0) {
+			timeoutAt = System.currentTimeMillis() + timeoutMillis;
 		} else {
 			timeoutAt = 0;
 		}
@@ -918,15 +918,15 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	// --- PING / PONG HANDLING ---
 
 	@Override
-	public Promise ping(int timeout, String nodeID) {
+	public Promise ping(long timeoutMillis, String nodeID) {
 
 		// Create new promise
 		Promise promise = new Promise();
 
 		// Set timeout
 		long timeoutAt;
-		if (timeout > 0) {
-			timeoutAt = System.currentTimeMillis() + (timeout * 1000L);
+		if (timeoutMillis > 0) {
+			timeoutAt = System.currentTimeMillis() + timeoutMillis;
 		} else {
 			timeoutAt = 0;
 		}
