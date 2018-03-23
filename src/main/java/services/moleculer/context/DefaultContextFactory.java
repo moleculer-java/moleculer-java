@@ -27,10 +27,10 @@ package services.moleculer.context;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.breaker.CircuitBreaker;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.service.Name;
-import services.moleculer.service.ServiceRegistry;
 import services.moleculer.uid.UIDGenerator;
 
 /**
@@ -40,17 +40,16 @@ import services.moleculer.uid.UIDGenerator;
 public class DefaultContextFactory extends ContextFactory {
 
 	// --- PROPERTIES ---
-	
+
 	/**
 	 * Max call level (0 = disabled / unlimited)
 	 */
 	protected int maxCallLevel = 100;
-	
+
 	// --- COMPONENTS ---
 
-	protected ServiceRegistry serviceRegistry;
+	protected CircuitBreaker circuitBreaker;
 	protected Eventbus eventbus;
-	protected ContextFactory contextFactory;
 	protected UIDGenerator uid;
 
 	// --- START CONTEXT FACTORY ---
@@ -66,10 +65,11 @@ public class DefaultContextFactory extends ContextFactory {
 	@Override
 	public void started(ServiceBroker broker) throws Exception {
 		super.started(broker);
+
+		// Set components
 		ServiceBrokerConfig cfg = broker.getConfig();
-		serviceRegistry = cfg.getServiceRegistry();
+		circuitBreaker = cfg.getCircuitBreaker();
 		eventbus = cfg.getEventbus();
-		contextFactory = cfg.getContextFactory();
 		uid = cfg.getUidGenerator();
 	}
 
@@ -83,7 +83,7 @@ public class DefaultContextFactory extends ContextFactory {
 
 		// Create new Context
 		if (parent == null) {
-			return new Context(serviceRegistry, eventbus, contextFactory, id, name, params, opts);
+			return new Context(circuitBreaker, eventbus, id, name, params, opts);
 		}
 
 		// Merge meta block
@@ -98,18 +98,18 @@ public class DefaultContextFactory extends ContextFactory {
 				}
 			}
 		}
-		
+
 		// Verify call level
 		if (maxCallLevel > 0 && parent.level >= maxCallLevel) {
 			throw new IllegalStateException("Max call level limit reached (" + maxCallLevel + ")!");
 		}
-		
+
 		// Create context (nested call)
 		return new Context(id, name, params, opts, parent);
 	}
 
 	// --- PROPERTY GETTERS AND SETTERS ---
-	
+
 	public int getMaxCallLevel() {
 		return maxCallLevel;
 	}

@@ -54,11 +54,10 @@ public abstract class ListenerEndpoint extends Endpoint {
 		this.subscribe = subscribe;
 
 		// Generate hashcode
-		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((group == null) ? 0 : group.hashCode());
-		result = prime * result + ((serviceName == null) ? 0 : serviceName.hashCode());
-		result = prime * result + ((subscribe == null) ? 0 : subscribe.hashCode());
+		result = 31 + ((group == null) ? 0 : group.hashCode());
+		result = 31 * result + ((serviceName == null) ? 0 : serviceName.hashCode());
+		result = 31 * result + ((subscribe == null) ? 0 : subscribe.hashCode());
 		hashCode = result;
 	}
 

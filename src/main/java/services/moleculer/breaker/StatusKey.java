@@ -23,67 +23,19 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.service;
+package services.moleculer.breaker;
 
-import java.util.HashSet;
+public class StatusKey {
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import io.datatree.Tree;
-import services.moleculer.context.Context;
-
-public abstract class ActionEndpoint extends Endpoint implements Action {
-
-	// --- LOGGER ---
-
-	protected static final Logger logger = LoggerFactory.getLogger(ActionEndpoint.class);
-	
-	// --- CONFIGURATION OF ACTION ---
-
-	protected final Tree config;
-
-	protected final int hashCode;
-
+	protected final String nodeID;
 	protected final String name;
+	protected final int hashCode;
 	
-	// --- ACTION WITH MIDDLEWARES ---
-
-	protected Action current;
-
-	// --- CONSTRUCTOR ---
-
-	public ActionEndpoint(String nodeID, Tree config) {
-		super(nodeID);
-		this.config = config;
-		this.name = config.get("name", "unknown");
-		this.hashCode = 31 * nodeID.hashCode() + name.hashCode();
+	public StatusKey(String nodeID, String name) {
+		this.nodeID = nodeID;
+		this.name = name;
+		this.hashCode = 31 * nodeID.hashCode() + name.hashCode();	
 	}
-
-	// --- INVOKE ACTION ---
-
-	@Override
-	public Object handler(Context ctx) throws Exception {
-		return current.handler(ctx);
-	}
-
-	// --- APPLY MIDDLEWARE ---
-
-	protected HashSet<Middleware> checkedMiddlewares = new HashSet<>(32);
-
-	public boolean use(Middleware middleware) {
-		if (checkedMiddlewares.add(middleware)) {
-			Action action = middleware.install(current, config);
-			if (action != null) {
-				logger.info("Middleware \"" + middleware.getName() + "\" installed to action \"" + name + "\".");
-				current = action;
-				return true;
-			}
-		}
-		return false;
-	}
-
-	// --- COLLECTION HELPERS ---
 
 	@Override
 	public int hashCode() {
@@ -101,24 +53,22 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 		if (getClass() != obj.getClass()) {
 			return false;
 		}
-		ActionEndpoint other = (ActionEndpoint) obj;
-		if (!nodeID.equals(other.nodeID)) {
+		StatusKey other = (StatusKey) obj;
+		if (name == null) {
+			if (other.name != null) {
+				return false;
+			}
+		} else if (!name.equals(other.name)) {
 			return false;
 		}
-		if (!name.equals(other.name)) {
+		if (nodeID == null) {
+			if (other.nodeID != null) {
+				return false;
+			}
+		} else if (!nodeID.equals(other.nodeID)) {
 			return false;
 		}
 		return true;
 	}
-
-	// --- PROPERTY GETTERS ---
-
-	public Tree getConfig() {
-		return config;
-	}
-
-	public Action getAction() {
-		return current;
-	}
-
+	
 }

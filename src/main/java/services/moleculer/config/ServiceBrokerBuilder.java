@@ -25,11 +25,11 @@
  */
 package services.moleculer.config;
 
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 import services.moleculer.ServiceBroker;
+import services.moleculer.breaker.CircuitBreaker;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.Eventbus;
@@ -124,7 +124,12 @@ public class ServiceBrokerBuilder {
 	}
 
 	public ServiceBrokerBuilder monitor(Monitor monitor) {
-		config.setMonitor(Objects.requireNonNull(monitor));
+		config.setMonitor(monitor);
+		return this;
+	}
+
+	public ServiceBrokerBuilder breaker(CircuitBreaker circuitBreaker) {
+		config.setCircuitBreaker(circuitBreaker);
 		return this;
 	}
 

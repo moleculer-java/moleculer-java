@@ -33,6 +33,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledExecutorService;
 
+import services.moleculer.breaker.CircuitBreaker;
+import services.moleculer.breaker.DefaultCircuitBreaker;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.cacher.MemoryCacher;
 import services.moleculer.context.ContextFactory;
@@ -91,6 +93,7 @@ public class ServiceBrokerConfig {
 	protected Eventbus eventbus = new DefaultEventbus();
 	protected ServiceRegistry serviceRegistry = new DefaultServiceRegistry();
 	protected Cacher cacher = new MemoryCacher();
+	protected CircuitBreaker circuitBreaker = new DefaultCircuitBreaker();
 
 	protected Transporter transporter;
 	protected Monitor monitor;
@@ -282,12 +285,18 @@ public class ServiceBrokerConfig {
 	}
 
 	public void setTransporter(Transporter transporter) {
-		if (transporter != null) {
-			if (transporter instanceof NullTransporter) {
-				transporter = null;
-			}
-			this.transporter = transporter;
+		if (transporter == null || transporter instanceof NullTransporter) {
+			transporter = null;
 		}
+		this.transporter = transporter;
+	}
+
+	public CircuitBreaker getCircuitBreaker() {
+		return circuitBreaker;
+	}
+
+	public void setCircuitBreaker(CircuitBreaker circuitBreaker) {
+		this.circuitBreaker = Objects.requireNonNull(circuitBreaker);
 	}
 
 }

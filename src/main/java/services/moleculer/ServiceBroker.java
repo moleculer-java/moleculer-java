@@ -39,11 +39,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
+import services.moleculer.breaker.CircuitBreaker;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.config.ServiceBrokerBuilder;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallOptions;
-import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.eventbus.Groups;
@@ -132,6 +132,7 @@ public class ServiceBroker {
 	protected UIDGenerator uidGenerator;
 	protected StrategyFactory strategyFactory;
 	protected ContextFactory contextFactory;
+	protected CircuitBreaker circuitBreaker;
 	protected Eventbus eventbus;
 	protected ServiceRegistry serviceRegistry;
 	protected Transporter transporter;
@@ -200,9 +201,10 @@ public class ServiceBroker {
 			uidGenerator = start(config.getUidGenerator());
 			strategyFactory = start(config.getStrategyFactory());
 			contextFactory = start(config.getContextFactory());
+			circuitBreaker = start(config.getCircuitBreaker());
 			eventbus = start(config.getEventbus());
 			serviceRegistry = start(config.getServiceRegistry());
-			transporter = start(config.getTransporter());
+			transporter = start(config.getTransporter());			
 			
 			// Register enqued middlewares
 			Cacher cacher = config.getCacher();
@@ -266,6 +268,7 @@ public class ServiceBroker {
 		stop(transporter);
 		stop(serviceRegistry);
 		stop(eventbus);
+		stop(circuitBreaker);
 		stop(contextFactory);
 		stop(strategyFactory);
 		stop(uidGenerator);
@@ -381,46 +384,15 @@ public class ServiceBroker {
 	 */
 	public Promise call(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		return call(name, res.data, res.opts);
+		return circuitBreaker.call(name, res.data, res.opts, null);
 	}
 
 	public Promise call(String name, Tree params) {
-		return call(name, params, null);
+		return circuitBreaker.call(name, params, null, null);
 	}
 
 	public Promise call(String name, Tree params, CallOptions.Options opts) {
-		String targetID;
-		int retryCount;
-		if (opts == null) {
-			targetID = null;
-			retryCount = 0;
-		} else {
-			targetID = opts.nodeID;
-			retryCount = opts.retryCount;
-		}
-		return call(name, params, opts, targetID, retryCount);
-	}
-
-	protected Promise call(String name, Tree params, CallOptions.Options opts, String targetID, int retryCount) {
-		try {
-			Action action = serviceRegistry.getAction(name, targetID);
-			Context ctx = contextFactory.create(name, params, opts, null);
-			return Promise.resolve(action.handler(ctx)).catchError(cause -> {
-				return retry(cause, name, params, opts, targetID, retryCount);
-			});
-		} catch (Throwable cause) {
-			return retry(cause, name, params, opts, targetID, retryCount);
-		}
-	}
-
-	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, String targetID,
-			int retryCount) {
-		if (retryCount > 0) {
-			int remaining = retryCount - 1;
-			logger.warn("Retrying request (" + remaining + " attempts left)...", cause);
-			return call(name, params, opts, targetID, remaining);
-		}
-		return Promise.reject(cause);
+		return circuitBreaker.call(name, params, opts, null);
 	}
 
 	// --- EMIT EVENT TO EVENT GROUP ---
