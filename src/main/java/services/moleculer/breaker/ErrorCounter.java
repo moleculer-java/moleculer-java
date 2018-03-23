@@ -25,50 +25,63 @@
  */
 package services.moleculer.breaker;
 
-public class StatusKey {
+public class ErrorCounter {
 
-	protected final String nodeID;
-	protected final String name;
-	protected final int hashCode;
+	// --- PROPERTIES ---
 	
-	public StatusKey(String nodeID, String name) {
-		this.nodeID = nodeID;
-		this.name = name;
-		this.hashCode = 31 * nodeID.hashCode() + name.hashCode();	
+	protected final long windowLength;
+	protected final long lockTimeout;
+
+	// --- ERROR TIMESTAMPS ---
+	
+	protected final long[] timestamps;
+	protected volatile int pointer;
+
+	protected volatile long max;
+	protected volatile long min;
+
+	protected volatile long tested;
+	
+	// --- CONSTRUCTOR ---
+
+	public ErrorCounter(long windowLength, long lockTimeout, int maxErrors) {
+		this.windowLength = windowLength;
+		this.lockTimeout = lockTimeout;		
+		this.timestamps = new long[maxErrors];
+	}
+	
+	// --- INCREMENT ERROR COUNTER ---
+	
+	public synchronized void increment(long now) {
+		pointer++;
+		if (pointer >= timestamps.length) {
+			pointer = 0;
+		}
+		min = timestamps[pointer];
+		timestamps[pointer] = now;
+		max = now;
 	}
 
-	@Override
-	public int hashCode() {
-		return hashCode;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj) {
+	// --- CHECK ENDPOINT STATUS ---
+	
+	public synchronized boolean isAvailable(long now) {
+		if (max == 0) {
 			return true;
 		}
-		if (obj == null) {
-			return false;
-		}
-		if (getClass() != obj.getClass()) {
-			return false;
-		}
-		StatusKey other = (StatusKey) obj;
-		if (name == null) {
-			if (other.name != null) {
-				return false;
+		if (now - max > lockTimeout) {
+			if (now - tested > lockTimeout) {
+				tested = now;
+				return true;
 			}
-		} else if (!name.equals(other.name)) {
 			return false;
 		}
-		if (nodeID == null) {
-			if (other.nodeID != null) {
-				return false;
-			}
-		} else if (!nodeID.equals(other.nodeID)) {
-			return false;
-		}
-		return true;
+		return now - min <= windowLength;
+	}
+	
+	// --- RESET VARIABLES ---
+	
+	public synchronized void reset() {
+		max = 0;
 	}
 	
 }

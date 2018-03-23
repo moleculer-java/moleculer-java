@@ -25,15 +25,11 @@
  */
 package services.moleculer.breaker;
 
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.ConcurrentHashMap;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
@@ -42,6 +38,7 @@ import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallOptions;
 import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
+import services.moleculer.service.Action;
 import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.Name;
 import services.moleculer.service.ServiceRegistry;
@@ -50,7 +47,7 @@ import services.moleculer.service.ServiceRegistry;
  * Default implementation of Circuit Breaker.
  */
 @Name("Default Circuit Breaker")
-public class DefaultCircuitBreaker extends CircuitBreaker implements Runnable {
+public class DefaultCircuitBreaker extends CircuitBreaker {
 
 	// --- PROPERTIES ---
 
@@ -62,17 +59,34 @@ public class DefaultCircuitBreaker extends CircuitBreaker implements Runnable {
 	/**
 	 * Number of max tries
 	 */
-	protected int maxTries = 3;
+	protected int maxTries = 32;
+
+	/**
+	 * Exit from "maxTries" loop, when strategy returns number of "maxSameNodes"
+	 * corresponding node IDs
+	 */
+	protected int maxSameNodes = 3;
 
 	/**
 	 * Cleanup period time, in SECONDS (0 = disable cleanup process)
 	 */
 	protected int cleanup = 60;
 
-	protected long windowSize = 10 * 1000L;
-	
-	protected int maxErrors = 5;
-	
+	/**
+	 * Length of time-window in MILLISECONDS
+	 */
+	protected long windowLength = 5 * 1000L;
+
+	/**
+	 * Maximum number of errors in time-window
+	 */
+	protected int maxErrors = 3;
+
+	/**
+	 * Half-open timeout in MILLISECONDS
+	 */
+	protected long lockTimeout = 10 * 1000L;
+
 	// --- COMPONENTS ---
 
 	protected ServiceRegistry serviceRegistry;
@@ -82,31 +96,11 @@ public class DefaultCircuitBreaker extends CircuitBreaker implements Runnable {
 
 	protected Set<Class<? extends Throwable>> ignoredTypes = new HashSet<>();
 
-	// --- ERROR STORE ---
+	// --- ERROR COUNTERS ---
 
-	protected HashMap<StatusKey, EndpointStatus> endpointStatuses = new HashMap<>(1024);
-
-	// --- LOCKS ---
-
-	protected final Lock readLock;
-	protected final Lock writeLock;
-
-	// --- CONSTRUCTOR ---
-
-	public DefaultCircuitBreaker() {
-
-		// Init locks
-		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);
-		readLock = lock.readLock();
-		writeLock = lock.writeLock();
-	}
+	protected ConcurrentHashMap<EndpointKey, ErrorCounter> errorCounters = new ConcurrentHashMap<>(1024);
 
 	// --- START BREAKER ---
-
-	/**
-	 * Cancelable timer
-	 */
-	protected volatile ScheduledFuture<?> timer;
 
 	@Override
 	public void started(ServiceBroker broker) throws Exception {
@@ -116,57 +110,13 @@ public class DefaultCircuitBreaker extends CircuitBreaker implements Runnable {
 		ServiceBrokerConfig cfg = broker.getConfig();
 		this.serviceRegistry = cfg.getServiceRegistry();
 		this.contextFactory = cfg.getContextFactory();
-
-		// Start timer
-		if (cleanup > 0) {
-			timer = broker.getConfig().getScheduler().scheduleWithFixedDelay(this, cleanup, cleanup, TimeUnit.SECONDS);
-		}
-	}
-
-	// --- REMOVE OLD ENTRIES ---
-
-	@Override
-	public void run() {
-		if (!enabled) {
-			
-			// Circuit Breaker is disabled
-			return;
-		}
-
-		// Do cleanup process
-		writeLock.lock();
-		try {
-			Iterator<EndpointStatus> i = endpointStatuses.values().iterator();
-			while (i.hasNext()) {
-				if (i.next().isRemovable()) {
-					i.remove();
-				}
-			}
-		} finally {
-			writeLock.unlock();
-		}
 	}
 
 	// --- STOP BREAKER ---
 
 	@Override
 	public void stopped() {
-
-		// Stop timer
-		if (timer != null) {
-			timer.cancel(false);
-			timer = null;
-		}
-
-		// Clear statuses
-		writeLock.lock();
-		try {
-			endpointStatuses.clear();
-		} finally {
-			writeLock.unlock();
-		}
-
-		// Clear types
+		errorCounters.clear();
 		ignoredTypes.clear();
 	}
 
@@ -174,116 +124,162 @@ public class DefaultCircuitBreaker extends CircuitBreaker implements Runnable {
 
 	public Promise call(String name, Tree params, CallOptions.Options opts, Context parent) {
 		int remaining = opts == null ? 0 : opts.retryCount;
-		return call(name, params, opts, remaining, parent);
+		if (enabled) {
+			return callWithBreaker(name, params, opts, remaining, parent);
+		}
+		return callWithoutBreaker(name, params, opts, remaining, parent);
 	}
 
-	protected Promise call(String name, Tree params, CallOptions.Options opts, int remaining, Context parent) {
-		ActionEndpoint action = null;
+	// --- CALL SERVICE WITHOUT BREAKER FUNCTION ---
+
+	protected Promise callWithoutBreaker(String name, Tree params, CallOptions.Options opts, int remaining,
+			Context parent) {
 		try {
 			String targetID = opts == null ? null : opts.nodeID;
-			action = (ActionEndpoint) serviceRegistry.getAction(name, targetID);
-			if (enabled && targetID == null) {
+			Action action = serviceRegistry.getAction(name, targetID);
+			Context ctx = contextFactory.create(name, params, opts, parent);
+			if (remaining < 1) {
+				return Promise.resolve(action.handler(ctx));
+			}
+			return Promise.resolve(action.handler(ctx)).catchError(cause -> {
+				return retryWithoutBreaker(cause, name, params, opts, remaining, parent);
+			});
+		} catch (Throwable cause) {
+			if (remaining < 1) {
+				return Promise.reject(cause);
+			}
+			return retryWithoutBreaker(cause, name, params, opts, remaining, parent);
+		}
+	}
 
-				// Circuit Breaker is enabled -> check availability of endpoint
+	protected Promise retryWithoutBreaker(Throwable cause, String name, Tree params, CallOptions.Options opts,
+			int remaining, Context parent) {
+		remaining--;
+		logger.warn("Retrying request (" + remaining + " attempts left)...", cause);
+		return callWithoutBreaker(name, params, opts, remaining, parent);
+	}
+
+	// --- CALL SERVICE WITH BREAKER FUNCTION ---
+
+	protected Promise callWithBreaker(String name, Tree params, CallOptions.Options opts, int remaining,
+			Context parent) {
+		EndpointKey endpointKey = null;
+		ErrorCounter errorCounter = null;
+		long now = System.currentTimeMillis();
+		try {
+
+			// Get the first recommended Endpoint and Error Counter
+			String targetID = opts == null ? null : opts.nodeID;
+			ActionEndpoint action = (ActionEndpoint) serviceRegistry.getAction(name, targetID);
+			String nodeID = action.getNodeID();
+			endpointKey = new EndpointKey(nodeID, name);
+			errorCounter = errorCounters.get(endpointKey);
+
+			// Check availability of the Endpoint (if endpoint isn't targetted)
+			if (targetID == null) {
+				LinkedHashSet<String> nodeIDs = new LinkedHashSet<>(maxSameNodes * 2);
+				int sameNodeCounter = 0;
 				for (int i = 0; i < maxTries; i++) {
-					if (isAvailable(action.getNodeID(), name)) {
+					if (errorCounter == null || errorCounter.isAvailable(now)) {
 
-						// Endpoint is available -> OK
+						// Endpoint is available
 						break;
+					}
+
+					// Store nodeID
+					if (!nodeIDs.add(nodeID)) {
+						sameNodeCounter++;
+						if (sameNodeCounter >= maxSameNodes) {
+
+							// The "maxSameNodes" limit is reached
+							break;
+						}
 					}
 
 					// Try to choose another endpoint
 					action = (ActionEndpoint) serviceRegistry.getAction(name, targetID);
+					nodeID = action.getNodeID();
+					endpointKey = new EndpointKey(nodeID, name);
+					errorCounter = errorCounters.get(endpointKey);
 				}
 			}
+
+			// Create new Context
 			Context ctx = contextFactory.create(name, params, opts, parent);
-			if (remaining < 1) {
-				if (enabled) {
 
-					// Circuit Breaker is enabled -> catch all errors
-					final String nodeID = action.getNodeID();
-					return Promise.resolve(action.handler(ctx)).catchError(cause -> {
-						onError(nodeID, name, cause);
-						return cause;
-					});
-				}
-				return Promise.resolve(action.handler(ctx));
-			}
-			final String nodeID = action.getNodeID();
-			return Promise.resolve(action.handler(ctx)).catchError(cause -> {
-				if (enabled) {
+			// Invoke Endpoint
+			final ErrorCounter currentCounter = errorCounter;
+			final EndpointKey currentKey = endpointKey;
+			return Promise.resolve(action.handler(ctx)).then(rsp -> {
 
-					// Circuit Breaker is enabled -> catch error
-					onError(nodeID, name, cause);
+				// Reset error counter
+				if (currentCounter != null) {
+					currentCounter.reset();
 				}
-				return retry(cause, name, params, opts, remaining, parent);
+
+				// Return response
+				return rsp;
+
+			}).catchError(cause -> {
+
+				// Increment error counter
+				increment(currentCounter, currentKey, cause, now);
+
+				// Return with error
+				if (remaining < 1) {
+					return cause;
+				}
+
+				// Retry
+				return retryWithBreaker(cause, name, params, opts, remaining, parent);
 			});
-		} catch (Throwable cause) {
-			if (enabled && action != null) {
 
-				// Circuit Breaker is enabled -> catch error
-				onError(action.getNodeID(), name, cause);
-			}
+		} catch (Throwable cause) {
+
+			// Increment error counter
+			increment(errorCounter, endpointKey, cause, now);
+
+			// Reject
 			if (remaining < 1) {
 				return Promise.reject(cause);
 			}
-			return retry(cause, name, params, opts, remaining, parent);
+
+			// Retry
+			return retryWithBreaker(cause, name, params, opts, remaining, parent);
 		}
 	}
 
-	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, int remaining,
-			Context parent) {
+	protected Promise retryWithBreaker(Throwable cause, String name, Tree params, CallOptions.Options opts,
+			int remaining, Context parent) {
 		remaining--;
 		logger.warn("Retrying request (" + remaining + " attempts left)...", cause);
-		return call(name, params, opts, remaining, parent);
+		return callWithBreaker(name, params, opts, remaining, parent);
 	}
 
-	// --- STORE ERROR ---
+	protected void increment(ErrorCounter errorCounter, EndpointKey endpointKey, Throwable cause, long now) {
+		if (endpointKey != null) {
 
-	protected void onError(String nodeID, String name, Throwable cause) {
-		if (!ignoredTypes.isEmpty()) {
-			Class<? extends Throwable> test = cause.getClass();
-			for (Class<? extends Throwable> type : ignoredTypes) {
-				if (type.isAssignableFrom(test)) {
+			// Check error type
+			if (!ignoredTypes.isEmpty()) {
+				Class<? extends Throwable> test = cause.getClass();
+				for (Class<? extends Throwable> type : ignoredTypes) {
+					if (type.isAssignableFrom(test)) {
 
-					// Ignore error
-					return;
+						// Ignore error
+						return;
+					}
 				}
 			}
-		}
 
-		// Get or create status container
-		StatusKey key = new StatusKey(nodeID, name);
-		EndpointStatus status;
-		writeLock.lock();
-		try {
-			status = endpointStatuses.get(key);
-			if (status == null) {
-				status = new EndpointStatus(windowSize, maxErrors);
-				endpointStatuses.put(key, status);
+			// Create new Error Counter
+			if (errorCounter == null) {
+				errorCounter = new ErrorCounter(windowLength, lockTimeout, maxErrors);
+				errorCounter.increment(now);
+				errorCounters.put(endpointKey, errorCounter);
+			} else {
+				errorCounter.increment(now);
 			}
-		} finally {
-			writeLock.unlock();
 		}
-
-		// Store error time
-		status.onError();
-	}
-
-	// --- CHECK ERROR ---
-
-	protected boolean isAvailable(String nodeID, String name) {
-
-		// Get status container
-		StatusKey key = new StatusKey(nodeID, name);
-		EndpointStatus status;
-		readLock.lock();
-		try {
-			status = endpointStatuses.get(key);
-		} finally {
-			readLock.unlock();
-		}
-		return status == null || status.isAvailable();
 	}
 
 	// --- ADD / REMOVE IGNORED ERROR / EXCEPTION ---
@@ -312,6 +308,46 @@ public class DefaultCircuitBreaker extends CircuitBreaker implements Runnable {
 
 	public void setIgnoredTypes(Set<Class<? extends Throwable>> ignoredTypes) {
 		this.ignoredTypes = Objects.requireNonNull(ignoredTypes);
+	}
+
+	public int getMaxTries() {
+		return maxTries;
+	}
+
+	public void setMaxTries(int maxTries) {
+		this.maxTries = maxTries;
+	}
+
+	public int getMaxSameNodes() {
+		return maxSameNodes;
+	}
+
+	public void setMaxSameNodes(int maxSameNodes) {
+		this.maxSameNodes = maxSameNodes;
+	}
+
+	public int getCleanup() {
+		return cleanup;
+	}
+
+	public void setCleanup(int cleanup) {
+		this.cleanup = cleanup;
+	}
+
+	public long getWindowLength() {
+		return windowLength;
+	}
+
+	public void setWindowLength(long windowLength) {
+		this.windowLength = windowLength;
+	}
+
+	public int getMaxErrors() {
+		return maxErrors;
+	}
+
+	public void setMaxErrors(int maxErrors) {
+		this.maxErrors = maxErrors;
 	}
 
 }

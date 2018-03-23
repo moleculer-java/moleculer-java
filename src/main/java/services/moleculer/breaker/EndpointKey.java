@@ -25,43 +25,50 @@
  */
 package services.moleculer.breaker;
 
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+public class EndpointKey {
 
-public class EndpointStatus {
-
-	// --- STATUS ---
+	protected final String nodeID;
+	protected final String name;
+	protected final int hashCode;
 	
-	protected static final int STATUS_OPEN = 0;
-	protected static final int STATUS_CLOSED = 1;
-	protected static final int STATUS_HALF_OPEN = 2;
-	
-	// --- PROPERTIES ---
-	
-	protected final long windowSize;
-	protected final int maxErrors;
-	
-	protected final AtomicLong errorTimestamp = new AtomicLong();
-	protected final AtomicInteger errorCount = new AtomicInteger();
-	protected final AtomicInteger status = new AtomicInteger();
-	
-	// --- CONSTRUCTOR ---
-	
-	public EndpointStatus(long windowSize, int maxErrors) {
-		this.windowSize = windowSize;
-		this.maxErrors = maxErrors;
-	}
-		
-	public boolean isAvailable() {
-		return status.get() != STATUS_CLOSED;
+	public EndpointKey(String nodeID, String name) {
+		this.nodeID = nodeID;
+		this.name = name;
+		this.hashCode = 31 * nodeID.hashCode() + name.hashCode();	
 	}
 
-	public void onError() {
-		
+	@Override
+	public int hashCode() {
+		return hashCode;
 	}
-	
-	public boolean isRemovable() {		
-		return false;
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (obj == null) {
+			return false;
+		}
+		if (getClass() != obj.getClass()) {
+			return false;
+		}
+		EndpointKey other = (EndpointKey) obj;
+		if (name == null) {
+			if (other.name != null) {
+				return false;
+			}
+		} else if (!name.equals(other.name)) {
+			return false;
+		}
+		if (nodeID == null) {
+			if (other.nodeID != null) {
+				return false;
+			}
+		} else if (!nodeID.equals(other.nodeID)) {
+			return false;
+		}
+		return true;
 	}
 	
 }
