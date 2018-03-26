@@ -165,7 +165,6 @@ public class DefaultCircuitBreaker extends CircuitBreaker {
 			Context parent) {
 		EndpointKey endpointKey = null;
 		ErrorCounter errorCounter = null;
-		long now = System.currentTimeMillis();
 		try {
 
 			// Get the first recommended Endpoint and Error Counter
@@ -179,6 +178,12 @@ public class DefaultCircuitBreaker extends CircuitBreaker {
 			if (targetID == null) {
 				LinkedHashSet<String> nodeIDs = new LinkedHashSet<>(maxSameNodes * 2);
 				int sameNodeCounter = 0;
+				long now;
+				if (errorCounter == null) {
+					now = 0;
+				} else {
+					now = System.currentTimeMillis();
+				}
 				for (int i = 0; i < maxTries; i++) {
 					if (errorCounter == null || errorCounter.isAvailable(now)) {
 
@@ -223,7 +228,7 @@ public class DefaultCircuitBreaker extends CircuitBreaker {
 			}).catchError(cause -> {
 
 				// Increment error counter
-				increment(currentCounter, currentKey, cause, now);
+				increment(currentCounter, currentKey, cause, System.currentTimeMillis());
 
 				// Return with error
 				if (remaining < 1) {
@@ -237,7 +242,7 @@ public class DefaultCircuitBreaker extends CircuitBreaker {
 		} catch (Throwable cause) {
 
 			// Increment error counter
-			increment(errorCounter, endpointKey, cause, now);
+			increment(errorCounter, endpointKey, cause, System.currentTimeMillis());
 
 			// Reject
 			if (remaining < 1) {
@@ -274,8 +279,11 @@ public class DefaultCircuitBreaker extends CircuitBreaker {
 			// Create new Error Counter
 			if (errorCounter == null) {
 				errorCounter = new ErrorCounter(windowLength, lockTimeout, maxErrors);
+				ErrorCounter prev = errorCounters.put(endpointKey, errorCounter);
+				if (prev != null) {
+					errorCounter = prev;
+				}
 				errorCounter.increment(now);
-				errorCounters.put(endpointKey, errorCounter);
 			} else {
 				errorCounter.increment(now);
 			}

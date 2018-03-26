@@ -27,16 +27,15 @@ package services.moleculer.util;
 
 import io.datatree.Tree;
 
+/**
+ * For internal use only!
+ */
 public final class CheckedTree extends Tree {
 
 	private static final long serialVersionUID = -2446873848618454251L;
 
 	public CheckedTree(Object checkedValue) {
-		super(checkedValue, null);
-	}
-
-	public CheckedTree(Object checkedValue, Object checkedMeta) {
-		super(checkedValue, checkedMeta);
+		super(null, null, checkedValue);
 	}
 
 }

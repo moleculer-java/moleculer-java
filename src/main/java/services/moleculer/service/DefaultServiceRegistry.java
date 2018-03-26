@@ -498,7 +498,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					errorMessage = "Unknow error!";
 				}
 				if (trace == null || trace.isEmpty()) {
-					logger.error("Remote invaction failed (unknown error occured)!");
+					logger.error("Remote invoction failed (unknown error occured)!");
 				}
 				pending.promise.complete(new RemoteException(errorMessage));
 				return;

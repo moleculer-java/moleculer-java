@@ -25,15 +25,18 @@
  */
 package services.moleculer.breaker;
 
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
 public class ErrorCounter {
 
 	// --- PROPERTIES ---
-	
+
 	protected final long windowLength;
 	protected final long lockTimeout;
 
 	// --- ERROR TIMESTAMPS ---
-	
+
 	protected final long[] timestamps;
 	protected volatile int pointer;
 
@@ -41,47 +44,99 @@ public class ErrorCounter {
 	protected volatile long min;
 
 	protected volatile long tested;
-	
+
+	protected volatile boolean locked;
+
+	// --- LOCKS ---
+
+	protected final Lock readLock;
+	protected final Lock writeLock;
+
 	// --- CONSTRUCTOR ---
 
 	public ErrorCounter(long windowLength, long lockTimeout, int maxErrors) {
 		this.windowLength = windowLength;
-		this.lockTimeout = lockTimeout;		
+		this.lockTimeout = lockTimeout;
 		this.timestamps = new long[maxErrors];
+
+		// Init locks
+		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);
+		readLock = lock.readLock();
+		writeLock = lock.writeLock();
 	}
-	
+
 	// --- INCREMENT ERROR COUNTER ---
-	
-	public synchronized void increment(long now) {
-		pointer++;
-		if (pointer >= timestamps.length) {
-			pointer = 0;
+
+	public void increment(long now) {
+		writeLock.lock();
+		try {
+			pointer++;
+			if (pointer >= timestamps.length) {
+				pointer = 0;
+			}
+			timestamps[pointer] = now;
+			max = now;
+
+			int next = pointer + 1;
+			if (next >= timestamps.length) {
+				next = 0;
+			}
+			min = timestamps[next];
+		} finally {
+			writeLock.unlock();
 		}
-		min = timestamps[pointer];
-		timestamps[pointer] = now;
-		max = now;
 	}
 
 	// --- CHECK ENDPOINT STATUS ---
-	
-	public synchronized boolean isAvailable(long now) {
-		if (max == 0) {
-			return true;
-		}
-		if (now - max > lockTimeout) {
-			if (now - tested > lockTimeout) {
-				tested = now;
+
+	public boolean isAvailable(long now) {
+		readLock.lock();
+		try {
+			if (max == 0 || min == 0) {
 				return true;
 			}
-			return false;
+			if (now - max > lockTimeout) {
+				if (now - tested > lockTimeout) {
+					tested = now;
+					return true;
+				}
+				return false;
+			}
+			if (locked) {
+				return false;
+			}
+			if (now - min > windowLength) {
+				return true;
+			}
+			locked = true;
+		} finally {
+			readLock.unlock();
 		}
-		return now - min <= windowLength;
+		return false;
 	}
-	
+
 	// --- RESET VARIABLES ---
-	
-	public synchronized void reset() {
-		max = 0;
+
+	public void reset() {
+		readLock.lock();
+		try {
+			if (max == 0) {
+				return;
+			}
+		} finally {
+			readLock.unlock();
+		}
+		writeLock.lock();
+		try {
+			for (int i = 0; i < timestamps.length; i++) {
+				timestamps[i] = 0;
+			}
+			min = 0;
+			max = 0;
+			locked = false;
+		} finally {
+			writeLock.unlock();
+		}
 	}
-	
+
 }

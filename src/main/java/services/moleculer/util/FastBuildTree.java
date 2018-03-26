@@ -28,36 +28,37 @@ package services.moleculer.util;
 import io.datatree.Tree;
 
 /**
- * This Tree is optimized for fast building and serialization.
+ * This Tree is optimized for fast building and serialization. For internal use
+ * only!
  */
 public class FastBuildTree extends Tree {
 
 	// --- SERIAL VERSION UID ---
-	
+
 	private static final long serialVersionUID = 8897557340559995525L;
 
 	// --- INTERNAL MAP ---
-	
+
 	protected FastBuildMap map;
-	
+
 	// --- CONSTRUCTORS ---
-	
+
 	public FastBuildTree() {
 		this(16);
 	}
-	
+
 	public FastBuildTree(int size) {
-		super(new FastBuildMap(size), null);
+		super(null, null, new FastBuildMap(size));
 		map = (FastBuildMap) asObject();
 	}
 
 	// --- FAST AND UNSAFE PUT ---
-	
+
 	public Tree putUnsafe(String path, Object value) {
 		map.put(path, value);
 		return this;
 	}
-	
+
 	public Tree putUnsafe(String path, Tree value) {
 		map.put(path, value == null ? null : value.asObject());
 		return this;

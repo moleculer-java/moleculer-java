@@ -32,9 +32,14 @@ import org.junit.Test;
 
 import io.datatree.Tree;
 import junit.framework.TestCase;
+import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
+import services.moleculer.context.CallOptions;
 import services.moleculer.monitor.ConstantMonitor;
+import services.moleculer.service.Action;
 import services.moleculer.service.DefaultServiceRegistry;
+import services.moleculer.service.Name;
+import services.moleculer.service.Service;
 
 public class CircuitBreakerTest extends TestCase {
 
@@ -43,6 +48,7 @@ public class CircuitBreakerTest extends TestCase {
 	protected TestTransporter tr;
 	protected DefaultServiceRegistry sr;
 	protected ServiceBroker br;
+	protected DefaultCircuitBreaker cb;
 
 	// --- TEST METHODS ---
 
@@ -59,33 +65,117 @@ public class CircuitBreakerTest extends TestCase {
 
 	@Test
 	public void testRoundRobin() throws Exception {
-		
+
 		// Simple round-robin test
+		currentID = 1;
 		for (int i = 0; i < 20; i++) {
-			br.call("test.test", (Tree) null);
+			Promise p = br.call("test.test", (Tree) null);
 			assertTrue(tr.hasMessage(getCurrentID()));
 			assertEquals(1, tr.getMessageCount());
-			tr.clearMessages();
+			createResponse(true);
+			boolean ok = false;
+			try {
+				p.waitFor();
+				ok = true;
+			} catch (Exception e) {
+			}
+			assertTrue(ok);
+		}
+
+		// Create fault
+		Promise p = br.call("test.test", (Tree) null);
+		String nodeID = createResponse(false);
+		boolean ok = true;
+		try {
+			p.waitFor();
+		} catch (Exception e) {
+			ok = e.toString().contains("unknown error");
+		}
+		assertFalse(ok);
+		ErrorCounter ec = cb.errorCounters.get(new EndpointKey(nodeID, "test.test"));
+		assertNotNull(ec);
+		assertEquals(1, ec.pointer);
+		long now = ec.timestamps[0];
+		assertTrue(ec.isAvailable(now));
+
+		// Create faults2
+		p = br.call("test.test", (Tree) null);
+		nodeID = createResponse(false);
+		try {
+			p.waitFor();
+			ok = true;
+		} catch (Exception e) {
+			ok = e.toString().contains("unknown error");
+		}
+		assertFalse(ok);
+		ec = cb.errorCounters.get(new EndpointKey(nodeID, "test.test"));
+		assertNotNull(ec);
+		assertEquals(1, ec.pointer);
+
+		// Create fault
+		int node1Count = 0;
+		for (int i = 0; i < 30; i++) {
+			p = br.call("test.test", (Tree) null);
+			nodeID = createResponse(false);
+			now = System.currentTimeMillis();
+			try {
+				p.waitFor();
+				ok = true;
+			} catch (Exception e) {
+				ok = e.toString().contains("unknown error");
+			}			
+			assertFalse(ok);
+			if (nodeID.equals("node0")) {
+				node1Count++;
+				ec = cb.errorCounters.get(new EndpointKey(nodeID, "test.test"));
+				assertNotNull(ec);
+				if (node1Count < 3) {
+					if (node1Count == 1) {
+						assertTrue(ec.timestamps[0] == 0);
+						assertTrue(ec.timestamps[1] > 0);
+						assertTrue(ec.timestamps[2] == 0);
+					} else if (node1Count == 2) {
+						assertTrue(ec.timestamps[0] == 0);
+						assertTrue(ec.timestamps[1] > 0);
+						assertTrue(ec.timestamps[2] > 0);
+					}
+					assertTrue(ec.isAvailable(now));
+				} else {
+					assertTrue(ec.timestamps[0] > 0);
+					assertTrue(ec.timestamps[1] > 0);
+					assertTrue(ec.timestamps[2] > 0);
+					assertFalse(ec.isAvailable(now));
+				}
+			}
 		}
 		
-		// Create fault
-		br.call("test.test", (Tree) null);
+		// All endpoint is locked
+		for (EndpointKey key: cb.errorCounters.keySet()) {
+			ec = cb.errorCounters.get(key);
+			boolean avail = ec.isAvailable(now);
+			assertFalse(avail);
+		}
 		
-		// "ver": "3",
-	    // "sender": "local",
-	    // "id": "pca:21",
-	    // "action": "test.test",
-	    // "channel": "MOL.REQ.node1"
-		System.out.println(tr.getMessages());
+		// Retrying once
+		now += 10001;
+		assertTrue(ec.isAvailable(now));
+		assertFalse(ec.isAvailable(now));
+		assertFalse(ec.isAvailable(now));
+
+		// + 5 sec
+		now += 5000;
+		assertFalse(ec.isAvailable(now));
+		assertFalse(ec.isAvailable(now));
+		assertFalse(ec.isAvailable(now));
+
+		// + 10 sec (5000 + 5001)
+		now += 5001;
+		assertTrue(ec.isAvailable(now));
+		assertFalse(ec.isAvailable(now));
+		assertFalse(ec.isAvailable(now));
 	}
 
-	public String createFaultResponse() throws Exception {
-
-		// "ver": "3",
-	    // "sender": "local",
-	    // "id": "pca:21",
-	    // "action": "test.test",
-	    // "channel": "MOL.REQ.node1"
+	public String createResponse(boolean success) throws Exception {
 		Tree msg = tr.getMessages().get(0);
 		String id = msg.get("id", "");
 		String channel = msg.get("channel", "");
@@ -94,12 +184,147 @@ public class CircuitBreakerTest extends TestCase {
 		Tree rsp = new Tree();
 		rsp.put("ver", "3");
 		rsp.put("sender", nodeID);
-		rsp.put("id", id);		
-		rsp.put("success", false);
+		rsp.put("id", id);
+		rsp.put("success", success);
 		rsp.put("data", (String) null);
-		tr.received(channel, rsp);
+		tr.received("MOL.RES.local", rsp);
 		tr.clearMessages();
 		return nodeID;
+	}
+
+	@Test
+	public void testRoundRobin2() throws Exception {
+		
+		// Node0 -> fail
+		currentID = 1;
+		for (int i = 0; i < 30; i++) {
+			Promise p = br.call("test.test", (Tree) null);
+			String nodeID = getCurrentID();
+			boolean success = !"node0".equals(nodeID);
+			createResponse(success);
+			boolean ok = false;
+			try {
+				p.waitFor();
+				ok = true;
+			} catch (Exception e) {
+				ok = false;
+			}
+			assertEquals(success, ok);
+		}
+		
+		// Check ErrorCounter
+		long now = System.currentTimeMillis();
+		ErrorCounter ec = cb.errorCounters.get(new EndpointKey("node0", "test.test"));
+		assertFalse(ec.isAvailable(now));
+		
+		// Do not invoke node0
+		for (int i = 0; i < 20; i++) {
+			Promise p = br.call("test.test", (Tree) null);
+			String nodeID = createResponse(true);
+			assertFalse("node0".equals(nodeID));
+			boolean ok = false;
+			try {
+				p.waitFor();
+				ok = true;
+			} catch (Exception e) {
+				ok = false;
+			}
+			assertTrue(ok);
+		}
+		
+		// Invoke node1 directly
+		Promise p = br.call("test.test", (Tree) null, CallOptions.nodeID("node1"));
+		createResponse(true);
+		boolean ok = false;
+		try {
+			p.waitFor();
+			ok = true;
+		} catch (Exception e) {
+			ok = false;
+		}
+		assertTrue(ok);
+		assertFalse(ec.isAvailable(now));
+		
+		// Invoke node0 directly
+		p = br.call("test.test", (Tree) null, CallOptions.nodeID("node0"));
+		createResponse(true);
+		try {
+			p.waitFor();
+			ok = true;
+		} catch (Exception e) {
+			ok = false;
+		}
+		assertTrue(ok);
+		assertTrue(ec.isAvailable(now));		
+	}
+	
+	@Test
+	public void testRetry() throws Exception {
+		for (int i = 0; i < 10; i++) {
+			Promise p = br.call("test.test", (Tree) null, CallOptions.retryCount(1));
+			String n1 = createResponse(false);
+			for (int n = 0; n < 10; n++) {
+				if (tr.getMessageCount() > 0) {
+					break;
+				}
+				Thread.sleep(10);
+			}
+			String n2 = createResponse(true);
+			assertFalse(n1.equals(n2));
+			boolean ok = false;
+			try {
+				p.waitFor();
+				ok = true;
+			} catch (Exception e) {
+				ok = false;
+			}
+			assertTrue(ok);
+		}
+	}
+
+	@Test
+	public void testRetryWithError() throws Exception {
+		for (int i = 0; i < 10; i++) {
+			Promise p = br.call("test.test", (Tree) null, CallOptions.retryCount(1));
+			String n1 = createResponse(false);
+			for (int n = 0; n < 10; n++) {
+				if (tr.getMessageCount() > 0) {
+					break;
+				}
+				Thread.sleep(10);
+			}
+			String n2 = createResponse(false);
+			assertFalse(n1.equals(n2));
+			boolean ok = false;
+			try {
+				p.waitFor();
+				ok = true;
+			} catch (Exception e) {
+				ok = false;
+			}
+			assertFalse(ok);
+		}
+	}
+
+	@Test
+	public void testSimpleCall() throws Exception {
+		br.createService(new Service("math") {
+			
+			@Name("add")
+			public Action add = ctx -> {
+
+				return ctx.params.get("a", 0) + ctx.params.get("b", 0);
+
+			};
+			
+		});
+		// cb.setEnabled(true);
+		long start = System.currentTimeMillis();
+		for (int i = 0; i < 50; i++) {
+			int rsp = br.call("math.add", "a", i, "b", 1).waitFor().asInteger();
+			assertEquals(i + 1, rsp);
+		}
+		assertTrue(System.currentTimeMillis() - start < 50);
 	}
 	
 	// --- SET UP ---
@@ -109,8 +334,11 @@ public class CircuitBreakerTest extends TestCase {
 	protected void setUp() throws Exception {
 		sr = new DefaultServiceRegistry();
 		tr = new TestTransporter();
+		cb = new DefaultCircuitBreaker();
+		cb.setMaxErrors(3);
+		cb.setEnabled(true);
 		br = ServiceBroker.builder().monitor(new ConstantMonitor()).registry(sr).transporter(tr).nodeID("local")
-				.build();
+				.breaker(cb).build();
 		br.start();
 		for (int i = 0; i < 10; i++) {
 			Tree config = new Tree();
