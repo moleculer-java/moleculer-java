@@ -126,7 +126,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	// --- COMPONENTS ---
 
-	protected ServiceBroker broker;
 	protected ScheduledExecutorService scheduler;
 	protected StrategyFactory strategyFactory;
 	protected ContextFactory contextFactory;
@@ -170,7 +169,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Set components
 		ServiceBrokerConfig cfg = broker.getConfig();
-		this.broker = broker;
 		this.scheduler = cfg.getScheduler();
 		this.strategyFactory = cfg.getStrategyFactory();
 		this.contextFactory = cfg.getContextFactory();

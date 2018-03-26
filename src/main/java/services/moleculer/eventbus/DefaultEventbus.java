@@ -97,7 +97,6 @@ public class DefaultEventbus extends Eventbus {
 
 	// --- COMPONENTS ---
 
-	protected ServiceBroker broker;
 	protected StrategyFactory strategy;
 	protected Transporter transporter;
 	protected ExecutorService executor;
@@ -138,7 +137,6 @@ public class DefaultEventbus extends Eventbus {
 
 		// Set components
 		ServiceBrokerConfig cfg = broker.getConfig();
-		this.broker = broker;
 		this.strategy = cfg.getStrategyFactory();
 		this.transporter = cfg.getTransporter();
 		this.executor = cfg.getExecutor();

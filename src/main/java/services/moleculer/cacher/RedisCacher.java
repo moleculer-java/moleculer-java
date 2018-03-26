@@ -44,6 +44,7 @@ import io.datatree.Tree;
 import rx.Observable;
 import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
+import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
 import services.moleculer.service.Name;
@@ -132,8 +133,9 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
 
 		// Get components
-		executor = broker.getConfig().getExecutor();
-		scheduler = broker.getConfig().getScheduler();
+		ServiceBrokerConfig cfg = broker.getConfig();
+		executor = cfg.getExecutor();
+		scheduler = cfg.getScheduler();
 
 		// Connect to Redis server
 		connect();

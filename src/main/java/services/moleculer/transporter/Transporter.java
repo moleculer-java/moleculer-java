@@ -99,7 +99,6 @@ public abstract class Transporter extends MoleculerComponent {
 
 	protected String namespace = "";
 	protected String prefix = "MOL";
-	protected ServiceBroker broker;
 	protected String nodeID;
 
 	protected int heartbeatInterval = 5;
@@ -158,26 +157,23 @@ public abstract class Transporter extends MoleculerComponent {
 		super.started(broker);
 
 		// Process config
-		namespace = broker.getConfig().getNamespace();
+		ServiceBrokerConfig cfg = broker.getConfig();
+		namespace = cfg.getNamespace();
 		if (namespace != null && !namespace.isEmpty()) {
 			prefix = prefix + '-' + namespace;
 		}
+		nodeID = broker.getNodeID();
 
 		// Log serializer info
 		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
 
 		// Get components
-		ServiceBrokerConfig cfg = broker.getConfig();
 		executor = cfg.getExecutor();
 		scheduler = cfg.getScheduler();
 		registry = cfg.getServiceRegistry();
 		monitor = cfg.getMonitor();
 		eventbus = cfg.getEventbus();
 		uid = cfg.getUidGenerator();
-
-		// Get properties from broker
-		this.broker = broker;
-		this.nodeID = broker.getNodeID();
 
 		// Set channel names
 		eventChannel = channel(PACKET_EVENT, nodeID);

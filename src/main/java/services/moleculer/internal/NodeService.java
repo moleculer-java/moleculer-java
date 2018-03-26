@@ -38,6 +38,7 @@ import java.util.TimeZone;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
@@ -69,8 +70,11 @@ public class NodeService extends Service {
 	@Override
 	public void started(ServiceBroker broker) throws Exception {
 		super.started(broker);
-		this.transporter = broker.getConfig().getTransporter();
-		this.monitor = broker.getConfig().getMonitor();
+		
+		// Set components
+		ServiceBrokerConfig cfg = broker.getConfig();
+		this.transporter = cfg.getTransporter();
+		this.monitor = cfg.getMonitor();
 		this.localNodeID = broker.getNodeID();
 	}
 
