@@ -27,6 +27,7 @@ package services.moleculer.util.redis;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -58,6 +59,7 @@ import io.netty.util.concurrent.EventExecutorGroup;
 import io.netty.util.concurrent.Future;
 import rx.Observable;
 import services.moleculer.Promise;
+import services.moleculer.eventbus.Matcher;
 
 /**
  * Promise-based get/set Redis client.
@@ -217,29 +219,48 @@ public final class RedisGetSetClient {
 	}
 
 	/**
-	 * Deletes a group of items. Removes every key by a match string. The
-	 * default match string is "**".
+	 * Deletes a group of items. Removes every key by a match string.
 	 *
 	 * @param match
 	 */
 	public final Promise clean(String match) {
 		ScanArgs args = new ScanArgs();
 		args.limit(100);
-		args.match(match.replace("**", "*"));
+		boolean singleStar = match.indexOf('*') > -1;
+		boolean doubleStar = match.contains("**");
+		if (doubleStar) {
+			args.match(match.replace("**", "*"));			
+		} else {
+			args.match(match);
+		}
+		if (!singleStar || doubleStar) {
+			match = null;
+		}
 		if (client != null) {
-			return new Promise(clean(client.scan(args), args));
+			return new Promise(clean(client.scan(args), args, match));
 		}
 		if (clusteredClient != null) {
-			return new Promise(clean(clusteredClient.scan(args), args));
+			return new Promise(clean(clusteredClient.scan(args), args, match));
 		}
 		return Promise.resolve();
 	}
 
-	private final CompletionStage<Void> clean(RedisFuture<KeyScanCursor<byte[]>> future, ScanArgs args) {
+	private final CompletionStage<Object> clean(RedisFuture<KeyScanCursor<byte[]>> future, ScanArgs args, String match) {
 		return future.thenCompose(keyScanCursor -> {
 			List<byte[]> keys = keyScanCursor.getKeys();
 			if (keys == null || keys.isEmpty()) {
-				return null;
+				return CompletableFuture.completedFuture(keyScanCursor);
+			}
+			if (match != null) {
+				Iterator<byte[]> i = keys.iterator();
+				while (i.hasNext()) {
+					if (!Matcher.matches(new String(i.next(), StandardCharsets.UTF_8), match)) {
+						i.remove();
+					}
+				}
+			}
+			if (keys.isEmpty()) {
+				return CompletableFuture.completedFuture(keyScanCursor);
 			}
 			byte[][] array = new byte[keys.size()][];
 			keys.toArray(array);
@@ -253,15 +274,15 @@ public final class RedisGetSetClient {
 			if (currentCursor == null) {
 				return CompletableFuture.completedFuture(null);
 			}
-			return clean(new ScanCursor((String) currentCursor, false), args);
+			return clean(new ScanCursor((String) currentCursor, false), args, match);
 		});
 	}
 
-	private final CompletionStage<Void> clean(ScanCursor cursor, ScanArgs args) {
+	private final CompletionStage<Object> clean(ScanCursor cursor, ScanArgs args, String match) {
 		if (client != null) {
-			return clean(client.scan(cursor, args), args);
+			return clean(client.scan(cursor, args), args, match);
 		}
-		return clean(clusteredClient.scan(cursor, args), args);
+		return clean(clusteredClient.scan(cursor, args), args, match);
 	}
 
 	// --- DISCONNECT ---

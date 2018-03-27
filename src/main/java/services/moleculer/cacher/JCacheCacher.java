@@ -39,6 +39,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.cache.Cache.Entry;
 import javax.cache.CacheManager;
 import javax.cache.Caching;
+import javax.cache.configuration.Configuration;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
@@ -92,6 +93,23 @@ public class JCacheCacher extends DistributedCacher {
 
 	protected Serializer serializer = new JsonSerializer();
 
+	// --- PROPERTIES ---
+
+	/**
+	 * Close empty caches
+	 */
+	protected boolean closeEmptyPartitions = true;
+
+	/**
+	 * Default cache cconfiguration
+	 */
+	protected Configuration<String, byte[]> defaultConfiguration;
+
+	/**
+	 * Optional cache configurations by cache regions
+	 */
+	protected Map<String, Configuration<String, byte[]>> cacheConfigurations = new HashMap<>();
+
 	// --- LOCKS ---
 
 	protected final Lock readLock;
@@ -109,6 +127,28 @@ public class JCacheCacher extends DistributedCacher {
 
 	public JCacheCacher(CacheManager cacheManager) {
 		this.cacheManager = cacheManager;
+
+		// Create default configuration
+		defaultConfiguration = new Configuration<String, byte[]>() {
+
+			private static final long serialVersionUID = 7207355369349418992L;
+
+			@Override
+			public final Class<String> getKeyType() {
+				return String.class;
+			}
+
+			@Override
+			public final Class<byte[]> getValueType() {
+				return byte[].class;
+			}
+
+			@Override
+			public final boolean isStoreByValue() {
+				return true;
+			}
+
+		};
 
 		// Init locks
 		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);
@@ -161,6 +201,9 @@ public class JCacheCacher extends DistributedCacher {
 	public Promise get(String key) {
 		try {
 			int pos = partitionPosition(key, true);
+
+			// Prefix is the name of the partition / region (eg.
+			// "user" from the "user.name" cache key)
 			String prefix = key.substring(0, pos);
 			javax.cache.Cache<String, byte[]> partition;
 			readLock.lock();
@@ -190,6 +233,9 @@ public class JCacheCacher extends DistributedCacher {
 	public Promise set(String key, Tree value, int ttl) {
 		try {
 			int pos = partitionPosition(key, true);
+			
+			// Prefix is the name of the partition / region (eg.
+			// "user" from the "user.name" cache key)
 			String prefix = key.substring(0, pos);
 			javax.cache.Cache<String, byte[]> partition;
 			writeLock.lock();
@@ -197,6 +243,19 @@ public class JCacheCacher extends DistributedCacher {
 				partition = partitions.get(prefix);
 				if (partition == null) {
 					partition = cacheManager.getCache(prefix, String.class, byte[].class);
+					if (partition == null) {
+
+						// Find partition-specific config
+						Configuration<String, byte[]> cfg = cacheConfigurations.get(prefix);
+						if (cfg == null) {
+
+							// Use default config
+							cfg = defaultConfiguration;
+						}
+
+						// Create new cache
+						partition = cacheManager.createCache(prefix, cfg);
+					}
 					partitions.put(prefix, partition);
 				}
 			} finally {
@@ -218,6 +277,9 @@ public class JCacheCacher extends DistributedCacher {
 	@Override
 	public Promise del(String key) {
 		int pos = partitionPosition(key, true);
+		
+		// Prefix is the name of the partition / region (eg.
+		// "user" from the "user.name" cache key)
 		String prefix = key.substring(0, pos);
 		javax.cache.Cache<String, byte[]> partition;
 		readLock.lock();
@@ -256,14 +318,16 @@ public class JCacheCacher extends DistributedCacher {
 				// Remove entire partitions
 				writeLock.lock();
 				try {
-					if (match.isEmpty() || match.startsWith("*")) {
-						for (javax.cache.Cache<String, byte[]> partition : partitions.values()) {
-							partition.close();
+					if (match.isEmpty() || match.equals("**")) {
+						if (closeEmptyPartitions) {
+							for (javax.cache.Cache<String, byte[]> partition : partitions.values()) {
+								partition.close();
+							}
 						}
 						partitions.clear();
 					} else if (match.indexOf('*') == -1) {
 						javax.cache.Cache<String, byte[]> partition = partitions.remove(match);
-						if (partition != null) {
+						if (closeEmptyPartitions && partition != null) {
 							partition.close();
 						}
 					} else {
@@ -273,9 +337,11 @@ public class JCacheCacher extends DistributedCacher {
 						while (i.hasNext()) {
 							entry = i.next();
 							if (Matcher.matches(entry.getKey(), match)) {
-								javax.cache.Cache<String, byte[]> partition = entry.getValue();
-								if (partition != null) {
-									partition.close();
+								if (closeEmptyPartitions) {
+									javax.cache.Cache<String, byte[]> partition = entry.getValue();
+									if (partition != null) {
+										partition.close();
+									}
 								}
 								i.remove();
 							}
@@ -292,27 +358,36 @@ public class JCacheCacher extends DistributedCacher {
 	}
 
 	protected static final void clean(javax.cache.Cache<String, byte[]> partition, String match) throws Exception {
-		Iterator<Entry<String, byte[]>> i = partition.iterator();
-		Entry<String, byte[]> entry;
-		while (i.hasNext()) {
-			entry = i.next();
-			if (Matcher.matches(entry.getKey(), match)) {
-				i.remove();
+		if (match.isEmpty() || match.equals("**")) {
+			partition.clear();
+		} else {
+			Iterator<Entry<String, byte[]>> i = partition.iterator();
+			Entry<String, byte[]> entry;
+			while (i.hasNext()) {
+				entry = i.next();
+				if (Matcher.matches(entry.getKey(), match)) {
+					i.remove();
+				}
 			}
 		}
 	}
 
 	protected static final int partitionPosition(String key, boolean throwErrorIfMissing) {
-		int i = key.indexOf(':');
-		if (i == -1) {
-			i = key.lastIndexOf('.');
-		} else {
-			i = key.lastIndexOf('.', i);
-		}
+		int i = key.indexOf('.');
 		if (i == -1 && throwErrorIfMissing) {
 			throw new IllegalArgumentException("Invalid cache key, a point is missing from the key (" + key + ")!");
 		}
 		return i;
+	}
+
+	// --- ADD / REMOVE CACHE CONFIGURATIONS BY CACHE REGION / PARTITION ---
+
+	public void addCacheConfiguration(String partition, Configuration<String, byte[]> configuration) {
+		cacheConfigurations.put(partition, configuration);
+	}
+
+	public void removeCacheConfiguration(String partition) {
+		cacheConfigurations.remove(partition);
 	}
 
 	// --- GETTERS / SETTERS ---
@@ -323,6 +398,30 @@ public class JCacheCacher extends DistributedCacher {
 
 	public void setCacheManager(CacheManager cacheManager) {
 		this.cacheManager = Objects.requireNonNull(cacheManager);
+	}
+
+	public boolean isCloseEmptyPartitions() {
+		return closeEmptyPartitions;
+	}
+
+	public void setCloseEmptyPartitions(boolean closeEmptyCaches) {
+		this.closeEmptyPartitions = closeEmptyCaches;
+	}
+
+	public Configuration<String, byte[]> getDefaultConfiguration() {
+		return defaultConfiguration;
+	}
+
+	public void setDefaultConfiguration(Configuration<String, byte[]> defaultConfiguration) {
+		this.defaultConfiguration = Objects.requireNonNull(defaultConfiguration);
+	}
+
+	public Map<String, Configuration<String, byte[]>> getCacheConfigurations() {
+		return cacheConfigurations;
+	}
+
+	public void setCacheConfigurations(Map<String, Configuration<String, byte[]>> cacheConfigurations) {
+		this.cacheConfigurations = Objects.requireNonNull(cacheConfigurations);
 	}
 
 }

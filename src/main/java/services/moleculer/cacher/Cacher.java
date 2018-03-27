@@ -121,7 +121,7 @@ public abstract class Cacher extends Middleware {
 			return key.toString();
 		}
 		if (keys.length == 1) {
-			appendToKey(key, keys[0]);
+			appendToKey(key, params.get(keys[0]));
 			return key.toString();
 		}
 		if (keys.length > 1) {

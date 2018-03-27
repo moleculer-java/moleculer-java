@@ -185,6 +185,9 @@ public class MemoryCacher extends Cacher implements Runnable {
 	public Promise get(String key) {
 		try {
 			int pos = partitionPosition(key, true);
+			
+			// Prefix is the name of the partition / region (eg.
+			// "user" from the "user.name" cache key)
 			String prefix = key.substring(0, pos);
 			MemoryPartition partition;
 			readLock.lock();
@@ -205,6 +208,9 @@ public class MemoryCacher extends Cacher implements Runnable {
 	@Override
 	public Promise set(String key, Tree value, int ttl) {
 		int pos = partitionPosition(key, true);
+		
+		// Prefix is the name of the partition / region (eg.
+		// "user" from the "user.name" cache key)
 		String prefix = key.substring(0, pos);
 		MemoryPartition partition;
 		writeLock.lock();
@@ -227,13 +233,16 @@ public class MemoryCacher extends Cacher implements Runnable {
 			// Use the default TTL
 			entryTTL = this.ttl;
 		}
-		partition.set(key.substring(pos + 1), value, entryTTL);
+		partition.set(key.substring(pos + 1), value.clone(), entryTTL);
 		return Promise.resolve();
 	}
 
 	@Override
 	public Promise del(String key) {
 		int pos = partitionPosition(key, true);
+		
+		// Prefix is the name of the partition / region (eg.
+		// "user" from the "user.name" cache key)
 		String prefix = key.substring(0, pos);
 		MemoryPartition partition;
 		readLock.lock();
@@ -250,6 +259,9 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 	@Override
 	public Promise clean(String match) {
+		
+		// Prefix is the name of the partition / region (eg.
+		// "user" from the "user.name" cache key)
 		int pos = partitionPosition(match, false);
 		if (pos > 0) {
 
@@ -293,12 +305,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 	}
 
 	protected static final int partitionPosition(String key, boolean throwErrorIfMissing) {
-		int i = key.indexOf(':');
-		if (i == -1) {
-			i = key.lastIndexOf('.');
-		} else {
-			i = key.lastIndexOf('.', i);
-		}
+		int i = key.indexOf('.');
 		if (i == -1 && throwErrorIfMissing) {
 			throw new IllegalArgumentException("Invalid cache key, a point is missing from the key (" + key + ")!");
 		}
@@ -374,7 +381,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 			if (entry == null) {
 				return null;
 			}
-			return entry.value;
+			return entry.value.clone();
 		}
 
 		protected void set(String key, Tree value, int ttl) {
@@ -408,7 +415,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 		protected void clean(String match) {
 			writerLock.lock();
 			try {
-				if (match.isEmpty() || match.startsWith("*")) {
+				if (match.isEmpty() || match.equals("**")) {
 					cache.clear();
 				} else if (match.indexOf('*') == -1) {
 					cache.remove(match);
