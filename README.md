@@ -36,8 +36,6 @@ Java implementation of the [Moleculer microservices framework](http://moleculer.
 
 ```gradle
 repositories {
-    mavenCentral()
-    jcenter()
     maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
 }
 
