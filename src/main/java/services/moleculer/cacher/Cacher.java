@@ -28,6 +28,7 @@ package services.moleculer.cacher;
 import java.util.List;
 
 import io.datatree.Tree;
+import io.datatree.dom.builtin.JsonBuiltin;
 import services.moleculer.Promise;
 import services.moleculer.context.Context;
 import services.moleculer.service.Action;
@@ -116,7 +117,7 @@ public abstract class Cacher extends Middleware {
 		StringBuilder key = new StringBuilder(128);
 		key.append(name);
 		key.append(':');
-		if (keys == null) {
+		if (keys == null || keys.length == 0) {
 			appendToKey(key, params);
 			return key.toString();
 		}
@@ -142,13 +143,9 @@ public abstract class Cacher extends Middleware {
 		if (object != null) {
 			if (object instanceof Tree) {
 				Tree tree = (Tree) object;
-				if (tree.isPrimitive()) {
-					key.append(tree.asObject());
-				} else {
-					key.append(tree.toString(null, false, true));
-				}
+				key.append(JsonBuiltin.serialize(tree.asObject(), null));
 			} else {
-				key.append(object);
+				key.append(JsonBuiltin.serialize(object, null));
 			}
 		} else {
 			key.append("null");
