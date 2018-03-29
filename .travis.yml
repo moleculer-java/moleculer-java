@@ -6,7 +6,7 @@ jdk:
 services:
   - redis-server
   
- install: gradle wrapper --gradle-version 4.2
+install: gradle wrapper --gradle-version 4.2
   
- before_install:
+before_install:
   - chmod +x gradlew
