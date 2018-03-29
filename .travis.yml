@@ -10,3 +10,5 @@ install: gradle wrapper --gradle-version 4.2
   
 before_install:
   - chmod +x gradlew
+  
+script: ./gradlew check --info
