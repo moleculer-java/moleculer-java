@@ -22,7 +22,7 @@ Java implementation of the [Moleculer microservices framework](http://moleculer.
 <repositories>
 	<repository>
 		<id>snapshot</id>
-		<name>Sonatype Nexus Snapshot</name>
+		<name>Sonatype Snapshots</name>
 		<url>https://oss.sonatype.org/content/repositories/snapshots</url>
 		<layout>default</layout>
 		<snapshots>
