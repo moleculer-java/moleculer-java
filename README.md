@@ -5,5 +5,46 @@
 
 Java implementation of the [Moleculer microservices framework](http://moleculer.services/).
 
+## For prototyping
+
+**Maven**
+
+```xml
+<dependencies>
+	<dependency>
+		<groupId>com.github.berkesa</groupId>
+		<artifactId>moleculer-java</artifactId>
+		<version>1.0.3-SNAPSHOT</version>
+		<scope>runtime</scope>
+	</dependency>
+</dependencies>
+
+<repositories>
+	<repository>
+		<id>snapshot</id>
+		<name>Sonatype Nexus Snapshot</name>
+		<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+		<layout>default</layout>
+		<snapshots>
+			<enabled>true</enabled>
+		</snapshots>
+	</repository>
+</repositories>	
+```
+
+**Gradle**
+
+```gradle
+repositories {
+    mavenCentral()
+    jcenter()
+    maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
+}
+
+dependencies {
+	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.0.3-SNAPSHOT' 
+}
+```
+
 # License
 moleculer-java is available under the [MIT license](https://tldrlegal.com/license/mit-license).

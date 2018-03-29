@@ -164,13 +164,13 @@ modifyPom {
         artifactId 'moleculer-java'
         name 'Moleculer Microservices Framework'
         description 'Fast & powerful microservices framework for Java.'
-        url 'https://berkesa.github.io/moleculer-java/'
+        url 'https://moleculer-java.github.io/moleculer-java/'
         inceptionYear '2018'
 
         scm {
-            url 'https://berkesa.github.io/moleculer-java/'
-            connection 'scm:https://github.com/berkesa/moleculer-java.git'
-            developerConnection 'scm:git://github.com/berkesa/moleculer-java.git'
+            url 'https://moleculer-java.github.io/moleculer-java/'
+            connection 'scm:https://github.com/moleculer-java/moleculer-java.git'
+            developerConnection 'scm:git://github.com/moleculer-java/moleculer-java.git'
         }
 
         licenses {
