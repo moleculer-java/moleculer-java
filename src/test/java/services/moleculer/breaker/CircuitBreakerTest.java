@@ -267,7 +267,7 @@ public class CircuitBreakerTest extends TestCase {
 				if (tr.getMessageCount() > 0) {
 					break;
 				}
-				Thread.sleep(10);
+				Thread.sleep(100);
 			}
 			String n2 = createResponse(true);
 			assertFalse(n1.equals(n2));
@@ -291,7 +291,7 @@ public class CircuitBreakerTest extends TestCase {
 				if (tr.getMessageCount() > 0) {
 					break;
 				}
-				Thread.sleep(10);
+				Thread.sleep(100);
 			}
 			String n2 = createResponse(false);
 			assertFalse(n1.equals(n2));
