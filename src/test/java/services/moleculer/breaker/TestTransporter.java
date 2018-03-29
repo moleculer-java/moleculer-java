@@ -50,7 +50,7 @@ public class TestTransporter extends Transporter {
 	@Override
 	public void publish(String channel, Tree message) {
 		message = message.clone();
-		message.put("channel", channel);
+		message.put("channel", channel);		
 		list.addObject(message);
 	}
 
@@ -68,7 +68,7 @@ public class TestTransporter extends Transporter {
 		return null;
 	}
 	
-	public Tree getMessages() {
+	public Tree getMessages() {		
 		return list;
 	}
 

@@ -25,8 +25,18 @@
  */
 package services.moleculer.breaker;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.junit.Test;
 
@@ -123,7 +133,7 @@ public class CircuitBreakerTest extends TestCase {
 				ok = true;
 			} catch (Exception e) {
 				ok = e.toString().contains("unknown error");
-			}			
+			}
 			assertFalse(ok);
 			if (nodeID.equals("node0")) {
 				node1Count++;
@@ -148,14 +158,14 @@ public class CircuitBreakerTest extends TestCase {
 				}
 			}
 		}
-		
+
 		// All endpoint is locked
-		for (EndpointKey key: cb.errorCounters.keySet()) {
+		for (EndpointKey key : cb.errorCounters.keySet()) {
 			ec = cb.errorCounters.get(key);
 			boolean avail = ec.isAvailable(now);
 			assertFalse(avail);
 		}
-		
+
 		// Retrying once
 		now += 10001;
 		assertTrue(ec.isAvailable(now));
@@ -187,14 +197,14 @@ public class CircuitBreakerTest extends TestCase {
 		rsp.put("id", id);
 		rsp.put("success", success);
 		rsp.put("data", (String) null);
-		tr.received("MOL.RES.local", rsp);
 		tr.clearMessages();
+		tr.received("MOL.RES.local", rsp);
 		return nodeID;
 	}
 
 	@Test
 	public void testRoundRobin2() throws Exception {
-		
+
 		// Node0 -> fail
 		currentID = 1;
 		for (int i = 0; i < 30; i++) {
@@ -211,12 +221,12 @@ public class CircuitBreakerTest extends TestCase {
 			}
 			assertEquals(success, ok);
 		}
-		
+
 		// Check ErrorCounter
 		long now = System.currentTimeMillis();
 		ErrorCounter ec = cb.errorCounters.get(new EndpointKey("node0", "test.test"));
 		assertFalse(ec.isAvailable(now));
-		
+
 		// Do not invoke node0
 		for (int i = 0; i < 20; i++) {
 			Promise p = br.call("test.test", (Tree) null);
@@ -231,7 +241,7 @@ public class CircuitBreakerTest extends TestCase {
 			}
 			assertTrue(ok);
 		}
-		
+
 		// Invoke node1 directly
 		Promise p = br.call("test.test", (Tree) null, CallOptions.nodeID("node1"));
 		createResponse(true);
@@ -244,7 +254,7 @@ public class CircuitBreakerTest extends TestCase {
 		}
 		assertTrue(ok);
 		assertFalse(ec.isAvailable(now));
-		
+
 		// Invoke node0 directly
 		p = br.call("test.test", (Tree) null, CallOptions.nodeID("node0"));
 		createResponse(true);
@@ -255,20 +265,14 @@ public class CircuitBreakerTest extends TestCase {
 			ok = false;
 		}
 		assertTrue(ok);
-		assertTrue(ec.isAvailable(now));		
+		assertTrue(ec.isAvailable(now));
 	}
-	
+
 	@Test
 	public void testRetry() throws Exception {
 		for (int i = 0; i < 10; i++) {
 			Promise p = br.call("test.test", (Tree) null, CallOptions.retryCount(1));
 			String n1 = createResponse(false);
-			for (int n = 0; n < 10; n++) {
-				if (tr.getMessageCount() > 0) {
-					break;
-				}
-				Thread.sleep(100);
-			}
 			String n2 = createResponse(true);
 			assertFalse(n1.equals(n2));
 			boolean ok = false;
@@ -287,12 +291,6 @@ public class CircuitBreakerTest extends TestCase {
 		for (int i = 0; i < 10; i++) {
 			Promise p = br.call("test.test", (Tree) null, CallOptions.retryCount(1));
 			String n1 = createResponse(false);
-			for (int n = 0; n < 10; n++) {
-				if (tr.getMessageCount() > 0) {
-					break;
-				}
-				Thread.sleep(100);
-			}
 			String n2 = createResponse(false);
 			assertFalse(n1.equals(n2));
 			boolean ok = false;
@@ -309,14 +307,14 @@ public class CircuitBreakerTest extends TestCase {
 	@Test
 	public void testSimpleCall() throws Exception {
 		br.createService(new Service("math") {
-			
+
 			@Name("add")
 			public Action add = ctx -> {
 
 				return ctx.params.get("a", 0) + ctx.params.get("b", 0);
 
 			};
-			
+
 		});
 		// cb.setEnabled(true);
 		long start = System.currentTimeMillis();
@@ -326,7 +324,7 @@ public class CircuitBreakerTest extends TestCase {
 		}
 		assertTrue(System.currentTimeMillis() - start < 50);
 	}
-	
+
 	// --- SET UP ---
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -337,8 +335,86 @@ public class CircuitBreakerTest extends TestCase {
 		cb = new DefaultCircuitBreaker();
 		cb.setMaxErrors(3);
 		cb.setEnabled(true);
+		ExecutorService ex = new ExecutorService() {
+
+			@Override
+			public void execute(Runnable command) {
+				command.run();
+			}
+
+			@Override
+			public <T> Future<T> submit(Runnable task, T result) {
+				task.run();
+				return CompletableFuture.completedFuture(result);
+			}
+
+			@Override
+			public Future<?> submit(Runnable task) {
+				task.run();
+				return CompletableFuture.completedFuture(null);
+			}
+
+			@Override
+			public <T> Future<T> submit(Callable<T> task) {
+				try {
+					return CompletableFuture.completedFuture(task.call());
+				} catch (Exception e) {
+					CompletableFuture future = CompletableFuture.completedFuture(null);
+					future.completeExceptionally(e);
+					return future;
+				}
+			}
+
+			@Override
+			public List<Runnable> shutdownNow() {
+				return Collections.emptyList();
+			}
+
+			@Override
+			public void shutdown() {
+			}
+
+			@Override
+			public boolean isTerminated() {
+				return false;
+			}
+
+			@Override
+			public boolean isShutdown() {
+				return false;
+			}
+
+			@Override
+			public <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
+					throws InterruptedException, ExecutionException, TimeoutException {
+				return null;
+			}
+
+			@Override
+			public <T> T invokeAny(Collection<? extends Callable<T>> tasks)
+					throws InterruptedException, ExecutionException {
+				return null;
+			}
+
+			@Override
+			public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
+					throws InterruptedException {
+				return null;
+			}
+
+			@Override
+			public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) throws InterruptedException {
+				return null;
+			}
+
+			@Override
+			public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+				return false;
+			}
+
+		};
 		br = ServiceBroker.builder().monitor(new ConstantMonitor()).registry(sr).transporter(tr).nodeID("local")
-				.breaker(cb).build();
+				.breaker(cb).executor(ex).build();
 		br.start();
 		for (int i = 0; i < 10; i++) {
 			Tree config = new Tree();
