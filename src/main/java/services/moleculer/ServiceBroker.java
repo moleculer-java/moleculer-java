@@ -222,12 +222,9 @@ public class ServiceBroker {
 			// Register and start enqued services and listeners
 			for (Map.Entry<String, Service> entry : services.entrySet()) {
 				Service service = entry.getValue();
-
-				// Register actions
-				serviceRegistry.addActions(entry.getKey(), service);
-
-				// Register listeners
-				eventbus.addListeners(service);
+				String serviceName = entry.getKey();
+				eventbus.addListeners(serviceName, service);
+				serviceRegistry.addActions(serviceName, service);
 			}
 
 			// Start transporter's connection loop
@@ -313,7 +310,8 @@ public class ServiceBroker {
 			services.put(name, service);
 		} else {
 
-			// Start service now
+			// Register and start service now
+			eventbus.addListeners(name, service);
 			serviceRegistry.addActions(name, service);
 		}
 	}

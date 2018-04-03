@@ -217,13 +217,16 @@ public class DefaultEventbus extends Eventbus {
 	// --- ADD LOCAL LISTENER ---
 
 	@Override
-	public void addListeners(Service service) throws Exception {
+	public void addListeners(String serviceName, Service service) {
 
 		// Service name with version
-		String serviceName = service.getName();
+		if (serviceName == null || serviceName.isEmpty()) {
+			serviceName = service.getName();
+		}
 		Class<? extends Service> clazz = service.getClass();
 		Field[] fields = clazz.getFields();
 
+		boolean hasListener = false;
 		writeLock.lock();
 		try {
 
@@ -232,6 +235,7 @@ public class DefaultEventbus extends Eventbus {
 
 				// Register event listener
 				if (Listener.class.isAssignableFrom(field.getType())) {
+					hasListener = true;
 
 					// Name of the action (eg. "service.action")
 					String listenerName = nameOf(serviceName, field);
@@ -279,12 +283,16 @@ public class DefaultEventbus extends Eventbus {
 							listener, asyncLocalInvocation));
 				}
 			}
+		} catch (Exception cause) {
+			logger.error("Unable to register local listener!", cause);
 		} finally {
 
 			// Clear caches
-			emitterCache.clear();
-			broadcasterCache.clear();
-			localBroadcasterCache.clear();
+			if (hasListener) {
+				emitterCache.clear();
+				broadcasterCache.clear();
+				localBroadcasterCache.clear();
+			}
 
 			// Unlock reader threads
 			writeLock.unlock();
@@ -294,7 +302,7 @@ public class DefaultEventbus extends Eventbus {
 	// --- ADD REMOTE LISTENER ---
 
 	@Override
-	public void addListeners(Tree config) throws Exception {
+	public void addListeners(Tree config) {
 		Tree events = config.get("events");
 		if (events != null && events.isMap()) {
 			String nodeID = Objects.requireNonNull(config.get("nodeID", (String) null));
@@ -452,6 +460,14 @@ public class DefaultEventbus extends Eventbus {
 			for (int i = 0; i < strategies.length; i++) {
 				ListenerEndpoint endpoint = strategies[i].getEndpoint(null);
 				if (endpoint != null) {
+					if (endpoint.isLocal()) {
+						try {
+							endpoint.on(name, payload, groups, false);
+						} catch (Exception cause) {
+							logger.error("Unable to invoke event listener!", cause);
+						}
+						continue;
+					}
 					HashSet<String> groupSet = groupsByNodeID.get(endpoint.getNodeID());
 					if (groupSet == null) {
 						groupSet = new HashSet<>(size);
@@ -463,17 +479,19 @@ public class DefaultEventbus extends Eventbus {
 			}
 
 			// Invoke endpoints
-			for (ListenerEndpoint endpoint : endpoints) {
-				if (endpoint != null) {
-					try {
-						HashSet<String> groupSet = groupsByNodeID.remove(endpoint.getNodeID());
-						if (groupSet != null) {
-							String[] array = new String[groupSet.size()];
-							groupSet.toArray(array);
-							endpoint.on(name, payload, Groups.of(array), false);
+			if (!groupsByNodeID.isEmpty()) {
+				for (ListenerEndpoint endpoint : endpoints) {
+					if (endpoint != null) {
+						try {
+							HashSet<String> groupSet = groupsByNodeID.remove(endpoint.getNodeID());
+							if (groupSet != null) {
+								String[] array = new String[groupSet.size()];
+								groupSet.toArray(array);
+								endpoint.on(name, payload, Groups.of(array), false);
+							}
+						} catch (Exception cause) {
+							logger.error("Unable to invoke event listener!", cause);
 						}
-					} catch (Exception cause) {
-						logger.error("Unable to invoke event listener!", cause);
 					}
 				}
 			}
@@ -551,7 +569,7 @@ public class DefaultEventbus extends Eventbus {
 		}
 		HashSet<String> nodeSet = new HashSet<>(endpoints.length * 2);
 		for (ListenerEndpoint endpoint : endpoints) {
-			if (nodeSet.add(endpoint.getNodeID())) {
+			if (endpoint.isLocal() || nodeSet.add(endpoint.getNodeID())) {
 				try {
 					endpoint.on(name, payload, groups, true);
 				} catch (Exception cause) {

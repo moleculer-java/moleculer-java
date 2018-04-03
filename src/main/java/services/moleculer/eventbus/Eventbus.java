@@ -46,11 +46,11 @@ public abstract class Eventbus extends MoleculerComponent {
 
 	// --- ADD LISTENERS OF A LOCAL SERVICE ---
 
-	public abstract void addListeners(Service service) throws Exception;
+	public abstract void addListeners(String name, Service service);
 
 	// --- ADD LISTENERS OF A REMOTE SERVICE ---
 
-	public abstract void addListeners(Tree config) throws Exception;
+	public abstract void addListeners(Tree config);
 
 	// --- REMOVE ALL LISTENERS OF A NODE ---
 
