@@ -1655,9 +1655,9 @@ public class KeyTest extends TestCase {
 
 	// --- COMMON KEY TESTER METHOD ---
 
-	private RedisCacher cacher = new RedisCacher();
+	protected RedisCacher cacher = new RedisCacher();
 
-	private void check(String json, String key, String[] keys, int maxKeyLength) throws Exception {
+	protected void check(String json, String key, String[] keys, int maxKeyLength) throws Exception {
 		json = json.replace('\'', '\"');
 		Tree params = new Tree(json, "JsonBuiltin");
 		cacher.setMaxKeyLength(maxKeyLength);

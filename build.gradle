@@ -64,12 +64,28 @@ dependencies {
 	// =============== SERIALIZATION ===============
 
 
-    // --- DATATREE ---
+    // --- DATATREE API ---
     	    
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-adapters
 	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.5'
    
+    // --- SERIALIZER APIS ---    
    
+	// https://mvnrepository.com/artifact/de.undercouch/bson4jackson
+	compile group: 'de.undercouch', name: 'bson4jackson', version: '2.9.0'
+ 
+	// https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
+	compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: '2.9.0.pr3'
+ 
+	// https://mvnrepository.com/artifact/software.amazon.ion/ion-java
+	compile group: 'software.amazon.ion', name: 'ion-java', version: '1.0.3'
+ 
+	// https://mvnrepository.com/artifact/org.msgpack/msgpack
+	compile group: 'org.msgpack', name: 'msgpack', version: '0.6.12'
+ 
+	// https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/jackson-dataformat-smile
+	compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-smile', version: '2.9.0.pr3'
+ 
 	// =============== MONITORING ===============
 	
 	
