@@ -5,6 +5,7 @@ jdk:
  
 services:
   - redis-server
+  - rabbitmq
   
 install: gradle wrapper --gradle-version 4.2
   
