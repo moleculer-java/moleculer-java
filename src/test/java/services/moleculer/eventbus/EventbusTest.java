@@ -46,6 +46,7 @@ import services.moleculer.breaker.TestTransporter;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Service;
+import services.moleculer.util.FastBuildTree;
 
 public class EventbusTest extends TestCase {
 
@@ -56,24 +57,24 @@ public class EventbusTest extends TestCase {
 	protected ServiceBroker br;
 
 	// --- TEST METHODS ---
-	
+
 	@Test
 	public void testSimpleFuctions() throws Exception {
-		
+
 		br.createService("test", new TestListener());
 		TestListener s = (TestListener) br.getLocalService("test");
-		
+
 		br.broadcast("test.a1", new Tree().put("a", 15));
 		assertEquals(1, s.payloads.size());
 		Tree t = s.payloads.removeFirst();
 		assertEquals(15, t.get("a", -1));
-		
+
 		br.emit("test.b", new Tree().put("b", "abc").put("c", true));
 		assertEquals(1, s.payloads.size());
 		t = s.payloads.removeFirst();
 		assertEquals("abc", t.get("b", ""));
 		assertTrue(t.get("c", false));
-		
+
 		br.broadcastLocal("test.c", new Tree().put("d", "x"));
 		assertEquals(1, s.payloads.size());
 		t = s.payloads.removeFirst();
@@ -97,24 +98,24 @@ public class EventbusTest extends TestCase {
 		br.broadcastLocal("d", new Tree().put("d", "x"));
 		assertEquals(0, s.payloads.size());
 	}
-	
+
 	protected static final class TestListener extends Service {
-		
+
 		protected LinkedList<Tree> payloads = new LinkedList<>();
-		
+
 		@Subscribe("test.*")
 		public Listener evt = payload -> {
 			payloads.addLast(payload);
 		};
-		
+
 	}
-	
+
 	@Test
 	public void testBroadcast() throws Exception {
-		
+
 		// Create two listeners
 		br.createService("test1", new TestListener());
-		TestListener s1 = (TestListener) br.getLocalService("test1");	
+		TestListener s1 = (TestListener) br.getLocalService("test1");
 		TestListener s2 = new TestListener();
 		br.createService("test2", s2);
 
@@ -123,13 +124,13 @@ public class EventbusTest extends TestCase {
 		assertEquals(1, s2.payloads.size());
 		s1.payloads.clear();
 		s2.payloads.clear();
-		
+
 		br.broadcastLocal("test.a", new Tree());
 		assertEquals(1, s1.payloads.size());
 		assertEquals(1, s2.payloads.size());
 		s1.payloads.clear();
 		s2.payloads.clear();
-		
+
 		br.broadcast("test.a.x", new Tree());
 		assertEquals(0, s1.payloads.size());
 		assertEquals(0, s2.payloads.size());
@@ -137,7 +138,7 @@ public class EventbusTest extends TestCase {
 		br.broadcastLocal("test.a.x", new Tree());
 		assertEquals(0, s1.payloads.size());
 		assertEquals(0, s2.payloads.size());
-		
+
 		br.broadcast("foo.a", new Tree());
 		assertEquals(0, s1.payloads.size());
 		assertEquals(0, s2.payloads.size());
@@ -145,44 +146,44 @@ public class EventbusTest extends TestCase {
 		br.broadcastLocal("foo.a", new Tree());
 		assertEquals(0, s1.payloads.size());
 		assertEquals(0, s2.payloads.size());
-		
+
 		br.broadcast("test.a", new Tree(), Groups.of("test1"));
 		assertEquals(1, s1.payloads.size());
 		assertEquals(0, s2.payloads.size());
 		s1.payloads.clear();
-		
+
 		br.broadcast("test.a", new Tree(), Groups.of("test2"));
 		assertEquals(0, s1.payloads.size());
 		assertEquals(1, s2.payloads.size());
 		s2.payloads.clear();
-		
+
 		br.broadcast("test.a", new Tree(), Groups.of("test1", "test2"));
 		assertEquals(1, s1.payloads.size());
-		assertEquals(1, s2.payloads.size());		
+		assertEquals(1, s2.payloads.size());
 		s1.payloads.clear();
 		s2.payloads.clear();
-		
+
 		br.broadcastLocal("test.a", new Tree(), Groups.of("test1"));
 		assertEquals(1, s1.payloads.size());
 		assertEquals(0, s2.payloads.size());
 		s1.payloads.clear();
-		
+
 		br.broadcastLocal("test.a", new Tree(), Groups.of("test2"));
 		assertEquals(0, s1.payloads.size());
 		assertEquals(1, s2.payloads.size());
 		s2.payloads.clear();
-		
+
 		br.broadcastLocal("test.a", new Tree(), Groups.of("test1", "test2"));
 		assertEquals(1, s1.payloads.size());
 		assertEquals(1, s2.payloads.size());
 	}
-	
+
 	@Test
 	public void testEmit() throws Exception {
-		
+
 		// Create two listeners
 		br.createService("test1", new TestListener());
-		TestListener s1 = (TestListener) br.getLocalService("test1");	
+		TestListener s1 = (TestListener) br.getLocalService("test1");
 		TestListener s2 = new TestListener();
 		br.createService("test2", s2);
 
@@ -191,7 +192,7 @@ public class EventbusTest extends TestCase {
 		assertEquals(1, s2.payloads.size());
 		s1.payloads.clear();
 		s2.payloads.clear();
-		
+
 		br.emit("test.a", new Tree(), Groups.of("test1"));
 		assertEquals(1, s1.payloads.size());
 		assertEquals(0, s2.payloads.size());
@@ -201,11 +202,11 @@ public class EventbusTest extends TestCase {
 		assertEquals(0, s1.payloads.size());
 		assertEquals(1, s2.payloads.size());
 		s2.payloads.clear();
-		
+
 		br.emit("test.a.x", new Tree(), Groups.of("test1"));
 		assertEquals(0, s1.payloads.size());
 		assertEquals(0, s2.payloads.size());
-		
+
 		br.emit("test.a", new Tree(), Groups.of("test1", "test2"));
 		assertEquals(1, s1.payloads.size());
 		assertEquals(1, s2.payloads.size());
@@ -214,9 +215,97 @@ public class EventbusTest extends TestCase {
 	@Test
 	public void testRemoteBroadcast() throws Exception {
 
-		// TODO Continue...
+		// Create two listeners
+		br.createService("test1", new TestListener());
+		TestListener s1 = (TestListener) br.getLocalService("test1");
+		br.createService("test2", new TestListener());
+		TestListener s2 = (TestListener) br.getLocalService("test2");
+
+		putIncomingMessage("test.test", true, null, new Tree().put("y", 123));
+		assertEquals(1, s1.payloads.size());
+		assertEquals(1, s2.payloads.size());
+		s1.payloads.clear();
+		s2.payloads.clear();
+
+		putIncomingMessage("test.a", true, null, new Tree().put("y", 123));
+		assertEquals(1, s1.payloads.size());
+		assertEquals(1, s2.payloads.size());
+		assertEquals(123, s1.payloads.remove().get("y", 0));
+		assertEquals(123, s2.payloads.remove().get("y", 0));
+
+		putIncomingMessage("test.a", true, Groups.of("test1"), new Tree());
+		assertEquals(1, s1.payloads.size());
+		assertEquals(0, s2.payloads.size());
+		s1.payloads.clear();
+
+		putIncomingMessage("test.a", true, Groups.of("test2"), new Tree());
+		assertEquals(0, s1.payloads.size());
+		assertEquals(1, s2.payloads.size());
+		s2.payloads.clear();
+		
+		putIncomingMessage("test.a", true, Groups.of("test1", "test2"), new Tree().put("y", 321));
+		assertEquals(1, s1.payloads.size());
+		assertEquals(1, s2.payloads.size());
+		assertEquals(321, s1.payloads.remove().get("y", 0));
+		assertEquals(321, s2.payloads.remove().get("y", 0));
+	}
+
+	@Test
+	public void testRemoteEmit() throws Exception {
+
+		// Create two listeners
+		br.createService("test1", new TestListener());
+		TestListener s1 = (TestListener) br.getLocalService("test1");
+		br.createService("test2", new TestListener());
+		TestListener s2 = (TestListener) br.getLocalService("test2");
+
+		putIncomingMessage("test.test", false, null, new Tree().put("y", 123));
+		assertEquals(1, s1.payloads.size());
+		assertEquals(1, s2.payloads.size());
+		s1.payloads.clear();
+		s2.payloads.clear();
+
+		putIncomingMessage("test.a", false, null, new Tree().put("y", 123));
+		assertEquals(1, s1.payloads.size());
+		assertEquals(1, s2.payloads.size());
+		assertEquals(123, s1.payloads.remove().get("y", 0));
+		assertEquals(123, s2.payloads.remove().get("y", 0));
+
+		putIncomingMessage("test.a", false, Groups.of("test1"), new Tree());
+		assertEquals(1, s1.payloads.size());
+		assertEquals(0, s2.payloads.size());
+		s1.payloads.clear();
+
+		putIncomingMessage("test.a", false, Groups.of("test2"), new Tree());
+		assertEquals(0, s1.payloads.size());
+		assertEquals(1, s2.payloads.size());
+		s2.payloads.clear();
+		
+		putIncomingMessage("test.a", false, Groups.of("test1", "test2"), new Tree().put("y", 321));
+		assertEquals(1, s1.payloads.size());
+		assertEquals(1, s2.payloads.size());
+		assertEquals(321, s1.payloads.remove().get("y", 0));
+		assertEquals(321, s2.payloads.remove().get("y", 0));
 	}
 	
+	protected void putIncomingMessage(String name, boolean broadcast, Groups groups, Tree payload) throws Exception {
+		FastBuildTree msg = new FastBuildTree(6);
+		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+		msg.putUnsafe("sender", "node5");
+		msg.putUnsafe("event", name);
+		msg.putUnsafe("broadcast", broadcast);
+		if (groups != null) {
+			String[] array = groups.groups();
+			if (array != null && array.length > 0) {
+				msg.putUnsafe("groups", array);
+			}
+		}
+		if (payload != null) {
+			msg.putUnsafe("data", payload);
+		}
+		tr.received(tr.eventChannel, msg);
+	}
+
 	// --- SET UP ---
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
