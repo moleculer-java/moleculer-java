@@ -87,6 +87,17 @@ public class MatcherTest extends TestCase {
 
 		assertMatch("$node.connected", "$node.**");
 		assertMatch("$aa.bb.cc", "$aa.*.cc");
+		
+		assertMatch("$aa.bb.cc", "$aa.*.cc");
+		assertMatch("$aa.bb.cc", "$aa.**");
+		assertMatch("$aa.bb.cc", "$aa.**.cc");
+		assertMatch("$aa.bb.cc", "$aa.??.cc");
+		assertMatch("$aa.bb.cc", "?aa.bb.cc");
+		assertNotMatch("$aa.bb.cc", "aa.bb.cc");
+		assertMatch("$aa.bb.cc", "**.bb.cc");
+		assertMatch("$aa.bb.cc", "**.cc");
+		assertMatch("$aa.bb.cc", "**");
+		assertNotMatch("$aa.bb.cc", "*");
 	}
 
 	public void assertMatch(String text, String pattern) {
