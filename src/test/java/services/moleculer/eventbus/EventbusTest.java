@@ -306,6 +306,181 @@ public class EventbusTest extends TestCase {
 		tr.received(tr.eventChannel, msg);
 	}
 
+	// --- GROUPED LISTENERS ---
+
+	@Test
+	public void testGroups() throws Exception {
+		
+		// Group1
+		br.createService("g1_a", new Group1Listener());
+		Group1Listener g1_a = (Group1Listener) br.getLocalService("g1_a");
+		br.createService("g1_b", new Group1Listener());
+		Group1Listener g1_b = (Group1Listener) br.getLocalService("g1_b");
+		
+		// Group2
+		br.createService("g2_a", new Group2Listener());		
+		Group2Listener g2_a = (Group2Listener) br.getLocalService("g2_a");
+		br.createService("g2_b", new Group2Listener());
+		Group2Listener g2_b = (Group2Listener) br.getLocalService("g2_b");
+		
+		// Broadcast
+		br.broadcast("test.a", new Tree());
+		assertEquals(1, g1_a.payloads.size());
+		assertEquals(1, g1_b.payloads.size());
+		assertEquals(1, g2_a.payloads.size());
+		assertEquals(1, g2_b.payloads.size());
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+		g2_a.payloads.clear();
+		g2_b.payloads.clear();
+
+		// Broadcast to group1
+		br.broadcast("test.a", new Tree(), Groups.of("group1"));
+		assertEquals(1, g1_a.payloads.size());
+		assertEquals(1, g1_b.payloads.size());
+		assertEquals(0, g2_a.payloads.size());
+		assertEquals(0, g2_b.payloads.size());
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+
+		// Broadcast to group2
+		br.broadcast("test.a", new Tree(), Groups.of("group2"));
+		assertEquals(0, g1_a.payloads.size());
+		assertEquals(0, g1_b.payloads.size());
+		assertEquals(1, g2_a.payloads.size());
+		assertEquals(1, g2_b.payloads.size());
+		g2_a.payloads.clear();
+		g2_b.payloads.clear();
+
+		// Broadcast to group1 and group2
+		br.broadcast("test.a", new Tree(), Groups.of("group1", "group2"));
+		assertEquals(1, g1_a.payloads.size());
+		assertEquals(1, g1_b.payloads.size());
+		assertEquals(1, g2_a.payloads.size());
+		assertEquals(1, g2_b.payloads.size());
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+		g2_a.payloads.clear();
+		g2_b.payloads.clear();
+		
+		// Local broadcast
+		br.broadcastLocal("test.a", new Tree());
+		assertEquals(1, g1_a.payloads.size());
+		assertEquals(1, g1_b.payloads.size());
+		assertEquals(1, g2_a.payloads.size());
+		assertEquals(1, g2_b.payloads.size());
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+		g2_a.payloads.clear();
+		g2_b.payloads.clear();
+		
+		// Local broadcast to group1
+		br.broadcastLocal("test.a", new Tree(), Groups.of("group1"));
+		assertEquals(1, g1_a.payloads.size());
+		assertEquals(1, g1_b.payloads.size());
+		assertEquals(0, g2_a.payloads.size());
+		assertEquals(0, g2_b.payloads.size());
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+
+		// Local broadcast to group2
+		br.broadcastLocal("test.a", new Tree(), Groups.of("group2"));
+		assertEquals(0, g1_a.payloads.size());
+		assertEquals(0, g1_b.payloads.size());
+		assertEquals(1, g2_a.payloads.size());
+		assertEquals(1, g2_b.payloads.size());
+		g2_a.payloads.clear();
+		g2_b.payloads.clear();
+
+		// Local broadcast to group1 and group2
+		br.broadcastLocal("test.a", new Tree(), Groups.of("group1", "group2"));
+		assertEquals(1, g1_a.payloads.size());
+		assertEquals(1, g1_b.payloads.size());
+		assertEquals(1, g2_a.payloads.size());
+		assertEquals(1, g2_b.payloads.size());
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+		g2_a.payloads.clear();
+		g2_b.payloads.clear();
+		
+		// Emit
+		br.emit("test.a", new Tree());
+		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
+		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+		g2_a.payloads.clear();
+		g2_b.payloads.clear();
+		
+		// Emit to group1
+		br.emit("test.a", new Tree(), Groups.of("group1"));
+		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
+		assertEquals(0, g2_a.payloads.size() + g2_b.payloads.size());
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+
+		// Emit to group2
+		br.emit("test.a", new Tree(), Groups.of("group2"));
+		assertEquals(0, g1_a.payloads.size() + g1_b.payloads.size());
+		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
+		g2_a.payloads.clear();
+		g2_b.payloads.clear();
+
+		// Emit to group1 and group2
+		br.emit("test.a", new Tree(), Groups.of("group1", "group2"));
+		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
+		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+		g2_a.payloads.clear();
+		g2_b.payloads.clear();
+		
+		// Incoming remote broadcast to group1
+		putIncomingMessage("test.a", true, Groups.of("group1"), new Tree());
+		assertEquals(1, g1_a.payloads.size());
+		assertEquals(1, g1_b.payloads.size());
+		assertEquals(0, g2_a.payloads.size());
+		assertEquals(0, g2_b.payloads.size());
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+		
+		// Incoming remote emit to group1
+		putIncomingMessage("test.a", false, Groups.of("group1"), new Tree());
+		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
+		assertEquals(0, g2_a.payloads.size() + g2_b.payloads.size());
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+
+		// Incoming remote emit to group1 and group2
+		putIncomingMessage("test.a", false, Groups.of("group1", "group2"), new Tree());
+		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
+		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
+	}
+	
+	protected static final class Group1Listener extends Service {
+
+		protected LinkedList<Tree> payloads = new LinkedList<>();
+
+		@Group("group1")
+		@Subscribe("test.*")
+		public Listener evt = payload -> {
+			payloads.addLast(payload);
+		};
+
+	}
+	
+	protected static final class Group2Listener extends Service {
+
+		protected LinkedList<Tree> payloads = new LinkedList<>();
+
+		@Group("group2")
+		@Subscribe("test.*")
+		public Listener evt = payload -> {
+			payloads.addLast(payload);
+		};
+
+	}
+	
 	// --- SET UP ---
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
