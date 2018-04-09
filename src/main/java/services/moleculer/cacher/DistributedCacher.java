@@ -117,26 +117,41 @@ public abstract class DistributedCacher extends Cacher {
 	protected void appendToKey(StringBuilder key, Object object) {
 		if (object != null) {
 			if (object instanceof Tree) {
-				Tree tree = (Tree) object;
-				if (tree.isPrimitive()) {
-					key.append(tree.asObject());
-				} else {
-					String json = tree.toString(null, false, true);
-
-					// Create cross-platform, simplified JSON without
-					// formatting characters and quotation marks
-					for (char c : json.toCharArray()) {
-						if (c < 33 || c == '\"' || c == '\'') {
-							continue;
-						}
-						key.append(c);
-					}
-				}
+				appendTree(key, (Tree) object);
 			} else {
 				key.append(object);
 			}
 		} else {
 			key.append("null");
+		}
+	}
+
+	protected void appendTree(StringBuilder key, Tree tree) {
+		if (tree.isPrimitive()) {
+			key.append(tree.asObject());
+		} else {
+			boolean first = true;
+			if (tree.isEnumeration()) {
+				for (Tree child : tree) {
+					if (first) {
+						first = false;
+					} else {
+						key.append('|');
+					}
+					appendTree(key, child);
+				}
+			} else {
+				for (Tree child : tree) {
+					if (first) {
+						first = false;
+					} else {
+						key.append('|');
+					}
+					key.append(child.getName());
+					key.append('|');
+					appendTree(key, child);
+				}
+			}
 		}
 	}
 
