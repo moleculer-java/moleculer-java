@@ -542,7 +542,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 						}
 					}
 				}
-				
+
 			}
 		} finally {
 			writeLock.unlock();
@@ -849,11 +849,16 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			Iterator<ServiceListener> i = serviceListeners.iterator();
 			while (i.hasNext()) {
 				ServiceListener listener = i.next();
-				if (isServicesOnline(listener.services)) {
+
+				// Online?
+				boolean online = isServicesOnline(listener.services);
+				if (online) {
 					onlineListeners.addLast(listener);
 					i.remove();
 					continue;
 				}
+				
+				// Timeouted?
 				if (listener.timeoutAt > 0 && listener.timeoutAt <= now) {
 					timeoutedListeners.addLast(listener);
 					i.remove();
@@ -867,12 +872,15 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		if (!timeoutedListeners.isEmpty()) {
 			for (ServiceListener listener : timeoutedListeners) {
 				try {
-					String missingService = "unknown";
+					String missingService = null;
 					for (String service : listener.services) {
 						if (!isServicesOnline(Collections.singleton(service))) {
 							missingService = service;
 							break;
 						}
+					}
+					if (missingService == null) {
+						missingService = listener.services.isEmpty() ? "unknown" : listener.services.iterator().next();
 					}
 					listener.promise.complete(new NoSuchElementException("Missing service (" + missingService + ")!"));
 				} catch (Exception ignored) {
@@ -892,7 +900,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		readLock.lock();
 		try {
 			for (String service : requiredServices) {
-				if (services.containsKey(service)) {
+				if (services.containsKey(service) || eventbus.hasService(service)) {
 					foundCounter++;
 					continue;
 				}
@@ -965,6 +973,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	protected synchronized void clearDescriptorCache() {
 		descriptor = null;
+		timestamp.set(System.currentTimeMillis());
 	}
 
 	protected synchronized Tree currentDescriptor() {
@@ -1008,6 +1017,25 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					Tree listeners = eventbus.generateListenerDescriptor(service);
 					if (listeners != null && !listeners.isEmpty()) {
 						serviceMap.putObject("events", listeners);
+					}
+				}
+
+				// Add services (without actions)
+				for (String service : this.services.keySet()) {
+					if (servicesMap.get(service) == null) {
+						Tree listeners = eventbus.generateListenerDescriptor(service);
+						if (listeners != null && !listeners.isEmpty()) {
+
+							// Service block
+							Tree serviceMap = servicesMap.putMap(service, true);
+							serviceMap.put("name", service);
+
+							// Node ID
+							serviceMap.put("nodeID", nodeID);
+
+							// Listener block
+							serviceMap.putObject("events", listeners);
+						}
 					}
 				}
 			} finally {

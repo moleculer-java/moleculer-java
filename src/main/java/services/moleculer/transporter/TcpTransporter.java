@@ -1312,7 +1312,7 @@ public class TcpTransporter extends Transporter {
 		return cachedHelloMessage;
 	}
 
-	// --- UNUSED METHODS ---
+	// --- UNUSED METHODS (TRANSPORTER USES SWIM INSTEAD OF HEARTBEATS) ---
 
 	public void setHeartbeatInterval(int heartbeatInterval) {
 		throw new UnsupportedOperationException();

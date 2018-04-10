@@ -594,6 +594,27 @@ public class DefaultEventbus extends Eventbus {
 		return tmp.toString();
 	}
 
+	// --- CHECK SERVICE ---
+	
+	@Override
+	public boolean hasService(String service) {
+		readLock.lock();
+		try {
+			for (HashMap<String, Strategy<ListenerEndpoint>> groups : listeners.values()) {
+				for (Strategy<ListenerEndpoint> strategy : groups.values()) {
+					for (ListenerEndpoint endpoint : strategy.getAllEndpoints()) {
+						if (endpoint.serviceName.equals(service)) {
+							return true;
+						}
+					}
+				}
+			}
+		} finally {
+			readLock.unlock();
+		}
+		return false;
+	}
+	
 	// --- GENERATE LISTENER DESCRIPTOR ---
 
 	@Override
@@ -604,7 +625,7 @@ public class DefaultEventbus extends Eventbus {
 			for (HashMap<String, Strategy<ListenerEndpoint>> groups : listeners.values()) {
 				for (Strategy<ListenerEndpoint> strategy : groups.values()) {
 					for (ListenerEndpoint endpoint : strategy.getAllEndpoints()) {
-						if (endpoint.isLocal() && endpoint.serviceName.endsWith(service)) {
+						if (endpoint.isLocal() && endpoint.serviceName.equals(service)) {
 							LinkedHashMap<String, Object> map = new LinkedHashMap<>();
 							descriptor.put(endpoint.subscribe, map);
 							map.put("name", endpoint.subscribe);
