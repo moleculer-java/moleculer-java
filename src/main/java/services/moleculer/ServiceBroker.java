@@ -482,7 +482,7 @@ public class ServiceBroker {
 	// --- PING LOCAL OR REMOTE NODE ---
 
 	public Promise ping(String nodeID) {
-		return ping(nodeID, 3);
+		return ping(nodeID, 3000);
 	}
 
 	public Promise ping(String nodeID, long timeoutMillis) {

@@ -26,6 +26,7 @@
 package services.moleculer.transporter;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.SSLContext;
 
@@ -144,6 +145,7 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 				}
 				urlList.append(url);
 			}
+			started.set(true);
 			client = Nats.connect(urlList.toString(), options);
 			logger.info("NATS pub-sub connection estabilished.");
 			connected();
@@ -161,10 +163,14 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 
 	// --- DISCONNECT ---
 
+	protected final AtomicBoolean started = new AtomicBoolean();
+
 	@Override
 	public void onDisconnect(ConnectionEvent event) {
 		logger.info("NATS pub-sub connection disconnected.");
-		reconnect();
+		if (started.get()) {
+			reconnect();
+		}
 	}
 
 	protected void disconnect() {
@@ -202,6 +208,9 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 	 */
 	@Override
 	public void stopped() {
+
+		// Mark as stopped
+		started.set(false);
 
 		// Stop timers
 		super.stopped();

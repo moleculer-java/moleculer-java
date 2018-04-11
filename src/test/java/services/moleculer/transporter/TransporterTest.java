@@ -33,10 +33,13 @@ import io.datatree.Tree;
 import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.Group;
+import services.moleculer.eventbus.Groups;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.service.Action;
+import services.moleculer.service.LocalActionEndpoint;
+import services.moleculer.service.RemoteActionEndpoint;
 import services.moleculer.service.Service;
 
 public abstract class TransporterTest extends TestCase {
@@ -51,19 +54,45 @@ public abstract class TransporterTest extends TestCase {
 	
 	// --- ABSTRACT METHODS ---
 	
-	public abstract Transporter createTransporter(boolean first);
+	public abstract Transporter createTransporter();
 
 	// --- COMMON TESTS ---
 	
 	@Test
 	public void testTransporters() throws Exception {
+
+		// NodeIDs
+		assertEquals("node1", br1.getNodeID());
+		assertEquals("node2", br2.getNodeID());
+
+		// Ping
+		checkPing(br1, "node2");
+		checkPing(br1, "node1");
+		checkPing(br2, "node2");
+		checkPing(br2, "node1");
 		
 		// Install "math" service to node1
 		br1.createService("math", new TestService());
 		
 		// Wait for "math" service on node2
 		br2.waitForServices(10000, "math").waitFor();
-		
+
+		// Wait for "math" service on node2 (again)
+		br2.waitForServices(10000, "math").waitFor();
+
+		// Wait for "math" service on node1
+		br1.waitForServices(10000, "math").waitFor();
+
+		// Get local action
+		Action action = br1.getAction("math.add");
+		assertNotNull(action);
+		assertTrue(action instanceof LocalActionEndpoint);
+
+		// Get remote action
+		action = br2.getAction("math.add");
+		assertNotNull(action);
+		assertTrue(action instanceof RemoteActionEndpoint);
+				
 		// Invoke "math" service from node2
 		for (int i = 0; i < 10; i++) {
 			Tree rsp = br2.call("math.add", "a", i, "b", 1).waitFor();
@@ -88,14 +117,79 @@ public abstract class TransporterTest extends TestCase {
 		// Broadcast
 		br1.broadcast("test.a", new Tree());
 		Thread.sleep(1000);
-		assertEquals(1, g1_a.payloads.size());
-		assertEquals(1, g1_b.payloads.size());
-		assertEquals(1, g2_a.payloads.size());
-		assertEquals(1, g2_b.payloads.size());
+		g1_a.waitFor();
+		g1_b.waitFor();
+		g2_a.waitFor();
+		g2_b.waitFor();
 		g1_a.payloads.clear();
 		g1_b.payloads.clear();
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
+		
+		// Broadcast to group1
+		br1.broadcast("test.a", new Tree(), Groups.of("group1"));
+		g1_a.waitFor();
+		g1_b.waitFor();
+		assertEquals(1, g1_a.payloads.size());
+		assertEquals(1, g1_b.payloads.size());
+		assertEquals(0, g2_a.payloads.size());
+		assertEquals(0, g2_b.payloads.size());
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+		
+		// Broadcast to group2
+		br1.broadcast("test.a", new Tree(), Groups.of("group2"));
+		g2_a.waitFor();
+		g2_b.waitFor();
+		assertEquals(0, g1_a.payloads.size());
+		assertEquals(0, g1_b.payloads.size());
+		assertEquals(1, g2_a.payloads.size());
+		assertEquals(1, g2_b.payloads.size());
+		g2_a.payloads.clear();
+		g2_b.payloads.clear();
+		
+		// Broadcast to group1 and group2
+		br1.broadcast("test.a", new Tree(), Groups.of("group1", "group2"));
+		g1_a.waitFor();
+		g1_b.waitFor();
+		g2_a.waitFor();
+		g2_b.waitFor();
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+		g2_a.payloads.clear();
+		g2_b.payloads.clear();
+		
+		// Emit
+		br1.emit("test.a", new Tree());
+		Thread.sleep(500);
+		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
+		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+		g2_a.payloads.clear();
+		g2_b.payloads.clear();
+		
+		// Emit to group1
+		br1.emit("test.a", new Tree(), Groups.of("group1"));
+		Thread.sleep(500);
+		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
+		assertEquals(0, g2_a.payloads.size() + g2_b.payloads.size());
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+
+		// Emit to group2
+		br1.emit("test.a", new Tree(), Groups.of("group2"));
+		Thread.sleep(500);
+		assertEquals(0, g1_a.payloads.size() + g1_b.payloads.size());
+		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
+		g2_a.payloads.clear();
+		g2_b.payloads.clear();
+	}
+	
+	private void checkPing(ServiceBroker broker, String nodeID) throws Exception {
+		Tree rsp = broker.ping(nodeID).waitFor();
+		assertTrue(rsp.get("source", 0L) > 0);
+		assertTrue(rsp.get("target", 0L) > 0);
 	}
 	
 	// --- SAMPLES ---
@@ -107,9 +201,21 @@ public abstract class TransporterTest extends TestCase {
 		@Group("group1")
 		@Subscribe("test.*")
 		public Listener evt = payload -> {
-			payloads.addLast(payload);
+			synchronized (payloads) {
+				payloads.addLast(payload);
+				payloads.notifyAll();
+			}
 		};
 
+		public void waitFor() throws Exception {
+			synchronized (payloads) {
+				if (payloads.isEmpty()) {
+					payloads.wait(10000);
+				}
+			}
+			assertTrue(!payloads.isEmpty());
+		}
+		
 	}
 	
 	protected static final class Group2Listener extends Service {
@@ -119,8 +225,20 @@ public abstract class TransporterTest extends TestCase {
 		@Group("group2")
 		@Subscribe("test.*")
 		public Listener evt = payload -> {
-			payloads.addLast(payload);
+			synchronized (payloads) {
+				payloads.addLast(payload);
+				payloads.notifyAll();
+			}
 		};
+
+		public void waitFor() throws Exception {
+			synchronized (payloads) {
+				if (payloads.isEmpty()) {
+					payloads.wait(10000);
+				}
+			}
+			assertTrue(!payloads.isEmpty());
+		}
 
 	}
 	
@@ -138,8 +256,8 @@ public abstract class TransporterTest extends TestCase {
 	protected void setUp() throws Exception {
 		
 		// Create transporters
-		tr1 = createTransporter(true);
-		tr2 = createTransporter(false);
+		tr1 = createTransporter();
+		tr2 = createTransporter();
 
 		// Enable debug messages
 		tr1.setDebug(true);
@@ -151,12 +269,6 @@ public abstract class TransporterTest extends TestCase {
 		
 		// Create "marker" service
 		br1.createService("marker", new Service() {
-			
-			@SuppressWarnings("unused")
-			public Action empty = ctx -> {
-				return null;
-			};
-			
 		});
 		
 		// Start brokers

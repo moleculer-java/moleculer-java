@@ -243,6 +243,14 @@ jar {
     version =  '1.3'
 }
 
+// --- TESTING ---
+
+test {
+    // exclude '**/RedisTransporterTest.class'
+    exclude '**/NatsTransporterTest.class'
+    exclude '**/AmqpTransporterTest.class'
+}
+
 // task copyRuntimeLibs(type: Copy) {
 // into "lib"
 // from configurations.runtime

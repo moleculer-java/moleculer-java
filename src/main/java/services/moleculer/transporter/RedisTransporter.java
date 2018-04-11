@@ -69,7 +69,6 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	protected static final int STATUS_CONNECTING_1 = 3;
 	protected static final int STATUS_CONNECTING_2 = 4;
 	protected static final int STATUS_CONNECTED = 5;
-	protected static final int STATUS_STOPPED = 6;
 
 	// --- CONNECTION STATUS ---
 
@@ -145,7 +144,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 
 	protected Promise disconnect() {
 		int s = status.get();
-		if (s != STATUS_DISCONNECTED || s != STATUS_STOPPED) {
+		if (s != STATUS_DISCONNECTED && s != STATUS_DISCONNECTING) {
 			status.set(STATUS_DISCONNECTING);
 			List<Promise> promises = new LinkedList<>();
 			if (clientSub != null) {
@@ -188,8 +187,8 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	 */
 	@Override
 	public void stopped() {
-		int s = status.getAndSet(STATUS_STOPPED);
-		if (s != STATUS_STOPPED) {
+		int s = status.get();
+		if (s != STATUS_DISCONNECTED && s != STATUS_DISCONNECTING) {
 
 			// Stop timers
 			super.stopped();
@@ -262,11 +261,6 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	@Override
 	public void publish(Event event) {
 
-		// Check state
-		if (status.get() == STATUS_STOPPED) {
-			return;
-		}
-
 		// Connected
 		if (event instanceof ConnectedEvent) {
 			if (status.compareAndSet(STATUS_CONNECTING_1, STATUS_CONNECTING_2)) {
@@ -286,7 +280,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 		// Disconnected
 		if (event instanceof DisconnectedEvent) {
 			int s = status.getAndSet(STATUS_DISCONNECTED);
-			if (s != STATUS_DISCONNECTED) {
+			if (s != STATUS_DISCONNECTED && s != STATUS_DISCONNECTING) {
 				logger.info("Redis pub-sub connection aborted.");
 				reconnect();
 			}

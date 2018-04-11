@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
@@ -270,9 +271,6 @@ public abstract class Transporter extends MoleculerComponent {
 	@Override
 	public void stopped() {
 
-		// Send "disconnected" packet
-		sendDisconnectPacket();
-
 		// Stop heartbeat timer
 		if (heartBeatTimer != null) {
 			heartBeatTimer.cancel(false);
@@ -285,6 +283,9 @@ public abstract class Transporter extends MoleculerComponent {
 			checkTimeoutTimer = null;
 		}
 
+		// Send "disconnected" packet
+		sendDisconnectPacket();
+
 		// Clear all stored data
 		nodes.clear();
 	}
@@ -296,7 +297,7 @@ public abstract class Transporter extends MoleculerComponent {
 		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
 		msg.putUnsafe("sender", nodeID);
 		msg.putUnsafe("id", id);
-		msg.putUnsafe("time", System.currentTimeMillis());	
+		msg.putUnsafe("source", System.currentTimeMillis());	
 		return msg;
 	}
 	
@@ -440,7 +441,13 @@ public abstract class Transporter extends MoleculerComponent {
 
 				// Ping packet
 				if (channel.equals(pingChannel)) {
-					sendPongPacket(sender, data);
+					sendPongPacket(channel(PACKET_PONG, sender), data);
+					return;
+				}
+
+				// Pong packet
+				if (channel.equals(pongChannel)) {
+					registry.receivePong(data);
 					return;
 				}
 				
@@ -608,8 +615,21 @@ public abstract class Transporter extends MoleculerComponent {
 		}
 	}
 
+	// --- SEND BROADCAST INFO PACKET ---
+	
+	protected final AtomicBoolean infoScheduled = new AtomicBoolean();
+	
+	public void broadcastInfoPacket() {
+		if (infoScheduled.compareAndSet(false, true)) {
+			scheduler.schedule(() -> {
+				infoScheduled.set(false);
+				sendInfoPacket(infoBroadcastChannel);
+			}, 1, TimeUnit.SECONDS);			
+		}
+	}
+	
 	// --- GENERIC MOLECULER PACKETS ---
-
+	
 	protected void sendDiscoverPacket(String channel) {
 		FastBuildTree msg = new FastBuildTree(2);
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
@@ -638,19 +658,10 @@ public abstract class Transporter extends MoleculerComponent {
 		publish(disconnectChannel, msg);
 	}
 
-	protected void sendPongPacket(String sender, Tree ping) {
-		String id = ping.get("id", "");
-		if (id == null || id.isEmpty()) {
-			return;
-		}
-		long time = ping.get("time", 0L);
-		FastBuildTree msg = new FastBuildTree(5);
-		msg.putUnsafe("ver", PROTOCOL_VERSION);
-		msg.putUnsafe("sender", this.nodeID);
-		msg.putUnsafe("id", id);
-		msg.putUnsafe("received", time);
-		msg.putUnsafe("time", System.currentTimeMillis());
-		publish(channel(pongChannel, sender), msg);
+	protected void sendPongPacket(String channel, Tree data) {
+		data.put("sender", this.nodeID);
+		data.put("target", System.currentTimeMillis());
+		publish(channel, data);
 	}
 
 	// --- TIMEOUT PROCESS ---

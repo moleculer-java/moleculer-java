@@ -25,11 +25,11 @@
  */
 package services.moleculer.transporter;
 
-public class TcpTransporterTest extends TransporterTest {
+public class RedisTransporterTest extends TransporterTest {
 
 	@Override
 	public Transporter createTransporter() {
-		return new TcpTransporter();
+		return new RedisTransporter();
 	}
 
 }

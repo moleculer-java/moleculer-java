@@ -92,6 +92,10 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	protected final HashMap<String, Strategy<ActionEndpoint>> strategies = new HashMap<>(256);
 
+	// --- REGISTERED LOCAL AND REMOTE SERVICE NAMES ---
+
+	protected final HashSet<String> names = new HashSet<>(64);
+
 	// --- PENDING REMOTE INVOCATIONS ---
 
 	protected final ConcurrentHashMap<String, PendingPromise> promises = new ConcurrentHashMap<>(1024);
@@ -203,6 +207,9 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 			// Delete strategies (and registered actions)
 			strategies.clear();
+
+			// Delete all service names
+			names.clear();
 
 			// Stop middlewares
 			for (Middleware middleware : middlewares) {
@@ -445,6 +452,38 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		return msg;
 	}
 
+	// --- RECEIVE PING-PONG RESPONSE ---
+
+	@Override
+	public void receivePong(Tree message) {
+
+		// Verify protocol version
+		if (checkVersion) {
+			String ver = message.get("ver", "unknown");
+			if (!ServiceBroker.PROTOCOL_VERSION.equals(ver)) {
+				logger.warn("Invalid protocol version (" + ver + ")!");
+				return;
+			}
+		}
+
+		// Get response's unique ID
+		String id = message.get("id", (String) null);
+		if (id == null || id.isEmpty()) {
+			logger.warn("Missing \"id\" property!", message);
+			return;
+		}
+
+		// Get stored promise
+		PendingPromise pending = promises.remove(id);
+		if (pending == null) {
+			logger.warn("Unknown (maybe timeouted) response received!", message);
+			return;
+		}
+
+		// Resolve Promise
+		pending.promise.complete(message);
+	}
+
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
 
 	@Override
@@ -553,17 +592,16 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	@Override
 	public void addActions(String serviceName, Service service) {
+		if (serviceName == null || serviceName.isEmpty()) {
+			serviceName = service.getName();
+		}
+		final String name = serviceName.replace(' ', '-');
 		Class<? extends Service> clazz = service.getClass();
 		Dependencies dependencies = clazz.getAnnotation(Dependencies.class);
 		if (dependencies != null) {
 			String[] services = dependencies.value();
 			if (services != null && services.length > 0) {
 				waitForServices(0, Arrays.asList(services)).then(ok -> {
-					String name = serviceName;
-					if (name == null || name.isEmpty()) {
-						name = service.getName();
-					}
-					name = name.replace(' ', '-');
 					StringBuilder msg = new StringBuilder(64);
 					msg.append("Starting \"");
 					msg.append(name);
@@ -590,16 +628,10 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				return;
 			}
 		}
-		addOnlineActions(serviceName, service);
+		addOnlineActions(name, service);
 	}
 
 	protected void addOnlineActions(String serviceName, Service service) {
-
-		// Service name with version
-		if (serviceName == null || serviceName.isEmpty()) {
-			serviceName = service.getName();
-		}
-		serviceName = serviceName.replace(' ', '-');
 		Class<? extends Service> clazz = service.getClass();
 		Field[] fields = clazz.getFields();
 		int actionCounter = 0;
@@ -645,6 +677,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				actionCounter++;
 			}
 			services.put(serviceName, service);
+			names.add(serviceName);
 			service.started(broker);
 
 		} catch (Exception cause) {
@@ -660,6 +693,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Notify local listeners about the new LOCAL service
 		broadcastServicesChanged(true);
+
+		// Notify other nodes
+		if (transporter != null) {
+			transporter.broadcastInfoPacket();
+		}
 
 		// Write log about this service
 		StringBuilder msg = new StringBuilder(64);
@@ -691,10 +729,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	@Override
 	public void addActions(Tree config) {
 		Tree actions = config.get("actions");
-		if (actions != null && actions.isMap()) {
-			String nodeID = Objects.requireNonNull(config.get("nodeID", (String) null));
-			writeLock.lock();
-			try {
+		String serviceName = config.get("name", "");
+		writeLock.lock();
+		try {
+			if (actions != null && actions.isMap()) {
+				String nodeID = Objects.requireNonNull(config.get("nodeID", (String) null));
 				for (Tree actionConfig : actions) {
 					actionConfig.putObject("nodeID", nodeID, true);
 					String actionName = actionConfig.get("name", "");
@@ -708,13 +747,14 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					}
 					actionStrategy.addEndpoint(endpoint);
 				}
-			} finally {
-				writeLock.unlock();
 			}
-
-			// Notify local listeners about the new REMOTE service
-			broadcastServicesChanged(false);
+			names.add(serviceName);
+		} finally {
+			writeLock.unlock();
 		}
+
+		// Notify local listeners about the new REMOTE service
+		broadcastServicesChanged(false);
 	}
 
 	// --- REMOVE ALL REMOTE SERVICES/ACTIONS OF A NODE ---
@@ -857,7 +897,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					i.remove();
 					continue;
 				}
-				
+
 				// Timeouted?
 				if (listener.timeoutAt > 0 && listener.timeoutAt <= now) {
 					timeoutedListeners.addLast(listener);
@@ -900,16 +940,9 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		readLock.lock();
 		try {
 			for (String service : requiredServices) {
-				if (services.containsKey(service) || eventbus.hasService(service)) {
+				if (names.contains(service)) {
 					foundCounter++;
 					continue;
-				}
-				String test = service + '.';
-				for (String action : strategies.keySet()) {
-					if (action.startsWith(test)) {
-						foundCounter++;
-						break;
-					}
 				}
 				if (foundCounter == 0) {
 					break;
@@ -925,6 +958,20 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	@Override
 	public Promise ping(long timeoutMillis, String nodeID) {
+
+		// Local node?
+		if (this.nodeID.equals(nodeID)) {
+			Tree rsp = new Tree();
+			long time = System.currentTimeMillis();
+			rsp.put("source", time);
+			rsp.put("target", time);
+			return Promise.resolve(rsp);
+		}
+
+		// Do we have a transporter?
+		if (transporter == null) {
+			return Promise.reject(new IllegalArgumentException("Unknown nodeID (" + nodeID + ")!"));
+		}
 
 		// Create new promise
 		Promise promise = new Promise();
@@ -1021,19 +1068,19 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				}
 
 				// Add services (without actions)
-				for (String service : this.services.keySet()) {
+				for (String service : names) {
 					if (servicesMap.get(service) == null) {
+
+						// Service block
+						Tree serviceMap = servicesMap.putMap(service, true);
+						serviceMap.put("name", service);
+
+						// Node ID
+						serviceMap.put("nodeID", nodeID);
+
+						// Listener block
 						Tree listeners = eventbus.generateListenerDescriptor(service);
 						if (listeners != null && !listeners.isEmpty()) {
-
-							// Service block
-							Tree serviceMap = servicesMap.putMap(service, true);
-							serviceMap.put("name", service);
-
-							// Node ID
-							serviceMap.put("nodeID", nodeID);
-
-							// Listener block
 							serviceMap.putObject("events", listeners);
 						}
 					}

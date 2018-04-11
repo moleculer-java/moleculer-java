@@ -25,7 +25,6 @@
  */
 package services.moleculer.transporter;
 
-import static services.moleculer.ServiceBroker.PROTOCOL_VERSION;
 import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.parseURLs;
 import static services.moleculer.util.CommonUtils.readTree;
@@ -427,24 +426,14 @@ public class TcpTransporter extends Transporter {
 					if (debug) {
 						logger.info("Ping message received:\r\n" + data);
 					}
-					String id = data.get("id", "");
-					if (id == null || id.isEmpty()) {
-						logger.warn("Missing \"id\" property:\r\n" + data);
-						return;
-					}
 					String sender = data.get("sender", "");
 					if (sender == null || sender.isEmpty()) {
 						logger.warn("Missing \"sender\" property:\r\n" + data);
 						return;
 					}
-					long time = data.get("time", 0L);
-					FastBuildTree msg = new FastBuildTree(5);
-					msg.putUnsafe("ver", PROTOCOL_VERSION);
-					msg.putUnsafe("sender", this.nodeID);
-					msg.putUnsafe("id", id);
-					msg.putUnsafe("received", time);
-					msg.putUnsafe("time", System.currentTimeMillis());
-					writer.send(sender, serialize(PACKET_PONG_ID, msg));
+					data.put("sender", this.nodeID);
+					data.put("target", System.currentTimeMillis());
+					writer.send(sender, serialize(PACKET_PONG_ID, data));
 					return;
 
 				case PACKET_PONG_ID:
@@ -453,7 +442,7 @@ public class TcpTransporter extends Transporter {
 					if (debug) {
 						logger.info("Pong message received:\r\n" + data);
 					}
-					registry.receiveResponse(data);
+					registry.receivePong(data);
 					return;
 
 				case PACKET_GOSSIP_REQ_ID:
@@ -1314,10 +1303,16 @@ public class TcpTransporter extends Transporter {
 
 	// --- UNUSED METHODS (TRANSPORTER USES SWIM INSTEAD OF HEARTBEATS) ---
 
+	@Override
+	public void broadcastInfoPacket() {
+	}
+	
+	@Override
 	public void setHeartbeatInterval(int heartbeatInterval) {
 		throw new UnsupportedOperationException();
 	}
 
+	@Override
 	public void setHeartbeatTimeout(int heartbeatTimeout) {
 		throw new UnsupportedOperationException();
 	}

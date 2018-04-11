@@ -42,6 +42,10 @@ public abstract class ServiceRegistry extends MoleculerComponent {
 
 	public abstract void receiveRequest(Tree message);
 
+	// --- RECEIVE PING-PONG RESPONSE ---
+
+	public abstract void receivePong(Tree message);
+	
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
 
 	public abstract void receiveResponse(Tree message);

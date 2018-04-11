@@ -64,10 +64,6 @@ public abstract class Eventbus extends MoleculerComponent {
 
 	public abstract void broadcast(String name, Tree payload, Groups groups, boolean local);
 
-	// --- CHECK SERVICE ---
-	
-	public abstract boolean hasService(String service);
-	
 	// --- GENERATE LISTENER DESCRIPTOR ---
 
 	public abstract Tree generateListenerDescriptor(String service);

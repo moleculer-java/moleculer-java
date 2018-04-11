@@ -594,27 +594,6 @@ public class DefaultEventbus extends Eventbus {
 		return tmp.toString();
 	}
 
-	// --- CHECK SERVICE ---
-	
-	@Override
-	public boolean hasService(String service) {
-		readLock.lock();
-		try {
-			for (HashMap<String, Strategy<ListenerEndpoint>> groups : listeners.values()) {
-				for (Strategy<ListenerEndpoint> strategy : groups.values()) {
-					for (ListenerEndpoint endpoint : strategy.getAllEndpoints()) {
-						if (endpoint.serviceName.equals(service)) {
-							return true;
-						}
-					}
-				}
-			}
-		} finally {
-			readLock.unlock();
-		}
-		return false;
-	}
-	
 	// --- GENERATE LISTENER DESCRIPTOR ---
 
 	@Override
