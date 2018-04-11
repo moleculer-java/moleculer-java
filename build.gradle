@@ -247,7 +247,7 @@ jar {
 
 test {
     // exclude '**/RedisTransporterTest.class'
-    exclude '**/NatsTransporterTest.class'
+    // exclude '**/NatsTransporterTest.class'
     exclude '**/AmqpTransporterTest.class'
 }
 
