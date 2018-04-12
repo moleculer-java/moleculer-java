@@ -2,6 +2,8 @@ apply plugin: 'java'
 apply plugin: 'maven'
 apply plugin: 'com.bmuschko.nexus'
 
+import java.util.logging.*
+
 buildscript {
     repositories {
         maven {
@@ -13,7 +15,7 @@ buildscript {
     }
 }
 
-// --- THERE IS NO JAVADOC ---
+// --- JAVADOC ---
 
 javadoc {
 	failOnError = false
@@ -222,10 +224,6 @@ nexus {
 	snapshotRepositoryUrl = 'https://oss.sonatype.org/content/repositories/snapshots'
 }
 
-test {
-    exclude '**/Performance*'
-}
-
 // --- COMPILATION ---
 
 compileJava {
@@ -246,9 +244,12 @@ jar {
 // --- TESTING ---
 
 test {
+	systemProperty 'java.util.logging.SimpleFormatter.format', '%4$-7s %5$s %n'
+
     // exclude '**/RedisTransporterTest.class'
     // exclude '**/NatsTransporterTest.class'
     exclude '**/AmqpTransporterTest.class'
+    exclude '**/Performance*'
 }
 
 // task copyRuntimeLibs(type: Copy) {
