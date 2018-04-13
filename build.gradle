@@ -246,7 +246,7 @@ jar {
 test {
 	systemProperty 'java.util.logging.SimpleFormatter.format', '%4$-7s %5$s %n'
 
-    exclude '**/MqttTransporterTest.class'
+    // exclude '**/MqttTransporterTest.class'
     exclude '**/KafkaTransporterTest.class'
     exclude '**/JmsTransporterTest.class'
     exclude '**/GoogleTransporterTest.class'
