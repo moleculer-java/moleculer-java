@@ -7,6 +7,13 @@ services:
   - redis-server
   - rabbitmq
   
+addons:
+  apt:
+    sources:
+      - sourceline: 'ppa:mosquitto-dev/mosquitto-ppa'
+    packages:
+      - mosquitto  
+  
 before_script:
   # install NATS server
   - wget https://github.com/nats-io/gnatsd/releases/download/v1.1.0/gnatsd-v1.1.0-linux-amd64.zip -qO gnatsd.zip
