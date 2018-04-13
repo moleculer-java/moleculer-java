@@ -28,15 +28,20 @@
 		<!-- Other properties -->
 		<property name="mandatory"    value="false" />
 		<property name="immediate"    value="false" />
-		<property name="durable"      value="false" />
+		<property name="exclusive"    value="false" />
+		<property name="internal"     value="false" />
 		<property name="exchangeType" value="fanout" />
-		<property name="autoDelete"   value="true" />
 
-		<!-- Optional AMQBasicProperties -->
+		<!-- Message properties (BasicProperties) -->
 		<property name="messageProperties"><null/></property>
 
-		<!-- Channel properties Map -->		
-		<property name="channelProperties">
+		<!-- Queue properties Map -->		
+		<property name="queueProperties">
+			<map/>		
+		</property>
+
+		<!-- Exchange properties Map -->		
+		<property name="exchangeProperties">
 			<map/>		
 		</property>
 			

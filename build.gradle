@@ -159,7 +159,7 @@ dependencies {
 	// --- ACTIVE QM CLIENT API FOR JMS TESTING ---
 
 	// https://mvnrepository.com/artifact/org.apache.activemq/activemq-client
-	// compile group: 'org.apache.activemq', name: 'activemq-client', version: '5.15.2'
+	compile group: 'org.apache.activemq', name: 'activemq-client', version: '5.15.3'
 
 	// --- DEPENDENCY OF THE AMQP/RABBITMQ TRANSPORTER ---
 	

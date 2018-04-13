@@ -25,12 +25,13 @@
  */
 package services.moleculer.transporter;
 
+import org.apache.activemq.ActiveMQConnectionFactory;
+
 public class JmsTransporterTest extends TransporterTest {
 
 	@Override
 	public Transporter createTransporter() {
-		// return new JmsTransporter(new ActiveMQConnectionFactory());
-		return null;
+		return new JmsTransporter(new ActiveMQConnectionFactory());
 	}
 
 }

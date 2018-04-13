@@ -80,7 +80,7 @@ public class JmsTransporter extends Transporter {
 	protected int acknowledgeMode = JMSContext.AUTO_ACKNOWLEDGE;
 	protected int deliveryMode = DeliveryMode.NON_PERSISTENT;
 	protected int priority = 5;
-	protected int ttl = 1;
+	protected int ttl = 10000;
 
 	// --- CONNECTION FACTORY NAME IN JNDI ---
 
