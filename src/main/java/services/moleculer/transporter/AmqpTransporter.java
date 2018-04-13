@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.AMQP.BasicProperties;
@@ -78,18 +79,18 @@ public class AmqpTransporter extends Transporter {
 	protected boolean immediate;
 	protected boolean durable;
 	protected boolean exclusive;
+	protected boolean internal;
 	protected boolean autoDelete = true;
+	protected String exchangeType = "fanout";
 
 	protected BasicProperties messageProperties;
-	protected Map<String, Object> channelProperties = new HashMap<>();
+	protected Map<String, Object> queueProperties = new HashMap<>();
+	protected Map<String, Object> exchangeProperties = new HashMap<>();
 
 	// --- AMQP CONNECTION ---
 
 	protected Connection client;
-
-	// --- CHANNEL NAME/CHANNEL MAP ---
-
-	protected final HashMap<String, Channel> channels = new HashMap<>(64);
+	protected Channel channel;
 
 	// --- CONSTUCTORS ---
 
@@ -101,8 +102,7 @@ public class AmqpTransporter extends Transporter {
 		this.url = url;
 	}
 
-	public AmqpTransporter(String username, String password, SslContextFactory sslContextFactory,
-			String url) {
+	public AmqpTransporter(String username, String password, SslContextFactory sslContextFactory, String url) {
 		this.username = username;
 		this.password = password;
 		this.sslContextFactory = sslContextFactory;
@@ -146,7 +146,9 @@ public class AmqpTransporter extends Transporter {
 			if (password != null) {
 				factory.setPassword(password);
 			}
+			started.set(true);
 			client = factory.newConnection();
+			channel = client.createChannel();
 
 			logger.info("AMQP pub-sub connection estabilished.");
 			connected();
@@ -164,15 +166,17 @@ public class AmqpTransporter extends Transporter {
 
 	// --- DISCONNECT ---
 
+	protected final AtomicBoolean started = new AtomicBoolean();
+
 	protected void disconnect() {
-		synchronized (channels) {
-			for (Channel channel : channels.values()) {
-				try {
-					channel.close();
-				} catch (Throwable ignored) {
-				}
+		if (channel != null) {
+			try {
+				channel.close();
+			} catch (Throwable cause) {
+				logger.warn("Unexpected error occured while closing AMQP channel!", cause);
+			} finally {
+				channel = null;
 			}
-			channels.clear();
 		}
 		if (client != null) {
 			try {
@@ -209,6 +213,9 @@ public class AmqpTransporter extends Transporter {
 	@Override
 	public void stopped() {
 
+		// Mark as stopped
+		started.set(false);
+		
 		// Stop timers
 		super.stopped();
 
@@ -222,64 +229,82 @@ public class AmqpTransporter extends Transporter {
 	public Promise subscribe(String channel) {
 		if (client != null) {
 			try {
-				synchronized (channels) {
-					if (channels.containsKey(channel)) {
-						return Promise.resolve();
-					}
-					createOrGetChannel(channel).basicConsume(channel, new Consumer() {
+				String postfix = '.' + nodeID;
+				String queueName;
+				if (channel.endsWith(postfix)) {
 
-						// --- MESSAGE RECEIVED ---
+					// Create queue
+					queueName = channel;
+					this.channel.queueDeclareNoWait(queueName, durable, exclusive, autoDelete, queueProperties);
 
-						@Override
-						public final void handleDelivery(String consumerTag, Envelope envelope,
-								AMQP.BasicProperties properties, byte[] body) throws IOException {
-							received(channel, body);
+				} else {
+
+					// Create queue and exchange
+					queueName = channel + '.' + nodeID;
+					this.channel.queueDeclareNoWait(queueName, durable, exclusive, autoDelete, queueProperties);
+					this.channel.exchangeDeclare(channel, exchangeType, durable, autoDelete, internal,
+							exchangeProperties);
+					this.channel.queueBind(queueName, channel, "");
+				}
+				this.channel.basicConsume(queueName, new Consumer() {
+
+					// --- MESSAGE RECEIVED ---
+
+					@Override
+					public final void handleDelivery(String consumerTag, Envelope envelope,
+							AMQP.BasicProperties properties, byte[] body) throws IOException {
+						if (debug) {
+							logger.info(nodeID + " received message from queue \"" + queueName + "\".");
 						}
+						received(channel, body);
+					}
 
-						// --- CONNECTION LOST ---
+					// --- CONNECTION LOST ---
 
-						@Override
-						public final void handleShutdownSignal(String consumerTag, ShutdownSignalException sig) {
-							synchronized (factory) {
-								if (client != null) {
-									logger.info("AMQP pub-sub connection aborted.");
+					@Override
+					public final void handleShutdownSignal(String consumerTag, ShutdownSignalException sig) {
+						synchronized (factory) {
+							if (client != null) {
+								logger.info("AMQP pub-sub connection aborted.");
+								if (started.get()) {
 									reconnect();
 								}
 							}
 						}
+					}
 
-						// --- UNUSED METHODS ---
+					// --- UNUSED METHODS ---
 
-						@Override
-						public final void handleConsumeOk(String consumerTag) {
-							if (debug) {
-								logger.info("ConsumeOk packet received (consumerTag: " + consumerTag + ").");
-							}
+					@Override
+					public final void handleConsumeOk(String consumerTag) {
+						if (debug) {
+							logger.info("ConsumeOk packet received (consumerTag: " + consumerTag + ").");
 						}
+					}
 
-						@Override
-						public final void handleCancelOk(String consumerTag) {
-							if (debug) {
-								logger.info("CancelOk packet received (consumerTag: " + consumerTag + ").");
-							}
+					@Override
+					public final void handleCancelOk(String consumerTag) {
+						if (debug) {
+							logger.info("CancelOk packet received (consumerTag: " + consumerTag + ").");
 						}
+					}
 
-						@Override
-						public final void handleCancel(String consumerTag) throws IOException {
-							if (debug) {
-								logger.info("Cancel packet received (consumerTag: " + consumerTag + ").");
-							}
+					@Override
+					public final void handleCancel(String consumerTag) throws IOException {
+						if (debug) {
+							logger.info("Cancel packet received (consumerTag: " + consumerTag + ").");
 						}
+					}
 
-						@Override
-						public final void handleRecoverOk(String consumerTag) {
-							if (debug) {
-								logger.info("RecoverOk packet received (consumerTag: " + consumerTag + ").");
-							}
+					@Override
+					public final void handleRecoverOk(String consumerTag) {
+						if (debug) {
+							logger.info("RecoverOk packet received (consumerTag: " + consumerTag + ").");
 						}
+					}
 
-					});
-				}
+				});
+
 			} catch (Exception cause) {
 				return Promise.reject(cause);
 			}
@@ -287,31 +312,32 @@ public class AmqpTransporter extends Transporter {
 		return Promise.resolve();
 	}
 
-	protected Channel createOrGetChannel(String channel) throws Exception {
-		Channel c;
-		synchronized (channels) {
-			c = channels.get(channel);
-			if (c != null) {
-				return c;
-			}
-			c = client.createChannel();
-			c.queueDeclare(channel, durable, exclusive, autoDelete, channelProperties);
-			channels.put(channel, c);
-		}
-		return c;
-	}
-
 	// --- PUBLISH ---
 
 	@Override
 	public void publish(String channel, Tree message) {
 		if (client != null) {
-			if (debug) {
-				logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
-			}
 			try {
-				createOrGetChannel(channel).basicPublish("", channel, mandatory, immediate, messageProperties,
-						serializer.write(message));
+				int pos = channel.indexOf('.');
+				if (channel.indexOf('.', pos + 1) > -1) {
+
+					// Send to queue directly
+					if (debug) {
+						logger.info("Submitting message to queue \"" + channel + "\":\r\n" + message.toString());
+					}
+					this.channel.basicPublish("", channel, mandatory, immediate, messageProperties,
+							serializer.write(message));
+
+				} else {
+
+					// Send to exchange
+					if (debug) {
+						logger.info("Submitting message to exchange \"" + channel + "\":\r\n" + message.toString());
+					}
+					this.channel.basicPublish(channel, "", mandatory, immediate, messageProperties,
+							serializer.write(message));
+
+				}
 			} catch (Exception cause) {
 				logger.warn("Unable to send message to AMQP server!", cause);
 			}
@@ -386,14 +412,6 @@ public class AmqpTransporter extends Transporter {
 		this.durable = durable;
 	}
 
-	public boolean isExclusive() {
-		return exclusive;
-	}
-
-	public void setExclusive(boolean exclusive) {
-		this.exclusive = exclusive;
-	}
-
 	public boolean isAutoDelete() {
 		return autoDelete;
 	}
@@ -402,20 +420,52 @@ public class AmqpTransporter extends Transporter {
 		this.autoDelete = autoDelete;
 	}
 
-	public Map<String, Object> getChannelProperties() {
-		return channelProperties;
-	}
-
-	public void setChannelProperties(Map<String, Object> arguments) {
-		this.channelProperties = arguments;
-	}
-
 	public SslContextFactory getSslContextFactory() {
 		return sslContextFactory;
 	}
 
 	public void setSslContextFactory(SslContextFactory sslContextFactory) {
 		this.sslContextFactory = sslContextFactory;
+	}
+
+	public String getExchangeType() {
+		return exchangeType;
+	}
+
+	public void setExchangeType(String exchangeType) {
+		this.exchangeType = exchangeType;
+	}
+
+	public boolean isExclusive() {
+		return exclusive;
+	}
+
+	public void setExclusive(boolean exclusive) {
+		this.exclusive = exclusive;
+	}
+
+	public Map<String, Object> getQueueProperties() {
+		return queueProperties;
+	}
+
+	public void setQueueProperties(Map<String, Object> queueProperties) {
+		this.queueProperties = queueProperties;
+	}
+
+	public Map<String, Object> getExchangeProperties() {
+		return exchangeProperties;
+	}
+
+	public void setExchangeProperties(Map<String, Object> exchangeProperties) {
+		this.exchangeProperties = exchangeProperties;
+	}
+
+	public boolean isInternal() {
+		return internal;
+	}
+
+	public void setInternal(boolean internal) {
+		this.internal = internal;
 	}
 
 }
