@@ -77,10 +77,8 @@ public class AmqpTransporter extends Transporter {
 	protected ConnectionFactory factory = new ConnectionFactory();
 	protected boolean mandatory;
 	protected boolean immediate;
-	protected boolean durable;
 	protected boolean exclusive;
 	protected boolean internal;
-	protected boolean autoDelete = true;
 	protected String exchangeType = "fanout";
 
 	protected BasicProperties messageProperties;
@@ -235,18 +233,18 @@ public class AmqpTransporter extends Transporter {
 
 					// Create queue
 					queueName = channel;
-					this.channel.queueDeclareNoWait(queueName, durable, exclusive, autoDelete, queueProperties);
+					this.channel.queueDeclareNoWait(queueName, true, exclusive, true, queueProperties);
 
 				} else {
 
 					// Create queue and exchange
 					queueName = channel + '.' + nodeID;
-					this.channel.queueDeclareNoWait(queueName, durable, exclusive, autoDelete, queueProperties);
-					this.channel.exchangeDeclare(channel, exchangeType, durable, autoDelete, internal,
+					this.channel.queueDeclareNoWait(queueName, true, exclusive, true, queueProperties);
+					this.channel.exchangeDeclareNoWait(channel, exchangeType, true, false, internal,
 							exchangeProperties);
 					this.channel.queueBind(queueName, channel, "");
 				}
-				this.channel.basicConsume(queueName, new Consumer() {
+				this.channel.basicConsume(queueName, true, new Consumer() {
 
 					// --- MESSAGE RECEIVED ---
 
@@ -402,22 +400,6 @@ public class AmqpTransporter extends Transporter {
 
 	public void setMessageProperties(BasicProperties messageProperties) {
 		this.messageProperties = messageProperties;
-	}
-
-	public boolean isDurable() {
-		return durable;
-	}
-
-	public void setDurable(boolean durable) {
-		this.durable = durable;
-	}
-
-	public boolean isAutoDelete() {
-		return autoDelete;
-	}
-
-	public void setAutoDelete(boolean autoDelete) {
-		this.autoDelete = autoDelete;
 	}
 
 	public SslContextFactory getSslContextFactory() {

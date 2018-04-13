@@ -26,19 +26,13 @@
 package services.moleculer;
 
 import io.datatree.Tree;
-import services.moleculer.cacher.Cache;
 import services.moleculer.config.ServiceBrokerConfig;
-import services.moleculer.context.CallOptions;
-import services.moleculer.context.Context;
-import services.moleculer.context.DefaultContextFactory;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
-import services.moleculer.service.Dependencies;
-import services.moleculer.service.Middleware;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
-import services.moleculer.service.Version;
+import services.moleculer.transporter.TcpTransporter;
 
 public class Sample {
 
@@ -48,65 +42,16 @@ public class Sample {
 
 			ServiceBrokerConfig cfg = new ServiceBrokerConfig();
 
-			// RedisTransporter t = new RedisTransporter();
-			// t.setDebug(false);
-			// cfg.setTransporter(t);
+			TcpTransporter t = new TcpTransporter();
+			t.setDebug(false);
+			cfg.setTransporter(t);
 
 			ServiceBroker broker = new ServiceBroker(cfg);
 
 			MathService math = new MathService();
 			broker.createService(math);
 			broker.start();
-			broker.use(new Middleware() {
 
-				@Override
-				public Action install(Action action, Tree config) {
-					if (config.get("name", "?").equals("v1.math.test")) {
-						return new Action() {
-
-							@Override
-							public Object handler(Context ctx) throws Exception {
-								Object original = action.handler(ctx);
-								Object replaced = System.currentTimeMillis();
-								broker.getLogger()
-										.info("Middleware invoked! Replacing " + original + " to " + replaced);
-								return replaced;
-							}
-
-						};
-					}
-					return null;
-				}
-
-			});
-			broker.waitForServices("v1.math").then(ok -> {
-				for (int i = 0; i < 2; i++) {
-					broker.call("v1.math.add", "a", 3, "b", 5).then(in -> {
-
-						broker.getLogger(Sample.class).info("Result: " + in);
-
-					}).catchError(err -> {
-
-						broker.getLogger(Sample.class).error("Error: " + err);
-
-					});
-				}
-
-				System.out.println("FIRST CALL ->3");
-				broker.call("service2.test", new Tree(), CallOptions.retryCount(3)).catchError(cause -> {
-					cause.printStackTrace();
-				});
-			});
-
-			((DefaultContextFactory) broker.getConfig().getContextFactory()).setMaxCallLevel(3);
-
-			Thread.sleep(1000);
-			broker.createService(new Service2Service());
-
-			Thread.sleep(1000);
-			broker.createService(new Service3Service());
-
-			Thread.sleep(60000);
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -115,54 +60,24 @@ public class Sample {
 	}
 
 	@Name("math")
-	@Dependencies({ "service2", "service3" })
-	@Version("1")
 	public static class MathService extends Service {
 
-		@Name("add")
-		@Cache(keys = { "a", "b" }, ttl = 30)
 		public Action add = ctx -> {
 
 			// broker.getLogger().info("Call " + ctx.params);
-			return ctx.params.get("a", 0) + ctx.params.get("b", 0);
-
-		};
-
-		@Name("test")
-		public Action test = ctx -> {
-
-			return ctx.params.get("a", 0) + ctx.params.get("b", 0);
+			
+			Tree res = new Tree();
+			
+			res.put("res", ctx.params.get("a", 0) + ctx.params.get("b", 0));
+			res.put("count", ctx.params.get("count").asInteger());
+			
+			return res;
 
 		};
 
 		@Subscribe("foo.*")
 		public Listener listener = payload -> {
 			System.out.println("Received: " + payload);
-		};
-
-	};
-
-	@Name("service2")
-	@Dependencies({ "service3" })
-	public static class Service2Service extends Service {
-
-		@Name("test")	
-		public Action test = ctx -> {
-			System.out.println("CALL 2->3");
-			return ctx.call("service3.test", ctx.params);
-		};
-
-	};
-
-	@Name("service3")
-	// @Dependencies({ "service2" })	
-	public static class Service3Service extends Service {
-
-		@Name("test")
-		public Action test = ctx -> {
-			// System.out.println("CALL 3->2");
-			// return ctx.call("service2.test", ctx.params);
-			throw new Exception("X"); 
 		};
 
 	};

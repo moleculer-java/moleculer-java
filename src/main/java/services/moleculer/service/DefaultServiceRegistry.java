@@ -49,7 +49,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -733,7 +732,12 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		writeLock.lock();
 		try {
 			if (actions != null && actions.isMap()) {
-				String nodeID = Objects.requireNonNull(config.get("nodeID", (String) null));
+				String nodeID;
+				if (config.getParent().isEnumeration()) {
+					nodeID = config.getRoot().get("sender", (String) null);
+				} else {
+					nodeID = config.getName();
+				}
 				for (Tree actionConfig : actions) {
 					actionConfig.putObject("nodeID", nodeID, true);
 					String actionName = actionConfig.get("name", "");
@@ -1051,9 +1055,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					Tree serviceMap = servicesMap.putMap(service, true);
 					serviceMap.put("name", service);
 
-					// Node ID
-					serviceMap.put("nodeID", nodeID);
-
 					// Action block
 					@SuppressWarnings("unchecked")
 					Map<String, Object> actionBlock = (Map<String, Object>) serviceMap.putMap("actions", true)
@@ -1074,9 +1075,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 						// Service block
 						Tree serviceMap = servicesMap.putMap(service, true);
 						serviceMap.put("name", service);
-
-						// Node ID
-						serviceMap.put("nodeID", nodeID);
 
 						// Listener block
 						Tree listeners = eventbus.generateListenerDescriptor(service);

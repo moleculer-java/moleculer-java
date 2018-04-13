@@ -417,8 +417,8 @@ public class CircuitBreakerTest extends TestCase {
 				.breaker(cb).executor(ex).build();
 		br.start();
 		for (int i = 0; i < 10; i++) {
-			Tree config = new Tree();
-			config.put("nodeID", "node" + i);
+			Tree root = new Tree();			
+			Tree config = root.putMap("node" + i);
 			Tree actions = config.putMap("actions");
 			LinkedHashMap<String, Object> action = new LinkedHashMap<>();
 			action.put("name", "test.test");

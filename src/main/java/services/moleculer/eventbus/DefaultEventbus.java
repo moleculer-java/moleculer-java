@@ -305,8 +305,13 @@ public class DefaultEventbus extends Eventbus {
 	public void addListeners(Tree config) {
 		Tree events = config.get("events");
 		if (events != null && events.isMap()) {
-			String nodeID = Objects.requireNonNull(config.get("nodeID", (String) null));
 			String serviceName = Objects.requireNonNull(config.get("name", (String) null));
+			String nodeID;
+			if (config.getParent().isEnumeration()) {
+				nodeID = config.getRoot().get("sender", (String) null);
+			} else {
+				nodeID = config.getName();
+			}
 			writeLock.lock();
 			try {
 				for (Tree listenerConfig : events) {
