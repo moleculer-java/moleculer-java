@@ -1,8 +1,7 @@
 apply plugin: 'java'
 apply plugin: 'maven'
 apply plugin: 'com.bmuschko.nexus'
-
-import java.util.logging.*
+apply plugin: 'jacoco'
 
 buildscript {
     repositories {
@@ -19,6 +18,15 @@ buildscript {
 
 javadoc {
 	failOnError = false
+}
+
+// --- JACOCO ---
+
+jacocoTestReport {
+    reports {
+        xml.enabled true
+        html.enabled true
+    }
 }
 
 // --- CONFIGURATIONS ---
@@ -170,6 +178,7 @@ dependencies {
 
 }
 
+
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
@@ -249,7 +258,7 @@ test {
     // exclude '**/MqttTransporterTest.class'
     exclude '**/KafkaTransporterTest.class'
     exclude '**/JmsTransporterTest.class'
-    exclude '**/GoogleTransporterTest.class'
+    exclude '**/*TransporterTest.class'
 }
 
 // task copyRuntimeLibs(type: Copy) {
