@@ -272,7 +272,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 
 				// Second connection is Ok
 				logger.info("All Redis pub-sub connections estabilished.");
-				connected();
+				connected(false);
 			}
 			return;
 		}

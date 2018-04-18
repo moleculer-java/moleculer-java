@@ -27,9 +27,19 @@ package services.moleculer.transporter;
 
 public class GoogleTransporterTest extends TransporterTest {
 
+	public GoogleTransporterTest() {
+		sleep = 3000;
+	}
+
 	@Override
 	public Transporter createTransporter() {
-		return new GoogleTransporter();
+		try {
+			String pathToConfig = "/temp/test.json";
+			return new GoogleTransporter(pathToConfig);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 
 }

@@ -322,7 +322,7 @@ public class CircuitBreakerTest extends TestCase {
 			int rsp = br.call("math.add", "a", i, "b", 1).waitFor().asInteger();
 			assertEquals(i + 1, rsp);
 		}
-		assertTrue(System.currentTimeMillis() - start < 50);
+		assertTrue(System.currentTimeMillis() - start < 100);
 	}
 
 	// --- SET UP ---

@@ -25,29 +25,46 @@
  */
 package services.moleculer.transporter;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.threeten.bp.Duration;
 
+import com.google.api.core.ApiClock;
 import com.google.api.gax.batching.BatchingSettings;
+import com.google.api.gax.batching.FlowControlSettings;
 import com.google.api.gax.core.CredentialsProvider;
 import com.google.api.gax.core.ExecutorProvider;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.HeaderProvider;
+import com.google.api.gax.rpc.NotFoundException;
 import com.google.api.gax.rpc.TransportChannelProvider;
+import com.google.auth.Credentials;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.ServiceOptions;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.cloud.pubsub.v1.Subscriber;
+import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
+import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
+import com.google.cloud.pubsub.v1.TopicAdminClient;
+import com.google.cloud.pubsub.v1.TopicAdminSettings;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
+import com.google.pubsub.v1.PushConfig;
+import com.google.pubsub.v1.Subscription;
 import com.google.pubsub.v1.SubscriptionName;
+import com.google.pubsub.v1.Topic;
 import com.google.pubsub.v1.TopicName;
 
 import io.datatree.Tree;
 import services.moleculer.Promise;
+import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
+import services.moleculer.util.CommonUtils;
 
 /**
  * Google Cloud Pub/Sub Transporter. The Google Cloud Pub/Sub service allows
@@ -82,6 +99,10 @@ public class GoogleTransporter extends Transporter {
 	protected RetrySettings retrySettings;
 	protected Duration maxAckExtensionPeriod;
 	protected int parallelPullCount;
+	protected int ackDeadlineSeconds = 10;
+	protected TransportChannelProvider transportChannelProvider;
+	protected FlowControlSettings flowControlSettings;
+	protected ApiClock clock;
 
 	// --- CHANNEL NAME/PUBLISHER MAP ---
 
@@ -91,19 +112,136 @@ public class GoogleTransporter extends Transporter {
 
 	protected final HashMap<String, Subscriber> subscribers = new HashMap<>(64);
 
+	// --- TOPIC ADMIN CLIENT ---
+
+	protected TopicAdminClient topicAdmin;
+
+	// --- SUBSCRIPTION ADMIN CLIENT ---
+
+	protected SubscriptionAdminClient subscriptionAdmin;
+
+	// --- SHARED EXECUTOR ---
+
+	protected ExecutorProvider defaultExecutorProvider;
+
+	// --- CONSTRUCTOR ---
+
+	public GoogleTransporter() {
+
+		// Use default / user-defined credentials provider
+		this((Credentials) null);
+	}
+
+	public GoogleTransporter(String credetialsURL) throws Exception {
+
+		// Load credentials JSON from URL or file system
+		this(CommonUtils.readTree(credetialsURL));
+	}
+
+	public GoogleTransporter(Tree credetials) throws Exception {
+
+		// Load credentials from a "Tree" structure
+		this(GoogleCredentials.fromStream(new ByteArrayInputStream(credetials.toBinary())));
+	}
+
+	public GoogleTransporter(Credentials credentials) {
+
+		// Slow down heartbeat timer
+		heartbeatInterval = 15;
+		heartbeatTimeout = 35;
+
+		// Increase subscription timeout
+		subscriptionTimeout = 30;
+
+		// Use custom credentials provider
+		if (credentials != null) {
+			credentialsProvider = new CredentialsProvider() {
+
+				@Override
+				public Credentials getCredentials() throws IOException {
+					return credentials;
+				}
+
+			};
+		}
+	}
+
+	// --- START ---
+
+	@Override
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
+
+		// Create shared executor provider
+		defaultExecutorProvider = new ExecutorProvider() {
+
+			@Override
+			public final boolean shouldAutoClose() {
+				return false;
+			}
+
+			@Override
+			public final ScheduledExecutorService getExecutor() {
+				return scheduler;
+			}
+
+		};
+	}
+
 	// --- CONNECT ---
+
+	protected final AtomicBoolean connected = new AtomicBoolean();
 
 	@Override
 	public void connect() {
 		try {
-
-			// Create Google Cloud client
 			disconnect();
-			if (System.getenv("GOOGLE_APPLICATION_CREDENTIALS") == null) {
-				throw new SecurityException("Environment property \"GOOGLE_APPLICATION_CREDENTIALS\" is missing!");
+
+			// Create topic admin
+			TopicAdminSettings.Builder topicBuilder = TopicAdminSettings.newBuilder();
+			if (credentialsProvider != null) {
+				topicBuilder.setCredentialsProvider(credentialsProvider);
 			}
+			if (executorProvider != null) {
+				topicBuilder.setExecutorProvider(executorProvider);
+			} else {
+				topicBuilder.setExecutorProvider(defaultExecutorProvider);
+			}
+			if (headerProvider != null) {
+				topicBuilder.setHeaderProvider(headerProvider);
+			}
+			if (transportChannelProvider != null) {
+				topicBuilder.setTransportChannelProvider(transportChannelProvider);
+			}
+			if (clock != null) {
+				topicBuilder.setClock(clock);
+			}
+			topicAdmin = TopicAdminClient.create(topicBuilder.build());
+
+			// Create subscription admin
+			SubscriptionAdminSettings.Builder subscriptionBuilder = SubscriptionAdminSettings.newBuilder();
+			if (credentialsProvider != null) {
+				subscriptionBuilder.setCredentialsProvider(credentialsProvider);
+			}
+			if (executorProvider != null) {
+				subscriptionBuilder.setExecutorProvider(executorProvider);
+			} else {
+				subscriptionBuilder.setExecutorProvider(defaultExecutorProvider);
+			}
+			if (headerProvider != null) {
+				subscriptionBuilder.setHeaderProvider(headerProvider);
+			}
+			if (transportChannelProvider != null) {
+				subscriptionBuilder.setTransportChannelProvider(transportChannelProvider);
+			}
+			if (clock != null) {
+				subscriptionBuilder.setClock(clock);
+			}
+			subscriptionAdmin = SubscriptionAdminClient.create(subscriptionBuilder.build());
+
 			connected();
 
+			connected.set(true);
 		} catch (Exception cause) {
 			reconnect(cause);
 		}
@@ -112,38 +250,38 @@ public class GoogleTransporter extends Transporter {
 	// --- DISCONNECT ---
 
 	protected void disconnect() {
-		boolean connected;
+		connected.set(false);
 		synchronized (publishers) {
-			connected = !publishers.isEmpty();
-		}
-		if (!connected) {
-			synchronized (subscribers) {
-				connected = !subscribers.isEmpty();
+			for (Publisher publisher : publishers.values()) {
+				try {
+					publisher.shutdown();
+				} catch (Exception ingored) {
+				}
 			}
+			publishers.clear();
 		}
-		if (connected) {
+		synchronized (subscribers) {
+			for (Subscriber subscriber : subscribers.values()) {
+				try {
+					subscriber.stopAsync();
+				} catch (Exception ingored) {
+				}
+			}
+			subscribers.clear();
+		}
+		if (topicAdmin != null) {
 			try {
-				synchronized (publishers) {
-					for (Publisher publisher : publishers.values()) {
-						try {
-							publisher.shutdown();
-						} catch (Exception ingored) {
-						}
-					}
-					publishers.clear();
-				}
-				synchronized (subscribers) {
-					for (Subscriber subscriber : subscribers.values()) {
-						try {
-							subscriber.stopAsync();
-						} catch (Exception ingored) {
-						}
-					}
-					subscribers.clear();
-				}
-			} catch (Throwable cause) {
-				logger.warn("Unexpected error occured while closing Google Cloud client!", cause);
+				topicAdmin.close();
+			} catch (Exception ingored) {
 			}
+			topicAdmin = null;
+		}
+		if (subscriptionAdmin != null) {
+			try {
+				subscriptionAdmin.close();
+			} catch (Exception ingored) {
+			}
+			subscriptionAdmin = null;
 		}
 	}
 
@@ -192,39 +330,62 @@ public class GoogleTransporter extends Transporter {
 	public Promise subscribe(String channel) {
 		try {
 
-			// Create publisher
-			getOrCreatePublisher(channel);
+			// Create topic
+			TopicName topicName = TopicName.of(projectID, channel);
+			Topic topic = null;
+			try {
+				topic = topicAdmin.getTopic(topicName);
+			} catch (NotFoundException notFound) {
+			}
+			if (topic == null) {
+				topic = topicAdmin.createTopic(topicName);
+				logger.info("Topic \"" + topic.getName() + "\" created successfully.");
+			}
+
+			// Create subscription
+			String nodeSubscription;
+			if (channel.endsWith('.' + nodeID)) {
+				nodeSubscription = channel;
+			} else {
+				nodeSubscription = channel + '-' + nodeID;
+			}
+			SubscriptionName subscriptionName = SubscriptionName.of(projectID, nodeSubscription);
+			Subscription subscription = null;
+			try {
+				subscription = subscriptionAdmin.getSubscription(subscriptionName);
+			} catch (NotFoundException notFound) {
+			}
+			if (subscription == null) {
+				subscription = subscriptionAdmin.createSubscription(subscriptionName, topicName,
+						PushConfig.getDefaultInstance(), ackDeadlineSeconds);
+				logger.info("Subscription \"" + subscription.getName() + "\" created successfully.");
+			}
 
 			// Create subscriber
 			synchronized (subscribers) {
-				if (!subscribers.containsKey(channel)) {
-					Subscriber.Builder builder = Subscriber.newBuilder(SubscriptionName.of(projectID, channel),
-							(message, consumer) -> {
+				if (!subscribers.containsKey(nodeSubscription)) {
+					Subscriber.Builder builder = Subscriber.newBuilder(subscriptionName, (message, consumer) -> {
 
-								// Message received
-								byte[] bytes = message.getData().toByteArray();
-								received(channel, bytes);
-								consumer.ack();
+						// Message received
+						try {
+							received(channel, message.getData().toByteArray());
+						} finally {
+							consumer.ack();
+						}
 
-							});
-					builder.setChannelProvider(channelProvider);
-					builder.setCredentialsProvider(credentialsProvider);
+					});
+					if (channelProvider != null) {
+						builder.setChannelProvider(channelProvider);
+					}
+					if (credentialsProvider != null) {
+						builder.setCredentialsProvider(credentialsProvider);
+					}
 					if (executorProvider != null) {
 						builder.setExecutorProvider(executorProvider);
+						builder.setSystemExecutorProvider(executorProvider);
 					} else {
-						builder.setExecutorProvider(new ExecutorProvider() {
-
-							@Override
-							public final boolean shouldAutoClose() {
-								return false;
-							}
-
-							@Override
-							public final ScheduledExecutorService getExecutor() {
-								return scheduler;
-							}
-
-						});
+						builder.setExecutorProvider(defaultExecutorProvider);
+						builder.setSystemExecutorProvider(defaultExecutorProvider);
 					}
 					if (headerProvider != null) {
 						builder.setHeaderProvider(headerProvider);
@@ -235,26 +396,14 @@ public class GoogleTransporter extends Transporter {
 					if (parallelPullCount > 0) {
 						builder.setParallelPullCount(parallelPullCount);
 					}
-					if (executorProvider != null) {
-						builder.setSystemExecutorProvider(executorProvider);
-					} else {
-						builder.setSystemExecutorProvider(new ExecutorProvider() {
-
-							@Override
-							public final boolean shouldAutoClose() {
-								return false;
-							}
-
-							@Override
-							public final ScheduledExecutorService getExecutor() {
-								return scheduler;
-							}
-
-						});
+					if (flowControlSettings != null) {
+						builder.setFlowControlSettings(flowControlSettings);
 					}
 					Subscriber subscriber = builder.build();
 					subscriber.startAsync();
-					subscribers.put(channel, subscriber);
+					subscribers.put(nodeSubscription, subscriber);
+					logger.info("Subscriber created for subscription \""
+							+ subscriber.getSubscriptionName().getSubscription() + "\".");
 				}
 			}
 
@@ -262,6 +411,24 @@ public class GoogleTransporter extends Transporter {
 			return Promise.reject(cause);
 		}
 		return Promise.resolve();
+	}
+
+	// --- PUBLISH ---
+
+	@Override
+	public void publish(String channel, Tree message) {
+		if (connected.get()) {
+			try {
+				if (debug) {
+					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
+				}
+				byte[] bytes = serializer.write(message);
+				PubsubMessage msg = PubsubMessage.newBuilder().setData(ByteString.copyFrom(bytes)).build();
+				getOrCreatePublisher(channel).publish(msg);
+			} catch (Exception cause) {
+				logger.warn("Unable to send message to Google Cloud service!", cause);
+			}
+		}
 	}
 
 	protected Publisher getOrCreatePublisher(String channel) throws Exception {
@@ -285,19 +452,7 @@ public class GoogleTransporter extends Transporter {
 			if (executorProvider != null) {
 				builder.setExecutorProvider(executorProvider);
 			} else {
-				builder.setExecutorProvider(new ExecutorProvider() {
-
-					@Override
-					public final boolean shouldAutoClose() {
-						return false;
-					}
-
-					@Override
-					public final ScheduledExecutorService getExecutor() {
-						return scheduler;
-					}
-
-				});
+				builder.setExecutorProvider(defaultExecutorProvider);
 			}
 			if (headerProvider != null) {
 				builder.setHeaderProvider(headerProvider);
@@ -309,22 +464,6 @@ public class GoogleTransporter extends Transporter {
 			publishers.put(channel, publisher);
 		}
 		return publisher;
-	}
-
-	// --- PUBLISH ---
-
-	@Override
-	public void publish(String channel, Tree message) {
-		try {
-			if (debug) {
-				logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
-			}
-			byte[] bytes = serializer.write(message);
-			PubsubMessage msg = PubsubMessage.newBuilder().setData(ByteString.copyFrom(bytes)).build();
-			getOrCreatePublisher(channel).publish(msg);
-		} catch (Exception cause) {
-			logger.warn("Unable to send message to Google Cloud service!", cause);
-		}
 	}
 
 	// --- GETTERS / SETTERS ---
@@ -401,6 +540,38 @@ public class GoogleTransporter extends Transporter {
 
 	public void setParallelPullCount(int parallelPullCount) {
 		this.parallelPullCount = parallelPullCount;
+	}
+
+	public int getAckDeadlineSeconds() {
+		return ackDeadlineSeconds;
+	}
+
+	public void setAckDeadlineSeconds(int ackDeadlineSeconds) {
+		this.ackDeadlineSeconds = ackDeadlineSeconds;
+	}
+
+	public TransportChannelProvider getTransportChannelProvider() {
+		return transportChannelProvider;
+	}
+
+	public void setTransportChannelProvider(TransportChannelProvider transportChannelProvider) {
+		this.transportChannelProvider = transportChannelProvider;
+	}
+
+	public FlowControlSettings getFlowControlSettings() {
+		return flowControlSettings;
+	}
+
+	public void setFlowControlSettings(FlowControlSettings flowControlSettings) {
+		this.flowControlSettings = flowControlSettings;
+	}
+
+	public ApiClock getClock() {
+		return clock;
+	}
+
+	public void setClock(ApiClock clock) {
+		this.clock = clock;
 	}
 
 }

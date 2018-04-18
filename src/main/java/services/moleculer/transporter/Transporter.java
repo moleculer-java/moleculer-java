@@ -105,6 +105,7 @@ public abstract class Transporter extends MoleculerComponent {
 	protected int heartbeatInterval = 5;
 	protected int heartbeatTimeout = 30;
 	protected int offlineTimeout = 180;
+	protected int subscriptionTimeout = 10;
 
 	/**
 	 * Use hostnames instead of IP addresses As the DHCP environment is dynamic,
@@ -219,6 +220,11 @@ public abstract class Transporter extends MoleculerComponent {
 	protected volatile ScheduledFuture<?> checkTimeoutTimer;
 
 	protected void connected() {
+		connected(true);
+	}
+
+	protected void connected(boolean waitFor) {
+		Promise promise = new Promise();
 		executor.execute(() -> {
 
 			// Subscribe all required channels
@@ -234,6 +240,7 @@ public abstract class Transporter extends MoleculerComponent {
 					subscribe(pingChannel), // PING
 					subscribe(pongChannel) // PONG
 			).then(in -> {
+				promise.complete();
 
 				// Redis transporter is ready for use
 				logger.info("All channels subscribed successfully.");
@@ -258,9 +265,17 @@ public abstract class Transporter extends MoleculerComponent {
 
 				logger.warn("Unable to subscribe channels!", error);
 				error(error);
+				promise.complete(error);
 
 			});
 		});
+		if (waitFor) {
+			try {
+				promise.toCompletableFuture().get(subscriptionTimeout, TimeUnit.SECONDS);
+			} catch (Exception timeout) {
+				error(timeout);
+			}
+		}
 	}
 
 	// --- STOP TRANSPORTER ---
@@ -291,16 +306,16 @@ public abstract class Transporter extends MoleculerComponent {
 	}
 
 	// --- PING PACKET ---
-	
+
 	public Tree createPingPacket(String id) {
 		FastBuildTree msg = new FastBuildTree(4);
 		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
 		msg.putUnsafe("sender", nodeID);
 		msg.putUnsafe("id", id);
-		msg.putUnsafe("source", System.currentTimeMillis());	
+		msg.putUnsafe("source", System.currentTimeMillis());
 		return msg;
 	}
-	
+
 	// --- REQUEST PACKET ---
 
 	public Tree createRequestPacket(Context ctx) {
@@ -450,7 +465,7 @@ public abstract class Transporter extends MoleculerComponent {
 					registry.receivePong(data);
 					return;
 				}
-				
+
 				// Disconnect packet
 				if (channel.equals(disconnectChannel)) {
 
@@ -481,7 +496,7 @@ public abstract class Transporter extends MoleculerComponent {
 					}
 					return;
 				}
-				
+
 			} catch (Exception cause) {
 				logger.warn("Unable to process incoming message!", cause);
 			}
@@ -616,20 +631,20 @@ public abstract class Transporter extends MoleculerComponent {
 	}
 
 	// --- SEND BROADCAST INFO PACKET ---
-	
+
 	protected final AtomicBoolean infoScheduled = new AtomicBoolean();
-	
+
 	public void broadcastInfoPacket() {
 		if (infoScheduled.compareAndSet(false, true)) {
 			scheduler.schedule(() -> {
 				infoScheduled.set(false);
 				sendInfoPacket(infoBroadcastChannel);
-			}, 1, TimeUnit.SECONDS);			
+			}, 1, TimeUnit.SECONDS);
 		}
 	}
-	
+
 	// --- GENERIC MOLECULER PACKETS ---
-	
+
 	protected void sendDiscoverPacket(String channel) {
 		FastBuildTree msg = new FastBuildTree(2);
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
@@ -889,6 +904,14 @@ public abstract class Transporter extends MoleculerComponent {
 
 	public void setPreferHostname(boolean preferHostname) {
 		this.preferHostname = preferHostname;
+	}
+
+	public int getSubscriptionTimeout() {
+		return subscriptionTimeout;
+	}
+
+	public void setSubscriptionTimeout(int subscriptionTimeout) {
+		this.subscriptionTimeout = subscriptionTimeout;
 	}
 
 }

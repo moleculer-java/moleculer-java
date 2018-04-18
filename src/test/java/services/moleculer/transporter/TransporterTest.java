@@ -46,6 +46,8 @@ public abstract class TransporterTest extends TestCase {
 
 	// --- VARIABLES ---
 
+	protected long sleep = 700;
+	
 	protected Transporter tr1;
 	protected ServiceBroker br1;
 
@@ -116,7 +118,7 @@ public abstract class TransporterTest extends TestCase {
 		
 		// Broadcast
 		br1.broadcast("test.a", new Tree());
-		Thread.sleep(1000);
+		Thread.sleep(sleep);
 		g1_a.waitFor();
 		g1_b.waitFor();
 		g2_a.waitFor();
@@ -161,7 +163,7 @@ public abstract class TransporterTest extends TestCase {
 		
 		// Emit
 		br1.emit("test.a", new Tree());
-		Thread.sleep(500);
+		Thread.sleep(sleep);
 		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
 		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
 		g1_a.payloads.clear();
@@ -171,7 +173,7 @@ public abstract class TransporterTest extends TestCase {
 		
 		// Emit to group1
 		br1.emit("test.a", new Tree(), Groups.of("group1"));
-		Thread.sleep(500);
+		Thread.sleep(sleep);
 		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
 		assertEquals(0, g2_a.payloads.size() + g2_b.payloads.size());
 		g1_a.payloads.clear();
@@ -179,7 +181,7 @@ public abstract class TransporterTest extends TestCase {
 
 		// Emit to group2
 		br1.emit("test.a", new Tree(), Groups.of("group2"));
-		Thread.sleep(500);
+		Thread.sleep(sleep);
 		assertEquals(0, g1_a.payloads.size() + g1_b.payloads.size());
 		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
 		g2_a.payloads.clear();
@@ -276,7 +278,7 @@ public abstract class TransporterTest extends TestCase {
 		br2.start();
 		
 		// Wait for connecting nodes
-		br2.waitForServices(10000, "marker").waitFor();
+		br2.waitForServices(15000, "marker").waitFor();
 	}
 
 	@Override
