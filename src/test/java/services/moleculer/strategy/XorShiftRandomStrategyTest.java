@@ -23,17 +23,18 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer;
+package services.moleculer.strategy;
 
-import org.junit.Test;
+import services.moleculer.ServiceBroker;
+import services.moleculer.service.LocalActionEndpoint;
 
-import junit.framework.TestCase;
+public class XorShiftRandomStrategyTest extends StrategyTest {
 
-public class ServiceBrokerTest extends TestCase {
-
-	@Test
-	public void testConstructor() throws Exception {
-
+	@Override
+	public Strategy<LocalActionEndpoint> createStrategy(ServiceBroker broker, boolean preferLocal) throws Exception {
+		XorShiftRandomStrategyFactory f = new XorShiftRandomStrategyFactory(preferLocal);
+		f.started(broker);
+		return f.create();
 	}
 
 }

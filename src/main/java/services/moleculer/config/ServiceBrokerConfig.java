@@ -49,8 +49,8 @@ import services.moleculer.strategy.RoundRobinStrategyFactory;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.NullTransporter;
 import services.moleculer.transporter.Transporter;
-import services.moleculer.uid.IncrementalUIDGenerator;
-import services.moleculer.uid.UIDGenerator;
+import services.moleculer.uid.IncrementalUidGenerator;
+import services.moleculer.uid.UidGenerator;
 
 public class ServiceBrokerConfig {
 
@@ -87,7 +87,7 @@ public class ServiceBrokerConfig {
 
 	// --- INTERNAL COMPONENTS ---
 
-	protected UIDGenerator uidGenerator = new IncrementalUIDGenerator();
+	protected UidGenerator uidGenerator = new IncrementalUidGenerator();
 	protected StrategyFactory strategyFactory = new RoundRobinStrategyFactory();
 	protected ContextFactory contextFactory = new DefaultContextFactory();
 	protected Eventbus eventbus = new DefaultEventbus();
@@ -240,11 +240,11 @@ public class ServiceBrokerConfig {
 		this.strategyFactory = Objects.requireNonNull(strategyFactory);
 	}
 
-	public UIDGenerator getUidGenerator() {
+	public UidGenerator getUidGenerator() {
 		return uidGenerator;
 	}
 
-	public void setUidGenerator(UIDGenerator uidGenerator) {
+	public void setUidGenerator(UidGenerator uidGenerator) {
 		this.uidGenerator = Objects.requireNonNull(uidGenerator);
 	}
 

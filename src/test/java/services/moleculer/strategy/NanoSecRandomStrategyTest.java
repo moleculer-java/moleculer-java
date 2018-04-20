@@ -23,22 +23,18 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.uid;
+package services.moleculer.strategy;
 
-import services.moleculer.service.MoleculerComponent;
-import services.moleculer.service.Name;
+import services.moleculer.ServiceBroker;
+import services.moleculer.service.LocalActionEndpoint;
 
-/**
- * Base superclass of all UID Generator implementations.
- *
- * @see IncrementalUIDGenerator
- * @see StandardUUIDGenerator
- */
-@Name("UID Generator")
-public abstract class UIDGenerator extends MoleculerComponent {
+public class NanoSecRandomStrategyTest extends StrategyTest {
 
-	// --- GENERATE UID ---
-
-	public abstract String nextUID();
+	@Override
+	public Strategy<LocalActionEndpoint> createStrategy(ServiceBroker broker, boolean preferLocal) throws Exception {
+		NanoSecRandomStrategyFactory f = new NanoSecRandomStrategyFactory(preferLocal);
+		f.started(broker);
+		return f.create();
+	}
 
 }

@@ -23,26 +23,18 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.uid;
+package services.moleculer.strategy;
 
-import java.util.UUID;
+import services.moleculer.ServiceBroker;
+import services.moleculer.service.LocalActionEndpoint;
 
-import services.moleculer.service.Name;
-
-/**
- * Slower {@link UIDGenerator} (but it produces standard UUID's). In production
- * mode preferably use the faster {@link IncrementalUIDGenerator}.
- *
- * @see IncrementalUIDGenerator
- */
-@Name("Standard UUID Generator")
-public class StandardUUIDGenerator extends UIDGenerator {
-
-	// --- GENERATE UID ---
+public class RoundRobinStrategyTest extends StrategyTest {
 
 	@Override
-	public String nextUID() {
-		return UUID.randomUUID().toString();
+	public Strategy<LocalActionEndpoint> createStrategy(ServiceBroker broker, boolean preferLocal) throws Exception {
+		RoundRobinStrategyFactory f = new RoundRobinStrategyFactory(preferLocal);
+		f.started(broker);
+		return f.create();
 	}
 
 }

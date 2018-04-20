@@ -31,7 +31,7 @@ import services.moleculer.breaker.CircuitBreaker;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.service.Name;
-import services.moleculer.uid.UIDGenerator;
+import services.moleculer.uid.UidGenerator;
 
 /**
  * Default implementation of Context Factory.
@@ -50,7 +50,7 @@ public class DefaultContextFactory extends ContextFactory {
 
 	protected CircuitBreaker circuitBreaker;
 	protected Eventbus eventbus;
-	protected UIDGenerator uid;
+	protected UidGenerator uid;
 
 	// --- START CONTEXT FACTORY ---
 

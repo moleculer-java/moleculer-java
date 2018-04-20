@@ -70,7 +70,7 @@ import services.moleculer.eventbus.Eventbus;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
-import services.moleculer.uid.UIDGenerator;
+import services.moleculer.uid.UidGenerator;
 import services.moleculer.util.FastBuildTree;
 
 /**
@@ -134,7 +134,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected ContextFactory contextFactory;
 	protected Transporter transporter;
 	protected Eventbus eventbus;
-	protected UIDGenerator uid;
+	protected UidGenerator uid;
 
 	// --- CONSTRUCTORS ---
 

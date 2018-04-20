@@ -54,7 +54,7 @@ import services.moleculer.service.Name;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.transporter.tcp.NodeDescriptor;
 import services.moleculer.transporter.tcp.RemoteAddress;
-import services.moleculer.uid.UIDGenerator;
+import services.moleculer.uid.UidGenerator;
 import services.moleculer.util.FastBuildTree;
 
 /**
@@ -129,7 +129,7 @@ public abstract class Transporter extends MoleculerComponent {
 	protected ServiceRegistry registry;
 	protected Eventbus eventbus;
 	protected Monitor monitor;
-	protected UIDGenerator uid;
+	protected UidGenerator uid;
 
 	// --- REMOTE NODES ---
 

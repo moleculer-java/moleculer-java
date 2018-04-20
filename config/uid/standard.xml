@@ -10,6 +10,6 @@
 	<!-- STANDARD UUID GENERATOR -->
 	<!-- REQUIRED DEPENDENCY: nothing -->
 	
-	<bean id="uidGenerator" class="services.moleculer.uid.StandardUUIDGenerator" />
+	<bean id="uidGenerator" class="services.moleculer.uid.StandardUidGenerator" />
 
 </beans>

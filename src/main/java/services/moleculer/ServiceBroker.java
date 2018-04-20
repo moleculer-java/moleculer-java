@@ -55,7 +55,7 @@ import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
-import services.moleculer.uid.UIDGenerator;
+import services.moleculer.uid.UidGenerator;
 import services.moleculer.util.ParseResult;
 
 /**
@@ -129,7 +129,7 @@ public class ServiceBroker {
 
 	// --- INTERNAL COMPONENTS ---
 
-	protected UIDGenerator uidGenerator;
+	protected UidGenerator uidGenerator;
 	protected StrategyFactory strategyFactory;
 	protected ContextFactory contextFactory;
 	protected CircuitBreaker circuitBreaker;

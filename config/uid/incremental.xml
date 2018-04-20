@@ -10,7 +10,7 @@
 	<!-- FAST SEQUENCE-BASED UID GENERATOR -->
 	<!-- REQUIRED DEPENDENCY: nothing -->
 	
-	<bean id="uidGenerator" class="services.moleculer.uid.IncrementalUIDGenerator">
+	<bean id="uidGenerator" class="services.moleculer.uid.IncrementalUidGenerator">
 	
 		<!-- UID prefix (empty = hostname) -->	
 		<property name="prefix" value="" />

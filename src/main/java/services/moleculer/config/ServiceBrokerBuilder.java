@@ -37,7 +37,7 @@ import services.moleculer.monitor.Monitor;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
-import services.moleculer.uid.UIDGenerator;
+import services.moleculer.uid.UidGenerator;
 
 /**
  * Builder-style ServiceBroker factory. Sample of usage:<br>
@@ -103,7 +103,7 @@ public class ServiceBrokerBuilder {
 		return this;
 	}
 
-	public ServiceBrokerBuilder uid(UIDGenerator uidGenerator) {
+	public ServiceBrokerBuilder uid(UidGenerator uidGenerator) {
 		config.setUidGenerator(uidGenerator);
 		return this;
 	}

@@ -25,6 +25,8 @@
  */
 package services.moleculer.breaker;
 
+import java.util.HashMap;
+
 import io.datatree.Tree;
 import services.moleculer.Promise;
 import services.moleculer.transporter.Transporter;
@@ -33,6 +35,8 @@ public class TestTransporter extends Transporter {
 
 	protected Tree messages = new Tree();
 	protected Tree list;
+	
+	protected final HashMap<String, Integer> cpu = new HashMap<>();
 	
 	public TestTransporter() {
 		list = messages.putList("list");
@@ -87,6 +91,23 @@ public class TestTransporter extends Transporter {
 	
 	public void clearMessages() {
 		list.clear();
+	}
+	
+	@Override
+	public int getCpuUsage(String nodeID) {
+		Integer usage = cpu.get(nodeID);
+		if (usage == null) {
+			return 0;
+		}
+		return usage.intValue();
+	}
+	
+	public void setCpuUsage(String nodeID, int usage) {
+		cpu.put(nodeID, usage);
+	}
+	
+	public void clearCpuUsages() {
+		cpu.clear();
 	}
 	
 }

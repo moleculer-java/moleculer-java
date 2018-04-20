@@ -25,69 +25,24 @@
  */
 package services.moleculer.uid;
 
-import static services.moleculer.util.CommonUtils.getHostName;
+import java.util.UUID;
 
-import java.util.concurrent.atomic.AtomicLong;
-
-import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * Fast {@link UIDGenerator}, based on nodeID and an atomic sequence number.
- * It's faster than the {@link StandardUUIDGenerator}.
+ * Slower {@link UidGenerator} (but it produces standard UUID's). In production
+ * mode preferably use the faster {@link IncrementalUidGenerator}.
  *
- * @see StandardUUIDGenerator
+ * @see IncrementalUidGenerator
  */
-@Name("Incremental UID Generator")
-public class IncrementalUIDGenerator extends UIDGenerator {
-
-	// --- HOST/NODE PREFIX ---
-
-	/**
-	 * UID prefix (empty = hostname)
-	 */
-	protected char[] prefix = (getHostName() + ':').toCharArray();
-
-	// --- SEQUENCE ---
-
-	protected final AtomicLong counter = new AtomicLong();
-
-	// --- START GENERATOR ---
-
-	/**
-	 * Initializes UID generator instance.
-	 *
-	 * @param broker
-	 *            parent ServiceBroker
-	 */
-	@Override
-	public void started(ServiceBroker broker) throws Exception {
-		super.started(broker);
-		if (prefix == null) {
-			prefix = (broker.getNodeID() + ':').toCharArray();
-		}
-	}
+@Name("Standard UUID Generator")
+public class StandardUidGenerator extends UidGenerator {
 
 	// --- GENERATE UID ---
 
 	@Override
 	public String nextUID() {
-		StringBuilder tmp = new StringBuilder(prefix.length + 16);
-		tmp.append(prefix);
-		tmp.append(counter.incrementAndGet());
-		return tmp.toString();
-	}
-
-	// --- GETTERS / SETTERS ---
-
-	public String getPrefix() {
-		return new String(prefix);
-	}
-
-	public void setPrefix(String prefix) {
-		if (prefix != null && !prefix.isEmpty()) {
-			this.prefix = prefix.toCharArray();
-		}
+		return UUID.randomUUID().toString();
 	}
 
 }
