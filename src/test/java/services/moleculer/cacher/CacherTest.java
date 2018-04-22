@@ -253,12 +253,12 @@ public abstract class CacherTest extends TestCase {
 		assertTrue(cr.get("xxx.y1").waitFor().get("e", false));
 		assertFalse(cr.get("xxx.y2").waitFor().get("r", true));
 		
-		cr.clean("y*");
+		cr.clean("y*").waitFor();
 
 		assertTrue(cr.get("xxx.y1").waitFor().get("e", false));
 		assertFalse(cr.get("xxx.y2").waitFor().get("r", true));
 
-		cr.clean("x*");
+		cr.clean("x*").waitFor();
 		
 		assertNull(cr.get("xxx.y1").waitFor());
 		assertNull(cr.get("xxx.y2").waitFor());

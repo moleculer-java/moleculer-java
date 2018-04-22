@@ -229,7 +229,12 @@ public final class RedisGetSetClient {
 		boolean singleStar = match.indexOf('*') > -1;
 		boolean doubleStar = match.contains("**");
 		if (doubleStar) {
-			args.match(match.replace("**", "*"));			
+			args.match(match.replace("**", "*"));
+		} else if (singleStar) {
+			if (match.length() > 1 && match.indexOf('.') == -1) {
+				match += '*';	
+			}
+			args.match(match);	
 		} else {
 			args.match(match);
 		}
