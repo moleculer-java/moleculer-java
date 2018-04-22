@@ -185,7 +185,7 @@ public abstract class CacherTest extends TestCase {
 		cr.set("a.b", val, 0);
 
 		val.put("rsp", 2);
-		cr.set("a.b.c", val, 0);
+		cr.set("a.b.c", val, 10000);
 
 		val.put("rsp", 3);
 		cr.set("a.b.c.d", val, 0);
@@ -241,6 +241,27 @@ public abstract class CacherTest extends TestCase {
 		
 		rsp = cr.get("large.value").waitFor();
 		assertNull(rsp);
+		
+		// 10.) Remove entire partition	
+		val.clear();
+		val.put("e", true);
+		cr.set("xxx.y1", val, 0);
+		val.clear();
+		val.put("r", false);
+		cr.set("xxx.y2", val, 10000);
+		
+		assertTrue(cr.get("xxx.y1").waitFor().get("e", false));
+		assertFalse(cr.get("xxx.y2").waitFor().get("r", true));
+		
+		cr.clean("y*");
+
+		assertTrue(cr.get("xxx.y1").waitFor().get("e", false));
+		assertFalse(cr.get("xxx.y2").waitFor().get("r", true));
+
+		cr.clean("x*");
+		
+		assertNull(cr.get("xxx.y1").waitFor());
+		assertNull(cr.get("xxx.y2").waitFor());
 	}
 	
 	@Test

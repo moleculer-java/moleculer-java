@@ -286,7 +286,9 @@ public class MemoryCacher extends Cacher implements Runnable {
 				if (match.isEmpty() || match.startsWith("*")) {
 					partitions.clear();
 				} else if (match.indexOf('*') == -1) {
-					partitions.remove(match);
+
+					// Not supported method
+					
 				} else {
 					Iterator<String> i = partitions.keySet().iterator();
 					String key;
