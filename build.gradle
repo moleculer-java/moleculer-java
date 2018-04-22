@@ -55,6 +55,13 @@ dependencies {
     testCompile 'junit:junit:4.12'
 	ecj 'org.eclipse.jdt.core.compiler:ecj:4.4.2'
 				
+	// =============== TESTING ===============
+
+
+	// https://mvnrepository.com/artifact/com.openpojo/openpojo
+	testCompile group: 'com.openpojo', name: 'openpojo', version: '0.8.10'	
+	
+	
 	// =============== LOGGING ===============
 	
 	
@@ -95,6 +102,7 @@ dependencies {
  
 	// https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/jackson-dataformat-smile
 	compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-smile', version: '2.9.0.pr3'
+ 
  
 	// =============== MONITORING ===============
 	
