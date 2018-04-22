@@ -62,13 +62,12 @@ public class PromiseTest extends TestCase {
 		assertEquals("xyz1", out.asString());
 
 		// Handle exception (uncompleted)
-		Promise root = new Promise();
-		promise = root.then(in -> {
+		promise = new Promise().then(in -> {
 			return "x";
 		}).catchError(err -> {
 			return "y";
 		});
-		root.complete(new Exception());
+		promise.complete(new Exception());
 		out = promise.waitFor();
 		assertEquals("y", out.asString());
 		
@@ -80,11 +79,10 @@ public class PromiseTest extends TestCase {
 		assertEquals("yx", out.asString());
 
 		// Change value (uncompleted)
-		root = new Promise();
-		promise = root.then(in -> {
+		promise = new Promise().then(in -> {
 			return in.asString() + "x";
 		});
-		root.complete("z");
+		promise.complete("z");
 		out = promise.waitFor();
 		assertEquals("zx", out.asString());
 
@@ -99,4 +97,86 @@ public class PromiseTest extends TestCase {
 		
 	}
 
+	@Test
+	public void testWaterfall() throws Exception {
+		Promise promise = new Promise().then(in -> {
+			
+			// Scalar processing - return int
+			return in.asInteger() + 1;
+			
+		}).then(in -> {
+			
+			// Scalar processing - return String
+			return in.asString() + "X";
+			
+		}).then(in -> {
+			
+			// Generating the first error
+			if (in.asString().equals("6X")) {
+				throw new IllegalArgumentException("Sample error");
+			}
+			return "OK";
+			
+		}).catchError(err -> {
+			
+			// Handle error
+			if (err.toString().contains("Sample error")) {
+				return 7;
+			}
+			return -1;
+			
+		}).then(in -> {
+			
+			// Processing error handler's result
+			return in.asInteger() * 2;
+			
+		}).then(in -> {
+			
+			// Second error
+			if (in.asInteger() == 14) {
+				throw new IllegalStateException("Another error");
+			}
+			return -1;
+			
+		}).catchError(err -> {
+			
+			// Second error handler
+			if (err.toString().contains("Another error")) {
+				return 5;
+			}
+			return 0;
+
+		}).then(in -> {
+			
+			// Generating JSON structure
+			Tree out = new Tree();
+			out.put("num", in.asInteger());
+			out.put("str", "abc");
+			out.put("bool", "true");
+			return out;
+			
+		}).then(in -> {
+			
+			// Modify and forward structure
+			in.put("str", "xyz");
+			return in;
+			
+		}).then(in -> {
+			
+			// Do nothing, just check the input
+			assertEquals("xyz", in.get("str", ""));
+			
+		});
+		
+		// Start waterfall
+		promise.complete(5);
+		
+		// Wait for result (in blocking style)
+		Tree result = promise.waitFor();
+
+		// Check result
+		assertEquals(5, result.get("num", -1));
+		assertTrue(result.get("bool", false));
+	}
+	
 }
