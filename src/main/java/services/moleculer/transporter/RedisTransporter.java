@@ -37,9 +37,9 @@ import com.lambdaworks.redis.event.connection.ConnectedEvent;
 import com.lambdaworks.redis.event.connection.DisconnectedEvent;
 import com.lambdaworks.redis.pubsub.RedisPubSubListener;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
 import rx.Observable;
-import services.moleculer.Promise;
 import services.moleculer.service.Name;
 import services.moleculer.util.redis.RedisPubSubClient;
 

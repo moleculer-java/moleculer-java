@@ -41,8 +41,8 @@ import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.Promise;
 import services.moleculer.service.Name;
 
 /**

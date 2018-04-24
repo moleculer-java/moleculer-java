@@ -52,13 +52,13 @@ import com.lambdaworks.redis.event.EventBus;
 import com.lambdaworks.redis.resource.DefaultClientResources;
 import com.lambdaworks.redis.resource.EventLoopGroupProvider;
 
+import io.datatree.Promise;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.DefaultEventExecutor;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.netty.util.concurrent.Future;
 import rx.Observable;
-import services.moleculer.Promise;
 import services.moleculer.eventbus.Matcher;
 
 /**

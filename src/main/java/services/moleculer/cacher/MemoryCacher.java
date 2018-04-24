@@ -34,8 +34,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.Matcher;
 import services.moleculer.service.Name;
@@ -202,7 +202,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 		} catch (Throwable cause) {
 			logger.warn("Unable to get data from cache!", cause);
 		}
-		return Promise.resolve();
+		return Promise.resolve(null);
 	}
 
 	@Override

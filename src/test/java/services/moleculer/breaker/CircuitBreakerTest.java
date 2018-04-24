@@ -40,9 +40,9 @@ import java.util.concurrent.TimeoutException;
 
 import org.junit.Test;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
 import junit.framework.TestCase;
-import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallOptions;
 import services.moleculer.monitor.ConstantMonitor;

@@ -29,6 +29,7 @@ import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
 import net.sf.xenqtt.client.AsyncClientListener;
 import net.sf.xenqtt.client.AsyncMqttClient;
@@ -39,7 +40,6 @@ import net.sf.xenqtt.client.PublishMessage;
 import net.sf.xenqtt.client.Subscription;
 import net.sf.xenqtt.message.ConnectReturnCode;
 import net.sf.xenqtt.message.QoS;
-import services.moleculer.Promise;
 import services.moleculer.service.Name;
 
 /**

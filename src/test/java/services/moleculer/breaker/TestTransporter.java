@@ -27,8 +27,8 @@ package services.moleculer.breaker;
 
 import java.util.HashMap;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.Promise;
 import services.moleculer.transporter.Transporter;
 
 public class TestTransporter extends Transporter {

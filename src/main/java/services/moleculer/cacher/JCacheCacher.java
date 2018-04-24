@@ -41,8 +41,8 @@ import javax.cache.CacheManager;
 import javax.cache.Caching;
 import javax.cache.configuration.Configuration;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.Matcher;
 import services.moleculer.serializer.JsonSerializer;
@@ -226,7 +226,7 @@ public class JCacheCacher extends DistributedCacher {
 		} catch (Throwable cause) {
 			logger.warn("Unable to get data from JCache!", cause);
 		}
-		return Promise.resolve();
+		return Promise.resolve(null);
 	}
 
 	@Override

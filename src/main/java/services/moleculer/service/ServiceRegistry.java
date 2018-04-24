@@ -27,8 +27,8 @@ package services.moleculer.service;
 
 import java.util.Collection;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.Promise;
 
 /**
  * Base superclass of all Service Registry implementations.

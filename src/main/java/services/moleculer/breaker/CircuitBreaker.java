@@ -25,8 +25,8 @@
  */
 package services.moleculer.breaker;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.Promise;
 import services.moleculer.context.CallOptions;
 import services.moleculer.context.Context;
 import services.moleculer.service.MoleculerComponent;

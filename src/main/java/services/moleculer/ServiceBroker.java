@@ -38,6 +38,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
 import services.moleculer.breaker.CircuitBreaker;
 import services.moleculer.cacher.Cacher;

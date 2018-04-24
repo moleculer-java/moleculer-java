@@ -27,7 +27,7 @@ package services.moleculer.service;
 
 import java.util.Collection;
 
-import services.moleculer.Promise;
+import io.datatree.Promise;
 
 /**
  * Promise container of a "waitingForServices" calls.

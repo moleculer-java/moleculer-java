@@ -25,8 +25,8 @@
  */
 package services.moleculer.transporter;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.Promise;
 
 /**
  * "Null" / empty transporter.

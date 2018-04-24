@@ -44,8 +44,8 @@ import org.caffinitas.ohc.CacheSerializer;
 import org.caffinitas.ohc.OHCache;
 import org.caffinitas.ohc.OHCacheBuilder;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.Matcher;
 import services.moleculer.serializer.JsonSerializer;
@@ -261,7 +261,7 @@ public class OHCacher extends Cacher {
 		} catch (Throwable cause) {
 			logger.warn("Unable to read data from off-heap cache!", cause);
 		}
-		return Promise.resolve();
+		return Promise.resolve(null);
 	}
 
 	@Override

@@ -27,8 +27,8 @@ package services.moleculer.context;
 
 import static services.moleculer.util.CommonUtils.parseParams;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.Promise;
 import services.moleculer.breaker.CircuitBreaker;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.eventbus.Groups;

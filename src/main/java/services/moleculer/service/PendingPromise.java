@@ -25,7 +25,7 @@
  */
 package services.moleculer.service;
 
-import services.moleculer.Promise;
+import io.datatree.Promise;
 
 /**
  * Promise container of a pending action calls.

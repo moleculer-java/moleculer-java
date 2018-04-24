@@ -46,13 +46,13 @@ import com.lambdaworks.redis.pubsub.api.async.RedisPubSubAsyncCommands;
 import com.lambdaworks.redis.resource.DefaultClientResources;
 import com.lambdaworks.redis.resource.EventLoopGroupProvider;
 
+import io.datatree.Promise;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.DefaultEventExecutor;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.netty.util.concurrent.Future;
 import rx.Observable;
-import services.moleculer.Promise;
 
 /**
  * Promise-based pub/sub Redis client.

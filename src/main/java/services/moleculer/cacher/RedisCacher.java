@@ -40,9 +40,9 @@ import com.lambdaworks.redis.event.EventBus;
 import com.lambdaworks.redis.event.connection.ConnectedEvent;
 import com.lambdaworks.redis.event.connection.DisconnectedEvent;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
 import rx.Observable;
-import services.moleculer.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.serializer.JsonSerializer;
@@ -224,13 +224,13 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 							}
 						}
 					}
-					return Promise.resolve();
+					return Promise.resolve(null);
 				});
 			} catch (Exception cause) {
 				logger.warn("Unable to get data from Redis!", cause);
 			}
 		}
-		return Promise.resolve();
+		return Promise.resolve(null);
 	}
 
 	@Override

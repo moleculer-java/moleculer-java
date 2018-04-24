@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.SSLContext;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
 import io.nats.client.Connection;
 import io.nats.client.ConnectionEvent;
@@ -38,7 +39,6 @@ import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.Nats;
 import io.nats.client.Options;
-import services.moleculer.Promise;
 import services.moleculer.service.Name;
 
 /**
