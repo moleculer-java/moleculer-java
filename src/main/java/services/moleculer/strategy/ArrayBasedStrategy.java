@@ -51,8 +51,6 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 	// --- CACHE ---
 
 	protected final Cache<String, Endpoint[]> endpointCache = new Cache<>(1024, true);
-
-	protected T cachedLocalEndpoint;
 	
 	// --- PROPERTIES ---
 
@@ -90,11 +88,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 		}
 
 		// Remove from cache
-		String targetID = endpoint.getNodeID();
-		endpointCache.remove(targetID);
-		if (targetID.equals(nodeID)) {
-			cachedLocalEndpoint = null;
-		}
+		endpointCache.remove(endpoint.getNodeID());
 	}
 
 	// --- REMOVE ALL ENDPOINTS OF THE SPECIFIED NODE ---
@@ -122,9 +116,6 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 		// Remove from cache
 		if (found) {
 			endpointCache.remove(nodeID);
-			if (this.nodeID.equals(nodeID)) {
-				cachedLocalEndpoint = null;
-			}
 		}
 		return found;
 	}
@@ -143,14 +134,9 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 	public T getEndpoint(String nodeID) {
 		Endpoint[] array;
 		if (nodeID == null && preferLocal) {
-			if (cachedLocalEndpoint != null) {
-				return cachedLocalEndpoint;
-			}
 			array = getEndpointsByNodeID(this.nodeID);
 			if (array.length == 0) {
 				array = endpoints;
-			} else {
-				cachedLocalEndpoint = (T) array[0];
 			}
 		} else {
 			array = getEndpointsByNodeID(nodeID);
