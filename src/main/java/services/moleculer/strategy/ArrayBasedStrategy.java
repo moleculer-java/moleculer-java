@@ -52,6 +52,8 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 
 	protected final Cache<String, Endpoint[]> endpointCache = new Cache<>(1024, true);
 
+	protected T cachedLocalEndpoint;
+	
 	// --- PROPERTIES ---
 
 	protected final String nodeID;
@@ -134,9 +136,14 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 	public T getEndpoint(String nodeID) {
 		Endpoint[] array;
 		if (nodeID == null && preferLocal) {
+			if (cachedLocalEndpoint != null) {
+				return cachedLocalEndpoint;
+			}
 			array = getEndpointsByNodeID(this.nodeID);
 			if (array.length == 0) {
 				array = endpoints;
+			} else {
+				cachedLocalEndpoint = (T) array[0];
 			}
 		} else {
 			array = getEndpointsByNodeID(nodeID);

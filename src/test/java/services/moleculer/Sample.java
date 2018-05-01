@@ -32,7 +32,6 @@ import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
-import services.moleculer.transporter.TcpTransporter;
 
 public class Sample {
 
@@ -42,9 +41,9 @@ public class Sample {
 
 			ServiceBrokerConfig cfg = new ServiceBrokerConfig();
 
-			TcpTransporter t = new TcpTransporter();
-			t.setDebug(false);
-			cfg.setTransporter(t);
+			// TcpTransporter t = new TcpTransporter();
+			// t.setDebug(false);
+			// cfg.setTransporter(t);
 
 			ServiceBroker broker = new ServiceBroker(cfg);
 
@@ -52,7 +51,19 @@ public class Sample {
 			broker.createService(math);
 			broker.start();
 
+			Tree in = new Tree();
+			in.put("a", 3);
+			in.put("b", 3);
 
+			int max = 1000000;
+			long start = System.currentTimeMillis();
+			for (int i = 0; i < max; i++) {
+				broker.broadcast("foo.test", in);
+			}
+			System.out.println(System.currentTimeMillis() - start);
+			
+			broker.stop();
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -63,21 +74,12 @@ public class Sample {
 	public static class MathService extends Service {
 
 		public Action add = ctx -> {
-
-			// broker.getLogger().info("Call " + ctx.params);
-			
-			Tree res = new Tree();
-			
-			res.put("res", ctx.params.get("a", 0) + ctx.params.get("b", 0));
-			res.put("count", ctx.params.get("count").asInteger());
-			
-			return res;
-
+			return ctx.params.get("a", 0) + ctx.params.get("b", 0);
 		};
 
 		@Subscribe("foo.*")
 		public Listener listener = payload -> {
-			System.out.println("Received: " + payload);
+			//System.out.println("Received: " + payload);
 		};
 
 	};

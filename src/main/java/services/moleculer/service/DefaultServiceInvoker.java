@@ -37,6 +37,7 @@ import services.moleculer.context.ContextFactory;
 /**
  * Default service invoker with retry logic.
  */
+@Name("Default Service Invoker")
 public class DefaultServiceInvoker extends ServiceInvoker {
 
 	// --- COMPONENTS ---
