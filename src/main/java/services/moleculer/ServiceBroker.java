@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.breaker.CircuitBreaker;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.config.ServiceBrokerBuilder;
 import services.moleculer.config.ServiceBrokerConfig;
@@ -53,6 +52,7 @@ import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.MoleculerComponent;
 import services.moleculer.service.Service;
+import services.moleculer.service.ServiceInvoker;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
@@ -133,7 +133,7 @@ public class ServiceBroker {
 	protected UidGenerator uidGenerator;
 	protected StrategyFactory strategyFactory;
 	protected ContextFactory contextFactory;
-	protected CircuitBreaker circuitBreaker;
+	protected ServiceInvoker serviceInvoker;
 	protected Eventbus eventbus;
 	protected ServiceRegistry serviceRegistry;
 	protected Transporter transporter;
@@ -202,7 +202,7 @@ public class ServiceBroker {
 			uidGenerator = start(config.getUidGenerator());
 			strategyFactory = start(config.getStrategyFactory());
 			contextFactory = start(config.getContextFactory());
-			circuitBreaker = start(config.getCircuitBreaker());
+			serviceInvoker = start(config.getServiceInvoker());
 			eventbus = start(config.getEventbus());
 			serviceRegistry = start(config.getServiceRegistry());
 			transporter = start(config.getTransporter());			
@@ -266,7 +266,7 @@ public class ServiceBroker {
 		stop(transporter);
 		stop(serviceRegistry);
 		stop(eventbus);
-		stop(circuitBreaker);
+		stop(serviceInvoker);
 		stop(contextFactory);
 		stop(strategyFactory);
 		stop(uidGenerator);
@@ -383,15 +383,15 @@ public class ServiceBroker {
 	 */
 	public Promise call(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		return circuitBreaker.call(name, res.data, res.opts, null);
+		return serviceInvoker.call(name, res.data, res.opts, null);
 	}
 
 	public Promise call(String name, Tree params) {
-		return circuitBreaker.call(name, params, null, null);
+		return serviceInvoker.call(name, params, null, null);
 	}
 
 	public Promise call(String name, Tree params, CallOptions.Options opts) {
-		return circuitBreaker.call(name, params, opts, null);
+		return serviceInvoker.call(name, params, opts, null);
 	}
 
 	// --- EMIT EVENT TO EVENT GROUP ---

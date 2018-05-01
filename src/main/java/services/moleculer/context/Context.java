@@ -29,9 +29,9 @@ import static services.moleculer.util.CommonUtils.parseParams;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.breaker.CircuitBreaker;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.eventbus.Groups;
+import services.moleculer.service.ServiceInvoker;
 import services.moleculer.util.ParseResult;
 
 public class Context {
@@ -77,16 +77,16 @@ public class Context {
 
 	// --- COMPONENTS ---
 
-	protected final CircuitBreaker circuitBreaker;
+	protected final ServiceInvoker serviceInvoker;
 	protected final Eventbus eventbus;
 
 	// --- CONSTRUCTORS ---
 
-	public Context(CircuitBreaker circuitBreaker, Eventbus eventbus, String id, String name, Tree params,
+	public Context(ServiceInvoker serviceInvoker, Eventbus eventbus, String id, String name, Tree params,
 			CallOptions.Options opts) {
 
 		// Set components
-		this.circuitBreaker = circuitBreaker;
+		this.serviceInvoker = serviceInvoker;
 		this.eventbus = eventbus;
 
 		// Set properties
@@ -104,7 +104,7 @@ public class Context {
 	public Context(String id, String name, Tree params, CallOptions.Options opts, Context parent) {
 
 		// Set components
-		this.circuitBreaker = parent.circuitBreaker;
+		this.serviceInvoker = parent.serviceInvoker;
 		this.eventbus = parent.eventbus;
 
 		// Set properties
@@ -136,15 +136,15 @@ public class Context {
 	 */
 	public Promise call(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		return circuitBreaker.call(name, res.data, res.opts, this);
+		return serviceInvoker.call(name, res.data, res.opts, this);
 	}
 
 	public Promise call(String name, Tree params) {
-		return circuitBreaker.call(name, params, null, this);
+		return serviceInvoker.call(name, params, null, this);
 	}
 
 	public Promise call(String name, Tree params, CallOptions.Options opts) {
-		return circuitBreaker.call(name, params, opts, this);
+		return serviceInvoker.call(name, params, opts, this);
 	}
 
 	// --- EMIT EVENT TO EVENT GROUP ---

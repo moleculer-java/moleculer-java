@@ -27,10 +27,10 @@ package services.moleculer.context;
 
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
-import services.moleculer.breaker.CircuitBreaker;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.service.Name;
+import services.moleculer.service.ServiceInvoker;
 import services.moleculer.uid.UidGenerator;
 
 /**
@@ -48,7 +48,7 @@ public class DefaultContextFactory extends ContextFactory {
 
 	// --- COMPONENTS ---
 
-	protected CircuitBreaker circuitBreaker;
+	protected ServiceInvoker serviceInvoker;
 	protected Eventbus eventbus;
 	protected UidGenerator uid;
 
@@ -68,7 +68,7 @@ public class DefaultContextFactory extends ContextFactory {
 
 		// Set components
 		ServiceBrokerConfig cfg = broker.getConfig();
-		circuitBreaker = cfg.getCircuitBreaker();
+		serviceInvoker = cfg.getServiceInvoker();
 		eventbus = cfg.getEventbus();
 		uid = cfg.getUidGenerator();
 	}
@@ -83,7 +83,7 @@ public class DefaultContextFactory extends ContextFactory {
 
 		// Create new Context
 		if (parent == null) {
-			return new Context(circuitBreaker, eventbus, id, name, params, opts);
+			return new Context(serviceInvoker, eventbus, id, name, params, opts);
 		}
 
 		// Merge meta block

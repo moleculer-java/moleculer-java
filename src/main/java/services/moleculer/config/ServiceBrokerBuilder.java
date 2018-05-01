@@ -29,11 +29,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 import services.moleculer.ServiceBroker;
-import services.moleculer.breaker.CircuitBreaker;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.monitor.Monitor;
+import services.moleculer.service.ServiceInvoker;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.transporter.Transporter;
@@ -128,8 +128,8 @@ public class ServiceBrokerBuilder {
 		return this;
 	}
 
-	public ServiceBrokerBuilder breaker(CircuitBreaker circuitBreaker) {
-		config.setCircuitBreaker(circuitBreaker);
+	public ServiceBrokerBuilder invoker(ServiceInvoker invoker) {
+		config.setServiceInvoker(invoker);
 		return this;
 	}
 

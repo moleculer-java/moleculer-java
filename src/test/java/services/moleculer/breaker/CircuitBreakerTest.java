@@ -58,7 +58,7 @@ public class CircuitBreakerTest extends TestCase {
 	protected TestTransporter tr;
 	protected DefaultServiceRegistry sr;
 	protected ServiceBroker br;
-	protected DefaultCircuitBreaker cb;
+	protected CircuitBreaker cb;
 
 	// --- TEST METHODS ---
 
@@ -332,9 +332,8 @@ public class CircuitBreakerTest extends TestCase {
 	protected void setUp() throws Exception {
 		sr = new DefaultServiceRegistry();
 		tr = new TestTransporter();
-		cb = new DefaultCircuitBreaker();
+		cb = new CircuitBreaker();
 		cb.setMaxErrors(3);
-		cb.setEnabled(true);
 		ExecutorService ex = new ExecutorService() {
 
 			@Override
@@ -414,7 +413,7 @@ public class CircuitBreakerTest extends TestCase {
 
 		};
 		br = ServiceBroker.builder().monitor(new ConstantMonitor()).registry(sr).transporter(tr).nodeID("local")
-				.breaker(cb).executor(ex).build();
+				.invoker(cb).executor(ex).build();
 		br.start();
 		for (int i = 0; i < 10; i++) {
 			Tree root = new Tree();			

@@ -33,8 +33,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledExecutorService;
 
-import services.moleculer.breaker.CircuitBreaker;
-import services.moleculer.breaker.DefaultCircuitBreaker;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.cacher.MemoryCacher;
 import services.moleculer.context.ContextFactory;
@@ -43,7 +41,9 @@ import services.moleculer.eventbus.DefaultEventbus;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.monitor.Monitor;
+import services.moleculer.service.DefaultServiceInvoker;
 import services.moleculer.service.DefaultServiceRegistry;
+import services.moleculer.service.ServiceInvoker;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.RoundRobinStrategyFactory;
 import services.moleculer.strategy.StrategyFactory;
@@ -93,7 +93,7 @@ public class ServiceBrokerConfig {
 	protected Eventbus eventbus = new DefaultEventbus();
 	protected ServiceRegistry serviceRegistry = new DefaultServiceRegistry();
 	protected Cacher cacher = new MemoryCacher();
-	protected CircuitBreaker circuitBreaker = new DefaultCircuitBreaker();
+	protected ServiceInvoker serviceInvoker = new DefaultServiceInvoker();
 
 	protected Transporter transporter;
 	protected Monitor monitor;
@@ -291,12 +291,12 @@ public class ServiceBrokerConfig {
 		this.transporter = transporter;
 	}
 
-	public CircuitBreaker getCircuitBreaker() {
-		return circuitBreaker;
+	public ServiceInvoker getServiceInvoker() {
+		return serviceInvoker;
 	}
 
-	public void setCircuitBreaker(CircuitBreaker circuitBreaker) {
-		this.circuitBreaker = Objects.requireNonNull(circuitBreaker);
+	public void setServiceInvoker(ServiceInvoker serviceInvoker) {
+		this.serviceInvoker = Objects.requireNonNull(serviceInvoker);
 	}
 
 }
