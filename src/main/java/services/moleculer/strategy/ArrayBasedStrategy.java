@@ -90,7 +90,11 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 		}
 
 		// Remove from cache
-		endpointCache.remove(endpoint.getNodeID());
+		String targetID = endpoint.getNodeID();
+		endpointCache.remove(targetID);
+		if (targetID.equals(nodeID)) {
+			cachedLocalEndpoint = null;
+		}
 	}
 
 	// --- REMOVE ALL ENDPOINTS OF THE SPECIFIED NODE ---
@@ -118,6 +122,9 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 		// Remove from cache
 		if (found) {
 			endpointCache.remove(nodeID);
+			if (this.nodeID.equals(nodeID)) {
+				cachedLocalEndpoint = null;
+			}
 		}
 		return found;
 	}
