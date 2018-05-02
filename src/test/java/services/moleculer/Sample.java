@@ -55,10 +55,10 @@ public class Sample {
 			in.put("a", 3);
 			in.put("b", 3);
 
-			int max = 1000000;
+			int max = 1000000 * 5 * 60;
 			long start = System.currentTimeMillis();
 			for (int i = 0; i < max; i++) {
-				broker.broadcast("foo.test", in);
+				broker.call("math.add", in).waitFor();
 			}
 			System.out.println(System.currentTimeMillis() - start);
 			

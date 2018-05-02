@@ -202,7 +202,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 		} catch (Throwable cause) {
 			logger.warn("Unable to get data from cache!", cause);
 		}
-		return Promise.resolve(null);
+		return Promise.resolve((Object) null);
 	}
 
 	@Override

@@ -224,13 +224,13 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 							}
 						}
 					}
-					return Promise.resolve(null);
+					return Promise.resolve((Object) null);
 				});
 			} catch (Exception cause) {
 				logger.warn("Unable to get data from Redis!", cause);
 			}
 		}
-		return Promise.resolve(null);
+		return Promise.resolve((Object) null);
 	}
 
 	@Override

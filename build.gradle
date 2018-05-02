@@ -89,9 +89,9 @@ dependencies {
     // --- PROMISE API ---
     
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-promise   
-	compile group: 'com.github.berkesa', name: 'datatree-promise', version: '1.0.1'
+	compile group: 'com.github.berkesa', name: 'datatree-promise', version: '1.0.2'
 
-    // --- SERIALIZER APIS ---    
+    // --- SERIALIZER APIS ---
    
 	// https://mvnrepository.com/artifact/de.undercouch/bson4jackson
 	compile group: 'de.undercouch', name: 'bson4jackson', version: '2.9.0'

@@ -226,7 +226,7 @@ public class JCacheCacher extends DistributedCacher {
 		} catch (Throwable cause) {
 			logger.warn("Unable to get data from JCache!", cause);
 		}
-		return Promise.resolve(null);
+		return Promise.resolve((Object) null);
 	}
 
 	@Override

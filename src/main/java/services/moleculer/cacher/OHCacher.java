@@ -261,7 +261,7 @@ public class OHCacher extends Cacher {
 		} catch (Throwable cause) {
 			logger.warn("Unable to read data from off-heap cache!", cause);
 		}
-		return Promise.resolve(null);
+		return Promise.resolve((Object) null);
 	}
 
 	@Override
