@@ -205,8 +205,8 @@ public class ServiceBroker {
 			serviceInvoker = start(config.getServiceInvoker());
 			eventbus = start(config.getEventbus());
 			serviceRegistry = start(config.getServiceRegistry());
-			transporter = start(config.getTransporter());			
-			
+			transporter = start(config.getTransporter());
+
 			// Register enqued middlewares
 			Cacher cacher = config.getCacher();
 			if (cacher != null) {

@@ -38,7 +38,7 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 	// --- LOGGER ---
 
 	protected static final Logger logger = LoggerFactory.getLogger(ActionEndpoint.class);
-	
+
 	// --- CONFIGURATION OF ACTION ---
 
 	protected final Tree config;
@@ -46,10 +46,14 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 	protected final int hashCode;
 
 	protected final String name;
-	
+
 	// --- ACTION WITH MIDDLEWARES ---
 
 	protected Action current;
+
+	// --- APPLIED MIDDLEWARES ---
+
+	protected HashSet<Middleware> checkedMiddlewares = new HashSet<>(32);
 
 	// --- CONSTRUCTOR ---
 
@@ -68,8 +72,6 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 	}
 
 	// --- APPLY MIDDLEWARE ---
-
-	protected HashSet<Middleware> checkedMiddlewares = new HashSet<>(32);
 
 	public boolean use(Middleware middleware) {
 		if (checkedMiddlewares.add(middleware)) {
@@ -105,10 +107,7 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 		if (!nodeID.equals(other.nodeID)) {
 			return false;
 		}
-		if (!name.equals(other.name)) {
-			return false;
-		}
-		return true;
+		return name.equals(other.name);
 	}
 
 	// --- PROPERTY GETTERS ---

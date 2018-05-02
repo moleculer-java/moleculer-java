@@ -59,11 +59,6 @@ public class FastLogFormatter extends Formatter {
 
 	protected volatile int position = 83;
 
-	// --- CONSTRUCTOR ---
-
-	public FastLogFormatter() {
-	}
-
 	// --- FORMATTER ---
 
 	public String format(LogRecord record) {

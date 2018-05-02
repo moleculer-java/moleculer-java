@@ -232,9 +232,9 @@ public final class RedisGetSetClient {
 			args.match(match.replace("**", "*"));
 		} else if (singleStar) {
 			if (match.length() > 1 && match.indexOf('.') == -1) {
-				match += '*';	
+				match += '*';
 			}
-			args.match(match);	
+			args.match(match);
 		} else {
 			args.match(match);
 		}
@@ -250,7 +250,8 @@ public final class RedisGetSetClient {
 		return Promise.resolve();
 	}
 
-	private final CompletionStage<Object> clean(RedisFuture<KeyScanCursor<byte[]>> future, ScanArgs args, String match) {
+	private final CompletionStage<Object> clean(RedisFuture<KeyScanCursor<byte[]>> future, ScanArgs args,
+			String match) {
 		return future.thenCompose(keyScanCursor -> {
 			List<byte[]> keys = keyScanCursor.getKeys();
 			if (keys == null || keys.isEmpty()) {
@@ -271,10 +272,10 @@ public final class RedisGetSetClient {
 			keys.toArray(array);
 			return client.del(array).thenApply(nul -> keyScanCursor);
 		}).thenApply(keyScanCursor -> {
-			if (((KeyScanCursor<byte[]>)keyScanCursor).isFinished()) {
+			if (((KeyScanCursor<byte[]>) keyScanCursor).isFinished()) {
 				return null;
 			}
-			return ((KeyScanCursor<byte[]>)keyScanCursor).getCursor();
+			return ((KeyScanCursor<byte[]>) keyScanCursor).getCursor();
 		}).thenCompose(currentCursor -> {
 			if (currentCursor == null) {
 				return CompletableFuture.completedFuture(null);
@@ -318,7 +319,7 @@ public final class RedisGetSetClient {
 
 	// --- CONFIG PARSER ---
 
-	static final List<RedisURI> parseURLs(String[] urls, String password, boolean secure) {
+	protected static final List<RedisURI> parseURLs(String[] urls, String password, boolean secure) {
 		ArrayList<RedisURI> list = new ArrayList<>(urls.length);
 		for (String url : urls) {
 			url = url.trim();

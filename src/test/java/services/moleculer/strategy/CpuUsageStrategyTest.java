@@ -40,7 +40,7 @@ public class CpuUsageStrategyTest extends StrategyTest {
 		f.started(broker);
 		return f.create();
 	}
-	
+
 	// --- TEST METHODS ---
 
 	@Test
@@ -49,13 +49,13 @@ public class CpuUsageStrategyTest extends StrategyTest {
 		ConstantMonitor cm = new ConstantMonitor();
 		ServiceBroker broker = ServiceBroker.builder().nodeID("node1").transporter(tr).monitor(cm).build();
 		broker.start();
-		
+
 		Strategy<LocalActionEndpoint> s = createStrategy(broker, false);
 		for (int i = 1; i <= 6; i++) {
 			s.addEndpoint(createEndpoint("node" + i, "e" + i));
 			tr.setCpuUsage("node" + i, i * 10);
 		}
-		
+
 		assertEquals(6, s.getAllEndpoints().size());
 		double sum = 0;
 		for (int i = 0; i < 200; i++) {
@@ -67,5 +67,5 @@ public class CpuUsageStrategyTest extends StrategyTest {
 
 		broker.stop();
 	}
-	
+
 }

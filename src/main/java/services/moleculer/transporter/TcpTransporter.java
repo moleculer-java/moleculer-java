@@ -29,6 +29,7 @@ import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.parseURLs;
 import static services.moleculer.util.CommonUtils.readTree;
 
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.InetAddress;
@@ -166,6 +167,52 @@ public class TcpTransporter extends Transporter {
 	 */
 	protected boolean udpBroadcast = false;
 
+	/**
+	 * Random generator.
+	 */
+	protected final Random rnd = new Random();
+
+	/**
+	 * Cancelable timer of gossiper
+	 */
+	protected volatile ScheduledFuture<?> gossiperTimer;
+
+	/**
+	 * Socket reader
+	 */
+	protected TcpReader reader;
+
+	/**
+	 * Socket writer
+	 */
+	protected TcpWriter writer;
+
+	/**
+	 * UDP broadcaster
+	 */
+	protected UDPLocator locator;
+
+	/**
+	 * Current TCP port
+	 */
+	protected int currentPort;
+
+	// --- LOCAL NODE'S DESCRIPTOR ---
+
+	/**
+	 * Current node descriptor
+	 */
+	protected NodeDescriptor cachedDescriptor;
+
+	/**
+	 * Current node descriptor
+	 */
+	protected AtomicLong timestamp = new AtomicLong();
+
+	// --- CACHED GOSSIP HELLO MESSAGE ---
+
+	protected byte[] cachedHelloMessage;
+
 	// --- CONSTUCTORS ---
 
 	/**
@@ -201,31 +248,6 @@ public class TcpTransporter extends Transporter {
 	}
 
 	// --- CONNECT ---
-
-	/**
-	 * Cancelable timer of gossiper
-	 */
-	protected volatile ScheduledFuture<?> gossiperTimer;
-
-	/**
-	 * Socket reader
-	 */
-	protected TcpReader reader;
-
-	/**
-	 * Socket writer
-	 */
-	protected TcpWriter writer;
-
-	/**
-	 * UDP broadcaster
-	 */
-	protected UDPLocator locator;
-
-	/**
-	 * Current TCP port
-	 */
-	protected int currentPort;
 
 	@Override
 	public void connect() {
@@ -571,6 +593,8 @@ public class TcpTransporter extends Transporter {
 
 	@Override
 	protected void sendDisconnectPacket() {
+
+		// Do nothing
 	}
 
 	// --- SUBSCRIBE (UNUSED) ---
@@ -647,7 +671,7 @@ public class TcpTransporter extends Transporter {
 
 				// Check size
 				if (maxPacketSize > 0 && packet.length > maxPacketSize) {
-					throw new Exception("Outgoing packet is larger than the \"maxPacketSize\" limit (" + packet.length
+					throw new IOException("Outgoing packet is larger than the \"maxPacketSize\" limit (" + packet.length
 							+ " > " + maxPacketSize + ")!");
 				}
 
@@ -682,16 +706,6 @@ public class TcpTransporter extends Transporter {
 	}
 
 	// --- LOCAL NODE'S DESCRIPTOR ---
-
-	/**
-	 * Current node descriptor
-	 */
-	protected NodeDescriptor cachedDescriptor;
-
-	/**
-	 * Current node descriptor
-	 */
-	protected AtomicLong timestamp = new AtomicLong();
 
 	public NodeDescriptor getDescriptor() {
 		cachedDescriptor.writeLock.lock();
@@ -813,11 +827,6 @@ public class TcpTransporter extends Transporter {
 	// --- SEND GOSSIP REQUEST TO RANDOM NODES ---
 
 	/**
-	 * Random generator.
-	 */
-	protected Random rnd = new Random();
-
-	/**
 	 * Create and send a Gossip request packet.
 	 */
 	protected Tree sendGossipRequest() {
@@ -837,7 +846,7 @@ public class TcpTransporter extends Transporter {
 			if (nodes.isEmpty()) {
 				return null;
 			}
-			
+
 			// Add "online" and "offline" blocks
 			Collection<NodeDescriptor> descriptors = nodes.values();
 			int size = nodes.size() + 32;
@@ -896,7 +905,7 @@ public class TcpTransporter extends Transporter {
 					node.readLock.unlock();
 				}
 			}
-			
+
 			// Create gossip request
 			FastBuildTree root = new FastBuildTree(4);
 			root.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
@@ -1106,7 +1115,7 @@ public class TcpTransporter extends Transporter {
 		FastBuildTree root = new FastBuildTree(4);
 		root.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
 		root.putUnsafe("sender", nodeID);
-		
+
 		// Remove empty blocks
 		boolean emptyOnlineBlock = onlineRsp.isEmpty();
 		boolean emptyOfflineBlock = offlineRsp.isEmpty();
@@ -1138,7 +1147,7 @@ public class TcpTransporter extends Transporter {
 			logger.info("Node \"" + node.nodeID + "\" disconnected.");
 			broadcastNodeDisconnected(node.info, true);
 		}
-		
+
 		// For unit testing
 		return root;
 	}
@@ -1274,8 +1283,6 @@ public class TcpTransporter extends Transporter {
 
 	// --- GOSSIP HELLO MESSAGE ---
 
-	protected byte[] cachedHelloMessage;
-
 	/**
 	 * Create Gossip HELLO packet. Hello message is invariable, so we can cache
 	 * it.
@@ -1305,8 +1312,10 @@ public class TcpTransporter extends Transporter {
 
 	@Override
 	public void broadcastInfoPacket() {
+
+		// Do nothing
 	}
-	
+
 	@Override
 	public void setHeartbeatInterval(int heartbeatInterval) {
 		throw new UnsupportedOperationException();

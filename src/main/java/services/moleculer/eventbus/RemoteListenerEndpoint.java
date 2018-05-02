@@ -35,21 +35,22 @@ import services.moleculer.util.FastBuildTree;
 public class RemoteListenerEndpoint extends ListenerEndpoint {
 
 	// --- PROPERTIES ---
-	
+
 	protected final String currentNodeID;
-	
+
 	// --- COMPONENTS ---
 
 	protected Transporter transporter;
 
 	// --- CONSTRUCTOR ---
-	
-	protected RemoteListenerEndpoint(Transporter transporter, String nodeID, String service, String group, String subscribe) {
+
+	protected RemoteListenerEndpoint(Transporter transporter, String nodeID, String service, String group,
+			String subscribe) {
 		super(nodeID, service, group, subscribe);
-		
+
 		// Set properties
-		currentNodeID = transporter.getBroker().getNodeID(); 
-		
+		currentNodeID = transporter.getBroker().getNodeID();
+
 		// Set components
 		this.transporter = transporter;
 	}

@@ -36,9 +36,9 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallOptions;
+import services.moleculer.context.CallOptions.Options;
 import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
-import services.moleculer.context.CallOptions.Options;
 import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.Name;
 import services.moleculer.service.ServiceInvoker;
@@ -227,11 +227,11 @@ public class CircuitBreaker extends ServiceInvoker {
 
 	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, Context parent,
 			String targetID, int remaining) {
-		remaining--;
-		logger.warn("Retrying request (" + remaining + " attempts left)...", cause);
-		return call(name, params, opts, parent, targetID, remaining);
+		int newRemaining = remaining - 1;
+		logger.warn("Retrying request (" + newRemaining + " attempts left)...", cause);
+		return call(name, params, opts, parent, targetID, newRemaining);
 	}
-	
+
 	protected void increment(ErrorCounter errorCounter, EndpointKey endpointKey, Throwable cause, long now) {
 		if (endpointKey != null) {
 

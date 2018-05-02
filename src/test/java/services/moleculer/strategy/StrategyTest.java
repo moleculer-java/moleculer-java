@@ -39,22 +39,24 @@ import services.moleculer.service.Action;
 import services.moleculer.service.LocalActionEndpoint;
 
 public abstract class StrategyTest extends TestCase {
-	
+
 	// --- STRATEGY FACTORY ---
-	
-	protected abstract Strategy<LocalActionEndpoint> createStrategy(ServiceBroker broker, boolean preferLocal) throws Exception;
-	
+
+	protected abstract Strategy<LocalActionEndpoint> createStrategy(ServiceBroker broker, boolean preferLocal)
+			throws Exception;
+
 	// --- TEST METHODS ---
 
 	@Test
 	public void testStrategy() throws Exception {
 		TestTransporter tr = new TestTransporter();
-		ServiceBroker broker = ServiceBroker.builder().nodeID("node1").transporter(tr).monitor(new ConstantMonitor()).build();
+		ServiceBroker broker = ServiceBroker.builder().nodeID("node1").transporter(tr).monitor(new ConstantMonitor())
+				.build();
 		broker.start();
-		
+
 		simpleTest(broker, true);
 		simpleTest(broker, false);
-		
+
 		Strategy<LocalActionEndpoint> s = createStrategy(broker, true);
 		for (int i = 1; i <= 6; i++) {
 			s.addEndpoint(createEndpoint(i < 4 ? "node1" : "node2", "e" + i));
@@ -92,15 +94,15 @@ public abstract class StrategyTest extends TestCase {
 			assertNull(s.getEndpoint("node2"));
 		}
 		assertEquals(0, s.getAllEndpoints().size());
-		
+
 		broker.stop();
 	}
-	
+
 	protected void simpleTest(ServiceBroker broker, boolean preferLocal) throws Exception {
 		Strategy<LocalActionEndpoint> s = createStrategy(broker, preferLocal);
 		for (int i = 1; i <= 5; i++) {
 			s.addEndpoint(createEndpoint("node1", "e" + i));
-		}		
+		}
 		assertEquals(5, s.getAllEndpoints().size());
 		HashSet<LocalActionEndpoint> set1 = new HashSet<>();
 		HashSet<LocalActionEndpoint> set2 = new HashSet<>();
@@ -108,24 +110,24 @@ public abstract class StrategyTest extends TestCase {
 			LocalActionEndpoint ep = s.getEndpoint(null);
 			if (i > 0 && i % 10 == 0) {
 				assertTrue(set2.size() > 1);
-				set2.clear();				
+				set2.clear();
 			}
 			set2.add(ep);
 			set1.add(ep);
 		}
 		assertEquals(5, set1.size());
 	}
-	
+
 	protected LocalActionEndpoint createEndpoint(String nodeID, String name) {
 		Tree cfg = new Tree();
 		cfg.put("name", name);
 		LocalActionEndpoint e = new LocalActionEndpoint(nodeID, cfg, new Action() {
-			
+
 			@Override
 			public Object handler(Context ctx) throws Exception {
 				return null;
 			}
-			
+
 		});
 		return e;
 	}

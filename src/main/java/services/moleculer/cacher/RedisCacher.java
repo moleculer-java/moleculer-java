@@ -99,6 +99,10 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 	protected ExecutorService executor;
 	protected ScheduledExecutorService scheduler;
 
+	// --- DEFAULT TTL ---
+
+	protected SetArgs expiration;
+
 	// --- CONSTUCTORS ---
 
 	public RedisCacher() {
@@ -117,8 +121,6 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 
 	// --- START CACHER ---
 
-	protected SetArgs expiration;
-
 	/**
 	 * Initializes cacher instance.
 	 *
@@ -136,6 +138,13 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 		ServiceBrokerConfig cfg = broker.getConfig();
 		executor = cfg.getExecutor();
 		scheduler = cfg.getScheduler();
+
+		// Default ttl
+		if (ttl > 0) {
+			expiration = SetArgs.Builder.ex(ttl);
+		} else {
+			expiration = null;
+		}
 
 		// Connect to Redis server
 		connect();

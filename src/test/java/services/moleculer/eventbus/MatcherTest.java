@@ -87,7 +87,7 @@ public class MatcherTest extends TestCase {
 
 		assertMatch("$node.connected", "$node.**");
 		assertMatch("$aa.bb.cc", "$aa.*.cc");
-		
+
 		assertMatch("$aa.bb.cc", "$aa.*.cc");
 		assertMatch("$aa.bb.cc", "$aa.**");
 		assertMatch("$aa.bb.cc", "$aa.**.cc");

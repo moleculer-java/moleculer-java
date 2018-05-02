@@ -242,7 +242,7 @@ public class EventbusTest extends TestCase {
 		assertEquals(0, s1.payloads.size());
 		assertEquals(1, s2.payloads.size());
 		s2.payloads.clear();
-		
+
 		putIncomingMessage("test.a", true, Groups.of("test1", "test2"), new Tree().put("y", 321));
 		assertEquals(1, s1.payloads.size());
 		assertEquals(1, s2.payloads.size());
@@ -280,14 +280,14 @@ public class EventbusTest extends TestCase {
 		assertEquals(0, s1.payloads.size());
 		assertEquals(1, s2.payloads.size());
 		s2.payloads.clear();
-		
+
 		putIncomingMessage("test.a", false, Groups.of("test1", "test2"), new Tree().put("y", 321));
 		assertEquals(1, s1.payloads.size());
 		assertEquals(1, s2.payloads.size());
 		assertEquals(321, s1.payloads.remove().get("y", 0));
 		assertEquals(321, s2.payloads.remove().get("y", 0));
 	}
-	
+
 	protected void putIncomingMessage(String name, boolean broadcast, Groups groups, Tree payload) throws Exception {
 		FastBuildTree msg = new FastBuildTree(6);
 		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
@@ -310,19 +310,19 @@ public class EventbusTest extends TestCase {
 
 	@Test
 	public void testGroups() throws Exception {
-		
+
 		// Group1
 		br.createService("g1_a", new Group1Listener());
 		Group1Listener g1_a = (Group1Listener) br.getLocalService("g1_a");
 		br.createService("g1_b", new Group1Listener());
 		Group1Listener g1_b = (Group1Listener) br.getLocalService("g1_b");
-		
+
 		// Group2
-		br.createService("g2_a", new Group2Listener());		
+		br.createService("g2_a", new Group2Listener());
 		Group2Listener g2_a = (Group2Listener) br.getLocalService("g2_a");
 		br.createService("g2_b", new Group2Listener());
 		Group2Listener g2_b = (Group2Listener) br.getLocalService("g2_b");
-		
+
 		// Broadcast
 		br.broadcast("test.a", new Tree());
 		assertEquals(1, g1_a.payloads.size());
@@ -362,7 +362,7 @@ public class EventbusTest extends TestCase {
 		g1_b.payloads.clear();
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
-		
+
 		// Local broadcast
 		br.broadcastLocal("test.a", new Tree());
 		assertEquals(1, g1_a.payloads.size());
@@ -373,7 +373,7 @@ public class EventbusTest extends TestCase {
 		g1_b.payloads.clear();
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
-		
+
 		// Local broadcast to group1
 		br.broadcastLocal("test.a", new Tree(), Groups.of("group1"));
 		assertEquals(1, g1_a.payloads.size());
@@ -402,7 +402,7 @@ public class EventbusTest extends TestCase {
 		g1_b.payloads.clear();
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
-		
+
 		// Emit
 		br.emit("test.a", new Tree());
 		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
@@ -411,7 +411,7 @@ public class EventbusTest extends TestCase {
 		g1_b.payloads.clear();
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
-		
+
 		// Emit to group1
 		br.emit("test.a", new Tree(), Groups.of("group1"));
 		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
@@ -434,7 +434,7 @@ public class EventbusTest extends TestCase {
 		g1_b.payloads.clear();
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
-		
+
 		// Incoming remote broadcast to group1
 		putIncomingMessage("test.a", true, Groups.of("group1"), new Tree());
 		assertEquals(1, g1_a.payloads.size());
@@ -443,7 +443,7 @@ public class EventbusTest extends TestCase {
 		assertEquals(0, g2_b.payloads.size());
 		g1_a.payloads.clear();
 		g1_b.payloads.clear();
-		
+
 		// Incoming remote emit to group1
 		putIncomingMessage("test.a", false, Groups.of("group1"), new Tree());
 		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
@@ -456,7 +456,7 @@ public class EventbusTest extends TestCase {
 		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
 		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
 	}
-	
+
 	protected static final class Group1Listener extends Service {
 
 		protected LinkedList<Tree> payloads = new LinkedList<>();
@@ -468,7 +468,7 @@ public class EventbusTest extends TestCase {
 		};
 
 	}
-	
+
 	protected static final class Group2Listener extends Service {
 
 		protected LinkedList<Tree> payloads = new LinkedList<>();
@@ -480,7 +480,7 @@ public class EventbusTest extends TestCase {
 		};
 
 	}
-	
+
 	// --- SET UP ---
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })

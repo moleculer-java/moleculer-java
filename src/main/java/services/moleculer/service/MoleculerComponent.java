@@ -64,6 +64,8 @@ public abstract class MoleculerComponent {
 	// --- INSTANCE STOPPED ---
 
 	public void stopped() {
+
+		// Optional logic
 	}
 
 	// --- PROPERTY GETTERS ---

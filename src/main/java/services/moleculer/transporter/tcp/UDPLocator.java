@@ -69,6 +69,12 @@ public class UDPLocator {
 	 */
 	protected final TcpTransporter transporter;
 
+	// --- COUNTERS ---
+
+	protected volatile int nextIndex = 0;
+
+	protected volatile int numberOfSubmittedPackets = 0;
+
 	// --- LIST OF RUNNING LOCATORS ---
 
 	protected final ArrayList<UDPReceiver> receivers = new ArrayList<>();
@@ -182,10 +188,6 @@ public class UDPLocator {
 	}
 
 	// --- UDP BROADCAST / MULTICAST SENDER ---
-
-	protected volatile int nextIndex = 0;
-
-	protected volatile int numberOfSubmittedPackets = 0;
 
 	protected void send() {
 

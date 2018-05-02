@@ -57,7 +57,7 @@ public class CommandMonitor extends Monitor {
 	 * @return total CPU usage of the current OS
 	 */
 	@Override
-	protected int detectTotalCpuPercent() throws Exception{
+	protected int detectTotalCpuPercent() throws Exception {
 		Process process = null;
 		try {
 

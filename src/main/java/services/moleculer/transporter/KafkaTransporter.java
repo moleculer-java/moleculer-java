@@ -49,15 +49,17 @@ import services.moleculer.service.Name;
  * Kafka Transporter. Kafka is used for building real-time data pipelines and
  * streaming apps. It is horizontally scalable, fault-tolerant, wicked fast, and
  * runs in production in thousands of companies. Sample of usage:<br>
+ * 
  * <pre>
  * KafkaTransporter kafka = new KafkaTransporter();
  * kafka.setUrls(new String[] { "192.168.51.29:9092" });
  * kafka.setDebug(true);
  * kafka.setProducerProperty("session.timeout.ms", "30000");
  * ServiceBroker broker = ServiceBroker.builder().transporter(kafka).build();
- * //broker.createService(new Service("test") {...});
+ * // broker.createService(new Service("test") {...});
  * broker.start();
  * </pre>
+ * 
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients<br>
@@ -89,6 +91,13 @@ public class KafkaTransporter extends Transporter {
 
 	protected KafkaPoller poller;
 
+	// --- COMPONENTS ---
+
+	/**
+	 * Executor of reader loop for incoming messages
+	 */
+	protected ExecutorService executor;
+
 	// --- CONSTUCTORS ---
 
 	public KafkaTransporter() {
@@ -99,11 +108,6 @@ public class KafkaTransporter extends Transporter {
 	}
 
 	// --- CONNECT ---
-
-	/**
-	 * Executor of reader loop for incoming messages
-	 */
-	protected ExecutorService executor;
 
 	@Override
 	public void connect() {
@@ -199,6 +203,14 @@ public class KafkaTransporter extends Transporter {
 
 		protected final AtomicInteger status = new AtomicInteger(UNSUBSCRIBED);
 
+		// --- ERROR MARKER ---
+
+		protected static boolean firstError = true;
+
+		// --- SET OF SUBSCRIPTIONS ---
+
+		protected HashSet<String> subscriptions = new HashSet<>();
+
 		// --- CONSTRUCTOR ---
 
 		protected KafkaPoller(KafkaTransporter transporter) {
@@ -209,13 +221,7 @@ public class KafkaTransporter extends Transporter {
 			consumer = new KafkaConsumer<>(transporter.consumerProperties, deserializer, deserializer);
 		}
 
-		// --- SET OF SUBSCRIPTIONS ---
-
-		protected HashSet<String> subscriptions = new HashSet<>();
-
 		// --- READER LOOP -- ---
-
-		protected static boolean firstError = true;
 
 		public void run() {
 			try {

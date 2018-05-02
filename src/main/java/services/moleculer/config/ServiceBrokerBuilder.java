@@ -41,12 +41,9 @@ import services.moleculer.uid.UidGenerator;
 
 /**
  * Builder-style ServiceBroker factory. Sample of usage:<br>
+ * 
  * <pre>
- * ServiceBroker broker = ServiceBroker
- *   .builder()
- *   .cacher(new RedisCacher())
- *   .transporter(new RedisTransporter())
- *   .build();
+ * ServiceBroker broker = ServiceBroker.builder().cacher(new RedisCacher()).transporter(new RedisTransporter()).build();
  * </pre>
  */
 public class ServiceBrokerBuilder {

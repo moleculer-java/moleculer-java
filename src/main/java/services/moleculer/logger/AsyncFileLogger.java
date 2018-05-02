@@ -68,13 +68,13 @@ public class AsyncFileLogger extends Handler implements Runnable {
 
 	// --- CONSTANTS ---
 
-	protected static final char[] SEVERE  = "SEVERE  ".toCharArray();
+	protected static final char[] SEVERE = "SEVERE  ".toCharArray();
 	protected static final char[] WARNING = "WARNING ".toCharArray();
-	protected static final char[] INFO    = "INFO    ".toCharArray();
-	protected static final char[] CONFIG  = "CONFIG  ".toCharArray();
-	protected static final char[] FINE    = "FINE    ".toCharArray();
-	protected static final char[] FINER   = "FINER   ".toCharArray();
-	protected static final char[] FINEST  = "FINEST  ".toCharArray();
+	protected static final char[] INFO = "INFO    ".toCharArray();
+	protected static final char[] CONFIG = "CONFIG  ".toCharArray();
+	protected static final char[] FINE = "FINE    ".toCharArray();
+	protected static final char[] FINER = "FINER   ".toCharArray();
+	protected static final char[] FINEST = "FINEST  ".toCharArray();
 
 	// --- FILE NAME FORMATTER ---
 
@@ -98,6 +98,11 @@ public class AsyncFileLogger extends Handler implements Runnable {
 	// --- LOG DIRECTORY ---
 
 	protected File logDirectory;
+
+	// --- LOG FILE ---
+
+	protected String openedFile = "";
+	protected FileOutputStream openedStream;
 
 	// --- CONSTRUCTOR ---
 
@@ -220,9 +225,6 @@ public class AsyncFileLogger extends Handler implements Runnable {
 		}
 	}
 
-	protected String openedFile = "";
-	protected FileOutputStream openedStream;
-
 	protected void appendToFile(String fileName, byte[] bytes) {
 		try {
 			if (!openedFile.equals(fileName)) {
@@ -335,6 +337,8 @@ public class AsyncFileLogger extends Handler implements Runnable {
 
 	@Override
 	public void flush() {
+
+		// Do nothing
 	}
 
 	@Override

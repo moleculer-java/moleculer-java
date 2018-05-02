@@ -35,10 +35,14 @@ public class NullTransporter extends Transporter {
 
 	@Override
 	public void connect() {
+
+		// Do nothing
 	}
 
 	@Override
 	public void publish(String channel, Tree message) {
+
+		// Do nothing
 	}
 
 	@Override

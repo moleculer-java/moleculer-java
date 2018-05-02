@@ -136,6 +136,42 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected Eventbus eventbus;
 	protected UidGenerator uid;
 
+	// --- VARIABLES OF THE TIMEOUT HANDLER ---
+
+	/**
+	 * Cancelable timer for handling timeouts of action calls
+	 */
+	protected final AtomicReference<ScheduledFuture<?>> callTimeoutTimer = new AtomicReference<>();
+
+	/**
+	 * Next scheduled time to check timeouts
+	 */
+	protected final AtomicLong prevTimeoutAt = new AtomicLong();
+
+	// --- WAIT FOR SERVICE(S) ---
+
+	/**
+	 * Cancelable timer for handling "wait for service" calls
+	 */
+	protected ScheduledFuture<?> servicesOnlineTimer;
+
+	/**
+	 * Promises of the "waitingForServices" calls
+	 */
+	protected final LinkedList<ServiceListener> serviceListeners = new LinkedList<>();
+
+	// --- TIMESTAMP OF SERVICE DESCRIPTOR ---
+
+	/**
+	 * Timestamp of the service descriptor of this Moleculer Node (~=
+	 * "generated at" timestamp)
+	 */
+	private AtomicLong timestamp = new AtomicLong();
+
+	// --- CACHED SERVICE DESCRIPTOR ---
+
+	private volatile Tree descriptor;
+
 	// --- CONSTRUCTORS ---
 
 	public DefaultServiceRegistry() {
@@ -255,16 +291,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	}
 
 	// --- CALL TIMEOUT HANDLING ---
-
-	/**
-	 * Cancelable timer for handling timeouts of action calls
-	 */
-	protected final AtomicReference<ScheduledFuture<?>> callTimeoutTimer = new AtomicReference<>();
-
-	/**
-	 * Next scheduled time to check timeouts
-	 */
-	protected final AtomicLong prevTimeoutAt = new AtomicLong();
 
 	/**
 	 * Recalculates the next timeout checking time
@@ -852,16 +878,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	// --- WAIT FOR SERVICE(S) ---
 
-	/**
-	 * Cancelable timer for handling "wait for service" calls
-	 */
-	protected ScheduledFuture<?> servicesOnlineTimer;
-
-	/**
-	 * Promises of the "waitingForServices" calls
-	 */
-	protected final LinkedList<ServiceListener> serviceListeners = new LinkedList<>();
-
 	@Override
 	public Promise waitForServices(long timeoutMillis, Collection<String> services) {
 		if (services == null || services.isEmpty() || isServicesOnline(services)) {
@@ -1002,20 +1018,12 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	// --- TIMESTAMP OF SERVICE DESCRIPTOR ---
 
-	/**
-	 * Timestamp of the service descriptor of this Moleculer Node (~=
-	 * "generated at" timestamp)
-	 */
-	private AtomicLong timestamp = new AtomicLong();
-
 	@Override
 	public long getTimestamp() {
 		return timestamp.get();
 	}
 
 	// --- GENERATE SERVICE DESCRIPTOR ---
-
-	private volatile Tree descriptor;
 
 	@Override
 	public Tree getDescriptor() {

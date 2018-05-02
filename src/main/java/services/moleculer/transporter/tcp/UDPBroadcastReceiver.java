@@ -99,8 +99,8 @@ public class UDPBroadcastReceiver extends UDPReceiver {
 			DatagramPacket packet = new DatagramPacket(bytes, bytes.length, address, udpPort);
 			udpSocket.send(packet);
 			if (debug) {
-				logger.info("Broadcast message submitted (namespace: " + namespace + ", node ID: " + nodeID
-						+ ", port: " + port + ").");
+				logger.info("Broadcast message submitted (namespace: " + namespace + ", node ID: " + nodeID + ", port: "
+						+ port + ").");
 			}
 		} catch (Exception cause) {
 			logger.error("Unable to send broadcast packet!", cause);

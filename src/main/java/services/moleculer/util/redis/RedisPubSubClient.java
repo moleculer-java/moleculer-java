@@ -122,6 +122,8 @@ public final class RedisPubSubClient {
 
 				@Override
 				public final void publish(Event event) {
+
+					// Do nothing
 				}
 
 				@Override

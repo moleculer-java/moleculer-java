@@ -40,21 +40,21 @@ import java.util.Set;
 public class FastBuildMap extends AbstractMap<String, Object> {
 
 	// --- PROPERTIES ---
-	
+
 	protected int size;
-	
+
 	protected final String[] keys;
 	protected final Object[] values;
 
 	// --- CONSTRUCTORS ---
-	
+
 	protected FastBuildMap(int size) {
 		keys = new String[size];
 		values = new Object[size];
 	}
 
 	// --- MAP FUNCTIONS ---
-	
+
 	/**
 	 * WARNING: All key must be unique!
 	 */
@@ -115,7 +115,7 @@ public class FastBuildMap extends AbstractMap<String, Object> {
 
 	@Override
 	public Object remove(Object key) {
-		
+
 		// Ignored
 		return null;
 	}

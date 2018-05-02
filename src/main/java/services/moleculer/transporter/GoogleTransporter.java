@@ -124,6 +124,10 @@ public class GoogleTransporter extends Transporter {
 
 	protected ExecutorProvider defaultExecutorProvider;
 
+	// --- CONNECTED FLAG ---
+
+	protected final AtomicBoolean connected = new AtomicBoolean();
+
 	// --- CONSTRUCTOR ---
 
 	public GoogleTransporter() {
@@ -189,8 +193,6 @@ public class GoogleTransporter extends Transporter {
 	}
 
 	// --- CONNECT ---
-
-	protected final AtomicBoolean connected = new AtomicBoolean();
 
 	@Override
 	public void connect() {

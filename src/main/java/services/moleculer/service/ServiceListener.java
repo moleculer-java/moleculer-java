@@ -39,7 +39,7 @@ public class ServiceListener {
 	protected final Promise promise;
 	protected final long timeoutAt;
 	protected final Collection<String> services;
-	
+
 	// --- CONSTRUCTOR ---
 
 	ServiceListener(Promise promise, long timeoutAt, Collection<String> services) {
@@ -47,5 +47,5 @@ public class ServiceListener {
 		this.timeoutAt = timeoutAt;
 		this.services = services;
 	}
-	
+
 }

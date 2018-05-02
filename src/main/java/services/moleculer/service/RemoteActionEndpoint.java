@@ -64,7 +64,7 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 		}
 
 		// --- INVOKE REMOTE ENDPOINT ---
-		
+
 		@Override
 		public Object handler(Context ctx) throws Exception {
 

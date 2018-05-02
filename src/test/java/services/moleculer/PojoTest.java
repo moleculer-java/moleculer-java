@@ -54,16 +54,16 @@ public class PojoTest extends TestCase {
 		validator = ValidatorBuilder.create().with(new SetterTester()).with(new GetterTester()).build();
 		RandomGeneratorService service = ServiceRegistrar.getInstance().getRandomGeneratorService();
 		service.registerRandomGenerator(new RandomGenerator() {
-			
+
 			@Override
 			public Collection<Class<?>> getTypes() {
 				return Collections.singleton(SSLContext.class);
 			}
-			
+
 			@Override
 			public Object doGenerate(Class<?> type) {
 				try {
-					return SSLContext.getDefault();					
+					return SSLContext.getDefault();
 				} catch (Exception e) {
 					throw new RuntimeException(e);
 				}

@@ -27,10 +27,9 @@ package services.moleculer.service;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
+import services.moleculer.breaker.CircuitBreaker;
 import services.moleculer.context.CallOptions;
 import services.moleculer.context.Context;
-import services.moleculer.service.MoleculerComponent;
-import services.moleculer.service.Name;
 
 /**
  * Base superclass of all Service Invoker implementations.

@@ -29,7 +29,7 @@ public class JCacheCacherTest extends CacherTest {
 
 	@Override
 	protected Cacher createCacher() throws Exception {
-		JCacheCacher cacher = new JCacheCacher();		
+		JCacheCacher cacher = new JCacheCacher();
 		return cacher;
 	}
 

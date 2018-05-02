@@ -35,13 +35,13 @@ public class TestTransporter extends Transporter {
 
 	protected Tree messages = new Tree();
 	protected Tree list;
-	
+
 	protected final HashMap<String, Integer> cpu = new HashMap<>();
-	
+
 	public TestTransporter() {
 		list = messages.putList("list");
 	}
-	
+
 	@Override
 	public void connect() {
 	}
@@ -50,11 +50,11 @@ public class TestTransporter extends Transporter {
 		byte[] bytes = serializer.write(message);
 		super.received(channel, bytes);
 	}
-	
+
 	@Override
 	public void publish(String channel, Tree message) {
 		message = message.clone();
-		message.put("channel", channel);		
+		message.put("channel", channel);
 		list.addObject(message);
 	}
 
@@ -64,15 +64,15 @@ public class TestTransporter extends Transporter {
 	}
 
 	public Tree getMessage(String nodeID) {
-		for (Tree message: list) {
+		for (Tree message : list) {
 			if (message.get("channel", "").endsWith('.' + nodeID)) {
 				return message;
 			}
 		}
 		return null;
 	}
-	
-	public Tree getMessages() {		
+
+	public Tree getMessages() {
 		return list;
 	}
 
@@ -81,18 +81,18 @@ public class TestTransporter extends Transporter {
 	}
 
 	public boolean hasMessage(String nodeID) {
-		for (Tree message: list) {
+		for (Tree message : list) {
 			if (message.get("channel", "").endsWith('.' + nodeID)) {
 				return true;
 			}
 		}
 		return false;
 	}
-	
+
 	public void clearMessages() {
 		list.clear();
 	}
-	
+
 	@Override
 	public int getCpuUsage(String nodeID) {
 		Integer usage = cpu.get(nodeID);
@@ -101,13 +101,13 @@ public class TestTransporter extends Transporter {
 		}
 		return usage.intValue();
 	}
-	
+
 	public void setCpuUsage(String nodeID, int usage) {
 		cpu.put(nodeID, usage);
 	}
-	
+
 	public void clearCpuUsages() {
 		cpu.clear();
 	}
-	
+
 }

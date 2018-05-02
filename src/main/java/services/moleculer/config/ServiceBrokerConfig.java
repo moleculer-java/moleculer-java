@@ -286,9 +286,10 @@ public class ServiceBrokerConfig {
 
 	public void setTransporter(Transporter transporter) {
 		if (transporter == null || transporter instanceof NullTransporter) {
-			transporter = null;
+			this.transporter = null;
+		} else {
+			this.transporter = transporter;
 		}
-		this.transporter = transporter;
 	}
 
 	public ServiceInvoker getServiceInvoker() {

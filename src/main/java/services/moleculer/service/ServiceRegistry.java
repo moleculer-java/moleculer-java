@@ -45,7 +45,7 @@ public abstract class ServiceRegistry extends MoleculerComponent {
 	// --- RECEIVE PING-PONG RESPONSE ---
 
 	public abstract void receivePong(Tree message);
-	
+
 	// --- RECEIVE RESPONSE FROM REMOTE SERVICE ---
 
 	public abstract void receiveResponse(Tree message);
@@ -75,13 +75,13 @@ public abstract class ServiceRegistry extends MoleculerComponent {
 	public abstract Action getAction(String name, String nodeID);
 
 	// --- WAIT FOR SERVICE(S) ---
-	
+
 	public abstract Promise waitForServices(long timeoutMillis, Collection<String> services);
-	
+
 	// --- PING / PONG HANDLING ---
-	
+
 	public abstract Promise ping(long timeoutMillis, String nodeID);
-	
+
 	// --- GENERATE SERVICE DESCRIPTOR ---
 
 	public abstract Tree getDescriptor();

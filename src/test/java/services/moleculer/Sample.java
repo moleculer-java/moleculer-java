@@ -61,9 +61,9 @@ public class Sample {
 				broker.call("math.add", in).waitFor();
 			}
 			System.out.println(System.currentTimeMillis() - start);
-			
+
 			broker.stop();
-			
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -79,7 +79,7 @@ public class Sample {
 
 		@Subscribe("foo.*")
 		public Listener listener = payload -> {
-			//System.out.println("Received: " + payload);
+			// System.out.println("Received: " + payload);
 		};
 
 	};

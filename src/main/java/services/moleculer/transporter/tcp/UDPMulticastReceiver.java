@@ -54,7 +54,8 @@ public class UDPMulticastReceiver extends UDPReceiver {
 		this.netIf = null;
 	}
 
-	protected UDPMulticastReceiver(String nodeID, String udpAddress, TcpTransporter transporter, NetworkInterface netIf) {
+	protected UDPMulticastReceiver(String nodeID, String udpAddress, TcpTransporter transporter,
+			NetworkInterface netIf) {
 		super(nodeID, udpAddress, transporter);
 		this.netIf = netIf;
 	}
@@ -139,8 +140,8 @@ public class UDPMulticastReceiver extends UDPReceiver {
 			DatagramPacket packet = new DatagramPacket(bytes, bytes.length, address, udpPort);
 			udpSocket.send(packet);
 			if (debug) {
-				logger.info("Multicast message submitted (namespace: " + namespace + ", node ID: " + nodeID
-						+ ", port: " + port + ").");
+				logger.info("Multicast message submitted (namespace: " + namespace + ", node ID: " + nodeID + ", port: "
+						+ port + ").");
 			}
 		} catch (Exception cause) {
 			logger.error("Unable to send multicast packet!", cause);

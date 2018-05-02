@@ -52,11 +52,13 @@ public class SigarMonitor extends Monitor {
 
 	public SigarMonitor() {
 		if (!invalidMonitor.get()) {
-			try {
-				sigar = new Sigar();
-			} catch (Exception cause) {
-				logger.error("Unable to reach Sigar API!", cause);
-				invalidMonitor.set(true);
+			if (sigar == null) {
+				try {
+					sigar = new Sigar();
+				} catch (Exception cause) {
+					logger.error("Unable to reach Sigar API!", cause);
+					invalidMonitor.set(true);
+				}
 			}
 		}
 	}
@@ -70,6 +72,9 @@ public class SigarMonitor extends Monitor {
 	 */
 	@Override
 	protected int detectTotalCpuPercent() throws Exception {
+		if (sigar == null) {
+			return 0;
+		}
 		return (int) Math.max(sigar.getCpuPerc().getCombined() * 100d, 0d);
 	}
 
@@ -79,6 +84,9 @@ public class SigarMonitor extends Monitor {
 	 * @return current Java VM's process ID
 	 */
 	protected long detectPID() throws Exception {
+		if (sigar == null) {
+			return hashCode();
+		}
 		return sigar.getPid();
 	}
 

@@ -30,11 +30,11 @@ public class EndpointKey {
 	protected final String nodeID;
 	protected final String name;
 	protected final int hashCode;
-	
+
 	public EndpointKey(String nodeID, String name) {
 		this.nodeID = nodeID;
 		this.name = name;
-		this.hashCode = 31 * nodeID.hashCode() + name.hashCode();	
+		this.hashCode = 31 * nodeID.hashCode() + name.hashCode();
 	}
 
 	@Override
@@ -70,5 +70,5 @@ public class EndpointKey {
 		}
 		return true;
 	}
-	
+
 }

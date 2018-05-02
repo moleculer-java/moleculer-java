@@ -11,10 +11,10 @@ public class FastBuildTreeTest extends TestCase {
 
 		FastBuildTree t = new FastBuildTree();
 		assertJsonEquals("{}", t.toString(false));
-		
+
 		t.putUnsafe("a", "b");
 		assertJsonEquals("{\"a\":\"b\"}", t.toString(false));
-		
+
 		t.putUnsafe("c", true);
 		assertJsonEquals("{\"a\":\"b\",\"c\":true}", t.toString(false));
 
@@ -23,7 +23,7 @@ public class FastBuildTreeTest extends TestCase {
 
 		System.out.println(t.toString());
 	}
-	
+
 	// --- TEST SIMILAR / SAME NODE ---
 
 	private static final void assertJsonEquals(String s1, String s2) {
@@ -39,5 +39,5 @@ public class FastBuildTreeTest extends TestCase {
 	private static final String removeFormatting(String txt) {
 		return txt.replace("\t", " ").replace("\r", " ").replace("\n", " ").replace(" ", "").replace(".0", "");
 	}
-	
+
 }

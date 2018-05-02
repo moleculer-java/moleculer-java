@@ -70,9 +70,12 @@ public abstract class DistributedCacher extends Cacher {
 	 * Creates a cacher-specific key by name and params. Concatenates the name
 	 * and params.
 	 *
-	 * @param name action name
-	 * @param params input (JSON) structure
-	 * @param keys keys in the "params" structure (optional)
+	 * @param name
+	 *            action name
+	 * @param params
+	 *            input (JSON) structure
+	 * @param keys
+	 *            keys in the "params" structure (optional)
 	 *
 	 * @return generated cache key String
 	 */
@@ -164,9 +167,10 @@ public abstract class DistributedCacher extends Cacher {
 	public void setMaxKeyLength(int maxKeyLength) {
 		if (maxKeyLength > 0 && maxKeyLength < 44) {
 			logger.warn("The minimum value of \"maxKeyLength\" parameter is 44!");
-			maxKeyLength = 44;
+			this.maxKeyLength = 44;
+		} else {
+			this.maxKeyLength = maxKeyLength;
 		}
-		this.maxKeyLength = maxKeyLength;
 	}
 
 }

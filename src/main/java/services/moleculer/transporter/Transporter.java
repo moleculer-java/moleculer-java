@@ -131,9 +131,25 @@ public abstract class Transporter extends MoleculerComponent {
 	protected Monitor monitor;
 	protected UidGenerator uid;
 
+	// --- TIMER ---
+
+	/**
+	 * Cancelable "Heart Beat" timer
+	 */
+	protected volatile ScheduledFuture<?> heartBeatTimer;
+
+	/**
+	 * Cancelable "Check Activities / Infos" timer
+	 */
+	protected volatile ScheduledFuture<?> checkTimeoutTimer;
+
 	// --- REMOTE NODES ---
 
 	protected final ConcurrentHashMap<String, NodeDescriptor> nodes = new ConcurrentHashMap<>(256);
+
+	// --- SENDING INFO BLOCK ---
+
+	protected final AtomicBoolean infoScheduled = new AtomicBoolean();
 
 	// --- CONSTUCTORS ---
 
@@ -208,16 +224,6 @@ public abstract class Transporter extends MoleculerComponent {
 	public abstract void connect();
 
 	// --- SERVER CONNECTED ---
-
-	/**
-	 * Cancelable "Heart Beat" timer
-	 */
-	protected volatile ScheduledFuture<?> heartBeatTimer;
-
-	/**
-	 * Cancelable "Check Activities / Infos" timer
-	 */
-	protected volatile ScheduledFuture<?> checkTimeoutTimer;
 
 	protected void connected() {
 		connected(true);
@@ -309,7 +315,7 @@ public abstract class Transporter extends MoleculerComponent {
 
 	public Tree createPingPacket(String id) {
 		FastBuildTree msg = new FastBuildTree(4);
-		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+		msg.putUnsafe("ver", PROTOCOL_VERSION);
 		msg.putUnsafe("sender", nodeID);
 		msg.putUnsafe("id", id);
 		msg.putUnsafe("source", System.currentTimeMillis());
@@ -322,7 +328,7 @@ public abstract class Transporter extends MoleculerComponent {
 		FastBuildTree msg = new FastBuildTree(7);
 
 		// Add basic properties
-		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+		msg.putUnsafe("ver", PROTOCOL_VERSION);
 		msg.putUnsafe("sender", nodeID);
 		msg.putUnsafe("id", ctx.id);
 		msg.putUnsafe("action", ctx.name);
@@ -632,8 +638,6 @@ public abstract class Transporter extends MoleculerComponent {
 
 	// --- SEND BROADCAST INFO PACKET ---
 
-	protected final AtomicBoolean infoScheduled = new AtomicBoolean();
-
 	public void broadcastInfoPacket() {
 		if (infoScheduled.compareAndSet(false, true)) {
 			scheduler.schedule(() -> {
@@ -838,6 +842,8 @@ public abstract class Transporter extends MoleculerComponent {
 	 *            I/O error
 	 */
 	protected void error(Throwable error) {
+
+		// Do nothing by default
 	}
 
 	// --- GETTERS / SETTERS ---

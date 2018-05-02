@@ -48,17 +48,18 @@ import services.moleculer.transporter.Transporter;
 public class CpuUsageStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T> {
 
 	// --- PROPERTIES ---
-	
-	protected final int maxTries;	
+
+	protected final int maxTries;
 	protected final int lowCpuUsage;
-	
+
 	// --- COMPONENTS ---
 
 	protected final Transporter transporter;
 
 	// --- CONSTRUCTOR ---
 
-	public CpuUsageStrategy(ServiceBroker broker, boolean preferLocal, int maxTries, int lowCpuUsage, Transporter transporter) {
+	public CpuUsageStrategy(ServiceBroker broker, boolean preferLocal, int maxTries, int lowCpuUsage,
+			Transporter transporter) {
 		super(broker, preferLocal);
 		this.transporter = transporter;
 		this.maxTries = maxTries;
@@ -69,21 +70,21 @@ public class CpuUsageStrategy<T extends Endpoint> extends XorShiftRandomStrategy
 
 	@Override
 	public Endpoint next(Endpoint[] array) {
-		
+
 		// Minimum values
 		long minCPU = Long.MAX_VALUE;
 		Endpoint minEndpoint = null;
-		
+
 		// Processing variables
 		Endpoint endpoint;
 		int cpu;
-		
+
 		// Find the lower CPU usage in sample
 		for (int i = 0; i < maxTries; i++) {
-			
+
 			// Get random endpoint
 			endpoint = super.next(array);
-			
+
 			// Check CPU usage
 			cpu = transporter.getCpuUsage(endpoint.getNodeID());
 			if (cpu <= lowCpuUsage) {
@@ -92,7 +93,7 @@ public class CpuUsageStrategy<T extends Endpoint> extends XorShiftRandomStrategy
 			if (minEndpoint == null || cpu < minCPU) {
 				minCPU = cpu;
 				minEndpoint = endpoint;
-			}			
+			}
 		}
 		return minEndpoint;
 	}

@@ -81,6 +81,10 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 
 	protected Connection client;
 
+	// --- STARTED FLAG ---
+
+	protected final AtomicBoolean started = new AtomicBoolean();
+
 	// --- CONSTUCTORS ---
 
 	public NatsTransporter() {
@@ -162,8 +166,6 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 	}
 
 	// --- DISCONNECT ---
-
-	protected final AtomicBoolean started = new AtomicBoolean();
 
 	@Override
 	public void onDisconnect(ConnectionEvent event) {

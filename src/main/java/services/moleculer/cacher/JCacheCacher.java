@@ -233,7 +233,7 @@ public class JCacheCacher extends DistributedCacher {
 	public Promise set(String key, Tree value, int ttl) {
 		try {
 			int pos = partitionPosition(key, true);
-			
+
 			// Prefix is the name of the partition / region (eg.
 			// "user" from the "user.name" cache key)
 			String prefix = key.substring(0, pos);
@@ -277,7 +277,7 @@ public class JCacheCacher extends DistributedCacher {
 	@Override
 	public Promise del(String key) {
 		int pos = partitionPosition(key, true);
-		
+
 		// Prefix is the name of the partition / region (eg.
 		// "user" from the "user.name" cache key)
 		String prefix = key.substring(0, pos);
@@ -318,7 +318,7 @@ public class JCacheCacher extends DistributedCacher {
 				// Remove entire partitions
 				writeLock.lock();
 				try {
-					if (match.isEmpty() || match.equals("**")) {
+					if (match.isEmpty() || "**".equals(match)) {
 						if (closeEmptyPartitions) {
 							for (javax.cache.Cache<String, byte[]> partition : partitions.values()) {
 								partition.close();
@@ -358,7 +358,7 @@ public class JCacheCacher extends DistributedCacher {
 	}
 
 	protected static final void clean(javax.cache.Cache<String, byte[]> partition, String match) throws Exception {
-		if (match.isEmpty() || match.equals("**")) {
+		if (match.isEmpty() || "**".equals(match)) {
 			partition.clear();
 		} else {
 			Iterator<Entry<String, byte[]>> i = partition.iterator();

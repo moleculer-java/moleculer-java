@@ -89,6 +89,13 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 	protected final HashMap<String, MemoryPartition> partitions = new HashMap<>();
 
+	// --- TIMERS ---
+
+	/**
+	 * Cancelable timer
+	 */
+	protected volatile ScheduledFuture<?> timer;
+
 	// --- CONSTUCTORS ---
 
 	public MemoryCacher() {
@@ -118,11 +125,6 @@ public class MemoryCacher extends Cacher implements Runnable {
 	}
 
 	// --- START CACHER ---
-
-	/**
-	 * Cancelable timer
-	 */
-	protected volatile ScheduledFuture<?> timer;
 
 	/**
 	 * Initializes cacher instance.
@@ -185,7 +187,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 	public Promise get(String key) {
 		try {
 			int pos = partitionPosition(key, true);
-			
+
 			// Prefix is the name of the partition / region (eg.
 			// "user" from the "user.name" cache key)
 			String prefix = key.substring(0, pos);
@@ -208,7 +210,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 	@Override
 	public Promise set(String key, Tree value, int ttl) {
 		int pos = partitionPosition(key, true);
-		
+
 		// Prefix is the name of the partition / region (eg.
 		// "user" from the "user.name" cache key)
 		String prefix = key.substring(0, pos);
@@ -240,7 +242,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 	@Override
 	public Promise del(String key) {
 		int pos = partitionPosition(key, true);
-		
+
 		// Prefix is the name of the partition / region (eg.
 		// "user" from the "user.name" cache key)
 		String prefix = key.substring(0, pos);
@@ -259,7 +261,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 	@Override
 	public Promise clean(String match) {
-		
+
 		// Prefix is the name of the partition / region (eg.
 		// "user" from the "user.name" cache key)
 		int pos = partitionPosition(match, false);
@@ -288,7 +290,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 				} else if (match.indexOf('*') == -1) {
 
 					// Not supported method
-					
+
 				} else {
 					Iterator<String> i = partitions.keySet().iterator();
 					String key;
@@ -342,10 +344,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 				private static final long serialVersionUID = 5994447707758047152L;
 
 				protected final boolean removeEldestEntry(Map.Entry<String, PartitionEntry> entry) {
-					if (size() > capacity) {
-						return true;
-					}
-					return false;
+					return size() > capacity;
 				};
 			};
 		}
@@ -417,7 +416,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 		protected void clean(String match) {
 			writerLock.lock();
 			try {
-				if (match.isEmpty() || match.equals("**")) {
+				if (match.isEmpty() || "**".equals(match)) {
 					cache.clear();
 				} else if (match.indexOf('*') == -1) {
 					cache.remove(match);

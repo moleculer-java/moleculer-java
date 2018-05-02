@@ -62,6 +62,14 @@ import services.moleculer.transporter.Transporter;
  */
 public final class CommonUtils {
 
+	// --- CACHED LOCAL HOST NAME ---
+
+	private static String cachedHostName;
+
+	// --- DURATION FORMATTER ---
+
+	private static final NumberFormat numberFormatter = DecimalFormat.getInstance();
+
 	// --- PATH FORMATTER ---
 
 	public static final String formatPath(String path) {
@@ -80,7 +88,7 @@ public final class CommonUtils {
 		}
 		return path;
 	}
-	
+
 	// --- MISSING DEPENDENCY ---
 
 	public static final void suggestDependency(String groupId, String artifactId, String version) {
@@ -154,8 +162,6 @@ public final class CommonUtils {
 
 	// --- DURATION FORMATTER ---
 
-	private static final NumberFormat numberFormatter = DecimalFormat.getInstance();
-
 	public static final String formatNumber(Number number) {
 		synchronized (numberFormatter) {
 			return numberFormatter.format(number);
@@ -163,7 +169,8 @@ public final class CommonUtils {
 	}
 
 	public static final String formatNamoSec(long nanoSec) {
-		String test, test2;
+		String test;
+		String test2;
 		if ((test = test(nanoSec, TimeUnit.HOURS, "hour")) != null) {
 			test2 = test(nanoSec, TimeUnit.MINUTES, "minute");
 			return test2 == null ? test : test + " (" + test2 + ")";
@@ -253,8 +260,6 @@ public final class CommonUtils {
 	}
 
 	// --- LOCAL HOST NAME ---
-
-	private static String cachedHostName;
 
 	public static final String getHostName() {
 		if (cachedHostName != null) {

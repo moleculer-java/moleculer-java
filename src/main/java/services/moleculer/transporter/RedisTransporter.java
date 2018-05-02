@@ -242,18 +242,26 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 
 	@Override
 	public void subscribed(byte[] channel, long count) {
+
+		// Do nothing
 	}
 
 	@Override
 	public void psubscribed(byte[] pattern, long count) {
+
+		// Do nothing
 	}
 
 	@Override
 	public void unsubscribed(byte[] channel, long count) {
+
+		// Do nothing
 	}
 
 	@Override
 	public void punsubscribed(byte[] pattern, long count) {
+
+		// Do nothing
 	}
 
 	// --- REDIS EVENT LISTENER METHODS ---

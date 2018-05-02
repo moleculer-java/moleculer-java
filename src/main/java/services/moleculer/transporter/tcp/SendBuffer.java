@@ -66,6 +66,11 @@ public class SendBuffer {
 	 */
 	protected final boolean debug;
 
+	// --- I/O VARIABLES ---
+
+	protected SocketChannel channel;
+	protected SelectionKey key;
+
 	// --- CONSTRUCTOR ---
 
 	protected SendBuffer(String nodeID, String host, int port, boolean debug) {
@@ -76,9 +81,6 @@ public class SendBuffer {
 	}
 
 	// --- CONNECTED ---
-
-	protected SocketChannel channel;
-	protected SelectionKey key;
 
 	protected void connected(SelectionKey key, SocketChannel channel) {
 		this.channel = channel;
@@ -206,10 +208,8 @@ public class SendBuffer {
 
 				// Turn off write mode (if the queue is empty)
 				if (queue.isEmpty()) {
-					if (blockerBuffer.compareAndSet(buffer, null)) {
-						if (key != null) {
-							key.interestOps(0);
-						}
+					if (blockerBuffer.compareAndSet(buffer, null) && key != null) {
+						key.interestOps(0);
 					}
 					return;
 				} else {

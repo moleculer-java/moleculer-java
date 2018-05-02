@@ -78,6 +78,10 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 	protected int maxInFlightMessages = 0xffff;
 	protected QoS qos = QoS.AT_MOST_ONCE;
 
+	// --- SUBSCRIPTIONS ---
+
+	protected final ConcurrentHashMap<String, Promise> subscriptions = new ConcurrentHashMap<>();
+
 	// --- MQTT CONNECTION ---
 
 	protected AsyncMqttClient client;
@@ -221,8 +225,6 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 	}
 
 	// --- SUBSCRIBE ---
-
-	protected final ConcurrentHashMap<String, Promise> subscriptions = new ConcurrentHashMap<>();
 
 	@Override
 	public Promise subscribe(String channel) {

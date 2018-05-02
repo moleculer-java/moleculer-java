@@ -51,7 +51,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 	// --- CACHE ---
 
 	protected final Cache<String, Endpoint[]> endpointCache = new Cache<>(1024, true);
-	
+
 	// --- PROPERTIES ---
 
 	protected final String nodeID;

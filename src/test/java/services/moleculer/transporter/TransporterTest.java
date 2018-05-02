@@ -47,19 +47,19 @@ public abstract class TransporterTest extends TestCase {
 	// --- VARIABLES ---
 
 	protected long sleep = 700;
-	
+
 	protected Transporter tr1;
 	protected ServiceBroker br1;
 
 	protected Transporter tr2;
 	protected ServiceBroker br2;
-	
+
 	// --- ABSTRACT METHODS ---
-	
+
 	public abstract Transporter createTransporter();
 
 	// --- COMMON TESTS ---
-	
+
 	@Test
 	public void testTransporters() throws Exception {
 
@@ -72,10 +72,10 @@ public abstract class TransporterTest extends TestCase {
 		checkPing(br1, "node1");
 		checkPing(br2, "node2");
 		checkPing(br2, "node1");
-		
+
 		// Install "math" service to node1
 		br1.createService("math", new TestService());
-		
+
 		// Wait for "math" service on node2
 		br2.waitForServices(10000, "math").waitFor();
 
@@ -94,28 +94,28 @@ public abstract class TransporterTest extends TestCase {
 		action = br2.getAction("math.add");
 		assertNotNull(action);
 		assertTrue(action instanceof RemoteActionEndpoint);
-				
+
 		// Invoke "math" service from node2
 		for (int i = 0; i < 10; i++) {
 			Tree rsp = br2.call("math.add", "a", i, "b", 1).waitFor();
 			assertEquals(i + 1, (int) rsp.asInteger());
 		}
-				
+
 		// Group1 on node2
 		br2.createService("g1_a", new Group1Listener());
 		Group1Listener g1_a = (Group1Listener) br2.getLocalService("g1_a");
 		br2.createService("g1_b", new Group1Listener());
 		Group1Listener g1_b = (Group1Listener) br2.getLocalService("g1_b");
-		
+
 		// Group2 on node2
-		br2.createService("g2_a", new Group2Listener());		
+		br2.createService("g2_a", new Group2Listener());
 		Group2Listener g2_a = (Group2Listener) br2.getLocalService("g2_a");
 		br2.createService("g2_b", new Group2Listener());
 		Group2Listener g2_b = (Group2Listener) br2.getLocalService("g2_b");
-		
+
 		// Wait for listener services on node1
 		br1.waitForServices(10000, "g1_a", "g1_b", "g2_a", "g2_b").waitFor();
-		
+
 		// Broadcast
 		br1.broadcast("test.a", new Tree());
 		Thread.sleep(sleep);
@@ -127,7 +127,7 @@ public abstract class TransporterTest extends TestCase {
 		g1_b.payloads.clear();
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
-		
+
 		// Broadcast to group1
 		br1.broadcast("test.a", new Tree(), Groups.of("group1"));
 		g1_a.waitFor();
@@ -138,7 +138,7 @@ public abstract class TransporterTest extends TestCase {
 		assertEquals(0, g2_b.payloads.size());
 		g1_a.payloads.clear();
 		g1_b.payloads.clear();
-		
+
 		// Broadcast to group2
 		br1.broadcast("test.a", new Tree(), Groups.of("group2"));
 		g2_a.waitFor();
@@ -149,7 +149,7 @@ public abstract class TransporterTest extends TestCase {
 		assertEquals(1, g2_b.payloads.size());
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
-		
+
 		// Broadcast to group1 and group2
 		br1.broadcast("test.a", new Tree(), Groups.of("group1", "group2"));
 		g1_a.waitFor();
@@ -160,7 +160,7 @@ public abstract class TransporterTest extends TestCase {
 		g1_b.payloads.clear();
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
-		
+
 		// Emit
 		br1.emit("test.a", new Tree());
 		Thread.sleep(sleep);
@@ -170,7 +170,7 @@ public abstract class TransporterTest extends TestCase {
 		g1_b.payloads.clear();
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
-		
+
 		// Emit to group1
 		br1.emit("test.a", new Tree(), Groups.of("group1"));
 		Thread.sleep(sleep);
@@ -187,15 +187,15 @@ public abstract class TransporterTest extends TestCase {
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
 	}
-	
+
 	private void checkPing(ServiceBroker broker, String nodeID) throws Exception {
 		Tree rsp = broker.ping(nodeID).waitFor();
 		assertTrue(rsp.get("source", 0L) > 0);
 		assertTrue(rsp.get("target", 0L) > 0);
 	}
-	
+
 	// --- SAMPLES ---
-	
+
 	protected static final class Group1Listener extends Service {
 
 		protected LinkedList<Tree> payloads = new LinkedList<>();
@@ -217,9 +217,9 @@ public abstract class TransporterTest extends TestCase {
 			}
 			assertTrue(!payloads.isEmpty());
 		}
-		
+
 	}
-	
+
 	protected static final class Group2Listener extends Service {
 
 		protected LinkedList<Tree> payloads = new LinkedList<>();
@@ -243,20 +243,20 @@ public abstract class TransporterTest extends TestCase {
 		}
 
 	}
-	
+
 	protected static final class TestService extends Service {
 
 		public Action add = ctx -> {
 			return ctx.params.get("a", 0) + ctx.params.get("b", 0);
 		};
-		
+
 	}
-	
+
 	// --- UTILITIES ---
-	
+
 	@Override
 	protected void setUp() throws Exception {
-		
+
 		// Create transporters
 		tr1 = createTransporter();
 		tr2 = createTransporter();
@@ -264,19 +264,19 @@ public abstract class TransporterTest extends TestCase {
 		// Enable debug messages
 		tr1.setDebug(true);
 		tr2.setDebug(true);
-		
-		// Create brokers		
+
+		// Create brokers
 		br1 = ServiceBroker.builder().transporter(tr1).monitor(new ConstantMonitor()).nodeID("node1").build();
 		br2 = ServiceBroker.builder().transporter(tr2).monitor(new ConstantMonitor()).nodeID("node2").build();
-		
+
 		// Create "marker" service
 		br1.createService("marker", new Service() {
 		});
-		
+
 		// Start brokers
 		br1.start();
 		br2.start();
-		
+
 		// Wait for connecting nodes
 		br2.waitForServices(15000, "marker").waitFor();
 	}
@@ -290,5 +290,5 @@ public abstract class TransporterTest extends TestCase {
 			br2.stop();
 		}
 	}
-	
+
 }

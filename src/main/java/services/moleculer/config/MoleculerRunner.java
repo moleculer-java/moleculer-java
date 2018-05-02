@@ -59,7 +59,8 @@ public final class MoleculerRunner {
 	 * Starts/stops Moleculer as a standalone application or as a Windows
 	 * service. Optional start parameters:
 	 * <ul>
-	 * <li>First: Relative or absolute config path (eg. "/conf/moleculer.config.xml")
+	 * <li>First: Relative or absolute config path (eg.
+	 * "/conf/moleculer.config.xml")
 	 * <li>Second: port number (eg. "6788")
 	 * <li>Third: command to stop service (eg. "secret432")
 	 * </ul>

@@ -90,6 +90,10 @@ public class AmqpTransporter extends Transporter {
 	protected Connection client;
 	protected Channel channel;
 
+	// --- STARTED FLAG ---
+
+	protected final AtomicBoolean started = new AtomicBoolean();
+
 	// --- CONSTUCTORS ---
 
 	public AmqpTransporter() {
@@ -164,8 +168,6 @@ public class AmqpTransporter extends Transporter {
 
 	// --- DISCONNECT ---
 
-	protected final AtomicBoolean started = new AtomicBoolean();
-
 	protected void disconnect() {
 		if (channel != null) {
 			try {
@@ -213,7 +215,7 @@ public class AmqpTransporter extends Transporter {
 
 		// Mark as stopped
 		started.set(false);
-		
+
 		// Stop timers
 		super.stopped();
 

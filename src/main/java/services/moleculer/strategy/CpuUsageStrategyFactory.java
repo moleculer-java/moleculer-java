@@ -54,10 +54,10 @@ public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {
 	 * Sample count
 	 */
 	protected int maxTries = 3;
-	
+
 	/**
 	 * lowCpuUsage ~= zero CPU usage
-	 */	
+	 */
 	protected int lowCpuUsage = 5;
 
 	// --- COMPONENTS ---
@@ -91,7 +91,7 @@ public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {
 	@Override
 	public void started(ServiceBroker broker) throws Exception {
 		super.started(broker);
-		
+
 		// Get components
 		transporter = broker.getConfig().getTransporter();
 		if (transporter == null) {
@@ -111,7 +111,7 @@ public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {
 	}
 
 	// --- GETTERS / SETTERS ---
-	
+
 	public int getMaxTries() {
 		return maxTries;
 	}
@@ -127,5 +127,5 @@ public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {
 	public void setLowCpuUsage(int lowCpuUsage) {
 		this.lowCpuUsage = lowCpuUsage;
 	}
-	
+
 }

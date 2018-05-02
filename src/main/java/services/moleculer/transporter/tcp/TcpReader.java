@@ -67,27 +67,6 @@ public class TcpReader implements Runnable {
 	 */
 	protected final boolean debug;
 
-	// --- COMPONENTS ---
-
-	/**
-	 * Parent transporter
-	 */
-	protected final TcpTransporter transporter;
-
-	// --- CONSTRUCTOR ---
-
-	public TcpReader(TcpTransporter transporter) {
-		this.transporter = transporter;
-		debug = transporter.isDebug();
-	}
-
-	// --- NIO VARIABLES ---
-
-	protected ServerSocketChannel serverChannel;
-	protected Selector selector;
-
-	// --- CONNECT ---
-
 	/**
 	 * Server's executor
 	 */
@@ -97,6 +76,27 @@ public class TcpReader implements Runnable {
 	 * Current TPC port
 	 */
 	protected int currentPort;
+
+	// --- COMPONENTS ---
+
+	/**
+	 * Parent transporter
+	 */
+	protected final TcpTransporter transporter;
+
+	// --- NIO VARIABLES ---
+
+	protected ServerSocketChannel serverChannel;
+	protected Selector selector;
+
+	// --- CONSTRUCTOR ---
+
+	public TcpReader(TcpTransporter transporter) {
+		this.transporter = transporter;
+		debug = transporter.isDebug();
+	}
+
+	// --- CONNECT ---
 
 	public void connect() throws Exception {
 
@@ -191,8 +191,10 @@ public class TcpReader implements Runnable {
 		SocketChannel channel;
 		SelectionKey key;
 
-		byte[] bytes, remaining;
-		int processed, pos;
+		byte[] bytes;
+		byte[] remaining;
+		int processed;
+		int pos;
 
 		// Loop
 		while (true) {
