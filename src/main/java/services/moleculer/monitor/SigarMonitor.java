@@ -46,7 +46,7 @@ public class SigarMonitor extends Monitor {
 
 	// --- SIGAR INSTANCE ---
 
-	protected static Sigar sigar = new Sigar();
+	protected static Sigar sigar;
 
 	// --- CONSTRUCTOR ---
 

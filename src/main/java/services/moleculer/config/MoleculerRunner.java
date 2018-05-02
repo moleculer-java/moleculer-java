@@ -133,9 +133,8 @@ public final class MoleculerRunner {
 			// Start UDP listener
 			Thread udp = new Thread() {
 
-				private DatagramSocket serverSocket = null;
-
 				public void run() {
+					DatagramSocket serverSocket = null;
 					try {
 						serverSocket = new DatagramSocket(stopPort);
 						byte[] buf = new byte[stopMessage.length()];
