@@ -25,6 +25,9 @@
  */
 package services.moleculer.service;
 
+import static services.moleculer.ServiceBroker.PROTOCOL_VERSION;
+import static services.moleculer.transporter.Transporter.PACKET_PING;
+import static services.moleculer.transporter.Transporter.PACKET_RESPONSE;
 import static services.moleculer.util.CommonUtils.convertAnnotations;
 import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.nameOf;
@@ -362,7 +365,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		// Verify protocol version
 		if (checkVersion) {
 			String ver = message.get("ver", "unknown");
-			if (!ServiceBroker.PROTOCOL_VERSION.equals(ver)) {
+			if (!PROTOCOL_VERSION.equals(ver)) {
 				logger.warn("Invalid protocol version (" + ver + ")!");
 				return;
 			}
@@ -409,43 +412,60 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			return;
 		}
 
-		// Create CallOptions
-		int timeout = message.get("timeout", 0);
+		// Process params and meta
 		Tree params = message.get("params");
+		Tree meta = message.get("meta");
+		if (meta != null && !meta.isEmpty()) {
+			if (params == null) {
+				params = new Tree();
+			}
+			params.getMeta().setObject(params);
+		}
 
-		// TODO Process other properties:
-		// Tree meta = message.get("meta");
-		// int level = message.get("level", 1);
-		// boolean metrics = message.get("metrics", false);
-		// String parentID = message.get("parentID", (String) null);
-		// String requestID = message.get("requestID", (String) null);
+		// Get timeout
+		int timeout = message.get("timeout", 0);
+		CallOptions.Options opts;
+		if (timeout > 0) {
+			opts = CallOptions.timeout(timeout);
+		} else {
+			opts = null;
+		}
 
-		CallOptions.Options opts = CallOptions.nodeID(nodeID).timeout(timeout);
-		Context ctx = contextFactory.create(action, params, opts, null);
+		// Get other properties
+		int level = message.get("level", 1);
+		String parentID = message.get("parentID", (String) null);
+		String requestID = message.get("requestID", id);
+
+		// Create context
+		Context ctx = contextFactory.create(name, params, opts, id, level, requestID, parentID);
 
 		// Invoke action
 		try {
 			new Promise(endpoint.handler(ctx)).then(data -> {
 
 				// Send response
-				FastBuildTree msg = new FastBuildTree(5);
+				FastBuildTree msg = new FastBuildTree(6);
 				msg.putUnsafe("sender", nodeID);
 				msg.putUnsafe("id", id);
-				msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+				msg.putUnsafe("ver", PROTOCOL_VERSION);
 				msg.putUnsafe("success", true);
 				msg.putUnsafe("data", data);
-				transporter.publish(Transporter.PACKET_RESPONSE, sender, msg);
+				Tree rspMeta = data.getMeta(false);
+				if (rspMeta != null && !rspMeta.isEmpty()) {
+					msg.putUnsafe("meta", rspMeta);
+				}
+				transporter.publish(PACKET_RESPONSE, sender, msg);
 
 			}).catchError(error -> {
 
 				// Send error
-				transporter.publish(Transporter.PACKET_RESPONSE, sender, throwableToTree(id, sender, error));
+				transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, error));
 
 			});
 		} catch (Throwable error) {
 
 			// Send error
-			transporter.publish(Transporter.PACKET_RESPONSE, sender, throwableToTree(id, sender, error));
+			transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, error));
 
 		}
 
@@ -453,17 +473,16 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	// --- CONVERT THROWABLE TO RESPONSE MESSAGE ---
 
-	protected Tree throwableToTree(String id, String sender, Throwable error) {
-		FastBuildTree msg = new FastBuildTree(6);
+	protected Tree throwableToTree(String id, Throwable error) {
+		FastBuildTree msg = new FastBuildTree(5);
 		msg.putUnsafe("id", id);
-		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
-		msg.putUnsafe("sender", sender);
+		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("sender", nodeID);
 		msg.putUnsafe("success", false);
-		msg.putUnsafe("data", null);
 		if (error != null) {
 
 			// Add message
-			FastBuildTree errorMap = new FastBuildTree(2);
+			FastBuildTree errorMap = new FastBuildTree(3);
 			msg.putUnsafe("error", errorMap);
 			errorMap.putUnsafe("message", error.getMessage());
 
@@ -473,6 +492,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			error.printStackTrace(pw);
 			errorMap.putUnsafe("trace", sw.toString());
 
+			// Add source nodeID of the error
+			errorMap.putUnsafe("nodeID", nodeID);
 		}
 		return msg;
 	}
@@ -485,7 +506,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		// Verify protocol version
 		if (checkVersion) {
 			String ver = message.get("ver", "unknown");
-			if (!ServiceBroker.PROTOCOL_VERSION.equals(ver)) {
+			if (!PROTOCOL_VERSION.equals(ver)) {
 				logger.warn("Invalid protocol version (" + ver + ")!");
 				return;
 			}
@@ -517,7 +538,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		// Verify protocol version
 		if (checkVersion) {
 			String ver = message.get("ver", "unknown");
-			if (!ServiceBroker.PROTOCOL_VERSION.equals(ver)) {
+			if (!PROTOCOL_VERSION.equals(ver)) {
 				logger.warn("Invalid protocol version (" + ver + ")!");
 				return;
 			}
@@ -1010,7 +1031,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Send request via transporter
 		Tree message = transporter.createPingPacket(id);
-		transporter.publish(Transporter.PACKET_PING, nodeID, message);
+		transporter.publish(PACKET_PING, nodeID, message);
 
 		// Return promise
 		return promise;

@@ -25,6 +25,8 @@
  */
 package services.moleculer.cacher;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.junit.Test;
 
 import io.datatree.Tree;
@@ -288,13 +290,37 @@ public abstract class CacherTest extends TestCase {
 
 		rsp2 = cr.get("test.test2:4|3").waitFor();
 		assertEquals(7, rsp2.get("c", 0));
+
+		cr.del("test.test2:4|3").waitFor(); // --------
+		testService.counter.set(0);
+		
+		rsp2 = cr.get("test.test2:4|3").waitFor();
+		assertNull(rsp2);
+
+		params.put("a", 6);
+		for (int i = 0; i < 10; i++) {
+			rsp = br.call("test.test", params).waitFor();
+			assertEquals(12, (int) rsp.asInteger());
+		}
+		assertEquals(1, testService.counter.get());
+		
+		cr.del("test.test:6").waitFor(); // --------
+		
+		for (int i = 0; i < 10; i++) {
+			rsp = br.call("test.test", params).waitFor();
+			assertEquals(12, (int) rsp.asInteger());
+		}
+		assertEquals(2, testService.counter.get());
 	}
 
 	@Name("test")
 	public class TestService extends Service {
 
+		AtomicInteger counter = new AtomicInteger();
+		
 		@Cache(keys = { "a" })
 		public Action test = ctx -> {
+			counter.incrementAndGet();
 			return ctx.params.get("a", 0) * 2;
 		};
 

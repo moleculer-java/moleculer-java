@@ -74,7 +74,7 @@ public class Context {
 	 * Calling options
 	 */
 	public final CallOptions.Options opts;
-
+	
 	// --- COMPONENTS ---
 
 	protected final ServiceInvoker serviceInvoker;
@@ -119,6 +119,22 @@ public class Context {
 		this.requestID = parent.requestID;
 	}
 
+	public Context(ServiceInvoker serviceInvoker, Eventbus eventbus, String id, String name, Tree params, CallOptions.Options opts, int level, String requestID, String parentID) {
+
+		// Set components
+		this.serviceInvoker = serviceInvoker;
+		this.eventbus = eventbus;
+
+		// Set properties
+		this.id = id;
+		this.name = name;
+		this.params = params;
+		this.level = level;
+		this.parentID = parentID;
+		this.opts = opts;
+		this.requestID = requestID;
+	}
+	
 	// --- INVOKE LOCAL OR REMOTE ACTION ---
 
 	/**

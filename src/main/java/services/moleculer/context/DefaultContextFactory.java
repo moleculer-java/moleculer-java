@@ -108,6 +108,19 @@ public class DefaultContextFactory extends ContextFactory {
 		return new Context(id, name, params, opts, parent);
 	}
 
+	@Override
+	public Context create(String name, Tree params, CallOptions.Options opts, String id, int level, String requestID,
+			String parentID) {
+
+		// Verify call level
+		if (maxCallLevel > 0 && level > maxCallLevel) {
+			throw new IllegalStateException("Max call level limit reached (" + maxCallLevel + ")!");
+		}
+
+		// Create new Context
+		return new Context(serviceInvoker, eventbus, id, name, params, opts, level, requestID, parentID);
+	}
+
 	// --- PROPERTY GETTERS AND SETTERS ---
 
 	public int getMaxCallLevel() {

@@ -138,20 +138,15 @@ public abstract class Cacher extends Middleware {
 		return key.toString();
 	}
 
-	protected void appendToKey(StringBuilder key, Object object) {
-		if (object != null) {
-			if (object instanceof Tree) {
-				Tree tree = (Tree) object;
-				if (tree.isPrimitive()) {
-					key.append(tree.asObject());
-				} else {
-					key.append(tree.toString(null, false, true));
-				}
-			} else {
-				key.append(object);
-			}
-		} else {
+	protected void appendToKey(StringBuilder key, Tree tree) {
+		if (tree == null) {
 			key.append("null");
+		} else {
+			if (tree.isPrimitive()) {
+				key.append(tree.asObject());
+			} else {
+				key.append(tree.toString(null, false, true));
+			}
 		}
 	}
 

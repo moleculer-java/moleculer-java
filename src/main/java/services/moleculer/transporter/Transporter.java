@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.datatree.Promise;
@@ -324,8 +325,8 @@ public abstract class Transporter extends MoleculerComponent {
 
 	// --- REQUEST PACKET ---
 
-	public Tree createRequestPacket(Context ctx) {
-		FastBuildTree msg = new FastBuildTree(7);
+	public Tree createRequestPacket(Context ctx) throws TimeoutException {
+		FastBuildTree msg = new FastBuildTree(10);
 
 		// Add basic properties
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
@@ -334,18 +335,32 @@ public abstract class Transporter extends MoleculerComponent {
 		msg.putUnsafe("action", ctx.name);
 
 		// Add params and meta
-		if (ctx.params != null) {
+		if (ctx.params != null && !ctx.params.isEmpty()) {
 			msg.putUnsafe("params", ctx.params.asObject());
 			Tree meta = ctx.params.getMeta(false);
-			if (meta != null) {
+			if (meta != null && !meta.isEmpty()) {
 				msg.putUnsafe("meta", meta.asObject());
 			}
 		}
 
-		// Add opts
-		if (ctx.opts != null) {
+		// TODO Distributed timeout
+		if (ctx.opts != null && ctx.opts.timeout > 0) {
+			
+			// long elapsedMillis = System.currentTimeMillis() - ctx.createdAt;
+			// long newTimeout = ctx.opts.timeout - elapsedMillis;
 			msg.putUnsafe("timeout", ctx.opts.timeout);
 		}
+
+		// Call level
+		msg.putUnsafe("level", ctx.level);
+
+		// Parent ID
+		if (ctx.parentID != null) {
+			msg.putUnsafe("parentID", ctx.parentID);
+		}
+
+		// Request ID
+		msg.putUnsafe("requestID", ctx.requestID);
 
 		// Return message
 		return msg;
