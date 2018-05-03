@@ -34,6 +34,8 @@ public class LocalActionEndpoint extends ActionEndpoint {
 	public LocalActionEndpoint(String nodeID, Tree config, Action action) {
 		super(nodeID, config);
 		this.current = action;
+		
+		// TODO Handle local timeout with a handler
 	}
 
 }

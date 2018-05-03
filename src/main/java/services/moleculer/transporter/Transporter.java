@@ -343,11 +343,8 @@ public abstract class Transporter extends MoleculerComponent {
 			}
 		}
 
-		// TODO Distributed timeout
+		// Timeout
 		if (ctx.opts != null && ctx.opts.timeout > 0) {
-			
-			// long elapsedMillis = System.currentTimeMillis() - ctx.createdAt;
-			// long newTimeout = ctx.opts.timeout - elapsedMillis;
 			msg.putUnsafe("timeout", ctx.opts.timeout);
 		}
 
