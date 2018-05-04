@@ -134,6 +134,8 @@ public final class RedisGetSetClient {
 
 				@Override
 				public final void publish(Event event) {
+					
+					// Do nothing
 				}
 
 				@Override

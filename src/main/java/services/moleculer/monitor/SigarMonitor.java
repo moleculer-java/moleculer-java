@@ -51,14 +51,12 @@ public class SigarMonitor extends Monitor {
 	// --- CONSTRUCTOR ---
 
 	public SigarMonitor() {
-		if (!invalidMonitor.get()) {
-			if (sigar == null) {
-				try {
-					sigar = new Sigar();
-				} catch (Exception cause) {
-					logger.error("Unable to reach Sigar API!", cause);
-					invalidMonitor.set(true);
-				}
+		if (!invalidMonitor.get() && sigar == null) {
+			try {
+				sigar = new Sigar();
+			} catch (Exception cause) {
+				logger.error("Unable to reach Sigar API!", cause);
+				invalidMonitor.set(true);
 			}
 		}
 	}

@@ -58,7 +58,7 @@ public abstract class StrategyTest extends TestCase {
 
 		Strategy<LocalActionEndpoint> s = createStrategy(true);
 		for (int i = 1; i <= 6; i++) {
-			s.addEndpoint(createEndpoint(i < 4 ? "node1" : "node2", "e" + i));
+			s.addEndpoint(createEndpoint(br, i < 4 ? "node1" : "node2", "e" + i));
 		}
 		assertEquals(6, s.getAllEndpoints().size());
 		HashSet<LocalActionEndpoint> set = new HashSet<>();
@@ -98,7 +98,7 @@ public abstract class StrategyTest extends TestCase {
 	protected void simpleTest(boolean preferLocal) throws Exception {
 		Strategy<LocalActionEndpoint> s = createStrategy(preferLocal);
 		for (int i = 1; i <= 5; i++) {
-			s.addEndpoint(createEndpoint("node1", "e" + i));
+			s.addEndpoint(createEndpoint(br, "node1", "e" + i));
 		}
 		assertEquals(5, s.getAllEndpoints().size());
 		HashSet<LocalActionEndpoint> set1 = new HashSet<>();
@@ -115,11 +115,11 @@ public abstract class StrategyTest extends TestCase {
 		assertEquals(5, set1.size());
 	}
 
-	protected LocalActionEndpoint createEndpoint(String nodeID, String name) {
+	protected LocalActionEndpoint createEndpoint(ServiceBroker broker, String nodeID, String name) {
 		Tree cfg = new Tree();
 		cfg.put("name", name);
-		DefaultServiceRegistry registry = (DefaultServiceRegistry) br.getConfig().getServiceRegistry();
-		LocalActionEndpoint e = new LocalActionEndpoint(registry, br.getConfig().getExecutor(), nodeID, cfg,
+		DefaultServiceRegistry registry = (DefaultServiceRegistry) broker.getConfig().getServiceRegistry();
+		LocalActionEndpoint e = new LocalActionEndpoint(registry, broker.getConfig().getExecutor(), nodeID, cfg,
 				new Action() {
 
 					@Override

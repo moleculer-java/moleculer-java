@@ -82,6 +82,11 @@ public class TcpWriter implements Runnable {
 
 	protected Selector selector;
 
+	/**
+	 * Writer thread
+	 */
+	protected ExecutorService executor;
+	
 	// --- CONSTRUCTOR ---
 
 	public TcpWriter(TcpTransporter transporter) {
@@ -91,11 +96,6 @@ public class TcpWriter implements Runnable {
 	}
 
 	// --- CONNECT ---
-
-	/**
-	 * Writer thread
-	 */
-	protected ExecutorService executor;
 
 	public void connect() throws Exception {
 

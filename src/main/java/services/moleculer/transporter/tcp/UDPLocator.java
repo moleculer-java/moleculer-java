@@ -79,6 +79,13 @@ public class UDPLocator {
 
 	protected final ArrayList<UDPReceiver> receivers = new ArrayList<>();
 
+	// --- TIMERS ---
+	
+	/**
+	 * Cancelable timer of sender
+	 */
+	protected volatile ScheduledFuture<?> timer;
+	
 	// --- CONSTRUCTOR ---
 
 	public UDPLocator(String nodeID, TcpTransporter transporter, ScheduledExecutorService scheduler) {
@@ -88,11 +95,6 @@ public class UDPLocator {
 	}
 
 	// --- CONNECT ---
-
-	/**
-	 * Cancelable timer of sender
-	 */
-	protected volatile ScheduledFuture<?> timer;
 
 	public void connect() throws Exception {
 		disconnect();

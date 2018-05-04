@@ -290,6 +290,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 				} else if (match.indexOf('*') == -1) {
 
 					// Not supported method
+					logger.warn("This pattern is not supported: " + match);
 
 				} else {
 					Iterator<String> i = partitions.keySet().iterator();
