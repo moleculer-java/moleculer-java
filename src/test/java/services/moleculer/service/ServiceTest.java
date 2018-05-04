@@ -67,7 +67,7 @@ public class ServiceTest extends TestCase {
 		// Invalid call
 		try {
 			br.call("test.invalid", "a", 3, "b", 6).waitFor();
-			assertTrue(false);
+			fail();
 		} catch (Exception e) {
 
 			// Must throw an error
@@ -107,6 +107,7 @@ public class ServiceTest extends TestCase {
 		public Action add = ctx -> {
 			return ctx.params.get("a", 0) + ctx.params.get("b", 0);
 		};
+		
 	}
 
 	public class TestFilter extends Middleware {

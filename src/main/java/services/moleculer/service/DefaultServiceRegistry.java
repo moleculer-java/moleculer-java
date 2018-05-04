@@ -53,6 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -132,6 +133,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	// --- COMPONENTS ---
 
+	protected ExecutorService executor;
 	protected ScheduledExecutorService scheduler;
 	protected StrategyFactory strategyFactory;
 	protected ContextFactory contextFactory;
@@ -211,6 +213,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Set components
 		ServiceBrokerConfig cfg = broker.getConfig();
+		this.executor = cfg.getExecutor();
 		this.scheduler = cfg.getScheduler();
 		this.strategyFactory = cfg.getStrategyFactory();
 		this.contextFactory = cfg.getContextFactory();
@@ -275,18 +278,17 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		PendingPromise pending;
 		Iterator<PendingPromise> i = promises.values().iterator();
 		boolean removed = false;
-		Exception error = new TimeoutException("Action invocation timeouted!");
 		while (i.hasNext()) {
 			pending = i.next();
 			if (pending.timeoutAt > 0 && now >= pending.timeoutAt) {
-				pending.promise.complete(error);
+				pending.promise.complete(new TimeoutException("Action invocation timeouted!"));
 				i.remove();
 				removed = true;
 			}
 		}
 		if (removed) {
 			scheduler.execute(() -> {
-				reschedule(Long.MAX_VALUE);
+				reschedule(Long.MAX_VALUE);				
 			});
 		} else {
 			prevTimeoutAt.set(0);
@@ -319,8 +321,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				}
 			}
 		} else {
-			minTimeoutAt = (minTimeoutAt / 1000 * 1000) + 1000;
-
+			minTimeoutAt = (minTimeoutAt / 100 * 100) + 100;		
 			long prev = prevTimeoutAt.getAndSet(minTimeoutAt);
 			if (prev == minTimeoutAt) {
 
@@ -335,7 +336,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			}
 
 			// Schedule next timeout timer
-			long delay = Math.max(1000, minTimeoutAt - now);
+			long delay = Math.max(10, minTimeoutAt - now);
 			callTimeoutTimer.set(scheduler.schedule(this::checkTimeouts, delay, TimeUnit.MILLISECONDS));
 		}
 	}
@@ -346,7 +347,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		promises.put(id, new PendingPromise(promise, timeoutAt));
 
 		long nextTimeoutAt = prevTimeoutAt.get();
-		if (nextTimeoutAt == 0 || (timeoutAt / 1000 * 1000) + 1000 < nextTimeoutAt) {
+		if (nextTimeoutAt == 0 || (timeoutAt / 100 * 100) + 100 < nextTimeoutAt || promises.size() < 3) {
 			scheduler.execute(() -> {
 				reschedule(timeoutAt);
 			});
@@ -703,7 +704,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				convertAnnotations(actionConfig, annotations);
 
 				// Register action
-				LocalActionEndpoint endpoint = new LocalActionEndpoint(nodeID, actionConfig, action);
+				LocalActionEndpoint endpoint = new LocalActionEndpoint(this, executor, nodeID, actionConfig, action);
 				Strategy<ActionEndpoint> actionStrategy = strategies.get(actionName);
 				if (actionStrategy == null) {
 

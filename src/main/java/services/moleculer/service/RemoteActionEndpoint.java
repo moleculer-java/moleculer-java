@@ -27,7 +27,6 @@ package services.moleculer.service;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.context.Context;
 import services.moleculer.transporter.Transporter;
 
 public class RemoteActionEndpoint extends ActionEndpoint {
@@ -36,38 +35,10 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 
 	public RemoteActionEndpoint(DefaultServiceRegistry registry, Transporter transporter, String nodeID, Tree config) {
 		super(nodeID, config);
-		this.current = new RemoteAction(registry, nodeID, transporter, this);
-	}
-
-	// --- REMOTE ACTION ---
-
-	protected static class RemoteAction implements Action {
-
-		// --- COMPONENTS ---
-
-		protected Transporter transporter;
-		protected DefaultServiceRegistry registry;
-
-		// --- PROPERTIES ---
-
-		protected final String nodeID;
-		protected final RemoteActionEndpoint endpoint;
-
-		// --- CONSTRUCTOR ---
-
-		protected RemoteAction(DefaultServiceRegistry registry, String nodeID, Transporter transporter,
-				RemoteActionEndpoint endpoint) {
-			this.registry = registry;
-			this.nodeID = nodeID;
-			this.transporter = transporter;
-			this.endpoint = endpoint;
-		}
-
-		// --- INVOKE REMOTE ENDPOINT ---
-
-		@Override
-		public Object handler(Context ctx) throws Exception {
-
+		
+		// Handle remote timeout with a handler
+		current = ctx -> {	
+			
 			// Create new promise
 			Promise promise = new Promise();
 
@@ -88,8 +59,7 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 
 			// Return promise
 			return promise;
-		}
-
+		};
 	}
-
+	
 }

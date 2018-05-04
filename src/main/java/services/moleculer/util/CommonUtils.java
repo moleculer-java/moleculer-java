@@ -326,40 +326,32 @@ public final class CommonUtils {
 		CallOptions.Options opts = null;
 		Groups groups = null;
 		if (params != null) {
-			if (params.length == 1) {
-				if (params[0] instanceof Tree) {
-					data = (Tree) params[0];
-				} else {
-					data = new CheckedTree(params[0]);
-				}
-			} else {
-				LinkedHashMap<String, Object> map = new LinkedHashMap<>();
-				String prev = null;
-				Object value;
-				for (int i = 0; i < params.length; i++) {
-					value = params[i];
-					if (prev == null) {
-						if (!(value instanceof String)) {
-							if (value instanceof CallOptions.Options) {
-								opts = (CallOptions.Options) value;
-								continue;
-							}
-							if (value instanceof Groups) {
-								groups = (Groups) value;
-								continue;
-							}
-							i++;
-							throw new IllegalArgumentException("Parameter #" + i + " (\"" + value
-									+ "\") must be String, Context, Groups, or CallOptions!");
+			LinkedHashMap<String, Object> map = new LinkedHashMap<>();
+			String prev = null;
+			Object value;
+			for (int i = 0; i < params.length; i++) {
+				value = params[i];
+				if (prev == null) {
+					if (!(value instanceof String)) {
+						if (value instanceof CallOptions.Options) {
+							opts = (CallOptions.Options) value;
+							continue;
 						}
-						prev = (String) value;
-						continue;
+						if (value instanceof Groups) {
+							groups = (Groups) value;
+							continue;
+						}
+						i++;
+						throw new IllegalArgumentException("Parameter #" + i + " (\"" + value
+								+ "\") must be String, Context, Groups, or CallOptions!");
 					}
-					map.put(prev, value);
-					prev = null;
+					prev = (String) value;
+					continue;
 				}
-				data = new Tree(map);
+				map.put(prev, value);
+				prev = null;
 			}
+			data = new Tree(map);
 		}
 		return new ParseResult(data, opts, groups);
 	}

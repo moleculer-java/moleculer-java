@@ -25,15 +25,14 @@
  */
 package services.moleculer.strategy;
 
-import services.moleculer.ServiceBroker;
 import services.moleculer.service.LocalActionEndpoint;
 
 public class XorShiftRandomStrategyTest extends StrategyTest {
 
 	@Override
-	public Strategy<LocalActionEndpoint> createStrategy(ServiceBroker broker, boolean preferLocal) throws Exception {
+	public Strategy<LocalActionEndpoint> createStrategy(boolean preferLocal) throws Exception {
 		XorShiftRandomStrategyFactory f = new XorShiftRandomStrategyFactory(preferLocal);
-		f.started(broker);
+		f.started(br);
 		return f.create();
 	}
 

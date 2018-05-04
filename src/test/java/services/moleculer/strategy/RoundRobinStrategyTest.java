@@ -25,15 +25,14 @@
  */
 package services.moleculer.strategy;
 
-import services.moleculer.ServiceBroker;
 import services.moleculer.service.LocalActionEndpoint;
 
 public class RoundRobinStrategyTest extends StrategyTest {
 
 	@Override
-	public Strategy<LocalActionEndpoint> createStrategy(ServiceBroker broker, boolean preferLocal) throws Exception {
+	public Strategy<LocalActionEndpoint> createStrategy(boolean preferLocal) throws Exception {
 		RoundRobinStrategyFactory f = new RoundRobinStrategyFactory(preferLocal);
-		f.started(broker);
+		f.started(br);
 		return f.create();
 	}
 

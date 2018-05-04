@@ -25,17 +25,63 @@
  */
 package services.moleculer.service;
 
+import java.util.concurrent.ExecutorService;
+
+import io.datatree.Promise;
 import io.datatree.Tree;
 
 public class LocalActionEndpoint extends ActionEndpoint {
 
 	// --- CONSTRUCTOR ---
 
-	public LocalActionEndpoint(String nodeID, Tree config, Action action) {
+	public LocalActionEndpoint(DefaultServiceRegistry registry, ExecutorService executor, String nodeID, Tree config,
+			Action action) {
 		super(nodeID, config);
-		this.current = action;
-		
-		// TODO Handle local timeout with a handler
+
+		// Handle local timeout with a handler
+		current = ctx -> {
+			if (ctx.opts != null && ctx.opts.timeout > 0) {
+
+				// Create promise
+				Promise promise = new Promise();
+
+				// Execute local task
+				executor.execute(() -> {
+
+					// Set timeout
+					long timeoutAt = System.currentTimeMillis() + ctx.opts.timeout;
+
+					// Register promise
+					registry.register(ctx.id, promise, timeoutAt);
+
+					// Invoke async method
+					try {
+						Promise.resolve(action.handler(ctx)).then(in -> {
+							if (promise.complete(in)) {
+								registry.deregister(ctx.id);
+							}
+						}).catchError(err -> {
+							if (promise.complete(err)) {
+								registry.deregister(ctx.id);
+							}
+						});
+					} catch (Exception cause) {
+						registry.deregister(ctx.id);
+						promise.complete(cause);
+					}
+
+				});
+
+				// Return promise
+				return promise;
+
+			} else {
+
+				// Invoke handler without timeout handling
+				return action.handler(ctx);
+
+			}
+		};
 	}
 
 }

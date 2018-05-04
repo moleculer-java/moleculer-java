@@ -36,28 +36,27 @@ import services.moleculer.breaker.TestTransporter;
 import services.moleculer.context.Context;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.service.Action;
+import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.LocalActionEndpoint;
 
 public abstract class StrategyTest extends TestCase {
 
+	// --- PROPERTIES ---
+
+	protected ServiceBroker br;
+
 	// --- STRATEGY FACTORY ---
 
-	protected abstract Strategy<LocalActionEndpoint> createStrategy(ServiceBroker broker, boolean preferLocal)
-			throws Exception;
+	protected abstract Strategy<LocalActionEndpoint> createStrategy(boolean preferLocal) throws Exception;
 
 	// --- TEST METHODS ---
 
 	@Test
 	public void testStrategy() throws Exception {
-		TestTransporter tr = new TestTransporter();
-		ServiceBroker broker = ServiceBroker.builder().nodeID("node1").transporter(tr).monitor(new ConstantMonitor())
-				.build();
-		broker.start();
+		simpleTest(true);
+		simpleTest(false);
 
-		simpleTest(broker, true);
-		simpleTest(broker, false);
-
-		Strategy<LocalActionEndpoint> s = createStrategy(broker, true);
+		Strategy<LocalActionEndpoint> s = createStrategy(true);
 		for (int i = 1; i <= 6; i++) {
 			s.addEndpoint(createEndpoint(i < 4 ? "node1" : "node2", "e" + i));
 		}
@@ -94,12 +93,10 @@ public abstract class StrategyTest extends TestCase {
 			assertNull(s.getEndpoint("node2"));
 		}
 		assertEquals(0, s.getAllEndpoints().size());
-
-		broker.stop();
 	}
 
-	protected void simpleTest(ServiceBroker broker, boolean preferLocal) throws Exception {
-		Strategy<LocalActionEndpoint> s = createStrategy(broker, preferLocal);
+	protected void simpleTest(boolean preferLocal) throws Exception {
+		Strategy<LocalActionEndpoint> s = createStrategy(preferLocal);
 		for (int i = 1; i <= 5; i++) {
 			s.addEndpoint(createEndpoint("node1", "e" + i));
 		}
@@ -121,15 +118,36 @@ public abstract class StrategyTest extends TestCase {
 	protected LocalActionEndpoint createEndpoint(String nodeID, String name) {
 		Tree cfg = new Tree();
 		cfg.put("name", name);
-		LocalActionEndpoint e = new LocalActionEndpoint(nodeID, cfg, new Action() {
+		DefaultServiceRegistry registry = (DefaultServiceRegistry) br.getConfig().getServiceRegistry();
+		LocalActionEndpoint e = new LocalActionEndpoint(registry, br.getConfig().getExecutor(), nodeID, cfg,
+				new Action() {
 
-			@Override
-			public Object handler(Context ctx) throws Exception {
-				return null;
-			}
+					@Override
+					public Object handler(Context ctx) throws Exception {
+						return null;
+					}
 
-		});
+				});
 		return e;
+	}
+
+	// --- START BROKER ---
+
+	@Override
+	protected void setUp() throws Exception {
+		TestTransporter tr = new TestTransporter();
+		br = ServiceBroker.builder().nodeID("node1").transporter(tr).monitor(new ConstantMonitor()).build();
+		br.start();
+	}
+
+	// --- STOP BROKER ---
+
+	@Override
+	protected void tearDown() throws Exception {
+		if (br != null) {
+			br.stop();
+			br = null;
+		}
 	}
 
 }

@@ -151,11 +151,10 @@ public class Context {
 	 * </pre>
 	 */
 	public Promise call(String name, Object... params) {
-		
+		ParseResult res = parseParams(params);
+
 		// TODO Recalculate distribuuted timeout
 		// https://github.com/moleculerjs/moleculer/blob/master/src/context.js#L194
-		
-		ParseResult res = parseParams(params);
 		return serviceInvoker.call(name, res.data, res.opts, this);
 	}
 

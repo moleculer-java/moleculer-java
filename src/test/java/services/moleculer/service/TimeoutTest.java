@@ -23,49 +23,81 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.strategy;
+package services.moleculer.service;
 
 import org.junit.Test;
 
+import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
-import services.moleculer.breaker.TestTransporter;
+import services.moleculer.context.CallOptions;
 import services.moleculer.monitor.ConstantMonitor;
-import services.moleculer.service.LocalActionEndpoint;
 
-public class CpuUsageStrategyTest extends StrategyTest {
+public class TimeoutTest extends TestCase {
 
-	@Override
-	public Strategy<LocalActionEndpoint> createStrategy(boolean preferLocal) throws Exception {
-		CpuUsageStrategyFactory f = new CpuUsageStrategyFactory(preferLocal);
-		f.started(br);
-		return f.create();
-	}
+	// --- VARIABLES ---
+
+	protected DefaultServiceRegistry sr;
+	protected ServiceBroker br;
 
 	// --- TEST METHODS ---
 
 	@Test
-	public void testSelection() throws Exception {
-		TestTransporter tr = new TestTransporter();
-		ConstantMonitor cm = new ConstantMonitor();
-		ServiceBroker broker = ServiceBroker.builder().nodeID("node1").transporter(tr).monitor(cm).build();
-		broker.start();
+	public void testTimeout() throws Exception {
 
-		Strategy<LocalActionEndpoint> s = createStrategy(false);
-		for (int i = 1; i <= 6; i++) {
-			s.addEndpoint(createEndpoint("node" + i, "e" + i));
-			tr.setCpuUsage("node" + i, i * 10);
+		// Create slow service
+		br.createService(new TimeoutService());
+
+		// Invoke slow service
+		assertTrue(invokeSlowService(0));
+
+		assertFalse(invokeSlowService(100));
+		assertFalse(invokeSlowService(500));
+
+		assertTrue(invokeSlowService(2000));
+		assertTrue(invokeSlowService(5000));
+		assertTrue(invokeSlowService(10000));
+
+		for (int i = 0; i < 10; i++) {
+			assertFalse(invokeSlowService(100));
 		}
+	}
 
-		assertEquals(6, s.getAllEndpoints().size());
-		double sum = 0;
-		for (int i = 0; i < 200; i++) {
-			LocalActionEndpoint e = s.getEndpoint(null);
-			sum += Integer.parseInt(e.getNodeID().substring(4));
+	protected boolean invokeSlowService(long timeout) {
+		try {
+			br.call("timeout.slow", CallOptions.timeout(timeout)).waitFor();
+			return true;
+		} catch (Exception e) {
+			return false;
 		}
-		double average = sum / 200d;
-		assertTrue(average < 2.3);
+	}
 
-		broker.stop();
+	@Name("timeout")
+	protected static final class TimeoutService extends Service {
+
+		@Name("slow")
+		public Action action = ctx -> {
+			Thread.sleep(1000);
+			return 0;
+		};
+
+	}
+
+	// --- SET UP ---
+
+	@Override
+	protected void setUp() throws Exception {
+		sr = new DefaultServiceRegistry();
+		br = ServiceBroker.builder().monitor(new ConstantMonitor()).registry(sr).nodeID("local").build();
+		br.start();
+	}
+
+	// --- TEAR DOWN ---
+
+	@Override
+	protected void tearDown() throws Exception {
+		if (br != null) {
+			br.stop();
+		}
 	}
 
 }
