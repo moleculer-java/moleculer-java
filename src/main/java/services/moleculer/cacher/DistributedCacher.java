@@ -53,7 +53,7 @@ public abstract class DistributedCacher extends Cacher {
 
 	// --- PROPERTIES ---
 
-	protected int maxKeyLength;
+	protected int maxParamsLength;
 
 	// --- KEY HASHERS ---
 
@@ -65,7 +65,7 @@ public abstract class DistributedCacher extends Cacher {
 	}
 
 	public DistributedCacher(int maxKeyLength) {
-		setMaxKeyLength(maxKeyLength);
+		setMaxParamsLength(maxKeyLength);
 	}
 
 	// --- GENERATE CACHE KEY ---
@@ -85,26 +85,32 @@ public abstract class DistributedCacher extends Cacher {
 	 */
 	@Override
 	public String getCacheKey(String name, Tree params, String... keys) {
-		String key = super.getCacheKey(name, params, keys);
-		int keyLength = key.length();
-		if (maxKeyLength < 44 || keyLength <= maxKeyLength) {
+		String serializedParams = super.getCacheKey(null, params, keys);
+		if (serializedParams == null) {
 
-			// Hashing is disabled
-			return key;
+			// Key = action name
+			return name;
+
+		}
+		int paramsLength = serializedParams.length();
+		if (maxParamsLength < 44 || paramsLength <= maxParamsLength) {
+
+			// Key = action name : serialized key
+			return name + ':' + serializedParams;
 		}
 
-		// Length of unhashed part (begining of the original key)
-		int prefixLength = maxKeyLength - 44;
+		// Length of unhashed part (begining of the serialized params)
+		int prefixLength = maxParamsLength - 44;
 
 		// Create SHA-256 hash from the entire key
-		byte[] bytes = key.getBytes(StandardCharsets.UTF_8);
+		byte[] bytes = serializedParams.getBytes(StandardCharsets.UTF_8);
 		MessageDigest hasher = hashers.poll();
 		if (hasher == null) {
 			try {
 				hasher = MessageDigest.getInstance("SHA-256");
 			} catch (Exception cause) {
 				logger.warn("Unable to get SHA-256 hasher!", cause);
-				return key;
+				return serializedParams;
 			}
 		} else {
 			hasher.reset();
@@ -113,25 +119,29 @@ public abstract class DistributedCacher extends Cacher {
 		hashers.add(hasher);
 
 		// Concatenate key and the 44 character long hash
-		String basee64 = BASE64.encode(bytes);
+		String base64 = BASE64.encode(bytes);
 		if (prefixLength < 1) {
-			return basee64;
+
+			// Fully hashed key = action name : hash code
+			return name + ':' + base64;
 		}
-		return key.substring(0, prefixLength) + basee64;
+
+		// Partly hashed key = action name : beginig of the prefix + hash code
+		return name + ':' + serializedParams.substring(0, prefixLength) + base64;
 	}
 
 	@Override
 	protected void appendToKey(StringBuilder key, Tree tree) {
 		if (tree == null) {
-			key.append("null");			
+			key.append("null");
 		} else {
 			appendTree(key, tree.asObject());
 		}
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	protected void appendTree(StringBuilder key, Object source) {
-		
+
 		// Null value
 		if (source == null) {
 			key.append("null");
@@ -193,28 +203,28 @@ public abstract class DistributedCacher extends Cacher {
 					first = false;
 				} else {
 					key.append('|');
-				}				
+				}
 				appendTree(key, Array.get(source, i));
 			}
 			return;
 		}
-		
+
 		// UUID, Date, etc.
 		key.append(DataConverterRegistry.convert(String.class, source));
 	}
 
 	// --- GETTERS / SETTERS ---
 
-	public int getMaxKeyLength() {
-		return maxKeyLength;
+	public int getMaxParamsLength() {
+		return maxParamsLength;
 	}
 
-	public void setMaxKeyLength(int maxKeyLength) {
+	public void setMaxParamsLength(int maxKeyLength) {
 		if (maxKeyLength > 0 && maxKeyLength < 44) {
-			logger.warn("The minimum value of \"maxKeyLength\" parameter is 44!");
-			this.maxKeyLength = 44;
+			logger.warn("The minimum value of \"maxParamsLength\" parameter is 44!");
+			this.maxParamsLength = 44;
 		} else {
-			this.maxKeyLength = maxKeyLength;
+			this.maxParamsLength = maxKeyLength;
 		}
 	}
 

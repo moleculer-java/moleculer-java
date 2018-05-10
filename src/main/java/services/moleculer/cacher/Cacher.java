@@ -105,17 +105,23 @@ public abstract class Cacher extends Middleware {
 	 * and params.
 	 *
 	 * @param name
+	 *            qualified name of the action (or null)
 	 * @param params
+	 *            input (key) structure (~JSON)
 	 * @param keys
-	 * @return
+	 *            optional array of keys (eg. "id")
+	 * 
+	 * @return generated cache key
 	 */
 	public String getCacheKey(String name, Tree params, String... keys) {
 		if (params == null) {
 			return name;
 		}
 		StringBuilder key = new StringBuilder(128);
-		key.append(name);
-		key.append(':');
+		if (name != null) {
+			key.append(name);
+			key.append(':');
+		}
 		if (keys == null || keys.length == 0) {
 			appendToKey(key, params);
 			return key.toString();
