@@ -25,10 +25,14 @@
  */
 package services.moleculer.cacher;
 
+import java.lang.reflect.Array;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
+import io.datatree.dom.converters.DataConverterRegistry;
 import services.moleculer.context.Context;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
@@ -105,7 +109,7 @@ public abstract class Cacher extends Middleware {
 	 * and params.
 	 *
 	 * @param name
-	 *            qualified name of the action (or null)
+	 *            qualified name of the action
 	 * @param params
 	 *            input (key) structure (~JSON)
 	 * @param keys
@@ -118,17 +122,20 @@ public abstract class Cacher extends Middleware {
 			return name;
 		}
 		StringBuilder key = new StringBuilder(128);
-		if (name != null) {
-			key.append(name);
-			key.append(':');
-		}
+		key.append(name);
+		key.append(':');
+		serializeKey(key, params, keys);
+		return key.toString();
+	}
+
+	protected void serializeKey(StringBuilder key, Tree params, String... keys) {
 		if (keys == null || keys.length == 0) {
 			appendToKey(key, params);
-			return key.toString();
+			return;
 		}
 		if (keys.length == 1) {
 			appendToKey(key, params.get(keys[0]));
-			return key.toString();
+			return;
 		}
 		if (keys.length > 1) {
 			boolean first = true;
@@ -140,20 +147,89 @@ public abstract class Cacher extends Middleware {
 				}
 				appendToKey(key, params.get(k));
 			}
-		}
-		return key.toString();
+		}		
 	}
-
+	
 	protected void appendToKey(StringBuilder key, Tree tree) {
 		if (tree == null) {
 			key.append("null");
 		} else {
-			if (tree.isPrimitive()) {
-				key.append(tree.asObject());
-			} else {
-				key.append(tree.toString(null, false, true));
-			}
+			appendTree(key, tree.asObject());
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	protected void appendTree(StringBuilder key, Object source) {
+
+		// Null value
+		if (source == null) {
+			key.append("null");
+			return;
+		}
+
+		// String
+		if (source instanceof String) {
+			key.append(source);
+			return;
+		}
+
+		// Primitive
+		Class<?> clazz = source.getClass();
+		if (clazz.isPrimitive()) {
+			key.append(source);
+			return;
+		}
+
+		// Map
+		if (source instanceof Map) {
+			Map<Object, Object> map = (Map<Object, Object>) source;
+			boolean first = true;
+			for (Map.Entry<Object, Object> entry : map.entrySet()) {
+				if (first) {
+					first = false;
+				} else {
+					key.append('|');
+				}
+				key.append(entry.getKey());
+				key.append('|');
+				appendTree(key, entry.getValue());
+			}
+			return;
+
+		}
+
+		// List or Set
+		if (source instanceof Collection) {
+			Collection<Object> collection = (Collection<Object>) source;
+			boolean first = true;
+			for (Object child : collection) {
+				if (first) {
+					first = false;
+				} else {
+					key.append('|');
+				}
+				appendTree(key, child);
+			}
+			return;
+		}
+
+		// Array
+		if (clazz.isArray()) {
+			int max = Array.getLength(source);
+			boolean first = true;
+			for (int i = 0; i < max; i++) {
+				if (first) {
+					first = false;
+				} else {
+					key.append('|');
+				}
+				appendTree(key, Array.get(source, i));
+			}
+			return;
+		}
+
+		// UUID, Date, etc.
+		key.append(DataConverterRegistry.convert(String.class, source));
 	}
 
 	// --- CACHE METHODS ---
