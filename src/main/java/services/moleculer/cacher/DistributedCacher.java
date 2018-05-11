@@ -25,17 +25,13 @@
  */
 package services.moleculer.cacher;
 
-import java.lang.reflect.Array;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.Collection;
-import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import io.datatree.Tree;
 import io.datatree.dom.BASE64;
-import io.datatree.dom.converters.DataConverterRegistry;
 
 /**
  * Abstract class of distributed cachers. Currently the {@link RedisCacher} and
