@@ -32,12 +32,13 @@ import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
 /**
- * XORSHIFT-based pseudorandom invocation strategy.
+ * Fast XORSHIFT-based pseudorandom invocation strategy.
  *
  * @see RoundRobinStrategy
  * @see NanoSecRandomStrategy
  * @see SecureRandomStrategy
  * @see CpuUsageStrategy
+ * @see NetworkLatencyStrategy
  */
 @Name("XORSHIFT Pseudorandom Strategy")
 public class XorShiftRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {

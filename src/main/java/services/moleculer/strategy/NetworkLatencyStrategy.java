@@ -25,39 +25,66 @@
  */
 package services.moleculer.strategy;
 
-import java.security.SecureRandom;
-
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
 /**
- * Java Random/SecureRandom-based invocation strategy.
- *
+ * Lowest network latency strategy.
+ * 
  * @see RoundRobinStrategy
  * @see NanoSecRandomStrategy
  * @see XorShiftRandomStrategy
+ * @see SecureRandomStrategy
  * @see CpuUsageStrategy
- * @see NetworkLatencyStrategy
  */
-@Name("Secure Random Strategy")
-public class SecureRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
+@Name("Lowest Network Latency Strategy")
+public class NetworkLatencyStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T> {
 
 	// --- PROPERTIES ---
 
-	protected SecureRandom rnd = new SecureRandom();
+	protected final int maxTries;
+
+	// --- COMPONENTS ---
+
+	protected final NetworkLatencyStrategyFactory factory;
 
 	// --- CONSTRUCTOR ---
 
-	public SecureRandomStrategy(ServiceBroker broker, boolean preferLocal) {
+	public NetworkLatencyStrategy(ServiceBroker broker, boolean preferLocal, int maxTries,
+			NetworkLatencyStrategyFactory factory) {
 		super(broker, preferLocal);
+		this.maxTries = maxTries;
+		this.factory = factory;
 	}
 
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
 	public Endpoint next(Endpoint[] array) {
-		return array[rnd.nextInt(array.length)];
+
+		// Minimum values
+		long minResponseTime = Long.MAX_VALUE;
+		Endpoint minEndpoint = null;
+
+		// Processing variables
+		Endpoint endpoint;
+		long responseTime;
+
+		// Find the lower response time
+		for (int i = 0; i < maxTries; i++) {
+
+			// Get random endpoint
+			endpoint = super.next(array);
+			
+			// Check response time
+			responseTime = factory.getResponseTime(endpoint.getNodeID());
+			if (minEndpoint == null || responseTime < minResponseTime) {
+				minResponseTime = responseTime;
+				minEndpoint = endpoint;
+			}
+		}
+		return minEndpoint;
 	}
 
 }

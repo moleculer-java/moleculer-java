@@ -36,6 +36,7 @@ import services.moleculer.service.Name;
  * @see SecureRandomStrategy
  * @see XorShiftRandomStrategy
  * @see CpuUsageStrategy
+ * @see NetworkLatencyStrategy
  */
 @Name("Nanosecond-based Pseudorandom Strategy")
 public class NanoSecRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {

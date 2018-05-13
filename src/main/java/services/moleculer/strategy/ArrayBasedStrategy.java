@@ -41,6 +41,7 @@ import services.moleculer.service.Endpoint;
  * @see SecureRandomStrategy
  * @see XorShiftRandomStrategy
  * @see CpuUsageStrategy
+ * @see NetworkLatencyStrategy
  */
 public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T> {
 

@@ -33,6 +33,7 @@ package services.moleculer.strategy;
  * @see SecureRandomStrategyFactory
  * @see XorShiftRandomStrategyFactory
  * @see CpuUsageStrategyFactory
+ * @see NetworkLatencyStrategyFactory
  */
 public abstract class ArrayBasedStrategyFactory extends StrategyFactory {
 

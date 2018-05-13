@@ -32,12 +32,13 @@ import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
 /**
- * Round-robin invocation strategy.
+ * Round-Robin invocation strategy.
  *
  * @see NanoSecRandomStrategy
  * @see SecureRandomStrategy
  * @see XorShiftRandomStrategy
  * @see CpuUsageStrategy
+ * @see NetworkLatencyStrategy
  */
 @Name("Round-Robin Strategy")
 public class RoundRobinStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {

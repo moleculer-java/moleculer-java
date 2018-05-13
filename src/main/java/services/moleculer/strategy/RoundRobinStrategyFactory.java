@@ -29,12 +29,13 @@ import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
 /**
- * Factory of round-robin invocation strategy.
+ * Factory of Round-Robin invocation strategy.
  *
  * @see NanoSecRandomStrategyFactory
  * @see SecureRandomStrategyFactory
  * @see XorShiftRandomStrategyFactory
  * @see CpuUsageStrategyFactory
+ * @see NetworkLatencyStrategyFactory
  */
 @Name("Round-Robin Strategy Factory")
 public class RoundRobinStrategyFactory extends ArrayBasedStrategyFactory {
