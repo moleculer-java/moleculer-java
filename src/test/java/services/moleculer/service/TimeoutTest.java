@@ -73,12 +73,11 @@ public class TimeoutTest extends TestCase {
 		
 		assertTrue(invokeServices(1000, 500));
 		assertFalse(level1Service.timeouted);
-		
-		System.out.println(br.getAction("level1Service.action"));
-		
+	
 		assertFalse(invokeServices(500, 1000));		
 		assertFalse(level1Service.timeouted);
-		Thread.sleep(500);
+		
+		Thread.sleep(1000);
 		assertTrue(level1Service.timeouted);
 	}
 
