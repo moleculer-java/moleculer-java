@@ -27,6 +27,8 @@ package services.moleculer.context;
 
 import static services.moleculer.util.CommonUtils.parseParams;
 
+import java.util.concurrent.TimeoutException;
+
 import io.datatree.Promise;
 import io.datatree.Tree;
 import services.moleculer.eventbus.Eventbus;
@@ -74,7 +76,12 @@ public class Context {
 	 * Calling options
 	 */
 	public final CallOptions.Options opts;
-	
+
+	/**
+	 * Context creation time
+	 */
+	public final long startTime;
+
 	// --- COMPONENTS ---
 
 	protected final ServiceInvoker serviceInvoker;
@@ -99,6 +106,13 @@ public class Context {
 
 		// Set the first ID
 		this.requestID = id;
+
+		// Start time
+		if (opts != null && opts.timeout > 0) {
+			this.startTime = System.currentTimeMillis();
+		} else {
+			this.startTime = 0;
+		}
 	}
 
 	public Context(String id, String name, Tree params, CallOptions.Options opts, Context parent) {
@@ -117,9 +131,17 @@ public class Context {
 
 		// Get the request ID from parent
 		this.requestID = parent.requestID;
+
+		// Start time
+		if (opts != null && opts.timeout > 0) {
+			this.startTime = System.currentTimeMillis();
+		} else {
+			this.startTime = 0;
+		}
 	}
 
-	public Context(ServiceInvoker serviceInvoker, Eventbus eventbus, String id, String name, Tree params, CallOptions.Options opts, int level, String requestID, String parentID) {
+	public Context(ServiceInvoker serviceInvoker, Eventbus eventbus, String id, String name, Tree params,
+			CallOptions.Options opts, int level, String requestID, String parentID) {
 
 		// Set components
 		this.serviceInvoker = serviceInvoker;
@@ -133,8 +155,15 @@ public class Context {
 		this.parentID = parentID;
 		this.opts = opts;
 		this.requestID = requestID;
+
+		// Start time
+		if (opts != null && opts.timeout > 0) {
+			this.startTime = System.currentTimeMillis();
+		} else {
+			this.startTime = 0;
+		}
 	}
-	
+
 	// --- INVOKE LOCAL OR REMOTE ACTION ---
 
 	/**
@@ -152,20 +181,36 @@ public class Context {
 	 */
 	public Promise call(String name, Object... params) {
 		ParseResult res = parseParams(params);
-
-		// TODO Recalculate distribuuted timeout
-		// https://github.com/moleculerjs/moleculer/blob/master/src/context.js#L194
-		return serviceInvoker.call(name, res.data, res.opts, this);
+		return call(name, res.data, res.opts);
 	}
 
 	public Promise call(String name, Tree params) {
-		return serviceInvoker.call(name, params, null, this);
+		return call(name, params, null);
 	}
 
 	public Promise call(String name, Tree params, CallOptions.Options opts) {
+		
+		// Recalculate distributed timeout
+		if (startTime > 0) {
+
+			// Distributed timeout handling. Decrementing the timeout value with the elapsed time.
+			// If the timeout below 0, skip the call.
+			final long duration = System.currentTimeMillis() - startTime;
+			final long distTimeout = this.opts.timeout - duration;
+
+			if (distTimeout <= 0) {
+				return Promise.reject(new TimeoutException("Action invocation timeouted (" + name + ")!"));
+			}
+
+			if (opts == null) {
+				opts = CallOptions.timeout(distTimeout);
+			} else if (opts.timeout < 1 || distTimeout < opts.timeout){
+				opts = opts.timeout(distTimeout);
+			}
+		}
 		return serviceInvoker.call(name, params, opts, this);
 	}
-
+	
 	// --- EMIT EVENT TO EVENT GROUP ---
 
 	/**

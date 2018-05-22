@@ -53,11 +53,13 @@ import services.moleculer.util.redis.RedisPubSubClient;
  * // https://mvnrepository.com/artifact/biz.paluch.redis/lettuce<br>
  * compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.4.1.Final'
  *
+ * @see TcpTransporter
  * @see NatsTransporter
  * @see MqttTransporter
- * @see AmqpTransporter
  * @see JmsTransporter
  * @see GoogleTransporter
+ * @see KafkaTransporter
+ * @see AmqpTransporter
  */
 @Name("Redis Transporter")
 public class RedisTransporter extends Transporter implements EventBus, RedisPubSubListener<byte[], byte[]> {

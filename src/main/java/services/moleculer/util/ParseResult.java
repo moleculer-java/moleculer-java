@@ -34,8 +34,9 @@ public final class ParseResult {
 	// --- PROPERTIES ---
 
 	public final Tree data;
-	public final CallOptions.Options opts;
 	public final Groups groups;
+
+	public CallOptions.Options opts;
 
 	// --- CONSTRUCTOR ---
 

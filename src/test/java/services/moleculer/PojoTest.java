@@ -76,6 +76,9 @@ public class PojoTest extends TestCase {
 		try {
 			validator.validate("services.moleculer.cacher", filterTestClasses);
 			validator.validate("services.moleculer.transporter", filterTestClasses);
+			validator.validate("services.moleculer.monitor", filterTestClasses);
+			validator.validate("services.moleculer.uid", filterTestClasses);
+			validator.validate("services.moleculer.config", filterTestClasses);
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw e;

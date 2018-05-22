@@ -76,14 +76,14 @@ import services.moleculer.util.CommonUtils;
  * <br>
  * compile group: 'com.google.cloud', name: 'google-cloud-pubsub', version:
  * '0.30.0-beta'<br>
- * <br>
- * UNTESTED
  *
+ * @see TcpTransporter
  * @see RedisTransporter
  * @see NatsTransporter
  * @see MqttTransporter
- * @see AmqpTransporter
  * @see JmsTransporter
+ * @see KafkaTransporter
+ * @see AmqpTransporter
  */
 @Name("Google Cloud Pub/Sub Transporter")
 public class GoogleTransporter extends Transporter {

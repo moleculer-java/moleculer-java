@@ -60,7 +60,7 @@ dependencies {
 
 	// https://mvnrepository.com/artifact/com.openpojo/openpojo
 	testCompile group: 'com.openpojo', name: 'openpojo', version: '0.8.10'	
-	
+
 	
 	// =============== LOGGING ===============
 	

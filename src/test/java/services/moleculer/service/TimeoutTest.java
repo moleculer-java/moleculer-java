@@ -25,8 +25,11 @@
  */
 package services.moleculer.service;
 
+import java.util.concurrent.TimeoutException;
+
 import org.junit.Test;
 
+import io.datatree.Tree;
 import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallOptions;
@@ -60,6 +63,23 @@ public class TimeoutTest extends TestCase {
 		for (int i = 0; i < 10; i++) {
 			assertFalse(invokeSlowService(100));
 		}
+		
+		// --- DISTRIBUTED TIMEOUT ---
+		
+		// Create services
+		Level1Service level1Service = new Level1Service();
+		br.createService(level1Service);
+		br.createService(new Level2Service());
+		
+		assertTrue(invokeServices(1000, 500));
+		assertFalse(level1Service.timeouted);
+		
+		System.out.println(br.getAction("level1Service.action"));
+		
+		assertFalse(invokeServices(500, 1000));		
+		assertFalse(level1Service.timeouted);
+		Thread.sleep(500);
+		assertTrue(level1Service.timeouted);
 	}
 
 	protected boolean invokeSlowService(long timeout) {
@@ -78,6 +98,52 @@ public class TimeoutTest extends TestCase {
 		public Action action = ctx -> {
 			Thread.sleep(1000);
 			return 0;
+		};
+
+	}
+	
+	// --- DISTRIBUTED TIMEOUT ---
+	
+	protected boolean invokeServices(long timeout, long sleep) {
+		try {
+			Tree req = new Tree();
+			long a = Math.abs(sleep * System.nanoTime() % 10);
+			req.put("a", a);
+			long b = Math.abs(timeout * System.currentTimeMillis() % 10);
+			req.put("b", b);
+			req.put("sleep", sleep);
+			Tree rsp = br.call("level1Service.action", req, CallOptions.timeout(timeout)).waitFor();			
+
+			return rsp.asLong() == a * b;
+			
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	protected static final class Level1Service extends Service {
+
+		public boolean timeouted;
+		
+		public Action action = ctx -> {
+			timeouted = false;
+			long sleep = ctx.params.get("sleep", 0L);		
+			Thread.sleep(sleep);
+			return ctx.call("level2Service.action", ctx.params).catchError(err -> {
+				if (err instanceof TimeoutException) {
+					timeouted = true;
+				}
+			});				
+		};
+
+	}
+
+	protected static final class Level2Service extends Service {
+
+		public Action action = ctx -> {
+			long a = ctx.params.get("a", 0L);
+			long b = ctx.params.get("b", 0L);
+			return a * b;
 		};
 
 	}

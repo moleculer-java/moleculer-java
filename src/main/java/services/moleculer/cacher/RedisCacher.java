@@ -112,9 +112,9 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 		this(null, 0, false, urls);
 	}
 
-	public RedisCacher(String password, int ttl, boolean secure, String... urls) {
+	public RedisCacher(String password, int defaultTtl, boolean secure, String... urls) {
 		this.password = password;
-		this.ttl = ttl;
+		this.ttl = defaultTtl;
 		this.secure = secure;
 		this.urls = urls;
 	}

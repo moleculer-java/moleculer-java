@@ -156,35 +156,35 @@ public class OHCacher extends Cacher {
 	/**
 	 * Creates Off-heap Cacher.
 	 *
-	 * @param capacity
+	 * @param maxCapacity
 	 *            capacity for data over the whole cache in MEGABYTES
 	 * @param ttl
 	 *            expire time of entries in memory, in seconds (default: 0 =
 	 *            never expires)
 	 */
-	public OHCacher(long capacity, int ttl) {
-		this(capacity, ttl, 0, 0, 1024);
+	public OHCacher(long maxCapacity, int defaultTtl) {
+		this(maxCapacity, defaultTtl, 0, 0, 1024);
 	}
 
 	/**
 	 * Creates Off-heap Cacher.
 	 *
-	 * @param capacity
+	 * @param maxCapacity
 	 *            capacity for data over the whole cache in MEGABYTES
 	 * @param segmentCount
 	 *            mumber of segments (must be a power of 2), defaults to
 	 *            number-of-cores * 2
 	 * @param hashTableSize
 	 *            hash table size (must be a power of 2), defaults to 8192
-	 * @param ttl
+	 * @param defaultTtl
 	 *            expire time of entries in memory, in seconds (default: 0 =
 	 *            never expires)
 	 * @param compressAbove
 	 *            compress key and/or value above this size (in BYTES)
 	 */
-	public OHCacher(long capacity, int ttl, int segmentCount, int hashTableSize, int compressAbove) {
-		this.capacity = capacity;
-		this.ttl = ttl;
+	public OHCacher(long maxCapacity, int defaultTtl, int segmentCount, int hashTableSize, int compressAbove) {
+		this.capacity = maxCapacity;
+		this.ttl = defaultTtl;
 		this.segmentCount = segmentCount;
 		this.hashTableSize = hashTableSize;
 		this.compressAbove = compressAbove;

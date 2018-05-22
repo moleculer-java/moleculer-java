@@ -51,11 +51,13 @@ import services.moleculer.service.Name;
  * // https://mvnrepository.com/artifact/io.nats/jnats<br>
  * compile group: 'io.nats', name: 'jnats', version: '1.0'
  *
+ * @see TcpTransporter
  * @see RedisTransporter
  * @see MqttTransporter
- * @see AmqpTransporter
  * @see JmsTransporter
  * @see GoogleTransporter
+ * @see KafkaTransporter
+ * @see AmqpTransporter
  */
 @Name("NATS Transporter")
 public class NatsTransporter extends Transporter implements MessageHandler, DisconnectedCallback {

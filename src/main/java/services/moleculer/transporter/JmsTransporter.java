@@ -62,11 +62,13 @@ import services.moleculer.service.Name;
  * <br>
  * + dependencies of the JMS driver.
  *
+ * @see TcpTransporter
  * @see RedisTransporter
  * @see NatsTransporter
  * @see MqttTransporter
- * @see AmqpTransporter
  * @see GoogleTransporter
+ * @see KafkaTransporter
+ * @see AmqpTransporter
  */
 @Name("JMS Transporter")
 public class JmsTransporter extends Transporter {

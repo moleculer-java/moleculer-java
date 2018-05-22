@@ -61,12 +61,14 @@ import services.moleculer.util.FastBuildTree;
 /**
  * Base superclass of all Transporter implementations.
  *
+ * @see TcpTransporter
  * @see RedisTransporter
  * @see NatsTransporter
  * @see MqttTransporter
- * @see AmqpTransporter
  * @see JmsTransporter
  * @see GoogleTransporter
+ * @see KafkaTransporter
+ * @see AmqpTransporter
  */
 @Name("Transporter")
 public abstract class Transporter extends MoleculerComponent {

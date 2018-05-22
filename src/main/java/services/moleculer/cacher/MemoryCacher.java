@@ -102,21 +102,21 @@ public class MemoryCacher extends Cacher implements Runnable {
 		this(2048, 0, 0);
 	}
 
-	public MemoryCacher(int capacity, int ttl) {
-		this(capacity, ttl, ttl > 0 ? 5 : 0);
+	public MemoryCacher(int capacityPerPartition, int defaultTtl) {
+		this(capacityPerPartition, defaultTtl, defaultTtl > 0 ? 5 : 0);
 	}
 
-	public MemoryCacher(int capacity, int ttl, int cleanup) {
+	public MemoryCacher(int capacityPerPartition, int defaultTtl, int cleanupSeconds) {
 
 		// Check variables
-		if (capacity < 16) {
-			capacity = 16;
+		if (capacityPerPartition < 16) {
+			capacityPerPartition = 16;
 		}
 
 		// Set properties
-		this.capacity = capacity;
-		this.ttl = ttl;
-		this.cleanup = cleanup;
+		this.capacity = capacityPerPartition;
+		this.ttl = defaultTtl;
+		this.cleanup = cleanupSeconds;
 
 		// Init locks
 		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);

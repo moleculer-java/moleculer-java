@@ -487,6 +487,7 @@ public class EventbusTest extends TestCase {
 	@Override
 	protected void setUp() throws Exception {
 		sr = new DefaultServiceRegistry();
+		sr.setCheckVersion(true);
 		tr = new TestTransporter();
 		ExecutorService ex = new ExecutorService() {
 

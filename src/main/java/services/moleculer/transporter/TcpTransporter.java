@@ -74,6 +74,14 @@ import services.moleculer.util.FastBuildTree;
  * TCP Transporter provides the <b>highest speed</b> data transfer between the
  * nodes (eg. hundred thousand packets per second can be transmitted from one
  * node to another over a high-speed LAN).
+ * 
+ * @see RedisTransporter
+ * @see NatsTransporter
+ * @see MqttTransporter
+ * @see JmsTransporter
+ * @see GoogleTransporter
+ * @see KafkaTransporter
+ * @see AmqpTransporter
  */
 @Name("TCP Transporter")
 public class TcpTransporter extends Transporter {
