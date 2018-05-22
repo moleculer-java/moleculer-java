@@ -71,13 +71,13 @@ public class TimeoutTest extends TestCase {
 		br.createService(level1Service);
 		br.createService(new Level2Service());
 		
-		assertTrue(invokeServices(1000, 500));
+		assertTrue(invokeServices(1500, 500));
 		assertFalse(level1Service.timeouted);
 	
-		assertFalse(invokeServices(500, 1000));		
+		assertFalse(invokeServices(500, 1500));		
 		assertFalse(level1Service.timeouted);
 		
-		Thread.sleep(1000);
+		Thread.sleep(1200);
 		assertTrue(level1Service.timeouted);
 	}
 
