@@ -40,29 +40,60 @@ import org.slf4j.LoggerFactory;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
+import services.moleculer.breaker.CircuitBreaker;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.config.ServiceBrokerBuilder;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallOptions;
 import services.moleculer.context.ContextFactory;
+import services.moleculer.context.DefaultContextFactory;
+import services.moleculer.eventbus.DefaultEventbus;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.internal.NodeService;
 import services.moleculer.service.Action;
+import services.moleculer.service.DefaultServiceInvoker;
+import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.MoleculerComponent;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceInvoker;
 import services.moleculer.service.ServiceRegistry;
+import services.moleculer.strategy.CpuUsageStrategyFactory;
+import services.moleculer.strategy.NanoSecRandomStrategyFactory;
+import services.moleculer.strategy.NetworkLatencyStrategyFactory;
+import services.moleculer.strategy.RoundRobinStrategyFactory;
+import services.moleculer.strategy.SecureRandomStrategyFactory;
+import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
+import services.moleculer.strategy.XorShiftRandomStrategyFactory;
+import services.moleculer.transporter.AmqpTransporter;
+import services.moleculer.transporter.GoogleTransporter;
+import services.moleculer.transporter.JmsTransporter;
+import services.moleculer.transporter.KafkaTransporter;
+import services.moleculer.transporter.MqttTransporter;
+import services.moleculer.transporter.NatsTransporter;
+import services.moleculer.transporter.RedisTransporter;
+import services.moleculer.transporter.TcpTransporter;
 import services.moleculer.transporter.Transporter;
+import services.moleculer.uid.IncrementalUidGenerator;
+import services.moleculer.uid.StandardUidGenerator;
 import services.moleculer.uid.UidGenerator;
 import services.moleculer.util.ParseResult;
 
 /**
  * The ServiceBroker is the main component of Moleculer. It handles services &
  * events, calls actions and communicates with remote nodes. You need to create
- * an instance of ServiceBroker for every node. Sample of usage:<br>
+ * an instance of ServiceBroker for every node. Features of Moleculer:
+ * <ul>
+ * <li>Fast - High-performance and non-blocking
+ * <li>Polyglot - Moleculer is implemented under Node.js and Java
+ * <li>Extensible - All built-in modules (caching, serializer, transporter) are
+ * pluggable
+ * <li>Open source - Moleculer is 100% open source and free of charge
+ * <li>Fault tolerant - With built-in load balancer & circuit breaker
+ * </ul>
+ * Sample of usage:<br>
  *
  * <pre>
  * ServiceBroker broker = new ServiceBroker("node-1");
@@ -81,7 +112,7 @@ import services.moleculer.util.ParseResult;
  * </pre>
  *
  * This project is based on the idea of Moleculer Microservices Framework for
- * NodeJS (https://moleculer.services). Special thanks to the Moleculer's
+ * Node.js (https://moleculer.services). Special thanks to the Moleculer's
  * project owner (https://github.com/icebob) for the consultations.
  */
 public class ServiceBroker {
@@ -91,7 +122,7 @@ public class ServiceBroker {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final String SOFTWARE_VERSION = "1.3";
+	public static final String SOFTWARE_VERSION = "1.0.1";
 
 	/**
 	 * Version of the implemented Moleculer Protocol.
@@ -107,10 +138,18 @@ public class ServiceBroker {
 
 	// --- CURRENT NODE ID ---
 
+	/**
+	 * Unique ID of this node (~= ServiceBroker instance).
+	 */
 	protected final String nodeID;
 
 	// --- CONFIGURATION ---
 
+	/**
+	 * Configuration settings and internal components (event bus, cacher,
+	 * service registry, etc.) of this node / broker. Use the
+	 * {@link #getConfig() getConfig} method to access this object.
+	 */
 	protected final ServiceBrokerConfig config;
 
 	// --- ENQUED SERVICES ---
@@ -130,12 +169,79 @@ public class ServiceBroker {
 
 	// --- INTERNAL COMPONENTS ---
 
+	/**
+	 * UID generator (each {@link services.moleculer.context.Context Context}
+	 * instance has its own identifier). Use
+	 * <code>getConfig().getUidGenerator()</code> to access this instance.
+	 * 
+	 * @see IncrementalUidGenerator
+	 * @see StandardUidGenerator
+	 */
 	protected UidGenerator uidGenerator;
+
+	/**
+	 * Default (round-robin) service invocation factory. Use
+	 * <code>getConfig().getStrategyFactory()</code> to access this instance.
+	 * 
+	 * @see RoundRobinStrategyFactory
+	 * @see NanoSecRandomStrategyFactory
+	 * @see SecureRandomStrategyFactory
+	 * @see XorShiftRandomStrategyFactory
+	 * @see CpuUsageStrategyFactory
+	 * @see NetworkLatencyStrategyFactory
+	 */
 	protected StrategyFactory strategyFactory;
+
+	/**
+	 * Context generator / factory. Use
+	 * <code>getConfig().getContextFactory()</code> to access this instance.
+	 * 
+	 * @see DefaultContextFactory
+	 */
 	protected ContextFactory contextFactory;
+
+	/**
+	 * Service invoker. Use <code>getConfig().getServiceInvoker()</code> to
+	 * access this instance.
+	 * 
+	 * @see DefaultServiceInvoker
+	 * @see CircuitBreaker
+	 */
 	protected ServiceInvoker serviceInvoker;
+
+	/**
+	 * Implementation of the event bus of the current node. Use
+	 * <code>getConfig().getEventbus()</code> to access this instance.
+	 * 
+	 * @see DefaultEventbus
+	 * @see #broadcast(String, Object...)
+	 * @see #emit(String, Object...)
+	 */
 	protected Eventbus eventbus;
+
+	/**
+	 * Implementation of the service registry of the current node. Use
+	 * <code>getConfig().getServiceRegistry()</code> to access this instance.
+	 * 
+	 * @see DefaultServiceRegistry
+	 * @see #call(String, Object...)
+	 */
 	protected ServiceRegistry serviceRegistry;
+
+	/**
+	 * Implementation of the Transporter. Use
+	 * <code>getConfig().getTransporter()</code> to access this instance. Can be
+	 * <code>null</code>.
+	 * 
+	 * @see TcpTransporter
+	 * @see RedisTransporter
+	 * @see NatsTransporter
+	 * @see MqttTransporter
+	 * @see JmsTransporter
+	 * @see GoogleTransporter
+	 * @see KafkaTransporter
+	 * @see AmqpTransporter
+	 */
 	protected Transporter transporter;
 
 	// --- STATIC SERVICE BROKER BUILDER ---
@@ -153,31 +259,72 @@ public class ServiceBroker {
 
 	// --- CONSTRUCTORS ---
 
+	/**
+	 * Creates a new ServiceBroker by the specified {@link ServiceBrokerConfig
+	 * configuration}.
+	 * 
+	 * @param config
+	 *            configuration of the Broker
+	 */
 	public ServiceBroker(ServiceBrokerConfig config) {
 		this.config = config;
 		this.nodeID = config.getNodeID();
 	}
 
+	/**
+	 * Creates a new ServiceBroker without {@link Transporter}. The
+	 * {@link #nodeID} is generated from the host name and process ID.
+	 */
 	public ServiceBroker() {
 		this(null, null, null);
 	}
 
+	/**
+	 * Creates a new ServiceBroker without {@link Transporter} and with the
+	 * specified {@link #nodeID}.
+	 * 
+	 * @param nodeID
+	 *            the unique {@link #nodeID} of this node
+	 */
 	public ServiceBroker(String nodeID) {
 		this(nodeID, null, null);
 	}
 
+	/**
+	 * Creates a new ServiceBroker with the specified {@link #nodeID},
+	 * {@link Cacher}, and {@link Transporter}.
+	 * 
+	 * @param nodeID
+	 *            the unique {@link #nodeID} of this node
+	 * @param cacher
+	 *            {@link Cacher} of this broker instance
+	 * @param transporter
+	 *            {@link Transporter} of this broker instance
+	 */
 	public ServiceBroker(String nodeID, Cacher cacher, Transporter transporter) {
 		this(new ServiceBrokerConfig(nodeID, cacher, transporter));
 	}
 
 	// --- GET CONFIGURATION ---
 
+	/**
+	 * Returns the configuration settings and internal components (event bus,
+	 * cacher, service registry, etc.) of this node / broker.
+	 *
+	 * @return configuration container
+	 */
 	public ServiceBrokerConfig getConfig() {
 		return config;
 	}
 
 	// --- PROPERTY GETTERS ---
 
+	/**
+	 * Returns the unique {@link #nodeID} of this node (~= ServiceBroker
+	 * instance).
+	 * 
+	 * @return unique {@link #nodeID}
+	 */
 	public String getNodeID() {
 		return nodeID;
 	}
@@ -245,6 +392,17 @@ public class ServiceBroker {
 		}
 	}
 
+	/**
+	 * Starts the specified {@link MoleculerComponent}.
+	 * 
+	 * @param component
+	 *            component to start
+	 * 
+	 * @return the started component
+	 * 
+	 * @throws Exception
+	 *             any configuration or I/O exceptions
+	 */
 	protected <TYPE extends MoleculerComponent> TYPE start(TYPE component) throws Exception {
 		if (component == null) {
 			return null;
@@ -257,8 +415,9 @@ public class ServiceBroker {
 	// --- STOP BROKER INSTANCE ---
 
 	/**
-	 * Stop broker. If the Broker has a Transporter, transporter.disconnect will
-	 * be called.
+	 * Stop broker and all internal components (event bus, context factory,
+	 * etc.). If the Broker has a Transporter, transporter.disconnect() will be
+	 * called.
 	 */
 	public void stop() {
 
@@ -272,6 +431,12 @@ public class ServiceBroker {
 		stop(uidGenerator);
 	}
 
+	/**
+	 * Stops the specified {@link MoleculerComponent}.
+	 * 
+	 * @param component
+	 *            component to stop
+	 */
 	protected void stop(MoleculerComponent component) {
 		if (component == null) {
 			return;
@@ -286,24 +451,59 @@ public class ServiceBroker {
 
 	// --- LOGGING ---
 
+	/**
+	 * Returns the SLF4J logger of this broker instance.
+	 * 
+	 * @return logger instance
+	 */
 	public Logger getLogger() {
 		return logger;
 	}
 
+	/**
+	 * Returns a logger named corresponding to the class passed as parameter.
+	 * 
+	 * @param clazz
+	 *            the returned logger will be named after clazz
+	 * 
+	 * @return logger instance
+	 */
 	public Logger getLogger(Class<?> clazz) {
 		return LoggerFactory.getLogger(clazz);
 	}
 
+	/**
+	 * Return a logger named according to the name parameter.
+	 * 
+	 * @param name
+	 *            the name of the logger
+	 * 
+	 * @return logger instance
+	 */
 	public Logger getLogger(String name) {
 		return LoggerFactory.getLogger(name);
 	}
 
 	// --- ADD LOCAL SERVICE ---
 
+	/**
+	 * Installs a new service instance and notifies other nodes about the
+	 * actions/listeners of the new service.
+	 * 
+	 * @param service
+	 *            the new service instance
+	 */
 	public void createService(Service service) {
 		createService(service.getName(), service);
 	}
 
+	/**
+	 * Installs a new service with the specified name (eg. "user" service) and
+	 * notifies other nodes about the actions/listeners of this new service.
+	 * 
+	 * @param service
+	 *            the new service instance
+	 */
 	public void createService(String name, Service service) {
 		if (serviceRegistry == null) {
 
@@ -320,7 +520,7 @@ public class ServiceBroker {
 	// --- GET LOCAL SERVICE ---
 
 	/**
-	 * Returns a local service by name
+	 * Returns a local service by name (eg. "user" service).
 	 *
 	 * @param serviceName
 	 * @return
@@ -331,6 +531,12 @@ public class ServiceBroker {
 
 	// --- ADD MIDDLEWARE ---
 
+	/**
+	 * Installs a collection of middlewares.
+	 * 
+	 * @param middlewares
+	 *            collection of middlewares
+	 */
 	public void use(Collection<Middleware> middlewares) {
 		if (serviceRegistry == null) {
 
@@ -343,6 +549,12 @@ public class ServiceBroker {
 		}
 	}
 
+	/**
+	 * Installs one or an array of middleware(s).
+	 * 
+	 * @param middlewares
+	 *            array of middlewares
+	 */
 	public void use(Middleware... middlewares) {
 		use(Arrays.asList(middlewares));
 	}
@@ -350,7 +562,7 @@ public class ServiceBroker {
 	// --- GET LOCAL OR REMOTE ACTION ---
 
 	/**
-	 * Returns an action by name
+	 * Returns an action by name.
 	 *
 	 * @param actionName
 	 * @return
@@ -360,7 +572,7 @@ public class ServiceBroker {
 	}
 
 	/**
-	 * Returns an action by name
+	 * Returns an action by name and nodeID.
 	 *
 	 * @param actionName
 	 * @param nodeID
@@ -380,16 +592,57 @@ public class ServiceBroker {
 	 * ...or with CallOptions:<br>
 	 * <br>
 	 * broker.call("math.add", "a", 1, "b", 2, CallOptions.nodeID("node2"));
+	 * 
+	 * @param name
+	 *            action name (eg. "math.add" in "service.action" syntax)
+	 * @param params
+	 *            list of parameter name-value pairs and an optional CallOptions
+	 * 
+	 * @return response Promise
 	 */
 	public Promise call(String name, Object... params) {
 		ParseResult res = parseParams(params);
 		return serviceInvoker.call(name, res.data, res.opts, null);
 	}
 
+	/**
+	 * Calls an action (local or remote). Sample code:<br>
+	 * <br>
+	 * Tree params = new Tree();<br>
+	 * params.put("a", true);<br>
+	 * params.putList("b").add(1).add(2).add(3);<br>
+	 * Promise promise = broker.call("math.add", params);
+	 * 
+	 * @param name
+	 *            action name (eg. "math.add" in "service.action" syntax)
+	 * @param params
+	 *            {@link Tree} structure (input parameters of the method call)
+	 * 
+	 * @return response Promise
+	 */
 	public Promise call(String name, Tree params) {
 		return serviceInvoker.call(name, params, null, null);
 	}
 
+	/**
+	 * Calls an action (local or remote). Sample code:<br>
+	 * <br>
+	 * Tree params = new Tree();<br>
+	 * params.put("a", true);<br>
+	 * params.putList("b").add(1).add(2).add(3);<br>
+	 * Promise promise = broker.call("math.add", params,
+	 * CallOptions.nodeID("node2"));
+	 * 
+	 * @param name
+	 *            action name (eg. "math.add" in "service.action" syntax)
+	 * @param params
+	 *            {@link Tree} structure (input parameters of the method call)
+	 * @param opts
+	 *            calling options (target nodeID, call timeout, number of
+	 *            retries)
+	 * 
+	 * @return response Promise
+	 */
 	public Promise call(String name, Tree params, CallOptions.Options opts) {
 		return serviceInvoker.call(name, params, opts, null);
 	}
@@ -397,7 +650,22 @@ public class ServiceBroker {
 	// --- EMIT EVENT TO EVENT GROUP ---
 
 	/**
-	 * Emits an event (grouped & balanced global event)
+	 * Emits an event to <b>ONE</b> listener from ALL (or the specified) event
+	 * group(s), who are listening this event. The service broker uses the
+	 * default {@link Strategy strategy} of the broker for event redirection and
+	 * node selection. Sample code:<br>
+	 * <br>
+	 * broker.emit("user.deleted", "a", 1, "b", 2);<br>
+	 * <br>
+	 * ...or send event to (one or more) listener group(s):<br>
+	 * <br>
+	 * broker.emit("user.deleted", "a", 1, "b", 2, Groups.of("logger"));
+	 * 
+	 * @param name
+	 *            name of event (eg. "user.deleted")
+	 * @param params
+	 *            list of parameter name-value pairs and an optional
+	 *            {@link Groups event group} container
 	 */
 	public void emit(String name, Object... params) {
 		ParseResult res = parseParams(params);
@@ -405,14 +673,42 @@ public class ServiceBroker {
 	}
 
 	/**
-	 * Emits an event (grouped & balanced global event)
+	 * Emits an event to <b>ONE</b> listener from the specified event group(s),
+	 * who are listening this event. The service broker uses the default
+	 * {@link Strategy strategy} of the broker for event redirection and node
+	 * selection. Sample code:<br>
+	 * <br>
+	 * Tree params = new Tree();<br>
+	 * params.put("a", true);<br>
+	 * params.putList("b").add(1).add(2).add(3);<br>
+	 * broker.emit("user.created", params, Groups.of("group1", "group2"));
+	 * 
+	 * @param name
+	 *            name of event (eg. "user.modified")
+	 * @param payload
+	 *            {@link Tree} structure (payload of the event)
+	 * @param groups
+	 *            {@link Groups event group} container
 	 */
 	public void emit(String name, Tree payload, Groups groups) {
 		eventbus.emit(name, payload, groups, false);
 	}
 
 	/**
-	 * Emits an event (grouped & balanced global event)
+	 * Emits an event to <b>ONE</b> listener from ALL event groups, who are
+	 * listening this event. The service broker uses the default {@link Strategy
+	 * strategy} of the broker for event redirection and node selection. Sample
+	 * code:<br>
+	 * <br>
+	 * Tree params = new Tree();<br>
+	 * params.put("a", true);<br>
+	 * params.putList("b").add(1).add(2).add(3);<br>
+	 * broker.emit("user.modified", params);
+	 * 
+	 * @param name
+	 *            name of event (eg. "user.created")
+	 * @param payload
+	 *            {@link Tree} structure (payload of the event)
 	 */
 	public void emit(String name, Tree payload) {
 		eventbus.emit(name, payload, null, false);
@@ -421,7 +717,20 @@ public class ServiceBroker {
 	// --- BROADCAST EVENT TO ALL LISTENERS ---
 
 	/**
-	 * Emits an event for all local & remote services
+	 * Emits an event to <b>ALL</b> listeners from ALL (or the specified) event
+	 * group(s), who are listening this event. Sample code:<br>
+	 * <br>
+	 * broker.broadcast("user.deleted", "a", 1, "b", 2);<br>
+	 * <br>
+	 * ...or send event to (one or more) listener group(s):<br>
+	 * <br>
+	 * broker.broadcast("user.deleted", "a", 1, "b", 2, Groups.of("logger"));
+	 * 
+	 * @param name
+	 *            name of event (eg. "user.deleted")
+	 * @param params
+	 *            list of parameter name-value pairs and an optional
+	 *            {@link Groups event group} container
 	 */
 	public void broadcast(String name, Object... params) {
 		ParseResult res = parseParams(params);
@@ -429,14 +738,38 @@ public class ServiceBroker {
 	}
 
 	/**
-	 * Emits an event for all local & remote services
+	 * Emits an event to <b>ALL</b> listeners from the specified event group(s),
+	 * who are listening this event. Sample code:<br>
+	 * <br>
+	 * Tree params = new Tree();<br>
+	 * params.put("a", true);<br>
+	 * params.putList("b").add(1).add(2).add(3);<br>
+	 * broker.broadcast("user.created", params, Groups.of("group1", "group2"));
+	 * 
+	 * @param name
+	 *            name of event (eg. "user.modified")
+	 * @param payload
+	 *            {@link Tree} structure (payload of the event)
+	 * @param groups
+	 *            {@link Groups event group} container
 	 */
 	public void broadcast(String name, Tree payload, Groups groups) {
 		eventbus.broadcast(name, payload, groups, false);
 	}
 
 	/**
-	 * Emits an event for all local & remote services
+	 * Emits an event to <b>ALL</b> listeners from ALL event groups, who are
+	 * listening this event. Sample code:<br>
+	 * <br>
+	 * Tree params = new Tree();<br>
+	 * params.put("a", true);<br>
+	 * params.putList("b").add(1).add(2).add(3);<br>
+	 * broker.broadcast("user.modified", params);
+	 * 
+	 * @param name
+	 *            name of event (eg. "user.created")
+	 * @param payload
+	 *            {@link Tree} structure (payload of the event)
 	 */
 	public void broadcast(String name, Tree payload) {
 		eventbus.broadcast(name, payload, null, false);
@@ -445,7 +778,21 @@ public class ServiceBroker {
 	// --- BROADCAST EVENT TO LOCAL LISTENERS ---
 
 	/**
-	 * Emits an event for all local services.
+	 * Emits a <b>LOCAL</b> event to <b>ALL</b> listeners from ALL (or the
+	 * specified) event group(s), who are listening this event. Sample code:<br>
+	 * <br>
+	 * broker.broadcastLocal("user.deleted", "a", 1, "b", 2);<br>
+	 * <br>
+	 * ...or send event to (one or more) local listener group(s):<br>
+	 * <br>
+	 * broker.broadcastLocal("user.deleted", "a", 1, "b", 2,
+	 * Groups.of("logger"));
+	 * 
+	 * @param name
+	 *            name of event (eg. "user.deleted")
+	 * @param params
+	 *            list of parameter name-value pairs and an optional
+	 *            {@link Groups event group} container
 	 */
 	public void broadcastLocal(String name, Object... params) {
 		ParseResult res = parseParams(params);
@@ -453,14 +800,39 @@ public class ServiceBroker {
 	}
 
 	/**
-	 * Emits an event for all local services.
+	 * Emits a <b>LOCAL</b> event to <b>ALL</b> listeners from the specified
+	 * event group(s), who are listening this event. Sample code:<br>
+	 * <br>
+	 * Tree params = new Tree();<br>
+	 * params.put("a", true);<br>
+	 * params.putList("b").add(1).add(2).add(3);<br>
+	 * broker.broadcastLocal("user.created", params, Groups.of("group1",
+	 * "group2"));
+	 * 
+	 * @param name
+	 *            name of event (eg. "user.modified")
+	 * @param payload
+	 *            {@link Tree} structure (payload of the event)
+	 * @param groups
+	 *            {@link Groups event group} container
 	 */
 	public void broadcastLocal(String name, Tree payload, Groups groups) {
 		eventbus.broadcast(name, payload, groups, true);
 	}
 
 	/**
-	 * Emits an event for all local services.
+	 * Emits a <b>LOCAL</b> event to <b>ALL</b> listeners from ALL event groups,
+	 * who are listening this event. Sample code:<br>
+	 * <br>
+	 * Tree params = new Tree();<br>
+	 * params.put("a", true);<br>
+	 * params.putList("b").add(1).add(2).add(3);<br>
+	 * broker.broadcastLocal("user.modified", params);
+	 * 
+	 * @param name
+	 *            name of event (eg. "user.created")
+	 * @param payload
+	 *            {@link Tree} structure (payload of the event)
 	 */
 	public void broadcastLocal(String name, Tree payload) {
 		eventbus.broadcast(name, payload, null, true);
@@ -468,34 +840,126 @@ public class ServiceBroker {
 
 	// --- WAIT FOR SERVICE(S) ---
 
+	/**
+	 * Waits for one or more services. Sample code:<br>
+	 * <br>
+	 * broker.waitForServices("logger", "printer").then(in -&gt; {<br>
+	 * broker.getLogger().info("Logger and printer started");<br>
+	 * }
+	 * 
+	 * @param services
+	 *            service names
+	 * 
+	 * @return a listenable Promise
+	 */
 	public Promise waitForServices(String... services) {
 		return waitForServices(0, services);
 	}
 
+	/**
+	 * Waits for one (or an array of) service(s). Sample code:<br>
+	 * <br>
+	 * broker.waitForServices(5000, "logger").then(in -&gt; {<br>
+	 * broker.getLogger().info("Logger started successfully");<br>
+	 * }.catchError(error -&gt; {<br>
+	 * broker.getLogger().info("Logger did not start");<br>
+	 * }
+	 * 
+	 * @param timeoutMillis
+	 *            timeout in milliseconds
+	 * @param services
+	 *            array of service names
+	 * 
+	 * @return listenable Promise
+	 */
 	public Promise waitForServices(long timeoutMillis, String... services) {
 		return waitForServices(timeoutMillis, Arrays.asList(services));
 	}
 
+	/**
+	 * Waits for a collection of services. Sample code:<br>
+	 * <br>
+	 * Set&lt;String&gt; serviceNames = ...<br>
+	 * broker.waitForServices(5000, serviceNames).then(in -&gt; {<br>
+	 * broker.getLogger().info("Ok");<br>
+	 * }.catchError(error -&gt; {<br>
+	 * broker.getLogger().info("Failed / timeout");<br>
+	 * }
+	 * 
+	 * @param timeoutMillis
+	 *            timeout in milliseconds
+	 * @param services
+	 *            collection of service names
+	 * 
+	 * @return listenable Promise
+	 */
 	public Promise waitForServices(long timeoutMillis, Collection<String> services) {
 		return serviceRegistry.waitForServices(timeoutMillis, services);
 	}
 
 	// --- PING LOCAL OR REMOTE NODE ---
 
+	/**
+	 * Sends a PING message to the specified node. The ping timeout is 3
+	 * seconds. Sample:<br>
+	 * <br>
+	 * broker.ping("node2").then(in -&gt; {<br>
+	 * broker.getLogger().info("Ok");<br>
+	 * }.catchError(error -&gt; {<br>
+	 * broker.getLogger().info("Ping timeouted");<br>
+	 * }
+	 * 
+	 * @param nodeID
+	 *            node ID of the destination node
+	 * 
+	 * @return listenable Promise
+	 */
 	public Promise ping(String nodeID) {
-		return ping(nodeID, 3000);
+		return serviceRegistry.ping(3000, nodeID);
 	}
 
-	public Promise ping(String nodeID, long timeoutMillis) {
+	/**
+	 * Sends a PING message to the specified node. Sample:<br>
+	 * <br>
+	 * broker.ping(5000, "node2").then(in -&gt; {<br>
+	 * broker.getLogger().info("Ok");<br>
+	 * }.catchError(error -&gt; {<br>
+	 * broker.getLogger().info("Ping timeouted");<br>
+	 * }
+	 * 
+	 * @param timeoutMillis
+	 *            ping timeout in milliseconds
+	 * @param nodeID
+	 *            node ID of the destination node
+	 * 
+	 * @return listenable Promise
+	 */
+	public Promise ping(long timeoutMillis, String nodeID) {
 		return serviceRegistry.ping(timeoutMillis, nodeID);
 	}
 
 	// --- START DEVELOPER CONSOLE ---
 
+	/**
+	 * Starts a local (System in/out) developer console. You must install
+	 * "moleculer-java-repl" dependency for use this feature.
+	 * 
+	 * @return true if started
+	 */
 	public boolean repl() {
 		return repl(true);
 	}
 
+	/**
+	 * Starts a local (System in/out) or a remote (telnet-based) developer
+	 * console. You must install "moleculer-java-repl" dependency for use this
+	 * feature.
+	 * 
+	 * @param local
+	 *            true = local console, false = telnet-based console
+	 * 
+	 * @return true if started
+	 */
 	public boolean repl(boolean local) {
 		try {
 			String className = local ? "Local" : "Remote";
@@ -510,7 +974,7 @@ public class ServiceBroker {
 			return true;
 		} catch (ClassNotFoundException notFound) {
 			logger.error("Unable to start REPL console!");
-			suggestDependency("com.github.berkesa", "moleculer-java-repl", "1.0.3");
+			suggestDependency("com.github.berkesa", "moleculer-java-repl", "1.0.1");
 		} catch (Exception cause) {
 			logger.error("Unable to start REPL console!", cause);
 		}

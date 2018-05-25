@@ -186,7 +186,7 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 
 	protected void sendPing(String nextNodeID) {
 		final long start = System.currentTimeMillis();
-		broker.ping(nextNodeID, pingTimeout).then(in -> {
+		broker.ping(pingTimeout, nextNodeID).then(in -> {
 
 			// Store the response time
 			long duration = System.currentTimeMillis() - start;
