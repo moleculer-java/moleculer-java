@@ -227,7 +227,13 @@ modifyPom {
                 artifactId 'datatree-adapters'
                 version '1.0.5'
                 scope 'runtime'
-            }        
+            }
+            dependency {
+                groupId 'org.slf4j'
+                artifactId 'slf4j-api'
+                version '1.7.25'
+                scope 'runtime'
+            }            
         }
 
         developers {
