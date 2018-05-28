@@ -370,7 +370,10 @@ public class GoogleTransporter extends Transporter {
 
 						// Message received
 						try {
-							received(channel, message.getData().toByteArray());
+							
+							// We are running in a netty executor's pool,
+							// do not create new task.
+							processReceivedMessage(channel, message.getData().toByteArray());
 						} finally {
 							consumer.ack();
 						}

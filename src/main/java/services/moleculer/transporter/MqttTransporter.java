@@ -296,7 +296,10 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 
 	@Override
 	public void publishReceived(MqttClient client, PublishMessage message) {
-		received(message.getTopic(), message.getPayload());
+		
+		// We are running in the shared executor's pool,
+		// do not create new task.
+		processReceivedMessage(message.getTopic(), message.getPayload());
 	}
 
 	// --- GETTERS / SETTERS ---

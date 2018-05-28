@@ -383,144 +383,160 @@ public abstract class Transporter extends MoleculerComponent {
 
 	// --- PROCESS INCOMING MESSAGE ---
 
+	/**
+	 * Process incoming message later (in a new Runnable or JoinForkTask).
+	 * 
+	 * @param channel incoming channel
+	 * @param message incoming message
+	 */
 	protected void received(String channel, byte[] message) {
 		executor.execute(() -> {
+			processReceivedMessage(channel, message);
+		});
+	}
 
-			// Parse message
-			Tree data;
-			try {
-				data = serializer.read(message);
-			} catch (Exception cause) {
-				logger.warn("Unable to parse incoming message!", cause);
+	/**
+	 * Process incoming message directly (without new Task).
+	 * 
+	 * @param channel incoming channel
+	 * @param message incoming message
+	 */
+	protected void processReceivedMessage(String channel, byte[] message) {
+
+		// Parse message
+		Tree data;
+		try {
+			data = serializer.read(message);
+		} catch (Exception cause) {
+			logger.warn("Unable to parse incoming message!", cause);
+			return;
+		}
+
+		// Debug
+		if (debug) {
+			logger.info("Message received from channel \"" + channel + "\":\r\n" + data);
+		}
+
+		// Send message to proper component
+		try {
+
+			// Get "sender" property
+			String sender = data.get("sender", "");
+			if (sender == null || sender.isEmpty()) {
+				logger.warn("Missing \"sender\" property:\r\n" + data);
+				return;
+			}
+			if (sender.equals(nodeID)) {
+
+				// It's our message
 				return;
 			}
 
-			// Debug
-			if (debug) {
-				logger.info("Message received from channel \"" + channel + "\":\r\n" + data);
+			// Incoming response
+			if (channel.equals(responseChannel)) {
+				registry.receiveResponse(data);
+				return;
 			}
 
-			// Send message to proper component
-			try {
-
-				// Get "sender" property
-				String sender = data.get("sender", "");
-				if (sender == null || sender.isEmpty()) {
-					logger.warn("Missing \"sender\" property:\r\n" + data);
-					return;
-				}
-				if (sender.equals(nodeID)) {
-
-					// It's our message
-					return;
-				}
-
-				// Incoming response
-				if (channel.equals(responseChannel)) {
-					registry.receiveResponse(data);
-					return;
-				}
-
-				// Incoming event
-				if (channel.equals(eventChannel)) {
-					eventbus.receiveEvent(data);
-					return;
-				}
-
-				// Incoming request
-				if (channel.equals(requestChannel)) {
-					registry.receiveRequest(data);
-					return;
-				}
-
-				// HeartBeat packet
-				if (channel.endsWith(heartbeatChannel)) {
-
-					// Get node container
-					NodeDescriptor node = nodes.get(sender);
-					if (node == null) {
-
-						// Unknown node -> send discover packet
-						sendDiscoverPacket(channel(PACKET_DISCOVER, sender));
-						return;
-					}
-					int cpu = data.get("cpu", 0);
-
-					// Update CPU info
-					node.writeLock.lock();
-					try {
-						node.updateCpu(cpu);
-					} finally {
-						node.writeLock.unlock();
-					}
-					return;
-				}
-
-				// Info packet
-				if (channel.equals(infoChannel) || channel.equals(infoBroadcastChannel)) {
-
-					// Register services and listeners
-					data.put("seq", System.currentTimeMillis());
-					data.put("port", 1);
-					updateNodeInfo(sender, data);
-					return;
-				}
-
-				// Discover packet
-				if (channel.equals(discoverChannel) || channel.equals(discoverBroadcastChannel)) {
-
-					// Send node desriptor to the sender
-					sendInfoPacket(channel(PACKET_INFO, sender));
-					return;
-				}
-
-				// Ping packet
-				if (channel.equals(pingChannel)) {
-					sendPongPacket(channel(PACKET_PONG, sender), data);
-					return;
-				}
-
-				// Pong packet
-				if (channel.equals(pongChannel)) {
-					registry.receivePong(data);
-					return;
-				}
-
-				// Disconnect packet
-				if (channel.equals(disconnectChannel)) {
-
-					// Switch to offline
-					NodeDescriptor node = nodes.get(sender);
-					if (node == null) {
-						return;
-					}
-					boolean disconnected = false;
-					node.writeLock.lock();
-					try {
-						if (node.markAsOffline()) {
-
-							// Remove remote actions and listeners
-							registry.removeActions(sender);
-							eventbus.removeListeners(sender);
-							disconnected = true;
-
-						}
-					} finally {
-						node.writeLock.unlock();
-					}
-					if (node != null && disconnected) {
-
-						// Notify listeners (not unexpected disconnection)
-						logger.info("Node \"" + sender + "\" disconnected.");
-						broadcastNodeDisconnected(node.info, false);
-					}
-					return;
-				}
-
-			} catch (Exception cause) {
-				logger.warn("Unable to process incoming message!", cause);
+			// Incoming event
+			if (channel.equals(eventChannel)) {
+				eventbus.receiveEvent(data);
+				return;
 			}
-		});
+
+			// Incoming request
+			if (channel.equals(requestChannel)) {
+				registry.receiveRequest(data);
+				return;
+			}
+
+			// HeartBeat packet
+			if (channel.endsWith(heartbeatChannel)) {
+
+				// Get node container
+				NodeDescriptor node = nodes.get(sender);
+				if (node == null) {
+
+					// Unknown node -> send discover packet
+					sendDiscoverPacket(channel(PACKET_DISCOVER, sender));
+					return;
+				}
+				int cpu = data.get("cpu", 0);
+
+				// Update CPU info
+				node.writeLock.lock();
+				try {
+					node.updateCpu(cpu);
+				} finally {
+					node.writeLock.unlock();
+				}
+				return;
+			}
+
+			// Info packet
+			if (channel.equals(infoChannel) || channel.equals(infoBroadcastChannel)) {
+
+				// Register services and listeners
+				data.put("seq", System.currentTimeMillis());
+				data.put("port", 1);
+				updateNodeInfo(sender, data);
+				return;
+			}
+
+			// Discover packet
+			if (channel.equals(discoverChannel) || channel.equals(discoverBroadcastChannel)) {
+
+				// Send node desriptor to the sender
+				sendInfoPacket(channel(PACKET_INFO, sender));
+				return;
+			}
+
+			// Ping packet
+			if (channel.equals(pingChannel)) {
+				sendPongPacket(channel(PACKET_PONG, sender), data);
+				return;
+			}
+
+			// Pong packet
+			if (channel.equals(pongChannel)) {
+				registry.receivePong(data);
+				return;
+			}
+
+			// Disconnect packet
+			if (channel.equals(disconnectChannel)) {
+
+				// Switch to offline
+				NodeDescriptor node = nodes.get(sender);
+				if (node == null) {
+					return;
+				}
+				boolean disconnected = false;
+				node.writeLock.lock();
+				try {
+					if (node.markAsOffline()) {
+
+						// Remove remote actions and listeners
+						registry.removeActions(sender);
+						eventbus.removeListeners(sender);
+						disconnected = true;
+
+					}
+				} finally {
+					node.writeLock.unlock();
+				}
+				if (node != null && disconnected) {
+
+					// Notify listeners (not unexpected disconnection)
+					logger.info("Node \"" + sender + "\" disconnected.");
+					broadcastNodeDisconnected(node.info, false);
+				}
+				return;
+			}
+
+		} catch (Exception cause) {
+			logger.warn("Unable to process incoming message!", cause);
+		}
 	}
 
 	protected void updateNodeInfo(String sender, Tree info) throws Exception {

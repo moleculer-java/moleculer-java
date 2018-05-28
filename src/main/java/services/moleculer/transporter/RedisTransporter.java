@@ -234,6 +234,8 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 
 	@Override
 	public void message(byte[] channel, byte[] message) {
+		
+		// Send messages into the shared executor
 		received(new String(channel, StandardCharsets.UTF_8), message);
 	}
 
