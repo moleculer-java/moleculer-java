@@ -190,8 +190,8 @@ public abstract class TransporterTest extends TestCase {
 
 	private void checkPing(ServiceBroker broker, String nodeID) throws Exception {
 		Tree rsp = broker.ping(nodeID).waitFor();
-		assertTrue(rsp.get("source", 0L) > 0);
-		assertTrue(rsp.get("target", 0L) > 0);
+		assertTrue(rsp.get("time", 0L) > 0);
+		assertTrue(rsp.get("arrived", 0L) > 0);
 	}
 
 	// --- SAMPLES ---

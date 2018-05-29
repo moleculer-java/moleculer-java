@@ -462,7 +462,7 @@ public class TcpTransporter extends Transporter {
 						return;
 					}
 					data.put("sender", this.nodeID);
-					data.put("target", System.currentTimeMillis());
+					data.put("arrived", System.currentTimeMillis());
 					writer.send(sender, serialize(PACKET_PONG_ID, data));
 					return;
 

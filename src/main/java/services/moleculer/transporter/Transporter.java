@@ -321,7 +321,7 @@ public abstract class Transporter extends MoleculerComponent {
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
 		msg.putUnsafe("sender", nodeID);
 		msg.putUnsafe("id", id);
-		msg.putUnsafe("source", System.currentTimeMillis());
+		msg.putUnsafe("time", System.currentTimeMillis());
 		return msg;
 	}
 
@@ -709,7 +709,7 @@ public abstract class Transporter extends MoleculerComponent {
 
 	protected void sendPongPacket(String channel, Tree data) {
 		data.put("sender", this.nodeID);
-		data.put("target", System.currentTimeMillis());
+		data.put("arrived", System.currentTimeMillis());
 		publish(channel, data);
 	}
 

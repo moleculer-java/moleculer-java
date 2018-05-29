@@ -1005,8 +1005,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		if (this.nodeID.equals(nodeID)) {
 			Tree rsp = new Tree();
 			long time = System.currentTimeMillis();
-			rsp.put("source", time);
-			rsp.put("target", time);
+			rsp.put("time", time);
+			rsp.put("arrived", time);
 			return Promise.resolve(rsp);
 		}
 

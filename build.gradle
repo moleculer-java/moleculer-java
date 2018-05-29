@@ -229,6 +229,12 @@ modifyPom {
                 scope 'runtime'
             }
             dependency {
+                groupId 'com.github.berkesa'
+                artifactId 'datatree-promise'
+                version '1.0.2'
+                scope 'runtime'
+            }            
+            dependency {
                 groupId 'org.slf4j'
                 artifactId 'slf4j-api'
                 version '1.7.25'
