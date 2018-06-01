@@ -25,12 +25,15 @@
  */
 package services.moleculer.strategy;
 
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.service.Endpoint;
@@ -39,7 +42,9 @@ import services.moleculer.transporter.Transporter;
 import services.moleculer.util.CommonUtils;
 
 /**
- * Factory of lowest network latency strategy.
+ * Factory of lowest network latency strategy. This strategy comes from a random
+ * strategy, but preferably communicates with the "closest" nodes (nodes with
+ * the lowest response/ping time).
  * 
  * @see RoundRobinStrategyFactory
  * @see SecureRandomStrategyFactory
@@ -53,7 +58,7 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 	// --- PROPERTIES ---
 
 	/**
-	 * Sample count
+	 * This strategy compares number of 'maxTries' random node.
 	 */
 	protected int maxTries = 3;
 
@@ -67,6 +72,11 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 	 */
 	protected long pingTimeout = 5000L;
 
+	/**
+	 * Number of samples used for average calculation.
+	 */
+	protected int averageSamples = 5;
+	
 	// --- COMPONENTS ---
 
 	protected ScheduledExecutorService scheduler;
@@ -78,7 +88,7 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- RESPONSE TIMES ---
 
-	protected final ConcurrentHashMap<String, Long> responseTimes = new ConcurrentHashMap<>();
+	protected final ConcurrentHashMap<String, Samples> responseTimes = new ConcurrentHashMap<>();
 
 	// --- TIMERS ---
 
@@ -148,11 +158,50 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 
 	protected void sendNextPing() {
 		Set<String> nodeIDs = transporter.getAllNodeIDs();
-		if (nodeIDs == null || nodeIDs.size() < 2) {
-
-			// No peers
+		
+		// Remove this node's ID
+		nodeIDs.remove(nodeID);
+		
+		// Remove duplications by IP address
+		int size = nodeIDs.size() * 2;
+		HashSet<String> ips = new HashSet<>(size);
+		Iterator<String> i = nodeIDs.iterator();
+		while (i.hasNext()) {
+			Tree descriptor = transporter.getDescriptor(i.next());
+			if (descriptor == null) {
+				continue;
+			}
+			Tree ipList = descriptor.get("ipList");
+			if (ipList == null) {
+				continue;
+			}
+			for (Tree ip: ipList) {
+				if (ip == null) {
+					continue;
+				}
+				String value = ip.asString();
+				if (value == null || value.startsWith("127.")) {
+					continue;
+				}
+				if (ips.contains(value)) {
+					i.remove();
+					break;
+				}
+				ips.add(value);
+			}
+			try {
+				Thread.sleep(5);
+			} catch (InterruptedException interrupt) {
+				return;
+			}
+		}
+		
+		// Has peers?
+		if (nodeIDs.isEmpty()) {
 			return;
 		}
+				
+		// Find the next nodeID
 		boolean submitted = false;
 		if (previousNodeID != null) {
 			boolean found = false;
@@ -171,9 +220,9 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 				}
 			}
 		}
-		if (!submitted) {
 
-			// Send PING to the first node
+		// Send PING to the first node
+		if (!submitted) {
 			for (String nextNodeID : nodeIDs) {
 				if (!nodeID.equals(nextNodeID)) {
 					previousNodeID = nextNodeID;
@@ -190,8 +239,13 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 
 			// Store the response time
 			long duration = System.currentTimeMillis() - start;
-			responseTimes.put(nextNodeID, duration);
-
+			Samples samples = responseTimes.get(nextNodeID);
+			if (samples == null) {
+				samples = new Samples(averageSamples);
+				responseTimes.put(nextNodeID, samples);				
+			}
+			samples.addValue(duration);
+			
 		}).catchError(err -> {
 
 			// No response / node is down
@@ -202,9 +256,12 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- GET RESPONSE TIME OF A NODE ---
 
-	protected long getResponseTime(String nextNodeID) {
-		Long duration = responseTimes.get(nextNodeID);
-		return duration == null ? Long.MAX_VALUE : duration.longValue();
+	protected long getAverageResponseTime(String nextNodeID) {
+		Samples samples = responseTimes.get(nextNodeID);
+		if (samples == null) {
+			return Long.MAX_VALUE;
+		}
+		return samples.getAverage();
 	}
 
 	// --- FACTORY METHOD ---
@@ -217,6 +274,45 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 		return new NetworkLatencyStrategy<T>(broker, preferLocal, maxTries, this);
 	}
 
+	// --- SAMPLES ---
+	
+	protected static class Samples {
+		
+		protected final long[] data;
+		
+		protected volatile int pointer;
+		protected volatile long average;
+		
+		protected Samples(int averageSamples) {
+			data = new long[averageSamples];
+			for (int i = 0; i < averageSamples; i++) {
+				data[i] = -1;
+			}
+		}
+		
+		protected synchronized void addValue(long value) {
+			pointer++;
+			if (pointer >= data.length) {
+				pointer = 0;
+			}
+			data[pointer] = value;
+			long total = 0;
+			int count = 0;
+			for (int i = 0; i < data.length; i++) {
+				if (data[i] > -1) {
+					total += data[i];
+					count++;
+				}
+			}
+		    average = total / count;
+		}
+		
+		protected synchronized long getAverage() {
+			return average;
+		}
+		
+	}
+	
 	// --- GETTERS / SETTERS ---
 
 	public int getMaxTries() {
@@ -241,6 +337,14 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 
 	public void setPingTimeout(long pingTimeout) {
 		this.pingTimeout = pingTimeout;
+	}
+
+	public int getAverageSamples() {
+		return averageSamples;
+	}
+
+	public void setAverageSamples(int averageSamples) {
+		this.averageSamples = averageSamples;
 	}
 
 }

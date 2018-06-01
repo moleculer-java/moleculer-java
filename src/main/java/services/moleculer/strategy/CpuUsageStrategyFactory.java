@@ -32,7 +32,9 @@ import services.moleculer.transporter.Transporter;
 import services.moleculer.util.CommonUtils;
 
 /**
- * Factory of lowest CPU usage strategy.
+ * Factory of lowest CPU usage strategy. This strategy comes from a random
+ * strategy, but preferably communicates with the "least loaded" nodes (nodes
+ * with the lowest CPU usage).
  * 
  * @see RoundRobinStrategyFactory
  * @see SecureRandomStrategyFactory
@@ -46,7 +48,7 @@ public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {
 	// --- PROPERTIES ---
 
 	/**
-	 * Sample count
+	 * This strategy compares number of 'maxTries' random node.
 	 */
 	protected int maxTries = 3;
 
@@ -90,8 +92,8 @@ public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {
 		// Get components
 		transporter = broker.getConfig().getTransporter();
 		if (transporter == null) {
-			logger.warn(CommonUtils.nameOf(this, true)
-					+ " can't work without transporter. Switched to Round-Robin mode.");
+			logger.warn(
+					CommonUtils.nameOf(this, true) + " can't work without transporter. Switched to Round-Robin mode.");
 		}
 	}
 

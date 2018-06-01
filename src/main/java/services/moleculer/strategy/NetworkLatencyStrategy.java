@@ -30,7 +30,9 @@ import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
 /**
- * Lowest network latency strategy.
+ * Lowest network latency strategy. This strategy comes from a random strategy,
+ * but preferably communicates with the "closest" nodes (nodes with the lowest
+ * response/ping time).
  * 
  * @see RoundRobinStrategy
  * @see NanoSecRandomStrategy
@@ -43,6 +45,9 @@ public class NetworkLatencyStrategy<T extends Endpoint> extends XorShiftRandomSt
 
 	// --- PROPERTIES ---
 
+	/**
+	 * This strategy compares number of 'maxTries' random node.
+	 */
 	protected final int maxTries;
 
 	// --- COMPONENTS ---
@@ -76,9 +81,9 @@ public class NetworkLatencyStrategy<T extends Endpoint> extends XorShiftRandomSt
 
 			// Get random endpoint
 			endpoint = super.next(array);
-			
+
 			// Check response time
-			responseTime = factory.getResponseTime(endpoint.getNodeID());
+			responseTime = factory.getAverageResponseTime(endpoint.getNodeID());
 			if (minEndpoint == null || responseTime < minResponseTime) {
 				minResponseTime = responseTime;
 				minEndpoint = endpoint;

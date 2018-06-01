@@ -31,7 +31,9 @@ import services.moleculer.service.Name;
 import services.moleculer.transporter.Transporter;
 
 /**
- * Lowest CPU usage invocation strategy.
+ * Lowest CPU usage invocation strategy. This strategy comes from a random
+ * strategy, but preferably communicates with the "least loaded" nodes (nodes
+ * with the lowest CPU usage).
  * 
  * @see RoundRobinStrategy
  * @see NanoSecRandomStrategy
@@ -44,7 +46,14 @@ public class CpuUsageStrategy<T extends Endpoint> extends XorShiftRandomStrategy
 
 	// --- PROPERTIES ---
 
+	/**
+	 * This strategy compares number of 'maxTries' random node.
+	 */
 	protected final int maxTries;
+	
+	/**
+	 * lowCpuUsage ~= zero CPU usage
+	 */
 	protected final int lowCpuUsage;
 
 	// --- COMPONENTS ---
