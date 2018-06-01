@@ -184,6 +184,9 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 		status.set(STATUS_DISCONNECTING);
 		return client.disconnect().then(ok -> {
 			status.set(STATUS_DISCONNECTED);
+		}).catchError(cause -> {
+			logger.error("Unable to disconnect Redis server!", cause);
+			return Promise.resolve();
 		});
 	}
 

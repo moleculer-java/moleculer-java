@@ -27,6 +27,7 @@ package services.moleculer.config;
 
 import static services.moleculer.util.CommonUtils.getHostName;
 
+import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -103,28 +104,19 @@ public class ServiceBrokerConfig {
 	private static Monitor defaultMonitor;
 
 	static {
-		defaultMonitor = tryToLoadMonitor("Sigar");
-		if (defaultMonitor == null) {
-			defaultMonitor = tryToLoadMonitor("JMX");
+		try {
+			Class<?> c = ServiceBrokerConfig.class.getClassLoader().loadClass("org.hyperic.sigar.Sigar");
+			Object o = c.newInstance();
+			Method m = c.getMethod("getCpuPerc", new Class[0]);
+			m.invoke(o, new Object[0]);
+			c = ServiceBrokerConfig.class.getClassLoader().loadClass("services.moleculer.monitor.SigarMonitor");
+			defaultMonitor = (Monitor) c.newInstance();
+		} catch (Throwable ignored) {
+		} finally {
 			if (defaultMonitor == null) {
-				defaultMonitor = tryToLoadMonitor("Command");
-				if (defaultMonitor == null) {
-					defaultMonitor = new ConstantMonitor();
-				}
+				defaultMonitor = new ConstantMonitor();
 			}
 		}
-	}
-
-	private static final Monitor tryToLoadMonitor(String type) {
-		try {
-			Class<?> c = ServiceBrokerConfig.class.getClassLoader()
-					.loadClass("services.moleculer.monitor." + type + "Monitor");
-			Monitor monitor = (Monitor) c.newInstance();
-			monitor.getPID();
-			return monitor;
-		} catch (Throwable ignored) {
-		}
-		return null;
 	}
 
 	// --- CONSTRUCTORS ---

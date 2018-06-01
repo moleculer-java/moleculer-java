@@ -304,7 +304,7 @@ public final class RedisGetSetClient {
 		}
 		if (group != null) {
 			try {
-				group.shutdownGracefully(2, 2, TimeUnit.SECONDS).await();
+				group.shutdownGracefully(1, 1, TimeUnit.SECONDS).await(1, TimeUnit.SECONDS);
 			} catch (InterruptedException ignored) {
 			} finally {
 				group = null;
@@ -312,7 +312,7 @@ public final class RedisGetSetClient {
 		}
 		if (resources != null) {
 			try {
-				resources.shutdown(2, 2, TimeUnit.SECONDS).await();
+				resources.shutdown(1, 1, TimeUnit.SECONDS).await(1, TimeUnit.SECONDS);
 			} catch (InterruptedException ignored) {
 			} finally {
 				resources = null;

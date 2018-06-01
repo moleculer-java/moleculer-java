@@ -54,7 +54,7 @@ public class SigarMonitor extends Monitor {
 		if (!invalidMonitor.get() && sigar == null) {
 			try {
 				sigar = new Sigar();
-			} catch (Exception cause) {
+			} catch (Throwable cause) {
 				logger.error("Unable to reach Sigar API!", cause);
 				invalidMonitor.set(true);
 			}
