@@ -34,6 +34,8 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -429,6 +431,26 @@ public class ServiceBroker {
 		stop(contextFactory);
 		stop(strategyFactory);
 		stop(uidGenerator);
+
+		// Shutdown thread pools
+		if (config.isShutDownThreadPools()) {
+			ExecutorService executor = config.getExecutor();
+			if (executor != null && !executor.isShutdown() && !executor.isTerminated()) {
+				try {
+					executor.shutdownNow();
+				} catch (Exception ignored) {
+				}
+			}
+			logger.info("Task Executor Service stopped.");
+			ScheduledExecutorService scheduler = config.getScheduler();
+			if (scheduler != null && !scheduler.isShutdown() && !scheduler.isTerminated()) {
+				try {
+					scheduler.shutdownNow();
+				} catch (Exception ignored) {
+				}
+			}
+			logger.info("Task Scheduler Service stopped.");
+		}
 	}
 
 	/**

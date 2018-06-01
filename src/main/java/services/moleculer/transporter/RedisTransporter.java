@@ -26,8 +26,6 @@
 package services.moleculer.transporter;
 
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -148,16 +146,13 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 		int s = status.get();
 		if (s != STATUS_DISCONNECTED && s != STATUS_DISCONNECTING) {
 			status.set(STATUS_DISCONNECTING);
-			List<Promise> promises = new LinkedList<>();
 			if (clientSub != null) {
-				promises.add(clientSub.disconnect());
+				clientSub.disconnect();
 			}
 			if (clientPub != null) {
-				promises.add(clientPub.disconnect());
+				clientPub.disconnect();
 			}
-			return Promise.all(promises).then(ok -> {
-				status.set(STATUS_DISCONNECTED);
-			});
+			status.set(STATUS_DISCONNECTED);
 		}
 		return Promise.resolve();
 	}

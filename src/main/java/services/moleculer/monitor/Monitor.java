@@ -89,7 +89,7 @@ public abstract class Monitor {
 			if (now - cpuDetectedAt > cacheTimeout) {
 				try {
 					cachedCPU = detectTotalCpuPercent();
-				} catch (Exception cause) {
+				} catch (Throwable cause) {
 					logger.info("Unable to detect CPU usage!", cause);
 					invalidMonitor.set(true);
 				}
@@ -112,7 +112,7 @@ public abstract class Monitor {
 		}
 		try {
 			currentPID = detectPID();
-		} catch (Exception cause) {
+		} catch (Throwable cause) {
 			logger.info("Unable to detect process ID!", cause);
 		}
 		if (currentPID == 0) {

@@ -174,10 +174,14 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 				subscriptions.clear();
 			}
 			try {
+				Thread.sleep(500);
 				ThreadGroup group = Thread.currentThread().getThreadGroup();
-				Thread[] list = new Thread[group.activeCount()];
+				Thread[] list = new Thread[group.activeCount() + 10];
 				group.enumerate(list);
 				for (Thread t : list) {
+					if (t == null) {
+						continue;
+					}
 					if ("CommandCleanup".equals(t.getName())) {
 						t.interrupt();
 					}

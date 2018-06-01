@@ -220,6 +220,10 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 		super.stopped();
 
 		// Disconnect
+		try {
+			Thread.sleep(100);
+		} catch (InterruptedException interrupt) {
+		}
 		disconnect();
 	}
 

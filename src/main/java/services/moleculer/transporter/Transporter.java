@@ -105,9 +105,24 @@ public abstract class Transporter extends MoleculerComponent {
 	protected String prefix = "MOL";
 	protected String nodeID;
 
+	/**
+	 * Heartbeat sending period in SECONDS.
+	 */
 	protected int heartbeatInterval = 5;
+
+	/**
+	 * Heartbeat timeout in SECONDS.
+	 */
 	protected int heartbeatTimeout = 30;
+
+	/**
+	 * How long keep information in registry about the offline nodes (SECONDS).
+	 */
 	protected int offlineTimeout = 180;
+
+	/**
+	 * Timeout of channel subscriptions (SECONDS).
+	 */
 	protected int subscriptionTimeout = 10;
 
 	/**
@@ -386,8 +401,10 @@ public abstract class Transporter extends MoleculerComponent {
 	/**
 	 * Process incoming message later (in a new Runnable or JoinForkTask).
 	 * 
-	 * @param channel incoming channel
-	 * @param message incoming message
+	 * @param channel
+	 *            incoming channel
+	 * @param message
+	 *            incoming message
 	 */
 	protected void received(String channel, byte[] message) {
 		executor.execute(() -> {
@@ -398,8 +415,10 @@ public abstract class Transporter extends MoleculerComponent {
 	/**
 	 * Process incoming message directly (without new Task).
 	 * 
-	 * @param channel incoming channel
-	 * @param message incoming message
+	 * @param channel
+	 *            incoming channel
+	 * @param message
+	 *            incoming message
 	 */
 	protected void processReceivedMessage(String channel, byte[] message) {
 
@@ -702,7 +721,8 @@ public abstract class Transporter extends MoleculerComponent {
 	}
 
 	protected void sendDisconnectPacket() {
-		FastBuildTree msg = new FastBuildTree(1);
+		FastBuildTree msg = new FastBuildTree(2);
+		msg.putUnsafe("ver", PROTOCOL_VERSION);
 		msg.putUnsafe("sender", nodeID);
 		publish(disconnectChannel, msg);
 	}

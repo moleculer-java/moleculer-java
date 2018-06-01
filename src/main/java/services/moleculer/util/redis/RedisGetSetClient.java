@@ -28,7 +28,6 @@ package services.moleculer.util.redis;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -303,20 +302,31 @@ public final class RedisGetSetClient {
 			clusteredClient.close();
 			clusteredClient = null;
 		}
-		LinkedList<Promise> threads = new LinkedList<>();
 		if (group != null) {
-			threads.add(new Promise(group.shutdownGracefully(1, 1, TimeUnit.SECONDS)));
+			try {
+				group.shutdownGracefully(2, 2, TimeUnit.SECONDS).await();
+			} catch (InterruptedException ignored) {
+			} finally {
+				group = null;
+			}
 		}
 		if (resources != null) {
-			threads.add(new Promise(resources.shutdown()));
+			try {
+				resources.shutdown(2, 2, TimeUnit.SECONDS).await();
+			} catch (InterruptedException ignored) {
+			} finally {
+				resources = null;
+			}
 		}
-		return Promise.all(threads).then(ok -> {
-			if (acceptor != null) {
+		if (acceptor != null) {
+			try {
 				acceptor.shutdownNow();
+			} catch (Exception ignored) {
+			} finally {
 				acceptor = null;
 			}
-			resources = null;
-		});
+		}
+		return Promise.resolve();
 	}
 
 	// --- CONFIG PARSER ---
