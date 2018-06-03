@@ -39,6 +39,8 @@ import services.moleculer.service.*;
 
 public class Sample {
 
+	// --- MESSAGE BROKER TEST ---
+	
 	public static void main(String[] args) throws Exception {
 		try {
 
@@ -75,6 +77,8 @@ public class Sample {
 		}
 	}
 
+	// --- SAMPLE SERVICE ---
+	
 	@Name("math")
 	public static class MathService extends Service {
 
