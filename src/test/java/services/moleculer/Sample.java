@@ -26,7 +26,7 @@
 package services.moleculer;
 
 import io.datatree.Tree;
-import services.moleculer.config.ServiceBrokerConfig;
+import services.moleculer.cacher.Cache;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
@@ -39,29 +39,33 @@ public class Sample {
 		System.out.println("START");
 		try {
 
-			ServiceBrokerConfig cfg = new ServiceBrokerConfig();
+			// Create Message Broker
+			ServiceBroker broker = ServiceBroker.builder().build();
 
-			// TcpTransporter t = new TcpTransporter();
-			// t.setDebug(false);
-			// cfg.setTransporter(t);
-
-			ServiceBroker broker = new ServiceBroker(cfg);
-
+			// Deploy servie
 			MathService math = new MathService();
 			broker.createService(math);
+			
+			// Start Message Broker
 			broker.start();
 
+			// Create input
 			Tree in = new Tree();
 			in.put("a", 3);
-			in.put("b", 3);
+			in.put("b", 5);
 
-			int max = 1000000 * 5 * 60;
-			long start = System.currentTimeMillis();
-			for (int i = 0; i < max; i++) {
-				broker.call("math.add", in).waitFor();
-			}
-			System.out.println(System.currentTimeMillis() - start);
+			// Local or remote method call
+			broker.call("math.add", in).then(rsp -> {
+				
+				// Response
+				broker.getLogger().info("Response: " + rsp.asInteger());
+				
+			});
 
+			// Broadcast event
+			broker.broadcast("foo.xyz", "a", 3, "b", 5);
+
+			// Stop Message Broker
 			broker.stop();
 
 		} catch (Exception e) {
@@ -73,13 +77,14 @@ public class Sample {
 	@Name("math")
 	public static class MathService extends Service {
 
+		@Cache(keys = { "a", "b" }, ttl = 5000)
 		public Action add = ctx -> {
 			return ctx.params.get("a", 0) + ctx.params.get("b", 0);
 		};
 
 		@Subscribe("foo.*")
 		public Listener listener = payload -> {
-			// System.out.println("Received: " + payload);
+			logger.info("Event received: " + payload);
 		};
 
 	};
