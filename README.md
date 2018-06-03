@@ -110,4 +110,4 @@ public class Sample {
 Developer documentation is in progress. At present, only JavaDoc and test cases are available.
 
 # License
-moleculer-java is available under the [MIT license](https://tldrlegal.com/license/mit-license).
+Moleculer-java is available under the [MIT license](https://tldrlegal.com/license/mit-license).
