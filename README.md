@@ -5,6 +5,15 @@
 [![codecov](https://codecov.io/gh/moleculer-java/moleculer-java/branch/master/graph/badge.svg)](https://codecov.io/gh/moleculer-java/moleculer-java)
 
 Java implementation of the [Moleculer microservices framework](http://moleculer.services/).
+The Moleculer's Java and NodeJS versions are 100% compatible with each other.
+
+## Features
+
+* Fast - High-performance and non-blocking API
+* Polyglot - Moleculer is implemented under Node.js and Java
+* Extensible - All built-in modules (caching, serializer, transporter) are pluggable
+* Open source - Moleculer is 100% open source and free of charge
+* Fault tolerant - With built-in load balancer &amp; circuit breaker
 
 ## Download
 
