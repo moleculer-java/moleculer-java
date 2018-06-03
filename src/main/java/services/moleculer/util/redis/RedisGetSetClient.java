@@ -133,7 +133,7 @@ public final class RedisGetSetClient {
 
 				@Override
 				public final void publish(Event event) {
-					
+
 					// Do nothing
 				}
 
@@ -167,6 +167,10 @@ public final class RedisGetSetClient {
 	 * Gets a content by a key.
 	 *
 	 * @param key
+	 *            cache key
+	 * 
+	 * @return Promise with cached value (or null, the returned Promise also can
+	 *         be null)
 	 */
 	public final Promise get(String key) {
 		byte[] binaryKey = key.getBytes(StandardCharsets.UTF_8);
@@ -183,8 +187,13 @@ public final class RedisGetSetClient {
 	 * Sets a content by key.
 	 *
 	 * @param key
+	 *            cache key
 	 * @param value
+	 *            new value
 	 * @param args
+	 *            Redis arguments (eg. TTL)
+	 * 
+	 * @return Promise with empty value
 	 */
 	public final Promise set(String key, byte[] value, SetArgs args) {
 		byte[] binaryKey = key.getBytes(StandardCharsets.UTF_8);
@@ -207,6 +216,9 @@ public final class RedisGetSetClient {
 	 * Deletes a content with the specified key.
 	 *
 	 * @param key
+	 *            cache key
+	 * 
+	 * @return Promise with empty value
 	 */
 	public final Promise del(String key) {
 		byte[] binaryKey = key.getBytes(StandardCharsets.UTF_8);
@@ -223,6 +235,9 @@ public final class RedisGetSetClient {
 	 * Deletes a group of items. Removes every key by a match string.
 	 *
 	 * @param match
+	 *            regex
+	 * 
+	 * @return Promise with empty value
 	 */
 	public final Promise clean(String match) {
 		ScanArgs args = new ScanArgs();

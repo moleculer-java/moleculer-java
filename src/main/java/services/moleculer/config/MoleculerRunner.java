@@ -74,6 +74,9 @@ public final class MoleculerRunner {
 	 * @param args
 	 *            configuration path or "STOP" to stop service, UDP port, and a
 	 *            "secret message" to stop Moleculer service
+	 * 
+	 * @throws fatal
+	 *             exception (unable to find JARs, invalid Java version, etc.)
 	 */
 	public static final void main(String[] args) throws Exception {
 		try {

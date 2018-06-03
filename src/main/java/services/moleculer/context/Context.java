@@ -53,8 +53,6 @@ public class Context {
 
 	/**
 	 * Request parameters (including {@link io.datatree.Tree#getMeta() meta})
-	 * 
-	 * @see Tree.getMeta
 	 */
 	public final Tree params;
 

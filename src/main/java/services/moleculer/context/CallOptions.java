@@ -30,7 +30,7 @@ package services.moleculer.context;
  * 
  * <pre>
  * broker.call("math.add", "a", 3, "b", 5,
- *   CallOptions.nodeID("node-2")).then(in -> {
+ *   CallOptions.nodeID("node-2")).then(in -&gt; {
  *   ...
  * });
  * </pre>

@@ -60,7 +60,7 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 	/**
 	 * This strategy compares number of 'maxTries' random node.
 	 */
-	protected int maxTries = 3;
+	protected int maxTries = 5;
 
 	/**
 	 * Ping period time, in SECONDS.

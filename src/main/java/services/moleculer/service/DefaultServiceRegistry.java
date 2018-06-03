@@ -201,8 +201,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	 *
 	 * @param broker
 	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
 	 */
 	@Override
 	public void started(ServiceBroker broker) throws Exception {
@@ -288,7 +286,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		}
 		if (removed) {
 			scheduler.execute(() -> {
-				reschedule(Long.MAX_VALUE);				
+				reschedule(Long.MAX_VALUE);
 			});
 		} else {
 			prevTimeoutAt.set(0);
@@ -299,6 +297,9 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	/**
 	 * Recalculates the next timeout checking time
+	 * 
+	 * @param minTimeoutAt
+	 *            next / closest timestamp
 	 */
 	protected void reschedule(long minTimeoutAt) {
 		if (minTimeoutAt == Long.MAX_VALUE) {
@@ -321,7 +322,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				}
 			}
 		} else {
-			minTimeoutAt = (minTimeoutAt / 100 * 100) + 100;		
+			minTimeoutAt = (minTimeoutAt / 100 * 100) + 100;
 			long prev = prevTimeoutAt.getAndSet(minTimeoutAt);
 			if (prev == minTimeoutAt) {
 

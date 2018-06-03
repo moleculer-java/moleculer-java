@@ -238,6 +238,10 @@ public abstract class Cacher extends Middleware {
 	 * Gets a cached content by a key.
 	 *
 	 * @param key
+	 *            cache key
+	 * 
+	 * @return Promise with cached value (or null, the returned Promise also can
+	 *         be null)
 	 */
 	public abstract Promise get(String key);
 
@@ -245,9 +249,13 @@ public abstract class Cacher extends Middleware {
 	 * Sets a content by key into the cache.
 	 *
 	 * @param key
+	 *            cache key
 	 * @param value
+	 *            new value
 	 * @param ttl
 	 *            optional TTL of entry (0 == use default TTL)
+	 *            
+	 * @return Promise with empty value
 	 */
 	public abstract Promise set(String key, Tree value, int ttl);
 
@@ -255,6 +263,9 @@ public abstract class Cacher extends Middleware {
 	 * Deletes a content from this cache.
 	 *
 	 * @param key
+	 *            cache key
+	 * 
+	 * @return Promise with empty value
 	 */
 	public abstract Promise del(String key);
 
@@ -263,6 +274,9 @@ public abstract class Cacher extends Middleware {
 	 * string is "**".
 	 *
 	 * @param match
+	 *            regex
+	 * 
+	 * @return Promise with empty value
 	 */
 	public abstract Promise clean(String match);
 

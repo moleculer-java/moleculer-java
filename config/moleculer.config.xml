@@ -79,7 +79,8 @@
 	<!-- import resource="strategy/random-nanosec.xml" / -->
 	<!-- import resource="strategy/random-secure.xml" / -->
 	<!-- import resource="strategy/cpu.xml" / -->
-
+	<!-- import resource="strategy/network-latency.xml" / -->
+	
 	<!-- COMMON TASK EXECUTOR -->
 
 	<bean id="executor" class="java.util.concurrent.ForkJoinPool"

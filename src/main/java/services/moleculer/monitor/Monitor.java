@@ -132,6 +132,9 @@ public abstract class Monitor {
 	 * Returns the system CPU usage, in percents, between 0 and 100.
 	 *
 	 * @return total CPU usage of the current OS
+	 * 
+	 * @throws any
+	 *             I/O or missing DLL exception
 	 */
 	protected abstract int detectTotalCpuPercent() throws Exception;
 
@@ -139,6 +142,9 @@ public abstract class Monitor {
 	 * Returns the system CPU usage, in percents, between 0 and 100.
 	 *
 	 * @return total CPU usage of the current OS
+	 * 
+	 * @throws any
+	 *             I/O or missing DLL exception
 	 */
 	protected abstract long detectPID() throws Exception;
 

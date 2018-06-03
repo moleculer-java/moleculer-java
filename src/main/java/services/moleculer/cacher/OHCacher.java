@@ -158,7 +158,7 @@ public class OHCacher extends Cacher {
 	 *
 	 * @param maxCapacity
 	 *            capacity for data over the whole cache in MEGABYTES
-	 * @param ttl
+	 * @param defaultTtl
 	 *            expire time of entries in memory, in seconds (default: 0 =
 	 *            never expires)
 	 */

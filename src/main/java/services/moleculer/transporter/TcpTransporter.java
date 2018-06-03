@@ -233,6 +233,9 @@ public class TcpTransporter extends Transporter {
 	/**
 	 * Start TCP Transporter in full TCP mode, without UDP discovery. Valid URL
 	 * syntax is "tcp://host:port/nodeID" or "host:port/nodeID".
+	 * 
+	 * @param urls
+	 *            list of urls of ALL nodes
 	 */
 	public TcpTransporter(String... urls) {
 		this.urls = urls;
@@ -250,6 +253,9 @@ public class TcpTransporter extends Transporter {
 	 * "tcp://host3:port3/nodeID3"<br>
 	 * ]<br>
 	 * }
+	 * 
+	 * @param urlList
+	 *            an URL, where the peer configuration's JSON is located
 	 */
 	public TcpTransporter(URL urlList) throws Exception {
 		this.urls = parseURLs(readTree(urlList.toString()), "nodes", null);
@@ -836,6 +842,8 @@ public class TcpTransporter extends Transporter {
 
 	/**
 	 * Create and send a Gossip request packet.
+	 * 
+	 * @return created Gossip request (used for testing)
 	 */
 	protected Tree sendGossipRequest() {
 		try {
@@ -1294,6 +1302,8 @@ public class TcpTransporter extends Transporter {
 	/**
 	 * Create Gossip HELLO packet. Hello message is invariable, so we can cache
 	 * it.
+	 * 
+	 * @return created "hello" request
 	 */
 	public byte[] generateGossipHello() {
 		if (cachedHelloMessage != null) {

@@ -84,7 +84,7 @@ import services.moleculer.uid.UidGenerator;
 import services.moleculer.util.ParseResult;
 
 /**
- * The ServiceBroker is the main component of Moleculer. It handles services &
+ * The ServiceBroker is the main component of Moleculer. It handles services &amp;
  * events, calls actions and communicates with remote nodes. You need to create
  * an instance of ServiceBroker for every node. Features of Moleculer:
  * <ul>
@@ -93,7 +93,7 @@ import services.moleculer.util.ParseResult;
  * <li>Extensible - All built-in modules (caching, serializer, transporter) are
  * pluggable
  * <li>Open source - Moleculer is 100% open source and free of charge
- * <li>Fault tolerant - With built-in load balancer & circuit breaker
+ * <li>Fault tolerant - With built-in load balancer &amp; circuit breaker
  * </ul>
  * Sample of usage:<br>
  *
@@ -101,14 +101,14 @@ import services.moleculer.util.ParseResult;
  * ServiceBroker broker = new ServiceBroker("node-1");
  *
  * broker.createService(new Service("math") {
- * 	public Action add = ctx -> {
+ * 	public Action add = ctx -&gt; {
  * 		return ctx.params.get("a").asInteger() + ctx.params.get("b").asInteger();
  * 	};
  * });
  *
  * broker.start();
  *
- * broker.call("math.add", "a", 5, "b", 3).then(rsp -> {
+ * broker.call("math.add", "a", 5, "b", 3).then(rsp -&gt; {
  * 	broker.getLogger().info("Response: " + rsp.asInteger());
  * });
  * </pre>
@@ -335,6 +335,9 @@ public class ServiceBroker {
 
 	/**
 	 * Start broker. If has a Transporter, transporter.connect() will be called.
+	 * 
+	 * @throws fatal
+	 *             error (missing classes or JARs, used port, etc.)
 	 */
 	public void start() throws Exception {
 
@@ -397,7 +400,7 @@ public class ServiceBroker {
 	/**
 	 * Starts the specified {@link MoleculerComponent}.
 	 * 
-	 * @param component
+	 * @param TYPE
 	 *            component to start
 	 * 
 	 * @return the started component
@@ -523,6 +526,9 @@ public class ServiceBroker {
 	 * Installs a new service with the specified name (eg. "user" service) and
 	 * notifies other nodes about the actions/listeners of this new service.
 	 * 
+	 * @param name
+	 *            custom service name (eg. "user", "logger", "configurator",
+	 *            etc.)
 	 * @param service
 	 *            the new service instance
 	 */
@@ -545,7 +551,12 @@ public class ServiceBroker {
 	 * Returns a local service by name (eg. "user" service).
 	 *
 	 * @param serviceName
-	 * @return
+	 *            service name (eg. "user", "logger", "configurator", etc.)
+	 * 
+	 * @return local service instance
+	 * 
+	 * @throws NoSuchElementException
+	 *             if the service name is not valid
 	 */
 	public Service getLocalService(String serviceName) {
 		return serviceRegistry.getService(serviceName);
@@ -587,7 +598,10 @@ public class ServiceBroker {
 	 * Returns an action by name.
 	 *
 	 * @param actionName
-	 * @return
+	 *            name of the action (in "service.action" syntax, eg.
+	 *            "math.add")
+	 * 
+	 * @return local or remote action container
 	 */
 	public Action getAction(String actionName) {
 		return serviceRegistry.getAction(actionName, null);
@@ -597,8 +611,12 @@ public class ServiceBroker {
 	 * Returns an action by name and nodeID.
 	 *
 	 * @param actionName
+	 *            name of the action (in "service.action" syntax, eg.
+	 *            "math.add")
 	 * @param nodeID
-	 * @return
+	 *            node identifier where the service is located
+	 * 
+	 * @return local or remote action container
 	 */
 	public Action getAction(String actionName, String nodeID) {
 		return serviceRegistry.getAction(actionName, nodeID);

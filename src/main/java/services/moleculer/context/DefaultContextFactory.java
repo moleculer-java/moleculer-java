@@ -59,8 +59,6 @@ public class DefaultContextFactory extends ContextFactory {
 	 *
 	 * @param broker
 	 *            parent ServiceBroker
-	 * @param config
-	 *            optional configuration of the current component
 	 */
 	@Override
 	public void started(ServiceBroker broker) throws Exception {
