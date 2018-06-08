@@ -23,44 +23,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.config;
+package services.moleculer.logger;
 
-import java.util.Map;
+import java.util.LinkedList;
+import java.util.logging.LogRecord;
 
-import org.springframework.beans.BeansException;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
+public interface ConsoleLogger {
 
-import services.moleculer.ServiceBroker;
-import services.moleculer.service.Service;
-
-/**
- * Register Spring Components as Moleculer Services in ServiceBroker.
- * ServiceBroker must be a Spring Component also.
- */
-public class SpringRegistrator implements ApplicationContextAware {
-
-	@Override
-	public void setApplicationContext(ApplicationContext ctx) throws BeansException {
-
-		// Get Service Broker
-		ServiceBroker broker = ctx.getBean(ServiceBroker.class);
-
-		// Find Services in Spring Application Context
-		Map<String, Service> serviceMap = ctx.getBeansOfType(Service.class);
-		if (serviceMap != null && !serviceMap.isEmpty()) {
-			String name;
-			for (Map.Entry<String, Service> service : serviceMap.entrySet()) {
-
-				// Register Service in Broker
-				name = service.getKey();
-				if (name != null && name.startsWith("$")) {
-					broker.createService(name, service.getValue());
-				} else {
-					broker.createService(service.getValue());
-				}
-			}
-		}
-	}
-
+	public void log(LinkedList<LogRecord> records, StringBuilder lines);
+	
 }

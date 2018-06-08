@@ -42,7 +42,7 @@ public abstract class MoleculerComponent {
 
 	// --- PROPERTIES ---
 
-	protected final String name;
+	protected String name;
 	protected ServiceBroker broker;
 
 	// --- CONSTRUCTORS ---
@@ -55,6 +55,12 @@ public abstract class MoleculerComponent {
 		this.name = Objects.requireNonNull(name);
 	}
 
+	// --- REDEFINE SERVICE NAME ---
+	
+	void redefineName(String name) {
+		this.name = Objects.requireNonNull(name);
+	}
+	
 	// --- INSTANCE STARTED ---
 
 	public void started(ServiceBroker broker) throws Exception {

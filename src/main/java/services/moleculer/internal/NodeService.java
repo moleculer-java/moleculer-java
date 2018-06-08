@@ -73,9 +73,9 @@ public class NodeService extends Service {
 	public Action actions = (ctx) -> {
 
 		// Parse input parameters
-		boolean onlyLocal = ctx.params.get("onlyLocal", true);
-		boolean skipInternal = ctx.params.get("skipInternal", true);
-		boolean withEndpoints = ctx.params.get("withEndpoints", true);
+		boolean onlyLocal = ctx.params.get("onlyLocal", false);
+		boolean skipInternal = ctx.params.get("skipInternal", false);
+		boolean withEndpoints = ctx.params.get("withEndpoints", false);
 
 		// Create response structure
 		Tree root = new Tree();
@@ -176,9 +176,9 @@ public class NodeService extends Service {
 	public Action events = (ctx) -> {
 
 		// Parse input parameters
-		boolean onlyLocal = ctx.params.get("onlyLocal", true);
-		boolean skipInternal = ctx.params.get("skipInternal", true);
-		boolean withEndpoints = ctx.params.get("withEndpoints", true);
+		boolean onlyLocal = ctx.params.get("onlyLocal", false);
+		boolean skipInternal = ctx.params.get("skipInternal", false);
+		boolean withEndpoints = ctx.params.get("withEndpoints", false);
 
 		// Create response structure
 		Tree root = new Tree();
@@ -379,9 +379,9 @@ public class NodeService extends Service {
 	public Action services = (ctx) -> {
 
 		// Parse input parameters
-		boolean onlyLocal = ctx.params.get("onlyLocal", true);
-		boolean skipInternal = ctx.params.get("skipInternal", true);
-		boolean withActions = ctx.params.get("withActions", true);
+		boolean onlyLocal = ctx.params.get("onlyLocal", false);
+		boolean skipInternal = ctx.params.get("skipInternal", false);
+		boolean withActions = ctx.params.get("withActions", false);
 
 		// Create response structure
 		Tree root = new Tree();

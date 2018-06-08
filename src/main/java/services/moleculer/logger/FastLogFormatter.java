@@ -25,14 +25,6 @@
  */
 package services.moleculer.logger;
 
-import static services.moleculer.logger.AsyncFileLogger.CONFIG;
-import static services.moleculer.logger.AsyncFileLogger.FINE;
-import static services.moleculer.logger.AsyncFileLogger.FINER;
-import static services.moleculer.logger.AsyncFileLogger.FINEST;
-import static services.moleculer.logger.AsyncFileLogger.INFO;
-import static services.moleculer.logger.AsyncFileLogger.SEVERE;
-import static services.moleculer.logger.AsyncFileLogger.WARNING;
-
 import java.time.Instant;
 import java.util.LinkedList;
 import java.util.StringTokenizer;
@@ -52,6 +44,14 @@ public class FastLogFormatter extends Formatter {
 	protected static final String BREAK_STRING = new String(BREAK);
 	protected static final char[] AT = " at ".toCharArray();
 	protected static final char[] JAVA = ".java:".toCharArray();
+
+	protected static final char[] SEVERE = "SEVERE  ".toCharArray();
+	protected static final char[] WARNING = "WARNING ".toCharArray();
+	protected static final char[] INFO = "INFO    ".toCharArray();
+	protected static final char[] CONFIG = "CONFIG  ".toCharArray();
+	protected static final char[] FINE = "FINE    ".toCharArray();
+	protected static final char[] FINER = "FINER   ".toCharArray();
+	protected static final char[] FINEST = "FINEST  ".toCharArray();
 
 	// --- PROPERTIES ---
 

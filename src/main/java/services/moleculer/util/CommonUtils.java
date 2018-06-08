@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.DataFormatException;
@@ -68,7 +69,7 @@ public final class CommonUtils {
 
 	// --- DURATION FORMATTER ---
 
-	private static final NumberFormat numberFormatter = DecimalFormat.getInstance();
+	private static final NumberFormat numberFormatter = DecimalFormat.getInstance(Locale.US);
 
 	// --- PATH FORMATTER ---
 

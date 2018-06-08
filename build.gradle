@@ -61,7 +61,7 @@ dependencies {
 	// https://mvnrepository.com/artifact/com.openpojo/openpojo
 	testCompile group: 'com.openpojo', name: 'openpojo', version: '0.8.10'	
 
-	
+		
 	// =============== LOGGING ===============
 	
 	
@@ -76,6 +76,9 @@ dependencies {
 
 	// https://mvnrepository.com/artifact/org.slf4j/jcl-over-slf4j
 	compile group: 'org.slf4j', name: 'jcl-over-slf4j', version: '1.7.25'
+
+	// https://mvnrepository.com/artifact/com.diogonunes/JCDP
+	compile group: 'com.diogonunes', name: 'JCDP', version: '2.0.3.1'
 
 
 	// =============== SERIALIZATION ===============

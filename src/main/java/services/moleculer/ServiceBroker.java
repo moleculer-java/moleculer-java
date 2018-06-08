@@ -992,7 +992,7 @@ public class ServiceBroker {
 
 	/**
 	 * Starts a local (System in/out) or a remote (telnet-based) developer
-	 * console. You must install "moleculer-java-repl" dependency for use this
+	 * console. You must install "moleculer-java-repl" dependency to use this
 	 * feature.
 	 * 
 	 * @param local
@@ -1003,7 +1003,7 @@ public class ServiceBroker {
 	public boolean repl(boolean local) {
 		try {
 			String className = local ? "Local" : "Remote";
-			String serviceName = className.toLowerCase() + "-repl";
+			String serviceName = local ? "$repl" : "$repl-remote";
 			try {
 				serviceRegistry.getService(serviceName);
 				return false;

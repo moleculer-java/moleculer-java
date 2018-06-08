@@ -66,16 +66,6 @@ import java.util.zip.ZipOutputStream;
  */
 public class AsyncFileLogger extends Handler implements Runnable {
 
-	// --- CONSTANTS ---
-
-	protected static final char[] SEVERE = "SEVERE  ".toCharArray();
-	protected static final char[] WARNING = "WARNING ".toCharArray();
-	protected static final char[] INFO = "INFO    ".toCharArray();
-	protected static final char[] CONFIG = "CONFIG  ".toCharArray();
-	protected static final char[] FINE = "FINE    ".toCharArray();
-	protected static final char[] FINER = "FINER   ".toCharArray();
-	protected static final char[] FINEST = "FINEST  ".toCharArray();
-
 	// --- FILE NAME FORMATTER ---
 
 	protected DateFormat FILE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
@@ -88,6 +78,7 @@ public class AsyncFileLogger extends Handler implements Runnable {
 	protected int deleteAfterDays;
 	protected boolean logToConsole;
 	protected String fileEncoding;
+	protected boolean enableColors = true;
 
 	protected static final long DAY = 1000L * 60 * 60 * 24;
 
@@ -104,14 +95,38 @@ public class AsyncFileLogger extends Handler implements Runnable {
 	protected String openedFile = "";
 	protected FileOutputStream openedStream;
 
-	// --- CONSTRUCTOR ---
+	// --- OTHER VARIABLES ---
 
 	protected ExecutorService executor;
+	protected ConsoleLogger console;
+
+	// --- CONSTRUCTOR ---
 
 	public AsyncFileLogger() {
 		configure();
 
-		// IBM WebSphere-kompatibilis szálkezelő létrehozása
+		// Create console
+		if (logToConsole) {
+			if (enableColors) {
+				try {
+					
+					// Create ANSI console for "colorized" logging
+					Class.forName("com.diogonunes.jcdp.color.ColoredPrinter");
+					console = (ConsoleLogger) Class.forName("services.moleculer.logger.ColoredConsoleLogger")
+							.newInstance();
+				} catch (Throwable ignored) {
+
+					// Required dependency:
+					// https://mvnrepository.com/artifact/com.diogonunes/JCDP
+					
+				}
+			}
+			if (console == null) {
+				console = new SimpleConsoleLogger();
+			}
+		}
+
+		// Create async log thread
 		ThreadFactory threadFactory = new ThreadFactory() {
 
 			@Override
@@ -186,39 +201,8 @@ public class AsyncFileLogger extends Handler implements Runnable {
 			}
 
 			// Write records to console
-			if (logToConsole) {
-				Throwable cause;
-				String msg;
-				for (LogRecord record : records) {
-					lines.setLength(0);
-					final Level l = record.getLevel();
-					if (l == Level.SEVERE) {
-						lines.append(SEVERE);
-					} else if (l == Level.WARNING) {
-						lines.append(WARNING);
-					} else if (l == Level.INFO) {
-						lines.append(INFO);
-					} else if (l == Level.CONFIG) {
-						lines.append(CONFIG);
-					} else if (l == Level.FINE) {
-						lines.append(FINE);
-					} else if (l == Level.FINER) {
-						lines.append(FINER);
-					} else {
-						lines.append(FINEST);
-					}
-					msg = record.getMessage();
-					if (msg == null) {
-						msg = "<null>";
-					} else {
-						msg = msg.trim();
-					}
-					System.out.println(lines.append(msg).toString());
-					cause = record.getThrown();
-					if (cause != null) {
-						cause.printStackTrace();
-					}
-				}
+			if (console != null) {
+				console.log(records, lines);
 			}
 		} finally {
 			records.clear();
@@ -490,6 +474,9 @@ public class AsyncFileLogger extends Handler implements Runnable {
 
 		// Log to console
 		logToConsole = Boolean.parseBoolean(getProperty(className + ".logToConsole", "false"));
+
+		// Enable colors
+		enableColors = Boolean.parseBoolean(getProperty(className + ".enableColors", "true"));
 
 		// Set level
 		setLevel(Level.parse(getProperty(className + ".level", Level.INFO.toString())));

@@ -642,6 +642,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	public void addActions(String serviceName, Service service) {
 		if (serviceName == null || serviceName.isEmpty()) {
 			serviceName = service.getName();
+		} else {
+			service.redefineName(serviceName);
 		}
 		final String name = serviceName.replace(' ', '-');
 		Class<? extends Service> clazz = service.getClass();

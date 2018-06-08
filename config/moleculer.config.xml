@@ -41,6 +41,11 @@
 
 	</bean>
 
+	<!-- REPL DEVELOPER CONSOLE -->
+		
+	<!-- import resource="repl/local.xml" / -->
+	<!-- import resource="repl/remote.xml" / -->
+		
 	<!-- TRANSPORTER -->
 
 	<import resource="transporter/null.xml" />
