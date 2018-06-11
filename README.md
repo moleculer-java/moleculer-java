@@ -5,7 +5,7 @@
 [![codecov](https://codecov.io/gh/moleculer-java/moleculer-java/branch/master/graph/badge.svg)](https://codecov.io/gh/moleculer-java/moleculer-java)
 
 Java implementation of the [Moleculer microservices framework](http://moleculer.services/).
-The Moleculer's Java and NodeJS versions are 100% compatible with each other.
+The Java-based Moleculer is completely compatible with the NodeJS-based Moleculer.
 
 ## Features
 
@@ -24,7 +24,7 @@ The Moleculer's Java and NodeJS versions are 100% compatible with each other.
 	<dependency>
 		<groupId>com.github.berkesa</groupId>
 		<artifactId>moleculer-java</artifactId>
-		<version>1.0.1</version>
+		<version>1.0.2</version>
 		<scope>runtime</scope>
 	</dependency>
 </dependencies>
@@ -34,7 +34,7 @@ The Moleculer's Java and NodeJS versions are 100% compatible with each other.
 
 ```gradle
 dependencies {
-	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.0.1' 
+	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.0.2' 
 }
 ```
 
