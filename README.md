@@ -109,5 +109,9 @@ public class Sample {
 # Documentation
 Developer documentation is in progress. At present, only JavaDoc and test cases are available.
 
+# Subprojects
+
+* [Interactive Developer Console for Moleculer](https://moleculer-java.github.io/moleculer-java-repl/)
+
 # License
 Moleculer-java is available under the [MIT license](https://tldrlegal.com/license/mit-license).
