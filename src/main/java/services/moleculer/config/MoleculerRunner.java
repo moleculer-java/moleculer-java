@@ -201,9 +201,9 @@ public final class MoleculerRunner {
 
 				public void run() {
 					try {
-						Thread.sleep(30000);
-						System.exit(0);
-					} catch (Exception interrupted) {
+						Thread.sleep(15000);
+						Runtime.getRuntime().halt(1);
+					} catch (Throwable ignored) {
 					}
 				}
 
