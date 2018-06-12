@@ -205,6 +205,11 @@ public class TcpTransporter extends Transporter {
 	 */
 	protected int currentPort;
 
+	/**
+	 * Include error trace in response
+	 */
+	protected boolean sendErrorTrace;
+	
 	// --- LOCAL NODE'S DESCRIPTOR ---
 
 	/**
@@ -555,13 +560,17 @@ public class TcpTransporter extends Transporter {
 						errorMap = new FastBuildTree(2);
 
 						// Add message
-						errorMap.putUnsafe("message", cause.getMessage());
+						String message = String.valueOf(cause.getMessage());
+						message = message.replace('\r', ' ').replace('\n', ' ');
+						errorMap.putUnsafe("message", message.trim());
 
 						// Add trace
+						if (sendErrorTrace) {
 						StringWriter sw = new StringWriter(128);
 						PrintWriter pw = new PrintWriter(sw);
 						cause.printStackTrace(pw);
 						errorMap.putUnsafe("trace", sw.toString());
+						}
 					}
 					for (byte[] packet : packets) {
 						try {
@@ -1462,4 +1471,12 @@ public class TcpTransporter extends Transporter {
 		this.udpMulticastTTL = udpMulticastTTL;
 	}
 
+	public boolean isSendErrorTrace() {
+		return sendErrorTrace;
+	}
+
+	public void setSendErrorTrace(boolean sendErrorTrace) {
+		this.sendErrorTrace = sendErrorTrace;
+	}
+	
 }

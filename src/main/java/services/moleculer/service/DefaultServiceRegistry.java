@@ -115,6 +115,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	 */
 	protected boolean checkVersion;
 
+	/**
+	 * Include error trace in response
+	 */
+	protected boolean sendErrorTrace;
+
 	// --- LOCKS ---
 
 	/**
@@ -439,7 +444,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		String requestID = message.get("requestID", id);
 
 		// Create context
-		Context ctx = contextFactory.create(name, params, opts, id, level, requestID, parentID);
+		Context ctx = contextFactory.create(action, params, opts, id, level, requestID, parentID);
 
 		// Invoke action
 		try {
@@ -486,13 +491,17 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			// Add message
 			FastBuildTree errorMap = new FastBuildTree(3);
 			msg.putUnsafe("error", errorMap);
-			errorMap.putUnsafe("message", error.getMessage());
+			String message = String.valueOf(error.getMessage());
+			message = message.replace('\r', ' ').replace('\n', ' ');
+			errorMap.putUnsafe("message", message.trim());
 
 			// Add trace
-			StringWriter sw = new StringWriter(128);
-			PrintWriter pw = new PrintWriter(sw);
-			error.printStackTrace(pw);
-			errorMap.putUnsafe("trace", sw.toString());
+			if (sendErrorTrace) {
+				StringWriter sw = new StringWriter(128);
+				PrintWriter pw = new PrintWriter(sw);
+				error.printStackTrace(pw);
+				errorMap.putUnsafe("trace", sw.toString());
+			}
 
 			// Add source nodeID of the error
 			errorMap.putUnsafe("nodeID", nodeID);
@@ -1187,6 +1196,14 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	public void setAsyncLocalInvocation(boolean asyncLocalInvocation) {
 		this.asyncLocalInvocation = asyncLocalInvocation;
+	}
+
+	public boolean isSendErrorTrace() {
+		return sendErrorTrace;
+	}
+
+	public void setSendErrorTrace(boolean sendErrorTrace) {
+		this.sendErrorTrace = sendErrorTrace;
 	}
 
 }

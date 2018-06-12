@@ -202,73 +202,55 @@ public class MemoryCacher extends Cacher implements Runnable {
 				return Promise.resolve(partition.get(key.substring(pos + 1)));
 			}
 		} catch (Throwable cause) {
-			logger.warn("Unable to get data from cache!", cause);
+			logger.warn("Unable to get data from the cache!", cause);
 		}
 		return Promise.resolve((Object) null);
 	}
 
 	@Override
 	public Promise set(String key, Tree value, int ttl) {
-		int pos = partitionPosition(key, true);
-
-		// Prefix is the name of the partition / region (eg.
-		// "user" from the "user.name" cache key)
-		String prefix = key.substring(0, pos);
-		MemoryPartition partition;
-		writeLock.lock();
 		try {
-			partition = partitions.get(prefix);
-			if (partition == null) {
-				partition = new MemoryPartition(capacity);
-				partitions.put(prefix, partition);
+			int pos = partitionPosition(key, true);
+
+			// Prefix is the name of the partition / region (eg.
+			// "user" from the "user.name" cache key)
+			String prefix = key.substring(0, pos);
+			MemoryPartition partition;
+			writeLock.lock();
+			try {
+				partition = partitions.get(prefix);
+				if (partition == null) {
+					partition = new MemoryPartition(capacity);
+					partitions.put(prefix, partition);
+				}
+			} finally {
+				writeLock.unlock();
 			}
-		} finally {
-			writeLock.unlock();
-		}
-		int entryTTL;
-		if (ttl > 0) {
+			int entryTTL;
+			if (ttl > 0) {
 
-			// Entry-level TTL (in seconds)
-			entryTTL = ttl;
-		} else {
+				// Entry-level TTL (in seconds)
+				entryTTL = ttl;
+			} else {
 
-			// Use the default TTL
-			entryTTL = this.ttl;
+				// Use the default TTL
+				entryTTL = this.ttl;
+			}
+			partition.set(key.substring(pos + 1), value.clone(), entryTTL);
+		} catch (Throwable cause) {
+			logger.warn("Unable to set data to the cache!", cause);
 		}
-		partition.set(key.substring(pos + 1), value.clone(), entryTTL);
 		return Promise.resolve();
 	}
 
 	@Override
 	public Promise del(String key) {
-		int pos = partitionPosition(key, true);
-
-		// Prefix is the name of the partition / region (eg.
-		// "user" from the "user.name" cache key)
-		String prefix = key.substring(0, pos);
-		MemoryPartition partition;
-		readLock.lock();
 		try {
-			partition = partitions.get(prefix);
-		} finally {
-			readLock.unlock();
-		}
-		if (partition != null) {
-			partition.del(key.substring(pos + 1));
-		}
-		return Promise.resolve();
-	}
+			int pos = partitionPosition(key, true);
 
-	@Override
-	public Promise clean(String match) {
-
-		// Prefix is the name of the partition / region (eg.
-		// "user" from the "user.name" cache key)
-		int pos = partitionPosition(match, false);
-		if (pos > 0) {
-
-			// Remove items in partitions
-			String prefix = match.substring(0, pos);
+			// Prefix is the name of the partition / region (eg.
+			// "user" from the "user.name" cache key)
+			String prefix = key.substring(0, pos);
 			MemoryPartition partition;
 			readLock.lock();
 			try {
@@ -277,34 +259,64 @@ public class MemoryCacher extends Cacher implements Runnable {
 				readLock.unlock();
 			}
 			if (partition != null) {
-				partition.clean(match.substring(pos + 1));
+				partition.del(key.substring(pos + 1));
 			}
+		} catch (Throwable cause) {
+			logger.warn("Unable to delete data from the cache!", cause);
+		}
+		return Promise.resolve();
+	}
 
-		} else {
+	@Override
+	public Promise clean(String match) {
+		try {
 
-			// Remove entire partitions
-			writeLock.lock();
-			try {
-				if (match.isEmpty() || match.startsWith("*")) {
-					partitions.clear();
-				} else if (match.indexOf('*') == -1) {
+			// Prefix is the name of the partition / region (eg.
+			// "user" from the "user.name" cache key)
+			int pos = partitionPosition(match, false);
+			if (pos > 0) {
 
-					// Not supported method
-					logger.warn("This pattern is not supported: " + match);
+				// Remove items in partitions
+				String prefix = match.substring(0, pos);
+				MemoryPartition partition;
+				readLock.lock();
+				try {
+					partition = partitions.get(prefix);
+				} finally {
+					readLock.unlock();
+				}
+				if (partition != null) {
+					partition.clean(match.substring(pos + 1));
+				}
 
-				} else {
-					Iterator<String> i = partitions.keySet().iterator();
-					String key;
-					while (i.hasNext()) {
-						key = i.next();
-						if (Matcher.matches(key, match)) {
-							i.remove();
+			} else {
+
+				// Remove entire partitions
+				writeLock.lock();
+				try {
+					if (match.isEmpty() || match.startsWith("*")) {
+						partitions.clear();
+					} else if (match.indexOf('*') == -1) {
+
+						// Not supported method
+						logger.warn("This pattern is not supported: " + match);
+
+					} else {
+						Iterator<String> i = partitions.keySet().iterator();
+						String key;
+						while (i.hasNext()) {
+							key = i.next();
+							if (Matcher.matches(key, match)) {
+								i.remove();
+							}
 						}
 					}
+				} finally {
+					writeLock.unlock();
 				}
-			} finally {
-				writeLock.unlock();
 			}
+		} catch (Throwable cause) {
+			logger.warn("Unable to clean cache!", cause);
 		}
 		return Promise.resolve();
 	}
