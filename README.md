@@ -110,7 +110,7 @@ public class Sample {
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<beans>
+<beans xmlns="...">
 
 	<!-- PACKAGE OF YOUR MOLECULER SERVICES -->
 
