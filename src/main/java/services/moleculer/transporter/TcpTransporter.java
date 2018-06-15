@@ -209,7 +209,7 @@ public class TcpTransporter extends Transporter {
 	 * Include error trace in response
 	 */
 	protected boolean sendErrorTrace;
-	
+
 	// --- LOCAL NODE'S DESCRIPTOR ---
 
 	/**
@@ -261,6 +261,9 @@ public class TcpTransporter extends Transporter {
 	 * 
 	 * @param urlList
 	 *            an URL, where the peer configuration's JSON is located
+	 * 
+	 * @throws Exception
+	 *             URL format exception or any I/O error
 	 */
 	public TcpTransporter(URL urlList) throws Exception {
 		this.urls = parseURLs(readTree(urlList.toString()), "nodes", null);
@@ -566,10 +569,10 @@ public class TcpTransporter extends Transporter {
 
 						// Add trace
 						if (sendErrorTrace) {
-						StringWriter sw = new StringWriter(128);
-						PrintWriter pw = new PrintWriter(sw);
-						cause.printStackTrace(pw);
-						errorMap.putUnsafe("trace", sw.toString());
+							StringWriter sw = new StringWriter(128);
+							PrintWriter pw = new PrintWriter(sw);
+							cause.printStackTrace(pw);
+							errorMap.putUnsafe("trace", sw.toString());
 						}
 					}
 					for (byte[] packet : packets) {
@@ -1478,5 +1481,5 @@ public class TcpTransporter extends Transporter {
 	public void setSendErrorTrace(boolean sendErrorTrace) {
 		this.sendErrorTrace = sendErrorTrace;
 	}
-	
+
 }

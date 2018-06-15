@@ -36,7 +36,7 @@ import services.moleculer.service.Name;
  * <b>Required dependency:</b><br>
  * <br>
  * https://mvnrepository.com/artifact/de.undercouch/bson4jackson<br>
- * compile group: 'de.undercouch', name: 'bson4jackson', version: '2.9.0'
+ * compile group: 'de.undercouch', name: 'bson4jackson', version: '2.9.2'
  */
 @Name("BSON Serializer")
 public class BsonSerializer extends Serializer {

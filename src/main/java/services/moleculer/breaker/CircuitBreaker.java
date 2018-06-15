@@ -82,7 +82,12 @@ public class CircuitBreaker extends ServiceInvoker {
 	 * Half-open timeout in MILLISECONDS
 	 */
 	protected long lockTimeout = 10 * 1000L;
-
+	
+	/**
+	 * Write exceptions into the log file
+	 */
+	protected boolean writeErrorsToLog = true;
+	
 	// --- COMPONENTS ---
 
 	protected ServiceRegistry serviceRegistry;
@@ -196,6 +201,11 @@ public class CircuitBreaker extends ServiceInvoker {
 
 			}).catchError(cause -> {
 
+				// Write error to log file
+				if (writeErrorsToLog) {
+					logger.error("Unexpected error occurred while invoking \"" + name + "\" action!", cause);
+				}
+				
 				// Increment error counter
 				increment(currentCounter, currentKey, cause, System.currentTimeMillis());
 
@@ -209,6 +219,11 @@ public class CircuitBreaker extends ServiceInvoker {
 			});
 
 		} catch (Throwable cause) {
+
+			// Write error to log file
+			if (writeErrorsToLog) {
+				logger.error("Unexpected error occurred while invoking \"" + name + "\" action!", cause);
+			}
 
 			// Increment error counter
 			increment(errorCounter, endpointKey, cause, System.currentTimeMillis());
@@ -320,5 +335,13 @@ public class CircuitBreaker extends ServiceInvoker {
 	public void setMaxErrors(int maxErrors) {
 		this.maxErrors = maxErrors;
 	}
+	
+	public boolean isWriteErrorsToLog() {
+		return writeErrorsToLog;
+	}
 
+	public void setWriteErrorsToLog(boolean writeErrorsToLog) {
+		this.writeErrorsToLog = writeErrorsToLog;
+	}
+	
 }

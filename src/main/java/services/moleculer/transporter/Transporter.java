@@ -883,7 +883,7 @@ public abstract class Transporter extends MoleculerComponent {
 	// --- OPTIONAL ERROR HANDLER ---
 
 	/**
-	 * Any I/O error occured. Implementation-specific error handling goes here
+	 * Any I/O error occurred. Implementation-specific error handling goes here
 	 * (reconnection, etc.).
 	 *
 	 * @param error

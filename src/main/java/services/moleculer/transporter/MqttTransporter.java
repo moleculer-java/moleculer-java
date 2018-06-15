@@ -168,7 +168,7 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 					client.close();
 				}
 			} catch (Throwable cause) {
-				logger.warn("Unexpected error occured while closing MQTT client!", cause);
+				logger.warn("Unexpected error occurred while closing MQTT client!", cause);
 			} finally {
 				client = null;
 				subscriptions.clear();

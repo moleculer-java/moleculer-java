@@ -45,7 +45,7 @@ import services.moleculer.service.Name;
  * https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/
  * jackson-dataformat-cbor<br>
  * compile group: 'com.fasterxml.jackson.dataformat', name:
- * 'jackson-dataformat-cbor', version: '2.9.0.pr3'
+ * 'jackson-dataformat-cbor', version: '2.9.5'
  */
 @Name("CBOR Serializer")
 public class CborSerializer extends Serializer {

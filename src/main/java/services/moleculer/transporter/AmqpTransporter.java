@@ -175,7 +175,7 @@ public class AmqpTransporter extends Transporter {
 			try {
 				channel.close();
 			} catch (Throwable cause) {
-				logger.warn("Unexpected error occured while closing AMQP channel!", cause);
+				logger.warn("Unexpected error occurred while closing AMQP channel!", cause);
 			} finally {
 				channel = null;
 			}
@@ -184,7 +184,7 @@ public class AmqpTransporter extends Transporter {
 			try {
 				client.close();
 			} catch (Throwable cause) {
-				logger.warn("Unexpected error occured while closing AMQP client!", cause);
+				logger.warn("Unexpected error occurred while closing AMQP client!", cause);
 			} finally {
 				client = null;
 			}
@@ -203,7 +203,7 @@ public class AmqpTransporter extends Transporter {
 
 	@Override
 	protected void error(Throwable cause) {
-		logger.warn("Unexpected communication error occured!", cause);
+		logger.warn("Unexpected communication error occurred!", cause);
 		reconnect();
 	}
 

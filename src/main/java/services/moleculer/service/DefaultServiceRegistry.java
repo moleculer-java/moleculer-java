@@ -118,8 +118,13 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	/**
 	 * Include error trace in response
 	 */
-	protected boolean sendErrorTrace;
+	protected boolean sendErrorTrace = true;
 
+	/**
+	 * Write exceptions into the log file
+	 */
+	protected boolean writeErrorsToLog = true;
+	
 	// --- LOCKS ---
 
 	/**
@@ -421,11 +426,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Process params and meta
 		Tree params = message.get("params");
+		if (params == null) {
+			params = new Tree();
+		}
 		Tree meta = message.get("meta");
 		if (meta != null && !meta.isEmpty()) {
-			if (params == null) {
-				params = new Tree();
-			}
 			params.getMeta().setObject(params);
 		}
 
@@ -467,12 +472,22 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 				// Send error
 				transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, error));
-
+				
+				// Write error to log file
+				if (writeErrorsToLog) {
+					logger.error("Unexpected error occurred while invoking \"" + action + "\" action!", error);
+				}
+				
 			});
 		} catch (Throwable error) {
 
 			// Send error
 			transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, error));
+			
+			// Write error to log file
+			if (writeErrorsToLog) {
+				logger.error("Unexpected error occurred while invoking \"" + action + "\" action!", error);
+			}
 
 		}
 
@@ -594,7 +609,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					errorMessage = "Unknow error!";
 				}
 				if (trace == null || trace.isEmpty()) {
-					logger.error("Remote invoction failed (unknown error occured)!");
+					logger.error("Remote invoction failed (unknown error occurred)!");
 				}
 				pending.promise.complete(new RemoteException(errorMessage));
 				return;
@@ -1204,6 +1219,14 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	public void setSendErrorTrace(boolean sendErrorTrace) {
 		this.sendErrorTrace = sendErrorTrace;
+	}
+
+	public boolean isWriteErrorsToLog() {
+		return writeErrorsToLog;
+	}
+
+	public void setWriteErrorsToLog(boolean writeErrorsToLog) {
+		this.writeErrorsToLog = writeErrorsToLog;
 	}
 
 }

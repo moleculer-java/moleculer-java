@@ -25,6 +25,9 @@
  */
 package services.moleculer.logger;
 
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.Writer;
 import java.util.LinkedList;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -52,11 +55,28 @@ public class ColoredConsoleLogger implements ConsoleLogger {
 	// --- ANSI CONSOLE ---
 
 	protected final ColoredPrinter coloredPrinter;
-
+	protected final PrintWriter errorWriter;
+	
 	// --- CONSTRUCTOR ---
 
 	public ColoredConsoleLogger() {
 		coloredPrinter = new ColoredPrinter.Builder(1, false).build();
+		errorWriter = new PrintWriter(new Writer() {
+			
+			@Override
+			public void write(char[] cbuf, int off, int len) throws IOException {
+				coloredPrinter.print(new String(cbuf, off, len));
+			}
+			
+			@Override
+			public void flush() throws IOException {
+			}
+			
+			@Override
+			public void close() throws IOException {
+			}
+			
+		});
 	}
 
 	// --- LOGGER ---
@@ -107,7 +127,7 @@ public class ColoredConsoleLogger implements ConsoleLogger {
 
 			cause = record.getThrown();
 			if (cause != null) {
-				cause.printStackTrace();
+				cause.printStackTrace(errorWriter);
 			}
 		}
 

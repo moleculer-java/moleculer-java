@@ -182,7 +182,7 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 			try {
 				client.close();
 			} catch (Throwable cause) {
-				logger.warn("Unexpected error occured while closing NATS client!", cause);
+				logger.warn("Unexpected error occurred while closing NATS client!", cause);
 			} finally {
 				client = null;
 			}
@@ -201,7 +201,7 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 
 	@Override
 	protected void error(Throwable cause) {
-		logger.warn("Unexpected communication error occured!", cause);
+		logger.warn("Unexpected communication error occurred!", cause);
 		reconnect();
 	}
 

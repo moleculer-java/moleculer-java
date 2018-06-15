@@ -75,16 +75,18 @@ public class ServiceBrokerConfig {
 	// --- JSON API SERIALIZER / DESERIALIZER ---
 
 	/**
-	 * Name of the JSON deserializer API ("jackson", "boon", "builtin", "gson",
-	 * "fastjson", "genson", etc., null = autodetect)
+	 * Name (or comma-separated list) of the JSON deserializer API ("jackson",
+	 * "boon", "builtin", "gson", "fastjson", "genson", etc., null = autodetect
+	 * / fastest)
 	 */
-	protected String jsonReader;
+	protected String jsonReaders;
 
 	/**
-	 * Name of the JSON serializer API ("jackson", "boon", "builtin", "gson",
-	 * "fast", "genson", "flex", "nano", etc., null = autodetect)
+	 * Name (or comma-separated list) of the JSON serializer API ("jackson",
+	 * "boon", "builtin", "gson", "fast", "genson", "flex", "nano", etc., null =
+	 * autodetect / fastest)
 	 */
-	protected String jsonWriter;
+	protected String jsonWriters;
 
 	// --- INTERNAL COMPONENTS ---
 
@@ -200,20 +202,20 @@ public class ServiceBrokerConfig {
 		this.internalServices = internalServices;
 	}
 
-	public String getJsonReader() {
-		return jsonReader;
+	public String getJsonReaders() {
+		return jsonReaders;
 	}
 
-	public void setJsonReader(String jsonReader) {
-		this.jsonReader = jsonReader;
+	public void setJsonReaders(String jsonReader) {
+		this.jsonReaders = jsonReader;
 	}
 
-	public String getJsonWriter() {
-		return jsonWriter;
+	public String getJsonWriters() {
+		return jsonWriters;
 	}
 
-	public void setJsonWriter(String jsonWriter) {
-		this.jsonWriter = jsonWriter;
+	public void setJsonWriters(String jsonWriter) {
+		this.jsonWriters = jsonWriter;
 	}
 
 	public ServiceRegistry getServiceRegistry() {

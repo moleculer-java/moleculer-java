@@ -40,6 +40,13 @@ import services.moleculer.context.ContextFactory;
 @Name("Default Service Invoker")
 public class DefaultServiceInvoker extends ServiceInvoker {
 
+	// --- PROPERTIES ---
+	
+	/**
+	 * Write exceptions into the log file
+	 */
+	protected boolean writeErrorsToLog = true;
+	
 	// --- COMPONENTS ---
 
 	protected ServiceRegistry serviceRegistry;
@@ -81,9 +88,21 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 				return Promise.resolve(action.handler(ctx));
 			}
 			return Promise.resolve(action.handler(ctx)).catchError(cause -> {
+				
+				// Write error to log file
+				if (writeErrorsToLog) {
+					logger.error("Unexpected error occurred while invoking \"" + name + "\" action!", cause);
+				}
+
 				return retry(cause, name, params, opts, parent, targetID, remaining);
 			});
 		} catch (Throwable cause) {
+			
+			// Write error to log file
+			if (writeErrorsToLog) {
+				logger.error("Unexpected error occurred while invoking \"" + name + "\" action!", cause);
+			}
+
 			if (remaining < 1) {
 				return Promise.reject(cause);
 			}
@@ -100,4 +119,14 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 		return call(name, params, opts, parent, targetID, newRemaining);
 	}
 
+	// --- GETTERS / SETTERS ---
+	
+	public boolean isWriteErrorsToLog() {
+		return writeErrorsToLog;
+	}
+
+	public void setWriteErrorsToLog(boolean writeErrorsToLog) {
+		this.writeErrorsToLog = writeErrorsToLog;
+	}
+	
 }

@@ -53,12 +53,12 @@ import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
 import com.google.cloud.pubsub.v1.TopicAdminClient;
 import com.google.cloud.pubsub.v1.TopicAdminSettings;
 import com.google.protobuf.ByteString;
+import com.google.pubsub.v1.ProjectSubscriptionName;
+import com.google.pubsub.v1.ProjectTopicName;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.PushConfig;
 import com.google.pubsub.v1.Subscription;
-import com.google.pubsub.v1.SubscriptionName;
 import com.google.pubsub.v1.Topic;
-import com.google.pubsub.v1.TopicName;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
@@ -333,7 +333,7 @@ public class GoogleTransporter extends Transporter {
 		try {
 
 			// Create topic
-			TopicName topicName = TopicName.of(projectID, channel);
+			ProjectTopicName topicName = ProjectTopicName.of(projectID, channel);
 			Topic topic = null;
 			try {
 				topic = topicAdmin.getTopic(topicName);
@@ -351,7 +351,7 @@ public class GoogleTransporter extends Transporter {
 			} else {
 				nodeSubscription = channel + '-' + nodeID;
 			}
-			SubscriptionName subscriptionName = SubscriptionName.of(projectID, nodeSubscription);
+			ProjectSubscriptionName subscriptionName = ProjectSubscriptionName.of(projectID, nodeSubscription);
 			Subscription subscription = null;
 			try {
 				subscription = subscriptionAdmin.getSubscription(subscriptionName);
@@ -370,7 +370,7 @@ public class GoogleTransporter extends Transporter {
 
 						// Message received
 						try {
-							
+
 							// We are running in a netty executor's pool,
 							// do not create new task.
 							processReceivedMessage(channel, message.getData().toByteArray());
@@ -407,8 +407,8 @@ public class GoogleTransporter extends Transporter {
 					Subscriber subscriber = builder.build();
 					subscriber.startAsync();
 					subscribers.put(nodeSubscription, subscriber);
-					logger.info("Subscriber created for subscription \""
-							+ subscriber.getSubscriptionName().getSubscription() + "\".");
+					logger.info(
+							"Subscriber created for subscription \"" + subscriber.getSubscriptionNameString() + "\".");
 				}
 			}
 
@@ -443,7 +443,7 @@ public class GoogleTransporter extends Transporter {
 			if (publisher != null) {
 				return publisher;
 			}
-			TopicName topicName = TopicName.of(projectID, channel);
+			ProjectTopicName topicName = ProjectTopicName.of(projectID, channel);
 			Publisher.Builder builder = Publisher.newBuilder(topicName);
 			if (batchingSettings != null) {
 				builder.setBatchingSettings(batchingSettings);

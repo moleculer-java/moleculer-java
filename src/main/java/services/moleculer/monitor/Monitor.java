@@ -133,8 +133,8 @@ public abstract class Monitor {
 	 *
 	 * @return total CPU usage of the current OS
 	 * 
-	 * @throws any
-	 *             I/O or missing DLL exception
+	 * @throws Exception
+	 *             any I/O or missing DLL exception
 	 */
 	protected abstract int detectTotalCpuPercent() throws Exception;
 
@@ -143,8 +143,8 @@ public abstract class Monitor {
 	 *
 	 * @return total CPU usage of the current OS
 	 * 
-	 * @throws any
-	 *             I/O or missing DLL exception
+	 * @throws Exception
+	 *             any I/O or missing DLL exception
 	 */
 	protected abstract long detectPID() throws Exception;
 

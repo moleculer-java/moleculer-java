@@ -133,7 +133,7 @@ public class UDPBroadcastReceiver extends UDPReceiver {
 				if (msg != null && msg.contains("closed")) {
 					return;
 				}
-				logger.warn("Unexpected error occured in UDP broadcaster!", cause);
+				logger.warn("Unexpected error occurred in UDP broadcaster!", cause);
 				try {
 					Thread.sleep(1000);
 				} catch (Exception interrupt) {

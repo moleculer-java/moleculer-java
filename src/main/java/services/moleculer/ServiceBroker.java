@@ -34,6 +34,8 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -42,6 +44,10 @@ import org.slf4j.LoggerFactory;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
+import io.datatree.dom.TreeReader;
+import io.datatree.dom.TreeReaderRegistry;
+import io.datatree.dom.TreeWriter;
+import io.datatree.dom.TreeWriterRegistry;
 import services.moleculer.breaker.CircuitBreaker;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.config.ServiceBrokerBuilder;
@@ -84,9 +90,9 @@ import services.moleculer.uid.UidGenerator;
 import services.moleculer.util.ParseResult;
 
 /**
- * The ServiceBroker is the main component of Moleculer. It handles services &amp;
- * events, calls actions and communicates with remote nodes. You need to create
- * an instance of ServiceBroker for every node. Features of Moleculer:
+ * The ServiceBroker is the main component of Moleculer. It handles services
+ * &amp; events, calls actions and communicates with remote nodes. You need to
+ * create an instance of ServiceBroker for every node. Features of Moleculer:
  * <ul>
  * <li>Fast - High-performance and non-blocking
  * <li>Polyglot - Moleculer is implemented under Node.js and Java
@@ -336,8 +342,8 @@ public class ServiceBroker {
 	/**
 	 * Start broker. If has a Transporter, transporter.connect() will be called.
 	 * 
-	 * @throws fatal
-	 *             error (missing classes or JARs, used port, etc.)
+	 * @throws Exception
+	 *             fatal error (missing classes or JARs, used port, etc.)
 	 */
 	public void start() throws Exception {
 
@@ -349,6 +355,63 @@ public class ServiceBroker {
 
 			// Start internal components, services, middlewares...
 			logger.info("Starting Moleculer Service Broker (version " + SOFTWARE_VERSION + ")...");
+
+			// Set global JSON reader API (Jackson, Gson, Boon, FastJson, etc.)
+			String readerList = config.getJsonReaders();
+			if (readerList != null) {
+				String[] readers = readerList.split(",");
+				Set<String> supportedReaders = TreeReaderRegistry.getReadersByFormat("json");
+				TreeReader selectedReader = null;
+				for (String reader : readers) {
+					reader = reader.trim().toLowerCase();
+					if (!reader.isEmpty()) {
+						for (String supportedReader : supportedReaders) {
+							int i = supportedReader.lastIndexOf('.');
+							if (i > -1) {
+								supportedReader = supportedReader.substring(i + 1);
+							}
+							if (supportedReader.toLowerCase().contains(reader)) {
+								selectedReader = TreeReaderRegistry.getReader(supportedReader);
+								logger.info(
+										"Default JSON deserializer/reader is \"" + selectedReader.getClass() + "\".");
+								TreeReaderRegistry.setReader("json", selectedReader);
+								break;
+							}
+						}
+						if (selectedReader != null) {
+							break;
+						}
+					}
+				}
+			}
+
+			// Set global JSON writer API (Jackson, Gson, Boon, FastJson, etc.)
+			String writerList = config.getJsonWriters();
+			if (writerList != null) {
+				String[] writers = writerList.split(",");
+				Set<String> supportedWriters = TreeWriterRegistry.getWritersByFormat("json");
+				TreeWriter selectedWriter = null;
+				for (String writer : writers) {
+					writer = writer.trim().toLowerCase();
+					if (!writer.isEmpty()) {
+						for (String supportedWriter : supportedWriters) {
+							int i = supportedWriter.lastIndexOf('.');
+							if (i > -1) {
+								supportedWriter = supportedWriter.substring(i + 1);
+							}
+							if (supportedWriter.toLowerCase().contains(writer)) {
+								selectedWriter = TreeWriterRegistry.getWriter(supportedWriter);
+								logger.info("Default JSON serializer/writer is \"" + selectedWriter.getClass() + "\".");
+								TreeWriterRegistry.setWriter("json", selectedWriter);
+								break;
+							}
+						}
+						if (selectedWriter != null) {
+							break;
+						}
+					}
+				}
+			}
 
 			// Set internal components
 			uidGenerator = start(config.getUidGenerator());
@@ -400,8 +463,10 @@ public class ServiceBroker {
 	/**
 	 * Starts the specified {@link MoleculerComponent}.
 	 * 
-	 * @param TYPE
+	 * @param component
 	 *            component to start
+	 * @param <TYPE>
+	 *            Moleculer component (service registry, transporter, etc.)
 	 * 
 	 * @return the started component
 	 * 

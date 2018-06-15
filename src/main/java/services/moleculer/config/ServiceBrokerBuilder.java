@@ -130,13 +130,13 @@ public class ServiceBrokerBuilder {
 		return this;
 	}
 
-	public ServiceBrokerBuilder reader(String jsonReader) {
-		config.setJsonReader(jsonReader);
+	public ServiceBrokerBuilder readers(String jsonReader) {
+		config.setJsonReaders(jsonReader);
 		return this;
 	}
 
-	public ServiceBrokerBuilder writer(String jsonWriter) {
-		config.setJsonWriter(jsonWriter);
+	public ServiceBrokerBuilder writers(String jsonWriter) {
+		config.setJsonWriters(jsonWriter);
 		return this;
 	}
 

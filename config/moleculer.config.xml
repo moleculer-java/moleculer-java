@@ -32,12 +32,8 @@
 		<property name="executor"            ref="executor" />
 		<property name="scheduler"           ref="scheduler" />
 
-		<property name="jsonReader">
-			<null />
-		</property>
-		<property name="jsonWriter">
-			<null />
-		</property>
+		<property name="jsonReaders"         value="boon,jackson,builtin" />
+		<property name="jsonWriters"         value="jackson,builtin" />
 
 	</bean>
 

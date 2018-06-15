@@ -173,7 +173,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 
 	@Override
 	protected void error(Throwable cause) {
-		logger.warn("Unexpected communication error occured!", cause);
+		logger.warn("Unexpected communication error occurred!", cause);
 		reconnect();
 	}
 
