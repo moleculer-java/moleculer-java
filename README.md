@@ -24,7 +24,7 @@ The Java-based Moleculer is completely compatible with the NodeJS-based Molecule
 	<dependency>
 		<groupId>com.github.berkesa</groupId>
 		<artifactId>moleculer-java</artifactId>
-		<version>1.0.3</version>
+		<version>1.0.4</version>
 		<scope>runtime</scope>
 	</dependency>
 </dependencies>
@@ -34,7 +34,7 @@ The Java-based Moleculer is completely compatible with the NodeJS-based Molecule
 
 ```gradle
 dependencies {
-	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.0.3' 
+	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.0.4' 
 }
 ```
 
@@ -42,9 +42,9 @@ dependencies {
 
 ```java
 import io.datatree.Tree;
-import services.moleculer.cacher.Cache;
-import services.moleculer.eventbus.*;
-import services.moleculer.service.*;
+import services.moleculer.ServiceBroker;
+import services.moleculer.service.Action;
+import services.moleculer.service.Service;
 
 public class Sample {
 
@@ -56,9 +56,18 @@ public class Sample {
 			// Create Message Broker
 			ServiceBroker broker = ServiceBroker.builder().build();
 
-			// Deploy servie
-			broker.createService(new MathService());
+			// Deploy "math" servie
+			broker.createService(new Service("math") {
+
+				public Action add = ctx -> {
+
+					return ctx.params.get("a").asInteger()
+						 + ctx.params.get("b").asInteger();
+
+				};
 			
+			});
+						
 			// Start Message Broker
 			broker.start();
 
@@ -67,7 +76,7 @@ public class Sample {
 			in.put("a", 3);
 			in.put("b", 5);
 
-			// Local or remote method call
+			// Invoke "math" service
 			broker.call("math.add", in).then(rsp -> {
 				
 				// Response
@@ -85,24 +94,6 @@ public class Sample {
 			e.printStackTrace();
 		}
 	}
-
-	// --- SAMPLE SERVICE ---
-	
-	@Name("math")
-	public static class MathService extends Service {
-
-		@Cache(keys = { "a", "b" }, ttl = 5000)
-		public Action add = ctx -> {
-			return ctx.params.get("a").asInteger() + ctx.params.get("b").asInteger();
-		};
-
-		@Subscribe("foo.*")
-		public Listener listener = payload -> {
-			logger.info("Event received: " + payload);
-		};
-
-	};
-
 }
 ```
 
@@ -110,35 +101,98 @@ public class Sample {
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<beans xmlns="...">
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+	   http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+	   http://www.springframework.org/schema/context
+	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
-	<!-- PACKAGE OF YOUR MOLECULER SERVICES -->
+	<!-- ENABLE ANNOTATION PROCESSING -->
 
-	<context:component-scan base-package="package.of.my.services" />
+	<context:annotation-config />
 
-	<!-- CONFIGURE TRANSPORTER -->
+	<!-- LOADER OF MOLECULER SERVICES -->
 
-	<bean id="transporter" class="services.moleculer.transporter.TcpTransporter" />
-
-	<!-- OTHER SERVICE BROKER SETTINGS -->
-
-	<bean id="brokerConfig" class="services.moleculer.config.ServiceBrokerConfig">
-		<property name="nodeID" value="node-1" />
-		<property name="transporter" ref="transporter" />
+	<bean id="registrator" class="services.moleculer.config.SpringRegistrator" depends-on="broker">
+		<property name="packagesToScan" value="my.service.package" />
 	</bean>
 
-	<!-- CREATE SERVICE BROKER INSTANCE -->
+	<!-- SERVICE BROKER INSTANCE -->
 
 	<bean id="broker" class="services.moleculer.ServiceBroker"
 		init-method="start" destroy-method="stop">
 		<constructor-arg ref="brokerConfig" />
 	</bean>
 
-	<!-- MOLECULER / SPRING INTEGRATOR -->
+	<!-- SERVICE BROKER SETTINGS -->
 
-	<bean id="registrator" class="services.moleculer.config.SpringRegistrator" />
+	<bean id="brokerConfig" class="services.moleculer.config.ServiceBrokerConfig">
+		<property name="nodeID" value="node-1" />
+		<property name="transporter" ref="transporter" />
+	</bean>
+
+	<!-- CONFIGURE TRANSPORTER -->
+
+	<bean id="transporter" class="services.moleculer.transporter.TcpTransporter" />
 
 </beans>
+```
+
+### Sample Moleculer Service for Spring
+
+```xml
+package my.service.package;
+
+import services.moleculer.ServiceBroker;
+import services.moleculer.cacher.Cache;
+import services.moleculer.eventbus.Group;
+import services.moleculer.eventbus.Listener;
+import services.moleculer.eventbus.Subscribe;
+import services.moleculer.service.Action;
+import services.moleculer.service.Dependencies;
+import services.moleculer.service.Name;
+import services.moleculer.service.Service;
+
+@Name("math")
+@Dependencies({"loggerService", "storageService"})
+public class MathService extends Service {
+
+	@Autowired
+	private MySpringBean mySpringBean;
+
+	@Override
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
+		
+		// User-defined init method
+		// mySpringBean.method();
+	}
+
+	@Cache(keys = { "a", "b" }, ttl = 60000)
+	public Action add = ctx -> {
+
+		// Body of the distributed method ("action")
+		return ctx.params.get("a").asInteger()
+			 + ctx.params.get("b").asInteger();
+
+	};
+
+	@Subscribe("user.created")
+	@Group("optionalEventGroup")
+	public Listener userCreated = payload -> {
+		
+		// Body of the distributed event listener method
+		System.out.println("Received: " + payload);
+	};
+	
+	@Override
+	public void stopped() {
+		
+		// User-defined destroy method
+	}
+
+}
 ```
 
 # Documentation

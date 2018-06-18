@@ -6,9 +6,22 @@
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
-	<!-- PACKAGES OF MOLECULER SERVICES AND OTHER SPRING COMPONENTS -->
+	<!-- ENABLE ANNOTATION PROCESSING -->
 
-	<context:component-scan base-package="services.moleculer" />
+	<context:annotation-config />
+
+	<!-- LOADER OF MOLECULER SERVICES -->
+
+	<bean id="registrator" class="services.moleculer.config.SpringRegistrator" depends-on="broker">
+		<property name="packagesToScan" value="my.service.package" />
+	</bean>
+
+	<!-- SERVICE BROKER INSTANCE -->
+
+	<bean id="broker" class="services.moleculer.ServiceBroker"
+		init-method="start" destroy-method="stop">
+		<constructor-arg ref="brokerConfig" />
+	</bean>
 
 	<!-- SERVICE BROKER CONFIGURATION -->
 
@@ -105,16 +118,5 @@
 	<!-- EVENT BUS -->
 
 	<import resource="eventbus/default.xml" />
-
-	<!-- SERVICE BROKER -->
-
-	<bean id="broker" class="services.moleculer.ServiceBroker"
-		init-method="start" destroy-method="stop">
-		<constructor-arg ref="brokerConfig" />
-	</bean>
-
-	<!-- MOLECULER SERVICE REGISTRATOR -->
-
-	<bean id="registrator" class="services.moleculer.config.SpringRegistrator" />
 
 </beans>
