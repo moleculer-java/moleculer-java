@@ -330,6 +330,10 @@ public final class CommonUtils {
 			if (params.length == 1) {
 				if (params[0] instanceof Tree) {
 					data = (Tree) params[0];
+				} else if (params[0] instanceof CallOptions.Options) {
+					opts = (CallOptions.Options) params[0];
+				} else if (params[0] instanceof Groups) {
+					groups = (Groups) params[0];
 				} else {
 					data = new CheckedTree(params[0]);
 				}
