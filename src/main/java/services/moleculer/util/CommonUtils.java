@@ -327,32 +327,40 @@ public final class CommonUtils {
 		CallOptions.Options opts = null;
 		Groups groups = null;
 		if (params != null) {
-			LinkedHashMap<String, Object> map = new LinkedHashMap<>();
-			String prev = null;
-			Object value;
-			for (int i = 0; i < params.length; i++) {
-				value = params[i];
-				if (prev == null) {
-					if (!(value instanceof String)) {
-						if (value instanceof CallOptions.Options) {
-							opts = (CallOptions.Options) value;
-							continue;
-						}
-						if (value instanceof Groups) {
-							groups = (Groups) value;
-							continue;
-						}
-						i++;
-						throw new IllegalArgumentException("Parameter #" + i + " (\"" + value
-								+ "\") must be String, Context, Groups, or CallOptions!");
-					}
-					prev = (String) value;
-					continue;
+			if (params.length == 1) {
+				if (params[0] instanceof Tree) {
+					data = (Tree) params[0];
+				} else {
+					data = new CheckedTree(params[0]);
 				}
-				map.put(prev, value);
-				prev = null;
+			} else {
+				LinkedHashMap<String, Object> map = new LinkedHashMap<>();
+				String prev = null;
+				Object value;
+				for (int i = 0; i < params.length; i++) {
+					value = params[i];
+					if (prev == null) {
+						if (!(value instanceof String)) {
+							if (value instanceof CallOptions.Options) {
+								opts = (CallOptions.Options) value;
+								continue;
+							}
+							if (value instanceof Groups) {
+								groups = (Groups) value;
+								continue;
+							}
+							i++;
+							throw new IllegalArgumentException("Parameter #" + i + " (\"" + value
+									+ "\") must be String, Context, Groups, or CallOptions!");
+						}
+						prev = (String) value;
+						continue;
+					}
+					map.put(prev, value);
+					prev = null;
+				}
+				data = new Tree(map);
 			}
-			data = new Tree(map);
 		}
 		return new ParseResult(data, opts, groups);
 	}
@@ -376,8 +384,11 @@ public final class CommonUtils {
 	}
 
 	public static final String nameOf(Object object, boolean addQuotes) {
-		Class<?> c = object.getClass();
-		Version v = c.getAnnotation(Version.class);
+		return nameOf(object.getClass(), addQuotes);
+	}
+
+	public static final String nameOf(Class<?> type, boolean addQuotes) {
+		Version v = type.getAnnotation(Version.class);
 		String version = null;
 		if (v != null) {
 			version = v.value();
@@ -395,7 +406,7 @@ public final class CommonUtils {
 				}
 			}
 		}
-		Name n = c.getAnnotation(Name.class);
+		Name n = type.getAnnotation(Name.class);
 		String name = null;
 		if (n != null) {
 			name = n.value();
@@ -404,7 +415,7 @@ public final class CommonUtils {
 			}
 		}
 		if (name == null || name.isEmpty()) {
-			name = c.getName();
+			name = type.getName();
 			int i = Math.max(name.lastIndexOf('.'), name.lastIndexOf('$'));
 			if (i > -1) {
 				name = name.substring(i + 1);

@@ -17,7 +17,7 @@ buildscript {
 // --- JAVADOC ---
 
 javadoc {
-	// failOnError = false
+	failOnError = true
 }
 
 // --- JACOCO ---
@@ -200,7 +200,7 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-version = '1.0.3'
+version = '1.0.4'
 
 modifyPom {
     project {
@@ -275,7 +275,7 @@ compileJava {
 
 jar {
     baseName = 'moleculer'
-    version =  '1.0.3'
+    version =  '1.0.4'
 }
 
 // --- TESTING ---
