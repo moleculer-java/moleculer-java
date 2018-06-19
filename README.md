@@ -141,7 +141,7 @@ public class Sample {
 
 ### Sample Moleculer Service for Spring
 
-```xml
+```java
 package my.service.package;
 
 import services.moleculer.ServiceBroker;
