@@ -185,7 +185,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	// --- CACHED SERVICE DESCRIPTOR ---
 
-	private volatile Tree descriptor;
+	private volatile Tree cachedDescriptor;
 
 	// --- CONSTRUCTORS ---
 
@@ -270,11 +270,10 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			}
 			middlewares.clear();
 
-		} finally {
-
 			// Delete cached node descriptor
 			clearDescriptorCache();
 
+		} finally {
 			writeLock.unlock();
 		}
 	}
@@ -761,14 +760,13 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			names.add(serviceName);
 			service.started(broker);
 
+			// Delete cached node descriptor
+			clearDescriptorCache();
+
 		} catch (Exception cause) {
 			logger.error("Unable to register local service!", cause);
 			return;
 		} finally {
-
-			// Delete cached node descriptor
-			clearDescriptorCache();
-
 			writeLock.unlock();
 		}
 
@@ -860,12 +858,15 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			if (this.nodeID.equals(nodeID)) {
 
 				// Stop local services
+				writeLock.lock();
 				try {
 					stopAllLocalServices();
-				} finally {
 
 					// Delete cached node descriptor
 					clearDescriptorCache();
+
+				} finally {
+					writeLock.unlock();
 				}
 
 				// Notify local listeners (LOCAL services changed)
@@ -1086,22 +1087,24 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		return currentDescriptor().clone();
 	}
 
-	protected synchronized void clearDescriptorCache() {
-		descriptor = null;
+	protected void clearDescriptorCache() {
+		cachedDescriptor = null;
 		timestamp.set(System.currentTimeMillis());
 	}
 
-	protected synchronized Tree currentDescriptor() {
-		if (descriptor == null) {
+	protected Tree currentDescriptor() {
+		Tree descriptor;
+		readLock.lock();
+		try {
+			descriptor = cachedDescriptor;
+			if (descriptor == null) {
 
-			// Create new descriptor block
-			descriptor = new Tree();
+				// Create new descriptor block
+				descriptor = new Tree();
 
-			// Services array
-			Tree services = descriptor.putList("services");
-			Tree servicesMap = new Tree();
-			readLock.lock();
-			try {
+				// Services array
+				Tree services = descriptor.putList("services");
+				Tree servicesMap = new Tree();
 				for (Map.Entry<String, Strategy<ActionEndpoint>> entry : strategies.entrySet()) {
 
 					// Split into parts ("math.add" -> "math" and "add")
@@ -1147,57 +1150,58 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 						}
 					}
 				}
-			} finally {
-				readLock.unlock();
-			}
-			for (Tree service : servicesMap) {
-				services.addObject(service);
-			}
-
-			// Host name
-			descriptor.put("hostname", getHostName());
-
-			// IP array
-			Tree ipList = descriptor.putList("ipList");
-			HashSet<String> ips = new HashSet<>();
-			try {
-				InetAddress local = InetAddress.getLocalHost();
-				String defaultAddress = local.getHostAddress();
-				if (!defaultAddress.startsWith("127.")) {
-					ips.add(defaultAddress);
-					ipList.add(defaultAddress);
+				for (Tree service : servicesMap) {
+					services.addObject(service);
 				}
-			} catch (Exception ignored) {
-			}
-			try {
-				Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
-				while (e.hasMoreElements()) {
-					NetworkInterface n = (NetworkInterface) e.nextElement();
-					Enumeration<InetAddress> ee = n.getInetAddresses();
-					while (ee.hasMoreElements()) {
-						InetAddress i = (InetAddress) ee.nextElement();
-						if (!i.isLoopbackAddress()) {
-							String test = i.getHostAddress();
-							if (ips.add(test)) {
-								ipList.add(test);
+
+				// Host name
+				descriptor.put("hostname", getHostName());
+
+				// IP array
+				Tree ipList = descriptor.putList("ipList");
+				HashSet<String> ips = new HashSet<>();
+				try {
+					InetAddress local = InetAddress.getLocalHost();
+					String defaultAddress = local.getHostAddress();
+					if (!defaultAddress.startsWith("127.")) {
+						ips.add(defaultAddress);
+						ipList.add(defaultAddress);
+					}
+				} catch (Exception ignored) {
+				}
+				try {
+					Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
+					while (e.hasMoreElements()) {
+						NetworkInterface n = (NetworkInterface) e.nextElement();
+						Enumeration<InetAddress> ee = n.getInetAddresses();
+						while (ee.hasMoreElements()) {
+							InetAddress i = (InetAddress) ee.nextElement();
+							if (!i.isLoopbackAddress()) {
+								String test = i.getHostAddress();
+								if (ips.add(test)) {
+									ipList.add(test);
+								}
 							}
 						}
 					}
+				} catch (Exception ignored) {
 				}
-			} catch (Exception ignored) {
-			}
 
-			// Client descriptor
-			Tree client = descriptor.putMap("client");
-			client.put("type", "java");
-			client.put("version", ServiceBroker.SOFTWARE_VERSION);
-			client.put("langVersion", System.getProperty("java.version", "1.8"));
+				// Client descriptor
+				Tree client = descriptor.putMap("client");
+				client.put("type", "java");
+				client.put("version", ServiceBroker.SOFTWARE_VERSION);
+				client.put("langVersion", System.getProperty("java.version", "1.8"));
 
-			// Config (not used in this version)
-			// root.putMap("config");
+				// Config (not used in this version)
+				// root.putMap("config");
 
-			// Set timestamp
-			timestamp.set(System.currentTimeMillis());
+				// Set timestamp
+				timestamp.set(System.currentTimeMillis());
+				cachedDescriptor = descriptor;
+			}			
+		} finally {
+			readLock.unlock();
 		}
 		return descriptor;
 	}

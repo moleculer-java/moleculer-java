@@ -293,7 +293,7 @@ public abstract class Transporter extends MoleculerComponent {
 		});
 		if (waitFor) {
 			try {
-				promise.toCompletableFuture().get(subscriptionTimeout, TimeUnit.SECONDS);
+				promise.waitFor(subscriptionTimeout, TimeUnit.SECONDS);
 			} catch (Exception timeout) {
 				error(timeout);
 			}
