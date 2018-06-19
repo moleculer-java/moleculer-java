@@ -124,7 +124,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	 * Write exceptions into the log file
 	 */
 	protected boolean writeErrorsToLog = true;
-	
+
 	// --- LOCKS ---
 
 	/**
@@ -472,18 +472,18 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 				// Send error
 				transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, error));
-				
+
 				// Write error to log file
 				if (writeErrorsToLog) {
 					logger.error("Unexpected error occurred while invoking \"" + action + "\" action!", error);
 				}
-				
+
 			});
 		} catch (Throwable error) {
 
 			// Send error
 			transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, error));
-			
+
 			// Write error to log file
 			if (writeErrorsToLog) {
 				logger.error("Unexpected error occurred while invoking \"" + action + "\" action!", error);
@@ -497,29 +497,36 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	protected Tree throwableToTree(String id, Throwable error) {
 		FastBuildTree msg = new FastBuildTree(5);
-		msg.putUnsafe("id", id);
-		msg.putUnsafe("ver", PROTOCOL_VERSION);
-		msg.putUnsafe("sender", nodeID);
-		msg.putUnsafe("success", false);
-		if (error != null) {
+		try {
+			msg.putUnsafe("id", id);
+			msg.putUnsafe("ver", PROTOCOL_VERSION);
+			msg.putUnsafe("sender", nodeID);
+			msg.putUnsafe("success", false);
+			if (error != null) {
 
-			// Add message
-			FastBuildTree errorMap = new FastBuildTree(3);
-			msg.putUnsafe("error", errorMap);
-			String message = String.valueOf(error.getMessage());
-			message = message.replace('\r', ' ').replace('\n', ' ');
-			errorMap.putUnsafe("message", message.trim());
+				// Add message
+				FastBuildTree errorMap = new FastBuildTree(4);
+				msg.putUnsafe("error", errorMap);
+				String message = String.valueOf(error.getMessage());
+				message = message.replace('\r', ' ').replace('\n', ' ');
+				errorMap.putUnsafe("message", message.trim());
 
-			// Add trace
-			if (sendErrorTrace) {
-				StringWriter sw = new StringWriter(128);
-				PrintWriter pw = new PrintWriter(sw);
-				error.printStackTrace(pw);
-				errorMap.putUnsafe("trace", sw.toString());
+				// Add trace
+				if (sendErrorTrace) {
+					StringWriter sw = new StringWriter(128);
+					PrintWriter pw = new PrintWriter(sw);
+					error.printStackTrace(pw);
+					errorMap.putUnsafe("stack", sw.toString());
+				}
+
+				// Add source nodeID of the error
+				errorMap.putUnsafe("nodeID", nodeID);
+
+				// Add default error code
+				errorMap.putUnsafe("code", 500);
 			}
-
-			// Add source nodeID of the error
-			errorMap.putUnsafe("nodeID", nodeID);
+		} catch (Throwable cause) {
+			logger.error("Unexpected error occurred!", cause);
 		}
 		return msg;
 	}
@@ -600,7 +607,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				String trace = null;
 				if (error != null) {
 					errorMessage = error.get("message", (String) null);
-					trace = error.get("trace", (String) null);
+					trace = error.get("stack", (String) null);
 					if (trace != null && !trace.isEmpty()) {
 						logger.error("Remote invaction failed!\r\n" + trace);
 					}

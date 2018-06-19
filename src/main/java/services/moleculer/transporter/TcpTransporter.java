@@ -572,7 +572,7 @@ public class TcpTransporter extends Transporter {
 							StringWriter sw = new StringWriter(128);
 							PrintWriter pw = new PrintWriter(sw);
 							cause.printStackTrace(pw);
-							errorMap.putUnsafe("trace", sw.toString());
+							errorMap.putUnsafe("stack", sw.toString());
 						}
 					}
 					for (byte[] packet : packets) {
