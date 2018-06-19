@@ -11,7 +11,7 @@
 	<!-- REQUIRED DEPENDENCY: group: 'com.github.berkesa', name: 'moleculer-java-repl', version: '1.0.1' -->
 	<!-- URL: https://mvnrepository.com/artifact/com.github.berkesa/moleculer-java-repl -->
 	
-	<bean id="$repl-remote" class="services.moleculer.repl.RemoteRepl" />
+	<bean id="$repl-remote" class="services.moleculer.repl.RemoteRepl">
 	
 		<!-- Packages of custom commands -->	
 		<property name="packagesToScan"><null/></property>
