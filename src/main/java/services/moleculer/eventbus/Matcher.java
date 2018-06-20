@@ -86,9 +86,9 @@ public final class Matcher {
 			}
 			pattern = pattern.replace("?", ".");
 			pattern = pattern.replace("**", "§§§");
-			pattern = pattern.replace("*", "[^\\.]+");
+			pattern = pattern.replace("*", "[^\\.]*");
 			pattern = pattern.replace("§§§", ".*");
-			regex = Pattern.compile(pattern);
+			regex = Pattern.compile("^" + pattern + "$");
 			regexCache.put(pattern, regex);
 		}
 		return regex.matcher(text).matches();
