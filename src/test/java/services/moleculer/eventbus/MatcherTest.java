@@ -55,6 +55,11 @@ public class MatcherTest extends TestCase {
 		assertMatch("bb.cc", "bb.*");
 		assertMatch("dd", "*");
 
+		assertMatch("abcd", "*d");
+		assertMatch("abcd", "*d*");
+		assertMatch("abcd", "*a*");
+		assertMatch("abcd", "a*");
+		
 		// --- DOUBLE STARS CASES ---
 
 		assertNotMatch("aa.bb.cc", "aa.*");
@@ -70,8 +75,10 @@ public class MatcherTest extends TestCase {
 		assertNotMatch("aa.bb.cc.dd", "*b*");
 		assertNotMatch("aa.bb.cc.dd", "*c*");
 
+		assertMatch("aa.bb.cc.dd", "**aa**");
 		assertMatch("aa.bb.cc.dd", "**.bb.**");
 		assertMatch("aa.bb.cc.dd", "**.cc.**");
+		assertMatch("aa.bb.cc.dd", "**dd**");
 
 		assertMatch("aa.bb.cc.dd", "**bb**");
 		assertMatch("aa.bb.cc.dd", "**cc**");
