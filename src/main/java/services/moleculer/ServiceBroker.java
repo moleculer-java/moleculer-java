@@ -130,7 +130,7 @@ public class ServiceBroker {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final String SOFTWARE_VERSION = "1.0.1";
+	public static final String SOFTWARE_VERSION = "1.0.5";
 
 	/**
 	 * Version of the implemented Moleculer Protocol.
