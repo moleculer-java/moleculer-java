@@ -25,39 +25,42 @@
  */
 package services.moleculer.error;
 
+import static services.moleculer.error.MoleculerErrorFactory.REQUEST_REJECTED_ERROR;
+
+import io.datatree.Tree;
+
 /**
- * 'Service not found' error message.
+ * 'Request rejected' error message. Retryable.
  */
-public class ServiceNotFoundException extends MoleculerRetryableException {
+public class RequestRejectedError extends MoleculerRetryableError {
 
 	// --- SERIAL VERSION UID ---
 
-	private static final long serialVersionUID = -7411519288368252311L;
+	private static final long serialVersionUID = 3748906535356266766L;
 
 	// --- PROPERTIES ---
 
 	protected final String action;
 
-	protected final String nodeID;
+	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
 
-	// --- CONSTRUCTOR ---
-
-	public ServiceNotFoundException(String action, String nodeID) {
-		super(nodeID == null ? "Action \"" + action + "\" is not found."
-				: "Service \"" + action + "\" is not found on \"" + nodeID + "\" node.", null, 404, null,
-				"action", action, "nodeID", nodeID);
+	public RequestRejectedError(String nodeID, String action) {
+		super("Request is rejected when call '" + action + "' action on '" + nodeID + "' node.", null,
+				REQUEST_REJECTED_ERROR, nodeID, 503, "REQUEST_REJECTED", "action", action);
 		this.action = action;
-		this.nodeID = nodeID;
+	}
+
+	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
+
+	public RequestRejectedError(Tree payload) {
+		super(payload);
+		this.action = payload.get("action", "unknown");
 	}
 
 	// --- PROPERTY GETTERS ---
 
 	public String getAction() {
 		return action;
-	}
-
-	public String getNodeID() {
-		return nodeID;
 	}
 
 }

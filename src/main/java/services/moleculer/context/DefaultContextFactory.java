@@ -28,6 +28,7 @@ package services.moleculer.context;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
+import services.moleculer.error.MaxCallLevelError;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.service.Name;
 import services.moleculer.service.ServiceInvoker;
@@ -97,7 +98,7 @@ public class DefaultContextFactory extends ContextFactory {
 
 		// Verify call level
 		if (maxCallLevel > 0 && parent.level >= maxCallLevel) {
-			throw new IllegalStateException("Max call level limit reached (" + maxCallLevel + ")!");
+			throw new MaxCallLevelError(broker.getNodeID(), maxCallLevel);
 		}
 
 		// Create context (nested call)
@@ -110,7 +111,7 @@ public class DefaultContextFactory extends ContextFactory {
 
 		// Verify call level
 		if (maxCallLevel > 0 && level > maxCallLevel) {
-			throw new IllegalStateException("Max call level limit reached (" + maxCallLevel + ")!");
+			throw new MaxCallLevelError(broker.getNodeID(), maxCallLevel);
 		}
 
 		// Create new Context

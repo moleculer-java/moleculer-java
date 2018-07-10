@@ -25,19 +25,42 @@
  */
 package services.moleculer.error;
 
+import static services.moleculer.error.MoleculerErrorFactory.REQUEST_TIMEOUT_ERROR;
+
+import io.datatree.Tree;
+
 /**
- * Moleculer Exception class for server error which is retryable.
+ * 'Request timed out' error message. Retryable.
  */
-public class MoleculerServerException extends MoleculerRetryableException {
+public class RequestTimeoutError extends MoleculerRetryableError {
 
 	// --- SERIAL VERSION UID ---
-	
-	private static final long serialVersionUID = -7399379980035209828L;
 
-	// --- CONSTRUCTOR ---
-	
-	public MoleculerServerException(String message, String type, Object... data) {
-		super(message, null, 422, type, data);
+	private static final long serialVersionUID = -1918455143121326674L;
+
+	// --- PROPERTIES ---
+
+	protected final String action;
+
+	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
+
+	public RequestTimeoutError(String nodeID, String action) {
+		super("Request is timed out when call '" + action + "' action on '" + nodeID + "' node.", null,
+				REQUEST_TIMEOUT_ERROR, nodeID, 504, "REQUEST_TIMEOUT", "action", action);
+		this.action = action;
 	}
-	
+
+	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
+
+	public RequestTimeoutError(Tree payload) {
+		super(payload);
+		this.action = payload.get("action", "unknown");
+	}
+
+	// --- PROPERTY GETTERS ---
+
+	public String getAction() {
+		return action;
+	}
+
 }

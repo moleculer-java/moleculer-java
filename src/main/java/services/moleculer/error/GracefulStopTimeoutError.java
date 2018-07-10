@@ -25,39 +25,29 @@
  */
 package services.moleculer.error;
 
+import static services.moleculer.error.MoleculerErrorFactory.GRACEFUL_STOP_TIMEOUT_ERROR;
+
+import io.datatree.Tree;
+
 /**
- * 'Request timed out' error message. Retryable.
+ * Custom Moleculer error class for graceful stopping.
  */
-public class RequestTimeoutException extends MoleculerRetryableException {
+public class GracefulStopTimeoutError extends MoleculerError {
 
 	// --- SERIAL VERSION UID ---
+	
+	private static final long serialVersionUID = -646255411925946294L;
 
-	private static final long serialVersionUID = -1918455143121326674L;
-
-	// --- PROPERTIES ---
-
-	protected final String action;
-
-	protected final String nodeID;
-
-	// --- CONSTRUCTOR ---
-
-	public RequestTimeoutException(String action, String nodeID) {
-		super(nodeID == null ? "Request is timed out when call \"" + action + "\"."
-				: "Request is timed out when call \"" + action + "\" on \"" + nodeID + "\" node.", null, 504, null,
-				"action", action, "nodeID", nodeID);
-		this.action = action;
-		this.nodeID = nodeID;
+	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
+	
+	public GracefulStopTimeoutError(String nodeID, Object... data) {
+		super("Unable to stop service gracefully.", null, GRACEFUL_STOP_TIMEOUT_ERROR, nodeID, false, 500, "GRACEFUL_STOP_TIMEOUT", data);
 	}
 
-	// --- PROPERTY GETTERS ---
-
-	public String getAction() {
-		return action;
-	}
-
-	public String getNodeID() {
-		return nodeID;
+	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
+	
+	public GracefulStopTimeoutError(Tree payload) {
+		super(payload);
 	}
 
 }

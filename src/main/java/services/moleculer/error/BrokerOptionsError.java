@@ -25,39 +25,29 @@
  */
 package services.moleculer.error;
 
+import static services.moleculer.error.MoleculerErrorFactory.BROKER_OPTIONS_ERROR;
+
+import io.datatree.Tree;
+
 /**
- * 'Request skipped' error message.
+ * Custom Moleculer exception class for broker option errors.
  */
-public class RequestSkippedException extends MoleculerException {
+public class BrokerOptionsError extends MoleculerError {
 
 	// --- SERIAL VERSION UID ---
-
-	private static final long serialVersionUID = -2414416971181354549L;
-
-	// --- PROPERTIES ---
-
-	protected final String action;
-
-	protected final String nodeID;
-
-	// --- CONSTRUCTOR ---
-
-	public RequestSkippedException(String action, String nodeID) {
-		super(nodeID == null ? "Calling  \"" + action + "\" is skipped because timeout reached."
-				: "Calling \"" + action + "\" is skipped because timeout reached on \"" + nodeID + "\" node.", null,
-				false, 514, null, "action", action, "nodeID", nodeID);
-		this.action = action;
-		this.nodeID = nodeID;
+	
+	private static final long serialVersionUID = 6016262167903015550L;
+	
+	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
+	
+	public BrokerOptionsError(String message, String nodeID, Object... data) {
+		super(message, null, BROKER_OPTIONS_ERROR, nodeID, false, 500, "BROKER_OPTIONS_ERROR", data);
 	}
 
-	// --- PROPERTY GETTERS ---
-
-	public String getAction() {
-		return action;
-	}
-
-	public String getNodeID() {
-		return nodeID;
+	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
+	
+	public BrokerOptionsError(Tree payload) {
+		super(payload);
 	}
 
 }

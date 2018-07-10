@@ -25,39 +25,28 @@
  */
 package services.moleculer.error;
 
+import io.datatree.Tree;
+
 /**
- * 'Queue is full' error message. Retryable.
+ * Custom Moleculer error class for retryable errors.
  */
-public class QueueIsFull extends MoleculerRetryableException {
+public class MoleculerRetryableError extends MoleculerError {
 
 	// --- SERIAL VERSION UID ---
 
-	private static final long serialVersionUID = 75196412610693063L;
+	private static final long serialVersionUID = -5349522240146153760L;
 
-	// --- PROPERTIES ---
-
-	protected final String action;
-
-	protected final String nodeID;
-
-	// --- CONSTRUCTOR ---
-
-	public QueueIsFull(String action, String nodeID, int size, int limit) {
-		super(nodeID == null ? "Action \"" + action + "\" is not available."
-				: "Service \"" + action + "\" is not available on \"" + nodeID + "\" node.", null, 429, null, "action",
-				action, "nodeID", nodeID, "size", size, "limit", limit);
-		this.action = action;
-		this.nodeID = nodeID;
+	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
+	
+	public MoleculerRetryableError(String message, Throwable cause, String name, String nodeID, 
+			int code, String type, Object... data) {
+		super(message, cause, name, nodeID, true, code, type, data);
 	}
 
-	// --- PROPERTY GETTERS ---
-
-	public String getAction() {
-		return action;
+	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
+	
+	public MoleculerRetryableError(Tree payload) {
+		super(payload);
 	}
-
-	public String getNodeID() {
-		return nodeID;
-	}
-
+	
 }

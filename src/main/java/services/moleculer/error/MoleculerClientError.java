@@ -25,45 +25,28 @@
  */
 package services.moleculer.error;
 
+import io.datatree.Tree;
+
 /**
- * Protocol version mismatch exception.
+ * Moleculer error class for client errors which is not retryable.
  */
-public class ProtocolVersionMismatchException extends MoleculerException {
+public class MoleculerClientError extends MoleculerError {
 
 	// --- SERIAL VERSION UID ---
-
-	private static final long serialVersionUID = -7734103095126608077L;
-
-	// --- PROPERTIES ---
-
-	protected final String nodeID;
-
-	protected final String actual;
-
-	protected final String received;
-
-	// --- CONSTRUCTOR ---
-
-	public ProtocolVersionMismatchException(String nodeID, String actual, String received) {
-		super("Protocol version mismatch.", null, false, 500, null, "nodeID", nodeID, "actual", actual, "received",
-				received);
-		this.nodeID = nodeID;
-		this.actual = actual;
-		this.received = received;
-	}
-
-	// --- PROPERTY GETTERS ---
-
-	public String getNodeID() {
-		return nodeID;
-	}
-
-	public String getActual() {
-		return actual;
-	}
-
-	public String getReceived() {
-		return received;
-	}
 	
+	private static final long serialVersionUID = -3748468322324813894L;
+
+	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
+	
+	public MoleculerClientError(String message, Throwable cause, String name, String nodeID, 
+			int code, String type, Object... data) {
+		super(message, cause, name, nodeID, false, code, type, data);
+	}
+
+	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
+	
+	public MoleculerClientError(Tree payload) {
+		super(payload);
+	}
+
 }

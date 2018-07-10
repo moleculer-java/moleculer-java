@@ -25,19 +25,29 @@
  */
 package services.moleculer.error;
 
+import static services.moleculer.error.MoleculerErrorFactory.INVALID_PACKET_DATA_ERROR;
+
+import io.datatree.Tree;
+
 /**
- * Moleculer Exception class for client errors which is not retryable.
+ * Invalid packet format error.
  */
-public class MoleculerClientException extends MoleculerException {
+public class InvalidPacketDataError extends MoleculerError {
 
 	// --- SERIAL VERSION UID ---
 	
-	private static final long serialVersionUID = 5912015370730239567L;
+	private static final long serialVersionUID = -6254666171962972761L;
 
-	// --- CONSTRUCTOR ---
+	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
 	
-	public MoleculerClientException(String message, Throwable cause,int code, String type, Object... data) {
-		super(message, cause, false, code < 1 ? 400 : code, type, data);
+	public InvalidPacketDataError(String nodeID, Object... data) {
+		super("Invalid packet data.", null, INVALID_PACKET_DATA_ERROR, nodeID, false, 500, "INVALID_PACKET_DATA", data);
 	}
+
+	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
 	
+	public InvalidPacketDataError(Tree payload) {
+		super(payload);
+	}
+
 }

@@ -25,19 +25,50 @@
  */
 package services.moleculer.error;
 
+import static services.moleculer.error.MoleculerErrorFactory.PROTOCOL_VERSION_MISMATCH_ERROR;
+
+import io.datatree.Tree;
+
 /**
- * Custom Moleculer Exception class for retryable errors.
+ * Protocol version mismatch exception.
  */
-public class MoleculerRetryableException extends MoleculerException {
+public class ProtocolVersionMismatchError extends MoleculerError {
 
 	// --- SERIAL VERSION UID ---
-	
-	private static final long serialVersionUID = -3163938820006710897L;
 
-	// --- CONSTRUCTOR ---
-	
-	public MoleculerRetryableException(String message, Throwable cause, int code, String type, Object... data) {
-		super(message, cause, true, code, type, data);
+	private static final long serialVersionUID = -7734103095126608077L;
+
+	// --- PROPERTIES ---
+
+	protected final String actual;
+
+	protected final String received;
+
+	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
+
+	public ProtocolVersionMismatchError(String nodeID, String actual, String received) {
+		super("Protocol version mismatch.", null, PROTOCOL_VERSION_MISMATCH_ERROR, nodeID, false, 500,
+				"PROTOCOL_VERSION_MISMATCH", "actual", actual, "received", received);
+		this.actual = actual;
+		this.received = received;
+	}
+
+	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
+
+	public ProtocolVersionMismatchError(Tree payload) {
+		super(payload);
+		this.actual = payload.get("actual", "unknown");
+		this.received = payload.get("received", "unknown");
+	}
+
+	// --- PROPERTY GETTERS ---
+
+	public String getActual() {
+		return actual;
+	}
+
+	public String getReceived() {
+		return received;
 	}
 
 }

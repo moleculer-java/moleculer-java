@@ -18,9 +18,6 @@
 		<!-- Check protocol version of Moleculer -->
 		<property name="checkVersion"         value="false" />
 
-		<!-- Include error trace into error responses -->
-		<property name="sendErrorTrace"       value="true" />
-
 		<!-- Write invocation exceptions into the log file -->
 		<property name="writeErrorsToLog"     value="true" />
 			

@@ -25,19 +25,42 @@
  */
 package services.moleculer.error;
 
+import static services.moleculer.error.MoleculerErrorFactory.MAX_CALL_LEVEL_ERROR;
+
+import io.datatree.Tree;
+
 /**
- * Action call validation exception.
+ * 'Max request call level' error message.
  */
-public class ValidationException extends MoleculerClientException {
+public class MaxCallLevelError extends MoleculerError {
 
 	// --- SERIAL VERSION UID ---
 
-	private static final long serialVersionUID = 8904985680587837961L;
+	private static final long serialVersionUID = -1748608950886915972L;
 
-	// --- CONSTRUCTOR ---
+	// --- PROPERTIES ---
 
-	public ValidationException(String message, String type, Object... data) {
-		super(message, null, 422, type, data);
+	protected final int level;
+
+	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
+
+	public MaxCallLevelError(String nodeID, int level) {
+		super("Request level is reached, the limit is \"" + level + "\" on \"" + nodeID + "\" node.", null,
+				MAX_CALL_LEVEL_ERROR, nodeID, false, 500, "MAX_CALL_LEVEL", "level", level);
+		this.level = level;
+	}
+
+	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
+	
+	public MaxCallLevelError(Tree payload) {
+		super(payload);
+		this.level = data == null ? -1 : data.get("level", -1);
+	}
+	
+	// --- PROPERTY GETTERS ---
+
+	public int getLevel() {
+		return level;
 	}
 
 }

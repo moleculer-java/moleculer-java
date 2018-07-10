@@ -55,6 +55,7 @@ import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallOptions;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.context.DefaultContextFactory;
+import services.moleculer.error.MoleculerServerError;
 import services.moleculer.eventbus.DefaultEventbus;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.eventbus.Groups;
@@ -349,7 +350,7 @@ public class ServiceBroker {
 
 		// Check state
 		if (serviceRegistry != null) {
-			throw new IllegalStateException("Moleculer Service Broker has already been started!");
+			throw new MoleculerServerError("Moleculer Service Broker has already been started!", nodeID, "ALREADY_STARTED");
 		}
 		try {
 

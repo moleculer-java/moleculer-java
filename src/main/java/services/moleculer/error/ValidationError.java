@@ -25,19 +25,29 @@
  */
 package services.moleculer.error;
 
+import static services.moleculer.error.MoleculerErrorFactory.VALIDATION_ERROR;
+
+import io.datatree.Tree;
+
 /**
- * Custom Moleculer Exception class for Service schema exceptions.
+ * Action call validation error.
  */
-public class ServiceSchemaException extends MoleculerException {
+public class ValidationError extends MoleculerClientError {
 
 	// --- SERIAL VERSION UID ---
-	
-	private static final long serialVersionUID = -1404051965811526872L;
 
-	// --- CONSTRUCTOR ---
+	private static final long serialVersionUID = 8904985680587837961L;
+
+	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
+
+	public ValidationError(String message, String nodeID, String type, Object... data) {
+		super(message, null, VALIDATION_ERROR, nodeID, 422, type, data);
+	}
+
+	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
 	
-	public ServiceSchemaException(String message) {
-		super(message, null, false, 500, null);
+	public ValidationError(Tree payload) {
+		super(payload);
 	}
 
 }

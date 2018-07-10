@@ -193,8 +193,6 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 			// Disconnect
 			disconnect();
 
-		} else {
-			throw new IllegalStateException("Redis Trransporter is already stopped!");
 		}
 	}
 

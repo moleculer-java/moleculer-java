@@ -29,9 +29,6 @@ import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.parseURLs;
 import static services.moleculer.util.CommonUtils.readTree;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.URL;
 import java.util.ArrayList;
@@ -46,6 +43,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import io.datatree.Promise;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.error.InvalidPacketDataError;
+import services.moleculer.error.MoleculerError;
+import services.moleculer.error.MoleculerServerError;
 import services.moleculer.service.Name;
 import services.moleculer.transporter.tcp.NodeDescriptor;
 import services.moleculer.transporter.tcp.TcpReader;
@@ -204,11 +204,6 @@ public class TcpTransporter extends Transporter {
 	 * Current TCP port
 	 */
 	protected int currentPort;
-
-	/**
-	 * Include error trace in response
-	 */
-	protected boolean sendErrorTrace;
 
 	// --- LOCAL NODE'S DESCRIPTOR ---
 
@@ -560,20 +555,21 @@ public class TcpTransporter extends Transporter {
 				if (packets != null) {
 					FastBuildTree errorMap = null;
 					if (cause != null) {
-						errorMap = new FastBuildTree(2);
 
-						// Add message
-						String message = String.valueOf(cause.getMessage());
-						message = message.replace('\r', ' ').replace('\n', ' ');
-						errorMap.putUnsafe("message", message.trim());
-
-						// Add trace
-						if (sendErrorTrace) {
-							StringWriter sw = new StringWriter(128);
-							PrintWriter pw = new PrintWriter(sw);
-							cause.printStackTrace(pw);
-							errorMap.putUnsafe("stack", sw.toString());
+						// Convert to Throwable to MoleculerError
+						MoleculerError moleculerError;
+						if (cause instanceof MoleculerError) {
+							moleculerError = (MoleculerError) cause;
+						} else {
+							String message = String.valueOf(cause.getMessage());
+							message = message.replace('\r', ' ').replace('\n', ' ').trim();
+							moleculerError = new MoleculerError(message, cause, "MoleculerError", nodeID, false, 500,
+									"UNKNOWN_ERROR");
 						}
+
+						// Convert MoleculerError to JSON
+						errorMap = new FastBuildTree(8);
+						moleculerError.toTree(errorMap);
 					}
 					for (byte[] packet : packets) {
 						try {
@@ -697,8 +693,10 @@ public class TcpTransporter extends Transporter {
 
 				// Check size
 				if (maxPacketSize > 0 && packet.length > maxPacketSize) {
-					throw new IOException("Outgoing packet is larger than the \"maxPacketSize\" limit (" + packet.length
-							+ " > " + maxPacketSize + ")!");
+					throw new InvalidPacketDataError(
+							"Outgoing packet is larger than the \"maxPacketSize\" limit (" + packet.length + " > "
+									+ maxPacketSize + ")!",
+							"maxPacketSize", maxPacketSize, "packetSize", packet.length);
 				}
 
 				// Send packet to endpoint
@@ -797,13 +795,13 @@ public class TcpTransporter extends Transporter {
 
 		// Check node
 		if (sender == null || sender.isEmpty()) {
-			throw new IllegalArgumentException("Empty sender field!");
+			throw new InvalidPacketDataError("Empty sender field!");
 		}
 		if (host == null || host.isEmpty()) {
-			throw new IllegalArgumentException("Empty host field!");
+			throw new InvalidPacketDataError("Empty host field!");
 		}
 		if (port < 1) {
-			throw new IllegalArgumentException("Invalid port value (" + port + ")!");
+			throw new InvalidPacketDataError("Invalid port value (" + port + ")!");
 		}
 		if (nodeID.equalsIgnoreCase(sender)) {
 			return;
@@ -1333,7 +1331,8 @@ public class TcpTransporter extends Transporter {
 			root.putUnsafe("port", reader.getCurrentPort());
 			cachedHelloMessage = serialize(PACKET_GOSSIP_HELLO_ID, root);
 		} catch (Exception error) {
-			throw new RuntimeException("Unable to create HELLO message!", error);
+			throw new MoleculerError("Unable to create HELLO message!", error, "MoleculerError", "unknown", false, 500,
+					"UNABLE_TO_CREATE_HELLO");
 		}
 		return cachedHelloMessage;
 	}
@@ -1348,12 +1347,12 @@ public class TcpTransporter extends Transporter {
 
 	@Override
 	public void setHeartbeatInterval(int heartbeatInterval) {
-		throw new UnsupportedOperationException();
+		throw new MoleculerServerError("Unsupported operation!", nodeID, "UNSUPPORTED_OPERATION");
 	}
 
 	@Override
 	public void setHeartbeatTimeout(int heartbeatTimeout) {
-		throw new UnsupportedOperationException();
+		throw new MoleculerServerError("Unsupported operation!", nodeID, "UNSUPPORTED_OPERATION");
 	}
 
 	// --- GETTERS AND SETTERS ---
@@ -1472,14 +1471,6 @@ public class TcpTransporter extends Transporter {
 
 	public void setUdpMulticastTTL(int udpMulticastTTL) {
 		this.udpMulticastTTL = udpMulticastTTL;
-	}
-
-	public boolean isSendErrorTrace() {
-		return sendErrorTrace;
-	}
-
-	public void setSendErrorTrace(boolean sendErrorTrace) {
-		this.sendErrorTrace = sendErrorTrace;
 	}
 
 }

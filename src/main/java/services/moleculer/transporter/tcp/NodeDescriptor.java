@@ -32,6 +32,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.datatree.Tree;
+import services.moleculer.error.BrokerOptionsError;
 
 /**
  * Node descriptor of all (remote and local) nodes.
@@ -83,7 +84,7 @@ public class NodeDescriptor {
 
 		// Set non-final properties
 		if (port < 1) {
-			throw new IllegalArgumentException("Invalid port number (" + port + ")!");
+			throw new BrokerOptionsError("Invalid port number (" + port + ")!", nodeID);
 		}
 		this.host = Objects.requireNonNull(host, "Hostname can't be null!");
 		this.port = port;
@@ -94,7 +95,7 @@ public class NodeDescriptor {
 
 		// Store info
 		if (info == null || info.isEmpty()) {
-			throw new IllegalArgumentException("Info block is required!");
+			throw new BrokerOptionsError("Info block is required!", nodeID);
 		}
 		this.info = info;
 
@@ -102,7 +103,7 @@ public class NodeDescriptor {
 		host = Objects.requireNonNull(getHostOrIP(preferHostname, info), "Hostname can't be null!");
 		port = info.get("port", 0);
 		if (port < 1) {
-			throw new IllegalArgumentException("Invalid port number (" + port + ")!");
+			throw new BrokerOptionsError("Invalid port number (" + port + ")!", nodeID);
 		}
 		seq = info.get("seq", 0L);
 	}
@@ -111,7 +112,7 @@ public class NodeDescriptor {
 
 	public void updateCpu(int cpu) {
 		if (cpu < 0 || cpu > 100) {
-			throw new IllegalArgumentException("Invalid CPU value (" + cpu + ")!");
+			throw new BrokerOptionsError("Invalid CPU value (" + cpu + ")!", nodeID);
 		}
 		if (this.cpu != cpu) {
 			this.cpu = cpu;
@@ -122,10 +123,10 @@ public class NodeDescriptor {
 
 	public void updateCpu(long cpuSeq, int cpu) {
 		if (cpu < 0 || cpu > 100) {
-			throw new IllegalArgumentException("Invalid CPU value (" + cpu + ")!");
+			throw new BrokerOptionsError("Invalid CPU value (" + cpu + ")!", nodeID);
 		}
 		if (cpuSeq < 1) {
-			throw new IllegalArgumentException("Invalid CPU sequence number (" + cpuSeq + ")!");
+			throw new BrokerOptionsError("Invalid CPU sequence number (" + cpuSeq + ")!", nodeID);
 		}
 		if (this.cpuSeq < cpuSeq) {
 			this.cpuSeq = cpuSeq;
@@ -148,7 +149,7 @@ public class NodeDescriptor {
 
 	public boolean markAsOffline(long seq) {
 		if (seq < 1) {
-			throw new IllegalArgumentException("Invalid sequence number (" + seq + ")!");
+			throw new BrokerOptionsError("Invalid sequence number (" + seq + ")!", nodeID);
 		}
 		if (this.seq < seq) {
 			this.seq = seq;
@@ -166,19 +167,19 @@ public class NodeDescriptor {
 	public boolean markAsOnline(Tree info) {
 		long seq = info.get("seq", 0L);
 		if (seq < 1) {
-			throw new IllegalArgumentException("Invalid sequence number (" + seq + ")!");
+			throw new BrokerOptionsError("Invalid sequence number (" + seq + ")!", nodeID);
 		}
 		if (this.seq < seq) {
 			if (info == null || info.isEmpty()) {
-				throw new IllegalArgumentException("Empty or undefined info block (" + info.toString(false) + ")!");
+				throw new BrokerOptionsError("Empty or undefined info block (" + info.toString(false) + ")!", nodeID);
 			}
 			String host = getHostOrIP(preferHostname, info);
 			if (host == null || host.isEmpty()) {
-				throw new IllegalArgumentException("Empty or undefined hostname (" + host + ")!");
+				throw new BrokerOptionsError("Empty or undefined hostname (" + host + ")!", nodeID);
 			}
 			int port = info.get("port", 0);
 			if (port < 1) {
-				throw new IllegalArgumentException("Invalid port number (" + port + ")!");
+				throw new BrokerOptionsError("Invalid port number (" + port + ")!", nodeID);
 			}
 			this.seq = seq;
 			this.info = info;

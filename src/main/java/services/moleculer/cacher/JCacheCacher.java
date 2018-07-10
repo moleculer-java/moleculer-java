@@ -44,6 +44,7 @@ import javax.cache.configuration.Configuration;
 import io.datatree.Promise;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
+import services.moleculer.error.MoleculerServerError;
 import services.moleculer.eventbus.Matcher;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
@@ -370,10 +371,11 @@ public class JCacheCacher extends DistributedCacher {
 		}
 	}
 
-	protected static final int partitionPosition(String key, boolean throwErrorIfMissing) {
+	protected int partitionPosition(String key, boolean throwErrorIfMissing) {
 		int i = key.indexOf('.');
 		if (i == -1 && throwErrorIfMissing) {
-			throw new IllegalArgumentException("Invalid cache key, a point is missing from the key (" + key + ")!");
+			throw new MoleculerServerError("Invalid cache key, a point is missing from the key (" + key + ")!",
+					broker.getNodeID(), "INVALID_CACHE_KEY", "key", key);
 		}
 		return i;
 	}

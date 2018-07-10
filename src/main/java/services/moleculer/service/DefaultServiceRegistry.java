@@ -32,13 +32,10 @@ import static services.moleculer.util.CommonUtils.convertAnnotations;
 import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.nameOf;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
-import java.rmi.RemoteException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -70,6 +67,12 @@ import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallOptions;
 import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
+import services.moleculer.error.InvalidPacketDataError;
+import services.moleculer.error.MoleculerError;
+import services.moleculer.error.MoleculerErrorFactory;
+import services.moleculer.error.ProtocolVersionMismatchError;
+import services.moleculer.error.ServiceNotAvailableError;
+import services.moleculer.error.ServiceNotFoundError;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
@@ -114,11 +117,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	 * Check protocol version
 	 */
 	protected boolean checkVersion;
-
-	/**
-	 * Include error trace in response
-	 */
-	protected boolean sendErrorTrace = true;
 
 	/**
 	 * Write exceptions into the log file
@@ -373,11 +371,27 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	@Override
 	public void receiveRequest(Tree message) {
 
+		// Get request's unique ID
+		String id = message.get("id", (String) null);
+		if (id == null || id.isEmpty()) {
+			logger.warn("Missing \"id\" property!");
+			return;
+		}
+
+		// Get sender's nodeID
+		String sender = message.get("sender", (String) null);
+		if (sender == null || sender.isEmpty()) {
+			logger.warn("Missing \"sender\" property!");
+			return;
+		}
+
 		// Verify protocol version
 		if (checkVersion) {
 			String ver = message.get("ver", "unknown");
 			if (!PROTOCOL_VERSION.equals(ver)) {
 				logger.warn("Invalid protocol version (" + ver + ")!");
+				transporter.publish(PACKET_RESPONSE, sender,
+						throwableToTree(id, new ProtocolVersionMismatchError(nodeID, PROTOCOL_VERSION, ver)));
 				return;
 			}
 		}
@@ -386,6 +400,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		String action = message.get("action", (String) null);
 		if (action == null || action.isEmpty()) {
 			logger.warn("Missing \"action\" property!");
+			transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, new InvalidPacketDataError(nodeID)));
 			return;
 		}
 
@@ -399,6 +414,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		}
 		if (strategy == null) {
 			logger.warn("Invalid action name (" + action + ")!");
+			transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, new ServiceNotFoundError(nodeID, action)));
 			return;
 		}
 
@@ -406,20 +422,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		ActionEndpoint endpoint = strategy.getEndpoint(nodeID);
 		if (endpoint == null) {
 			logger.warn("Not a local action (" + action + ")!");
-			return;
-		}
-
-		// Get request's unique ID
-		String id = message.get("id", (String) null);
-		if (id == null || id.isEmpty()) {
-			logger.warn("Missing \"id\" property!");
-			return;
-		}
-
-		// Get sender's nodeID
-		String sender = message.get("sender", (String) null);
-		if (sender == null || sender.isEmpty()) {
-			logger.warn("Missing \"sender\" property!");
+			transporter.publish(PACKET_RESPONSE, sender,
+					throwableToTree(id, new ServiceNotAvailableError(nodeID, action)));
 			return;
 		}
 
@@ -503,26 +507,21 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			msg.putUnsafe("success", false);
 			if (error != null) {
 
-				// Add message
-				FastBuildTree errorMap = new FastBuildTree(4);
-				msg.putUnsafe("error", errorMap);
-				String message = String.valueOf(error.getMessage());
-				message = message.replace('\r', ' ').replace('\n', ' ');
-				errorMap.putUnsafe("message", message.trim());
-
-				// Add trace
-				if (sendErrorTrace) {
-					StringWriter sw = new StringWriter(128);
-					PrintWriter pw = new PrintWriter(sw);
-					error.printStackTrace(pw);
-					errorMap.putUnsafe("stack", sw.toString());
+				// Convert to Throwable to MoleculerError
+				MoleculerError moleculerError;
+				if (error instanceof MoleculerError) {
+					moleculerError = (MoleculerError) error;
+				} else {
+					String message = String.valueOf(error.getMessage());
+					message = message.replace('\r', ' ').replace('\n', ' ').trim();
+					moleculerError = new MoleculerError(message, error, "MoleculerError", nodeID, false, 500,
+							"UNKNOWN_ERROR");
 				}
 
-				// Add source nodeID of the error
-				errorMap.putUnsafe("nodeID", nodeID);
-
-				// Add default error code
-				errorMap.putUnsafe("code", 500);
+				// Convert MoleculerError to JSON
+				FastBuildTree errorMap = new FastBuildTree(8);
+				msg.putUnsafe("error", errorMap);
+				moleculerError.toTree(errorMap);
 			}
 		} catch (Throwable cause) {
 			logger.error("Unexpected error occurred!", cause);
@@ -602,22 +601,17 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 				// Failed -> reject
 				Tree error = message.get("error");
-				String errorMessage = null;
-				String trace = null;
-				if (error != null) {
-					errorMessage = error.get("message", (String) null);
-					trace = error.get("stack", (String) null);
-					if (trace != null && !trace.isEmpty()) {
-						logger.error("Remote invaction failed!\r\n" + trace);
-					}
+				MoleculerError moleculerError;
+				if (error == null) {
+					moleculerError = new MoleculerError("Remote invocation failed!", null, "MoleculerError", nodeID,
+							false, 500, "UNKNOWN_ERROR", message);
+				} else {
+					moleculerError = MoleculerErrorFactory.create(error);
 				}
-				if (errorMessage == null || errorMessage.isEmpty()) {
-					errorMessage = "Unknow error!";
-				}
-				if (trace == null || trace.isEmpty()) {
-					logger.error("Remote invoction failed (unknown error occurred)!");
-				}
-				pending.promise.complete(new RemoteException(errorMessage));
+
+				pending.promise.complete(moleculerError);
+				logger.error(moleculerError.getMessage(), moleculerError);
+
 				return;
 			}
 		} catch (Throwable cause) {
@@ -646,7 +640,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					try {
 						middleware.started(broker);
 					} catch (Exception cause) {
-						throw new RuntimeException("Unable to start middleware!", cause);
+						throw new MoleculerError("Unable to start middleware!", cause, "MoleculerError", nodeID, false,
+								500, "MIDDLEWARE_ERROR");
 					}
 				}
 
@@ -907,7 +902,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			readLock.unlock();
 		}
 		if (service == null) {
-			throw new NoSuchElementException("Invalid service name (" + name + ")!");
+			throw new ServiceNotFoundError(nodeID, name);
 		}
 		return service;
 	}
@@ -924,11 +919,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			readLock.unlock();
 		}
 		if (strategy == null) {
-			throw new NoSuchElementException("Unknown action name (" + name + ")!");
+			throw new ServiceNotFoundError(nodeID, name);
 		}
 		ActionEndpoint endpoint = strategy.getEndpoint(nodeID);
 		if (endpoint == null) {
-			throw new NoSuchElementException("Unknown nodeID (" + nodeID + ")!");
+			throw new ServiceNotAvailableError(nodeID, name);
 		}
 		return endpoint;
 	}
@@ -1199,7 +1194,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				// Set timestamp
 				timestamp.set(System.currentTimeMillis());
 				cachedDescriptor = descriptor;
-			}			
+			}
 		} finally {
 			readLock.unlock();
 		}
@@ -1222,14 +1217,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	public void setAsyncLocalInvocation(boolean asyncLocalInvocation) {
 		this.asyncLocalInvocation = asyncLocalInvocation;
-	}
-
-	public boolean isSendErrorTrace() {
-		return sendErrorTrace;
-	}
-
-	public void setSendErrorTrace(boolean sendErrorTrace) {
-		this.sendErrorTrace = sendErrorTrace;
 	}
 
 	public boolean isWriteErrorsToLog() {

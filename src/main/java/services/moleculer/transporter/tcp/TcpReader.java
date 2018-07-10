@@ -25,7 +25,6 @@
  */
 package services.moleculer.transporter.tcp;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.StandardSocketOptions;
@@ -44,6 +43,7 @@ import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import services.moleculer.error.InvalidPacketDataError;
 import services.moleculer.transporter.TcpTransporter;
 
 /**
@@ -255,7 +255,7 @@ public class TcpReader implements Runnable {
 						readBuffer.clear();
 						n = channel.read(readBuffer);
 						if (n < 0) {
-							throw new IOException();
+							throw new InvalidPacketDataError(transporter.getBroker().getNodeID(), "port", currentPort);
 						}
 						if (n == 0) {
 							keys.remove();
@@ -320,10 +320,10 @@ public class TcpReader implements Runnable {
 				| (0xFF & bytes[pos + 4]);
 
 		if (maxPacketSize > 0 && len > maxPacketSize) {
-			throw new Exception("Incoming packet is larger than the \"maxPacketSize\" limit (" + len + " > "
-					+ maxPacketSize + ")!");
+			throw new InvalidPacketDataError("Incoming packet is larger than the \"maxPacketSize\" limit (" + len + " > "
+					+ maxPacketSize + ")!", "maxPacketSize", maxPacketSize, "packetSize", len);
 		} else if (len < 6) {
-			throw new Exception("Incoming packet is smaller than the header's size (" + len + " < 6)!");
+			throw new InvalidPacketDataError("Incoming packet is smaller than the header's size (" + len + " < 6)!", "packetSize", len);
 		}
 
 		// If all data present
@@ -332,7 +332,7 @@ public class TcpReader implements Runnable {
 			// Verify header's CRC
 			byte crc = (byte) (bytes[pos + 1] ^ bytes[pos + 2] ^ bytes[pos + 3] ^ bytes[pos + 4] ^ bytes[pos + 5]);
 			if (crc != bytes[pos]) {
-				throw new Exception("Invalid CRC (" + crc + " != " + bytes[pos] + ")!");
+				throw new InvalidPacketDataError("Invalid CRC (" + crc + " != " + bytes[pos] + ")!", "crc", crc, "byte", bytes[pos]);
 			}
 
 			// Verify type
@@ -340,7 +340,7 @@ public class TcpReader implements Runnable {
 			if (type < 1 || type > 8) {
 
 				// Unknown packet type!
-				throw new Exception("Invalid packet type (" + type + ")!");
+				throw new InvalidPacketDataError("Invalid packet type (" + type + ")!", "type", type);
 			}
 
 			// Remove header

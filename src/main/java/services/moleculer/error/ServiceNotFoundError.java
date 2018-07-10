@@ -25,39 +25,42 @@
  */
 package services.moleculer.error;
 
+import static services.moleculer.error.MoleculerErrorFactory.SERVICE_NOT_FOUND_ERROR;
+
+import io.datatree.Tree;
+
 /**
- * 'Max request call level' error message.
+ * 'Service not found' error message.
  */
-public class MaxCallLevelException extends MoleculerException {
+public class ServiceNotFoundError extends MoleculerRetryableError {
 
 	// --- SERIAL VERSION UID ---
 
-	private static final long serialVersionUID = -1748608950886915972L;
+	private static final long serialVersionUID = -7411519288368252311L;
 
 	// --- PROPERTIES ---
 
-	protected final String nodeID;
+	protected final String action;
 
-	protected final int level;
+	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
 
-	// --- CONSTRUCTOR ---
+	public ServiceNotFoundError(String nodeID, String action) {
+		super("Service '" + action + "' is not available on '" + nodeID + "' node.", null, SERVICE_NOT_FOUND_ERROR,
+				nodeID, 404, "SERVICE_NOT_FOUND", "action", action);
+		this.action = action;
+	}
 
-	public MaxCallLevelException(String nodeID, int level) {
-		super(nodeID == null ? "Request level is reached, the limit is \"" + level + "\"."
-				: "Request level is reached, the limit is \"" + level + "\" on \"" + nodeID + "\" node.", null, false,
-				500, null, "nodeID", nodeID, "level", level);
-		this.nodeID = nodeID;
-		this.level = level;
+	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
+
+	public ServiceNotFoundError(Tree payload) {
+		super(payload);
+		this.action = payload.get("action", "unknown");
 	}
 
 	// --- PROPERTY GETTERS ---
 
-	public String getNodeID() {
-		return nodeID;
-	}
-
-	public int getLevel() {
-		return level;
+	public String getAction() {
+		return action;
 	}
 
 }

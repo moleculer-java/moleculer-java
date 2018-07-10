@@ -25,39 +25,31 @@
  */
 package services.moleculer.error;
 
+import io.datatree.Tree;
+
 /**
- * 'Service not available' error message.
+ * Moleculer error class for server error which is retryable.
  */
-public class ServiceNotAvailable extends MoleculerRetryableException {
+public class MoleculerServerError extends MoleculerRetryableError {
 
 	// --- SERIAL VERSION UID ---
 
-	private static final long serialVersionUID = 5711144461029539583L;
+	private static final long serialVersionUID = -7399379980035209828L;
 
-	// --- PROPERTIES ---
+	// --- CONSTRUCTORS FOR LOCAL EXCEPTIONS ---
 
-	protected final String action;
-
-	protected final String nodeID;
-
-	// --- CONSTRUCTOR ---
-
-	public ServiceNotAvailable(String action, String nodeID) {
-		super(nodeID == null ? "Action \"" + action + "\" is not available."
-				: "Service \"" + action + "\" is not available on \"" + nodeID + "\" node.", null, 404, null,
-				"action", action, "nodeID", nodeID);
-		this.action = action;
-		this.nodeID = nodeID;
+	public MoleculerServerError(String message, String nodeID, String type, Object... data) {
+		this(message, null, nodeID, type, data);
 	}
 
-	// --- PROPERTY GETTERS ---
-
-	public String getAction() {
-		return action;
+	public MoleculerServerError(String message, Throwable cause, String nodeID, String type, Object... data) {
+		super(message, cause, "MoleculerServerError", nodeID, 500, type, data);
 	}
 
-	public String getNodeID() {
-		return nodeID;
+	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
+
+	public MoleculerServerError(Tree payload) {
+		super(payload);
 	}
 
 }

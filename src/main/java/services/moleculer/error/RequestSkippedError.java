@@ -25,55 +25,42 @@
  */
 package services.moleculer.error;
 
-import static services.moleculer.util.CommonUtils.parseParams;
+import static services.moleculer.error.MoleculerErrorFactory.REQUEST_SKIPPED_ERROR;
 
 import io.datatree.Tree;
 
 /**
- * Custom Moleculer Exception class.
+ * 'Request skipped' error message.
  */
-public class MoleculerException extends Exception {
+public class RequestSkippedError extends MoleculerError {
 
 	// --- SERIAL VERSION UID ---
-	
-	private static final long serialVersionUID = 2592696425280724955L;
+
+	private static final long serialVersionUID = -2414416971181354549L;
 
 	// --- PROPERTIES ---
-	
-	protected final boolean retryable;
-	
-	protected final int code;
-	
-	protected final String type;
-	
-	protected final Tree data;
-	
-	// --- CONSTRUCTOR ---
-	
-	public MoleculerException(String message, Throwable cause, boolean retryable, int code, String type, Object... data) {
-		super(message, cause);
-		this.retryable = retryable;
-		this.code = code < 1 ? 500 : code;
-		this.type = type;
-		this.data = parseParams(data).data;
+
+	protected final String action;
+
+	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
+
+	public RequestSkippedError(String nodeID, String action) {
+		super("Calling '" + action + "' is skipped because timeout reached on '" + nodeID + "' node.", null,
+				REQUEST_SKIPPED_ERROR, nodeID, false, 514, "REQUEST_SKIPPED", "action", action);
+		this.action = action;
 	}
-	
+
+	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
+
+	public RequestSkippedError(Tree payload) {
+		super(payload);
+		this.action = payload.get("action", "unknown");
+	}
+
 	// --- PROPERTY GETTERS ---
 
-	public boolean isRetryable() {
-		return retryable;
+	public String getAction() {
+		return action;
 	}
 
-	public int getCode() {
-		return code;
-	}
-
-	public String getType() {
-		return type;
-	}
-
-	public Tree getData() {
-		return data;
-	}
-	
 }

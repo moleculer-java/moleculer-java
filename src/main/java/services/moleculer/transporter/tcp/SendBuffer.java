@@ -25,7 +25,6 @@
  */
 package services.moleculer.transporter.tcp;
 
-import java.io.EOFException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
@@ -35,6 +34,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import services.moleculer.error.InvalidPacketDataError;
 
 /**
  * Attachment of TcpWriter's SelectionKeys.
@@ -198,7 +199,7 @@ public class SendBuffer {
 
 				// EOF?
 				if (count == -1) {
-					throw new EOFException();
+					throw new InvalidPacketDataError(nodeID, "host", host, "port", port);
 				}
 
 				// Remove the submitted buffer from the queue

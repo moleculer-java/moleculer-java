@@ -25,19 +25,29 @@
  */
 package services.moleculer.error;
 
+import static services.moleculer.error.MoleculerErrorFactory.SERVICE_SCHEMA_ERROR;
+
+import io.datatree.Tree;
+
 /**
- * Invalid packet format.
+ * Custom Moleculer Exception class for Service schema exceptions.
  */
-public class InvalidPacketData extends MoleculerException {
+public class ServiceSchemaError extends MoleculerError {
 
 	// --- SERIAL VERSION UID ---
 	
-	private static final long serialVersionUID = -7471951410811522850L;
+	private static final long serialVersionUID = -1404051965811526872L;
 
-	// --- CONSTRUCTOR ---
-	
-	public InvalidPacketData(String type, Object... data) {
-		super("Invalid packet data.", null, false, 500, type, data);
+	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
+
+	public ServiceSchemaError(String message, String nodeID, Object... data) {
+		super(message, null, SERVICE_SCHEMA_ERROR, nodeID, false, 500, "SERVICE_SCHEMA_ERROR", data);
+	}
+
+	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
+
+	public ServiceSchemaError(Tree payload) {
+		super(payload);
 	}
 
 }

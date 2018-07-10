@@ -25,29 +25,36 @@
  */
 package services.moleculer.error;
 
+import static services.moleculer.error.MoleculerErrorFactory.QUEUE_IS_FULL_ERROR;
+
+import io.datatree.Tree;
+
 /**
- * 'Request rejected' error message. Retryable.
+ * 'Queue is full' error message. Retryable.
  */
-public class RequestRejected extends MoleculerRetryableException {
+public class QueueIsFullError extends MoleculerRetryableError {
 
 	// --- SERIAL VERSION UID ---
-	
-	private static final long serialVersionUID = 3748906535356266766L;
+
+	private static final long serialVersionUID = 75196412610693063L;
 
 	// --- PROPERTIES ---
 
 	protected final String action;
 
-	protected final String nodeID;
+	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
 
-	// --- CONSTRUCTOR ---
-
-	public RequestRejected(String action, String nodeID) {
-		super(nodeID == null ? "Request is rejected when call \"" + action + "\" action."
-				: "Request is rejected when call \"" + action + "\" action on \"" + nodeID + "\" node.", null,
-				503, null, "action", action, "nodeID", nodeID);
+	public QueueIsFullError(String nodeID, String action) {
+		super("Queue is full. Request '" + action + "' action on '" + nodeID + "' node is rejected.", null,
+				QUEUE_IS_FULL_ERROR, nodeID, 429, "QUEUE_FULL", "action", action);
 		this.action = action;
-		this.nodeID = nodeID;
+	}
+
+	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
+
+	public QueueIsFullError(Tree payload) {
+		super(payload);
+		this.action = payload.get("action", "unknown");
 	}
 
 	// --- PROPERTY GETTERS ---
@@ -56,8 +63,4 @@ public class RequestRejected extends MoleculerRetryableException {
 		return action;
 	}
 
-	public String getNodeID() {
-		return nodeID;
-	}
-	
 }

@@ -207,8 +207,6 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 		int s = status.getAndSet(STATUS_STOPPED);
 		if (s != STATUS_STOPPED) {
 			disconnect();
-		} else {
-			throw new IllegalStateException("Redis Cacher is already stopped!");
 		}
 	}
 

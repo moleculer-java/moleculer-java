@@ -448,7 +448,7 @@ public abstract class Transporter extends MoleculerComponent {
 				// It's our message
 				return;
 			}
-
+			
 			// Incoming response
 			if (channel.equals(responseChannel)) {
 				registry.receiveResponse(data);
