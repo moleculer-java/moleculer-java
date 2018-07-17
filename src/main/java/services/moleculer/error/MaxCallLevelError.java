@@ -45,7 +45,7 @@ public class MaxCallLevelError extends MoleculerError {
 	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
 
 	public MaxCallLevelError(String nodeID, int level) {
-		super("Request level is reached, the limit is \"" + level + "\" on \"" + nodeID + "\" node.", null,
+		super("Request level is reached, the limit is '" + level + "' on '" + nodeID + "' node.", null,
 				MAX_CALL_LEVEL_ERROR, nodeID, false, 500, "MAX_CALL_LEVEL", "level", level);
 		this.level = level;
 	}

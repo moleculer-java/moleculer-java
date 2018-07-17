@@ -25,6 +25,8 @@
  */
 package services.moleculer.error;
 
+import static services.moleculer.error.MoleculerErrorFactory.MOLECULER_RETRYABLE_ERROR;
+
 import io.datatree.Tree;
 
 /**
@@ -37,16 +39,36 @@ public class MoleculerRetryableError extends MoleculerError {
 	private static final long serialVersionUID = -5349522240146153760L;
 
 	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
-	
-	public MoleculerRetryableError(String message, Throwable cause, String name, String nodeID, 
-			int code, String type, Object... data) {
+
+	public MoleculerRetryableError(String message, String nodeID) {
+		this(message, nodeID, 500);
+	}
+
+	public MoleculerRetryableError(String message, String nodeID, int code) {
+		this(message, nodeID, code, null);
+	}
+
+	public MoleculerRetryableError(String message, String nodeID, int code, Tree data) {
+		this(message, nodeID, code, "RETRYABLE_ERROR", data);
+	}
+
+	public MoleculerRetryableError(String message, String nodeID, int code, String type, Tree data) {
+		this(message, null, nodeID, code, type, data);
+	}
+
+	public MoleculerRetryableError(String message, Throwable cause, String nodeID, int code, String type, Tree data) {
+		this(message, cause, MOLECULER_RETRYABLE_ERROR, nodeID, code, type, data);
+	}
+
+	public MoleculerRetryableError(String message, Throwable cause, String name, String nodeID, int code, String type,
+			Object... data) {
 		super(message, cause, name, nodeID, true, code, type, data);
 	}
 
 	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
-	
+
 	public MoleculerRetryableError(Tree payload) {
 		super(payload);
 	}
-	
+
 }

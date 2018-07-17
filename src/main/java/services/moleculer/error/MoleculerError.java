@@ -25,6 +25,7 @@
  */
 package services.moleculer.error;
 
+import static services.moleculer.error.MoleculerErrorFactory.MOLECULER_ERROR;
 import static services.moleculer.util.CommonUtils.parseParams;
 
 import java.io.PrintStream;
@@ -63,7 +64,28 @@ public class MoleculerError extends RuntimeException {
 
 	protected String stackTrace;
 
-	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
+	// --- CONSTRUCTORS FOR LOCAL EXCEPTIONS ---
+
+	public MoleculerError(String message, String nodeID, boolean retryable) {
+		this(message, nodeID, retryable, 500);
+	}
+
+	public MoleculerError(String message, String nodeID, boolean retryable, int code) {
+		this(message, nodeID, retryable, code, null);
+	}
+
+	public MoleculerError(String message, String nodeID, boolean retryable, int code, Tree data) {
+		this(message, null, nodeID, retryable, code, "MOLECULER_ERROR", data);
+	}
+
+	public MoleculerError(String message, String nodeID, boolean retryable, int code, String type, Tree data) {
+		this(message, null, nodeID, retryable, code, type, data);
+	}
+
+	public MoleculerError(String message, Throwable cause, String nodeID, boolean retryable, int code, String type,
+			Tree data) {
+		this(message, cause, MOLECULER_ERROR, nodeID, retryable, code, type, data);
+	}
 
 	public MoleculerError(String message, Throwable cause, String name, String nodeID, boolean retryable, int code,
 			String type, Object... data) {

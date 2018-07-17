@@ -60,11 +60,11 @@ public class MoleculerErrorFactory {
 
 	private static final HashMap<String, Class<? extends MoleculerError>> customErrors = new HashMap<>();
 
-	public static final void addCustomError(String name, Class<? extends MoleculerError> errorClass) {
+	public static final void registerCustomError(String name, Class<? extends MoleculerError> errorClass) {
 		customErrors.put(name, errorClass);
 	}
 
-	public static final void removeCustomError(String name) {
+	public static final void deregisterCustomError(String name) {
 		customErrors.remove(name);
 	}
 

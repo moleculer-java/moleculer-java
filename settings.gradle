@@ -1,1 +1,4 @@
+// include ':datatree-promise'
+// project(':datatree-promise').projectDir = new File(settingsDir, '../datatree-promise')
+
 rootProject.name = 'moleculer-java'

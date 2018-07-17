@@ -38,7 +38,11 @@ public class MoleculerServerError extends MoleculerRetryableError {
 
 	// --- CONSTRUCTORS FOR LOCAL EXCEPTIONS ---
 
-	public MoleculerServerError(String message, String nodeID, String type, Object... data) {
+	public MoleculerServerError(String message, String nodeID, String type) {
+		this(message, nodeID, type, null);
+	}
+
+	public MoleculerServerError(String message, String nodeID, String type, Tree data) {
 		this(message, null, nodeID, type, data);
 	}
 

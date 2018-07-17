@@ -326,7 +326,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 		int i = key.indexOf('.');
 		if (i == -1 && throwErrorIfMissing) {
 			throw new MoleculerServerError("Invalid cache key, a point is missing from the key (" + key + ")!",
-					broker.getNodeID(), "INVALID_CACHE_KEY", "key", key);
+					null, broker.getNodeID(), "INVALID_CACHE_KEY", "key", key);
 		}
 		return i;
 	}

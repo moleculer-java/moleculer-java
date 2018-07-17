@@ -25,6 +25,8 @@
  */
 package services.moleculer.error;
 
+import static services.moleculer.error.MoleculerErrorFactory.MOLECULER_CLIENT_ERROR;
+
 import io.datatree.Tree;
 
 /**
@@ -33,18 +35,30 @@ import io.datatree.Tree;
 public class MoleculerClientError extends MoleculerError {
 
 	// --- SERIAL VERSION UID ---
-	
+
 	private static final long serialVersionUID = -3748468322324813894L;
 
-	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
+	// --- CONSTRUCTORS FOR LOCAL EXCEPTIONS ---
+
+	public MoleculerClientError(String message, String nodeID) {
+		this(message, null, nodeID, null);
+	}
 	
-	public MoleculerClientError(String message, Throwable cause, String name, String nodeID, 
-			int code, String type, Object... data) {
+	public MoleculerClientError(String message, Throwable cause, String nodeID, Tree data) {
+		this(message, cause, nodeID, 400, "CLIENT_ERROR", data);
+	}
+	
+	public MoleculerClientError(String message, Throwable cause, String nodeID, int code, String type, Tree data) {
+		this(message, cause, MOLECULER_CLIENT_ERROR, nodeID, code, type, data);
+	}
+
+	public MoleculerClientError(String message, Throwable cause, String name, String nodeID, int code, String type,
+			Object... data) {
 		super(message, cause, name, nodeID, false, code, type, data);
 	}
 
 	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
-	
+
 	public MoleculerClientError(Tree payload) {
 		super(payload);
 	}
