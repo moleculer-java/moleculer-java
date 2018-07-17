@@ -27,10 +27,9 @@ package services.moleculer.context;
 
 import static services.moleculer.util.CommonUtils.parseParams;
 
-import java.util.concurrent.TimeoutException;
-
 import io.datatree.Promise;
 import io.datatree.Tree;
+import services.moleculer.error.RequestRejectedError;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.service.ServiceInvoker;
@@ -250,7 +249,7 @@ public class Context {
 			final long distTimeout = this.opts.timeout - duration;
 
 			if (distTimeout <= 0) {
-				return Promise.reject(new TimeoutException("Action invocation timeouted (" + name + ")!"));
+				return Promise.reject(new RequestRejectedError(serviceInvoker.getBroker().getNodeID(), name));
 			}
 
 			if (opts == null) {

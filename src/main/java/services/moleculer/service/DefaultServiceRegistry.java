@@ -1042,7 +1042,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Do we have a transporter?
 		if (transporter == null) {
-			return Promise.reject(new IllegalArgumentException("Unknown nodeID (" + nodeID + ")!"));
+			return Promise.reject(new ServiceNotAvailableError(nodeID, "ping"));
 		}
 
 		// Create new promise
