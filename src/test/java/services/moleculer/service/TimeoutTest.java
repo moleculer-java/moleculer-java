@@ -25,14 +25,13 @@
  */
 package services.moleculer.service;
 
-import java.util.concurrent.TimeoutException;
-
 import org.junit.Test;
 
 import io.datatree.Tree;
 import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallOptions;
+import services.moleculer.error.RequestRejectedError;
 import services.moleculer.monitor.ConstantMonitor;
 
 public class TimeoutTest extends TestCase {
@@ -129,7 +128,9 @@ public class TimeoutTest extends TestCase {
 			long sleep = ctx.params.get("sleep", 0L);		
 			Thread.sleep(sleep);
 			return ctx.call("level2Service.action", ctx.params).catchError(err -> {
-				if (err instanceof TimeoutException) {
+				if (err instanceof RequestRejectedError) {
+					
+					// Rejected
 					timeouted = true;
 				}
 			});				
