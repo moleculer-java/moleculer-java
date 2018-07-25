@@ -626,12 +626,10 @@ public abstract class Transporter extends MoleculerComponent {
 
 			}
 			Tree services = info.get("services");
-			if (services != null && services.size() > 0) {
+			if (services != null && !services.isEmpty()) {
 				for (Tree service : services) {
-
-					// Register actions and listeners
-					registry.addActions(service);
-					eventbus.addListeners(service);
+					registry.addActions(sender, service);
+					eventbus.addListeners(sender, service);
 				}
 			}
 		}

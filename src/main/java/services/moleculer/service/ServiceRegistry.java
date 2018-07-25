@@ -60,7 +60,7 @@ public abstract class ServiceRegistry extends MoleculerComponent {
 
 	// --- ADD ACTIONS OF A REMOTE SERVICE ---
 
-	public abstract void addActions(Tree config);
+	public abstract void addActions(String nodeID, Tree config);
 
 	// --- REMOVE ALL ACTIONS OF A NODE ---
 

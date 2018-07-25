@@ -50,7 +50,7 @@ public abstract class Eventbus extends MoleculerComponent {
 
 	// --- ADD LISTENERS OF A REMOTE SERVICE ---
 
-	public abstract void addListeners(Tree config);
+	public abstract void addListeners(String nodeID, Tree config);
 
 	// --- REMOVE ALL LISTENERS OF A NODE ---
 

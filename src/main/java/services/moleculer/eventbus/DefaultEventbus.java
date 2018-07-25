@@ -300,16 +300,10 @@ public class DefaultEventbus extends Eventbus {
 	// --- ADD REMOTE LISTENER ---
 
 	@Override
-	public void addListeners(Tree config) {
+	public void addListeners(String nodeID, Tree config) {
 		Tree events = config.get("events");
 		if (events != null && events.isMap()) {
 			String serviceName = Objects.requireNonNull(config.get("name", (String) null));
-			String nodeID;
-			if (config.getParent().isEnumeration()) {
-				nodeID = config.getRoot().get("sender", (String) null);
-			} else {
-				nodeID = config.getName();
-			}
 			writeLock.lock();
 			try {
 				for (Tree listenerConfig : events) {

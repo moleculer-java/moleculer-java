@@ -45,7 +45,8 @@ public class ServiceNotFoundError extends MoleculerRetryableError {
 	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
 
 	public ServiceNotFoundError(String nodeID, String action) {
-		super("Service '" + action + "' is not available on '" + nodeID + "' node.", null, SERVICE_NOT_FOUND_ERROR,
+		super(nodeID == null ? "Service '" + action + "' is not found."
+				: "Service '" + action + "' is not found on '" + nodeID + "' node.", null, SERVICE_NOT_FOUND_ERROR,
 				nodeID, 404, "SERVICE_NOT_FOUND", "action", action);
 		this.action = action;
 	}

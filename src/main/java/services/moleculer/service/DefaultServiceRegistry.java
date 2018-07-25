@@ -801,18 +801,12 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	// --- ADD A REMOTE SERVICE ---
 
 	@Override
-	public void addActions(Tree config) {
+	public void addActions(String nodeID, Tree config) {
 		Tree actions = config.get("actions");
 		String serviceName = config.get("name", "");
 		writeLock.lock();
 		try {
 			if (actions != null && actions.isMap()) {
-				String nodeID;
-				if (config.getParent().isEnumeration()) {
-					nodeID = config.getRoot().get("sender", (String) null);
-				} else {
-					nodeID = config.getName();
-				}
 				for (Tree actionConfig : actions) {
 					actionConfig.putObject("nodeID", nodeID, true);
 					String actionName = actionConfig.get("name", "");

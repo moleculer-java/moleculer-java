@@ -350,15 +350,13 @@ public final class RedisGetSetClient {
 		ArrayList<RedisURI> list = new ArrayList<>(urls.length);
 		for (String url : urls) {
 			url = url.trim();
-			
 			try {
 				list.add(RedisURI.create(url));
 				continue;
+			} catch (IllegalArgumentException e) {
+				
+				// Ignore, use old parsing below.
 			}
-			catch (IllegalArgumentException e) {
-				// ignore, use old parsing below.
-			}
-
 			if (url.startsWith("redis://")) {
 				url = url.substring(8);
 			}
