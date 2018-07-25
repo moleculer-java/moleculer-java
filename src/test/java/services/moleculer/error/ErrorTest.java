@@ -257,7 +257,7 @@ public class ErrorTest extends TestCase {
 
 		t = createServiceNotFoundError().toTree();
 		assertEquals("ServiceNotFoundError", t.get("name", "?"));
-		assertEquals("Service 'action1' is not available on 'node1' node.", t.get("message", "?"));
+		assertEquals("Service 'action1' is not found on 'node1' node.", t.get("message", "?"));
 		assertEquals("node1", t.get("nodeID", "?"));
 		assertEquals("404", t.get("code", "?"));
 		assertEquals("SERVICE_NOT_FOUND", t.get("type", "?"));
