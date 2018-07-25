@@ -422,7 +422,7 @@ public class CircuitBreakerTest extends TestCase {
 			LinkedHashMap<String, Object> action = new LinkedHashMap<>();
 			action.put("name", "test.test");
 			((Map) actions.asObject()).put("test.test", action);
-			sr.addActions("local", config);
+			sr.addActions("node" + i, config);
 		}
 	}
 

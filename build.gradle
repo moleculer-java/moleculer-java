@@ -235,7 +235,7 @@ modifyPom {
             dependency {
                 groupId 'com.github.berkesa'
                 artifactId 'datatree-promise'
-                version '1.0.3'
+                version '1.0.4'
                 scope 'runtime'
             }            
             dependency {
