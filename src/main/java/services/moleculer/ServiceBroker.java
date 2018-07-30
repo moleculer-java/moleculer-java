@@ -76,6 +76,7 @@ import services.moleculer.strategy.SecureRandomStrategyFactory;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.strategy.XorShiftRandomStrategyFactory;
+import services.moleculer.stream.PacketStream;
 import services.moleculer.transporter.AmqpTransporter;
 import services.moleculer.transporter.GoogleTransporter;
 import services.moleculer.transporter.JmsTransporter;
@@ -350,7 +351,8 @@ public class ServiceBroker {
 
 		// Check state
 		if (serviceRegistry != null) {
-			throw new MoleculerServerError("Moleculer Service Broker has already been started!", nodeID, "ALREADY_STARTED");
+			throw new MoleculerServerError("Moleculer Service Broker has already been started!", nodeID,
+					"ALREADY_STARTED");
 		}
 		try {
 
@@ -1042,6 +1044,69 @@ public class ServiceBroker {
 	 */
 	public Promise ping(long timeoutMillis, String nodeID) {
 		return serviceRegistry.ping(timeoutMillis, nodeID);
+	}
+
+	// --- STREAMING ---
+
+	/**
+	 * Creates a Stream for streaming large files or media content. Sample:<br>
+	 * 
+	 * <pre>
+	 * PacketStream stream = broker.createStream();
+	 * broker.call("sample.action", stream);
+	 * stream.write("hello".getBytes());
+	 * stream.close();
+	 * </pre>
+	 * 
+	 * Streaming a file:<br>
+	 * 
+	 * <pre>
+	 * PacketStream stream = broker.createStream();
+	 * broker.call("sample.action", stream);
+	 * stream.transferFrom(new File("/in.txt")).then(in -> {
+	 * 
+	 *   // Content submitted
+	 * 
+	 * });
+	 * </pre>
+	 * 
+	 * The receiver's code:<br>
+	 * 
+	 * <pre>
+	 * public class Sample extends Service {
+	 *   public Action action = ctx -> {
+	 *     PacketStream stream = (PacketStream) ctx.params.asObject();
+	 *     stream.transferTo(new File("/out.txt")).then(in -> {
+	 * 
+	 *       // Content received
+	 * 
+	 *     });
+	 *   };
+	 * }
+	 * </pre>
+	 * 
+	 * @return new PacketStream instance
+	 */
+	public PacketStream createStream() {
+		return new PacketStream(this);
+	}
+
+	/**
+	 * Creates a Stream for streaming large files or media content. Sample:<br>
+	 * 
+	 * <pre>
+	 * PacketStream stream = broker.createStream(Integer.MAX_VALUE);
+	 * broker.call("service.action", stream);
+	 * stream.write("packet1".getBytes());
+	 * stream.write("packet2".getBytes());
+	 * stream.write("packet3".getBytes());
+	 * stream.close();
+	 * </pre>
+	 * 
+	 * @return new PacketStream instance
+	 */
+	public PacketStream createStream(int capacity) {
+		return new PacketStream(this, capacity);
 	}
 
 	// --- START DEVELOPER CONSOLE ---

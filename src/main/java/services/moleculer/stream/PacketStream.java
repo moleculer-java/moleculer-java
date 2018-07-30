@@ -61,6 +61,7 @@ public class PacketStream {
 
 	// --- CONSTANTS ---
 
+	protected static final int DEFAULT_CAPACITY = 1024;
 	protected static final int DEFAULT_PACKET_SIZE = 1024 * 32;
 	protected static final int DEFAULT_PACKET_DELAY = 32;
 
@@ -92,6 +93,10 @@ public class PacketStream {
 
 	// --- CONSTRUCTORS ---
 
+	public PacketStream(ServiceBroker broker) {
+		this(broker, DEFAULT_CAPACITY);
+	}
+	
 	public PacketStream(ServiceBroker broker, int capacity) {
 		queue = new LinkedBlockingQueue<>(capacity);
 		scheduler = broker.getConfig().getScheduler();
