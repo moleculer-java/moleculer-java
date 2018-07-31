@@ -32,14 +32,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.HashSet;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -51,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import io.datatree.Promise;
 import services.moleculer.ServiceBroker;
+import services.moleculer.error.MoleculerClientError;
 import services.moleculer.error.QueueIsFullError;
 
 public class PacketStream {
@@ -79,6 +77,8 @@ public class PacketStream {
 
 	protected final AtomicBoolean paused = new AtomicBoolean();
 
+	protected final AtomicBoolean transfering = new AtomicBoolean();
+
 	// --- ACTION NAME ---
 
 	protected String action = "unknown";
@@ -87,23 +87,23 @@ public class PacketStream {
 
 	protected final HashSet<PacketListener> listeners = new HashSet<>();
 
-	// --- PIPE'S SCHEDULER ---
+	// --- COMPONENTS ---
 
-	protected ScheduledExecutorService scheduler;
+	protected final ScheduledExecutorService scheduler;
 
 	// --- CONSTRUCTORS ---
 
 	public PacketStream(ServiceBroker broker) {
 		this(broker, DEFAULT_CAPACITY);
 	}
-	
+
 	public PacketStream(ServiceBroker broker, int capacity) {
 		queue = new LinkedBlockingQueue<>(capacity);
 		scheduler = broker.getConfig().getScheduler();
 		nodeID = broker.getNodeID();
 	}
 
-	// --- SEND ---
+	// --- BUFFERING + SEND BYTES TO LISTENERS ---
 
 	public void write(byte[] bytes) {
 		write(bytes, 0, bytes.length);
@@ -158,7 +158,7 @@ public class PacketStream {
 
 	protected void ensureOpen() {
 		if (closed.get()) {
-			throw new IllegalStateException("Queue is closed.");
+			throw new MoleculerClientError("Stream is closed.", nodeID);
 		}
 	}
 
@@ -205,38 +205,40 @@ public class PacketStream {
 		return new BufferedOutputStream(out, packetSize);
 	}
 
-	// --- ACT AS INPUT STREAM ---
+	// --- ACT AS WRITABLE BYTE CHANNEL ---
 
-	public InputStream asInputStream() throws IOException {
-		return asInputStream(DEFAULT_PACKET_SIZE);
-	}
-	
-	public InputStream asInputStream(int packetSize) throws IOException {
-		PipedInputStream in = new PipedInputStream(packetSize);
-		PipedOutputStream out = new PipedOutputStream(in);
-		addPacketListener(new PacketListener() {
-			
+	public WritableByteChannel asWritableByteChannel() {
+		final PacketStream self = this;
+		return new WritableByteChannel() {
+
 			@Override
-			public void onError(Throwable cause) throws Exception {
-				out.close();
-				// TODO log exception
+			public boolean isOpen() {
+				return self.isOpen();
 			}
-			
+
 			@Override
-			public void onData(byte[] bytes) throws Exception {
-				out.write(bytes);
+			public void close() throws IOException {
+				self.close();
 			}
-			
+
 			@Override
-			public void onClose() throws Exception {
-				out.close();
+			public int write(ByteBuffer src) throws IOException {
+				if (src.hasArray()) {
+					byte[] bytes = src.array();
+					self.write(bytes);
+					return bytes.length;
+				}
+				int len = src.remaining();
+				byte[] bytes = new byte[len];
+				src.get(bytes, 0, len);
+				self.write(bytes);
+				return len;
 			}
-			
-		});
-		return in;
+
+		};
 	}
 
-	// --- ADD / REMOVE LISTENERS ---
+	// --- ADD / REMOVE BYTE PACKET LISTENERS ---
 
 	public boolean addPacketListener(PacketListener listener) {
 		if (listeners.add(listener)) {
@@ -265,48 +267,59 @@ public class PacketStream {
 		}
 
 		// Transfer data
-		byte[] packet;
-		while ((packet = queue.poll()) != null) {
-			byte[] bytes = (byte[]) packet;
-			if (bytes == CLOSE_MARKER) {
-				for (PacketListener listener : listeners) {
-					try {
-						listener.onClose();
-					} catch (Throwable cause) {
-						// TODO: log exception
+		if (transfering.compareAndSet(false, true)) {
+			try {
+				byte[] packet;
+				while ((packet = queue.poll()) != null) {
+					byte[] bytes = (byte[]) packet;
+					if (bytes == CLOSE_MARKER) {
+						for (PacketListener listener : listeners) {
+							try {
+								listener.onClose();
+							} catch (Throwable cause) {
+								logger.error(
+										"Unexpected error occured while invoking the PacketListener's \"onClose\" method!",
+										cause);
+							}
+						}
+						listeners.clear();
+						break;
+					}
+					for (PacketListener listener : listeners) {
+						try {
+							listener.onData(packet);
+						} catch (Throwable cause) {
+							logger.error(
+									"Unexpected error occured while invoking the PacketListener's \"onData\" method!",
+									cause);
+						}
+					}
+					if (paused.get()) {
+						break;
 					}
 				}
-				listeners.clear();
-				break;
-			}
-			for (PacketListener listener : listeners) {
-				try {
-					listener.onData(packet);
-				} catch (Throwable cause) {
-					// TODO: log exception
-				}
-			}
-			if (paused.get()) {
-				break;
-			}
-		}
 
-		// Transfer error
-		Throwable transferableError = error.get();
-		if (transferableError != null) {
-			for (PacketListener listener : listeners) {
-				try {
-					listener.onError(transferableError);
-				} catch (Throwable cause) {
-					// TODO: log exception
+				// Transfer error
+				Throwable transferableError = error.get();
+				if (transferableError != null) {
+					for (PacketListener listener : listeners) {
+						try {
+							listener.onError(transferableError);
+						} catch (Throwable cause) {
+							logger.error(
+									"Unexpected error occured while invoking the PacketListener's \"onError\" method!",
+									cause);
+						}
+					}
+					listeners.clear();
 				}
+			} finally {
+				transfering.set(false);
 			}
-			listeners.clear();
-			return;
 		}
 	}
 
-	// --- PAUSE / RESUME ---
+	// --- PAUSE / RESUME FUNCTIONS ---
 
 	/**
 	 * The pause() method will cause a stream in flowing mode to stop emitting
@@ -358,32 +371,21 @@ public class PacketStream {
 	public Promise transferFrom(ReadableByteChannel in, int packetSize, long packetDelay, boolean closeStreams) {
 		Promise promise = new Promise();
 		ByteBuffer packet = ByteBuffer.allocate(packetSize < 1 ? DEFAULT_PACKET_SIZE : packetSize);
-
-		// Use the shared executor or create a temporary one
-		boolean stopScheduler = false;
-		ScheduledExecutorService taskScheduler = scheduler;
-		if (taskScheduler == null) {
-			taskScheduler = Executors.newSingleThreadScheduledExecutor();
-			stopScheduler = true;
-		}
 		OutputStream out = asOutputStream(packetSize);
 
 		// Write from scheduled tasks
-		scheduledChannelWrite(taskScheduler, promise, in, out, packet, packetDelay < 0 ? 0 : packetDelay, stopScheduler,
-				closeStreams);
+		scheduledChannelWrite(promise, in, out, packet, packetDelay < 0 ? 0 : packetDelay, closeStreams);
 		return promise;
 	}
 
-	protected void scheduledChannelWrite(ScheduledExecutorService taskScheduler, Promise promise,
-			ReadableByteChannel in, OutputStream out, ByteBuffer packet, long packetDelay, boolean stopScheduler,
-			boolean closeStreams) {
+	protected void scheduledChannelWrite(Promise promise, ReadableByteChannel in, OutputStream out, ByteBuffer packet,
+			long packetDelay, boolean closeStreams) {
 		try {
 			if (directChannelWrite(in, out, packet)) {
 
 				// Has more bytes
-				taskScheduler.schedule(() -> {
-					scheduledChannelWrite(taskScheduler, promise, in, out, packet, packetDelay, stopScheduler,
-							closeStreams);
+				scheduler.schedule(() -> {
+					scheduledChannelWrite(promise, in, out, packet, packetDelay, closeStreams);
 				}, packetDelay, TimeUnit.MILLISECONDS);
 
 			} else {
@@ -399,9 +401,6 @@ public class PacketStream {
 					} catch (Exception ignored) {
 					}
 				}
-				if (stopScheduler) {
-					taskScheduler.shutdown();
-				}
 				promise.complete();
 			}
 		} catch (Throwable cause) {
@@ -410,9 +409,6 @@ public class PacketStream {
 			} catch (Exception ignored) {
 			}
 			error(cause);
-			if (stopScheduler) {
-				taskScheduler.shutdown();
-			}
 			promise.complete(cause);
 		}
 	}
@@ -448,31 +444,21 @@ public class PacketStream {
 	public Promise transferFrom(InputStream in, int packetSize, long packetDelay, boolean closeStreams) {
 		Promise promise = new Promise();
 		byte[] packet = new byte[packetSize < 1 ? DEFAULT_PACKET_SIZE : packetSize];
-
-		// Use the shared executor or create a temporary one
-		boolean stopScheduler = false;
-		ScheduledExecutorService taskScheduler = scheduler;
-		if (taskScheduler == null) {
-			taskScheduler = Executors.newSingleThreadScheduledExecutor();
-			stopScheduler = true;
-		}
 		OutputStream out = asOutputStream(packetSize);
 
 		// Write from scheduled tasks
-		scheduledStreamWrite(taskScheduler, promise, in, out, packet, packetDelay < 0 ? 0 : packetDelay, stopScheduler,
-				closeStreams);
+		scheduledStreamWrite(promise, in, out, packet, packetDelay < 0 ? 0 : packetDelay, closeStreams);
 		return promise;
 	}
 
-	protected void scheduledStreamWrite(ScheduledExecutorService taskScheduler, Promise promise, InputStream in,
-			OutputStream out, byte[] packet, long packetDelay, boolean stopScheduler, boolean closeStreams) {
+	protected void scheduledStreamWrite(Promise promise, InputStream in, OutputStream out, byte[] packet,
+			long packetDelay, boolean closeStreams) {
 		try {
 			if (directStreamWrite(in, out, packet)) {
 
 				// Has more bytes
-				taskScheduler.schedule(() -> {
-					scheduledStreamWrite(taskScheduler, promise, in, out, packet, packetDelay, stopScheduler,
-							closeStreams);
+				scheduler.schedule(() -> {
+					scheduledStreamWrite(promise, in, out, packet, packetDelay, closeStreams);
 				}, packetDelay, TimeUnit.MILLISECONDS);
 
 			} else {
@@ -488,9 +474,6 @@ public class PacketStream {
 					} catch (Exception ignored) {
 					}
 				}
-				if (stopScheduler) {
-					taskScheduler.shutdown();
-				}
 				promise.complete();
 			}
 		} catch (Throwable cause) {
@@ -499,9 +482,6 @@ public class PacketStream {
 			} catch (Exception ignored) {
 			}
 			error(cause);
-			if (stopScheduler) {
-				taskScheduler.shutdown();
-			}
 			promise.complete(cause);
 		}
 	}
@@ -656,24 +636,20 @@ public class PacketStream {
 		return closed.get();
 	}
 
+	public boolean isOpen() {
+		return !closed.get();
+	}
+
 	public boolean isRejected() {
 		return error.get() != null;
 	}
 
-	public boolean isCompleted() {
-		return isClosed() && !isRejected();
+	public boolean isResolved() {
+		return closed.get() && error.get() == null;
 	}
 
 	public int size() {
 		return queue.size();
-	}
-
-	public ScheduledExecutorService getScheduler() {
-		return scheduler;
-	}
-
-	public void setScheduler(ScheduledExecutorService scheduler) {
-		this.scheduler = scheduler;
 	}
 
 }
