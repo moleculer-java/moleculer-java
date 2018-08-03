@@ -25,6 +25,7 @@
  */
 package services.moleculer;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
 import services.moleculer.cacher.Cache;
 import services.moleculer.eventbus.Listener;
@@ -32,6 +33,8 @@ import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
+import services.moleculer.stream.PacketListener;
+import services.moleculer.stream.PacketStream;
 
 public class Sample {
 
@@ -42,10 +45,11 @@ public class Sample {
 			// Create Message Broker
 			ServiceBroker broker = ServiceBroker.builder().build();
 
-			// Deploy servie
-			MathService math = new MathService();
-			broker.createService(math);
-			
+			// Deploy services
+			broker.createService(new MathService());
+			broker.createService(new SenderService());
+			broker.createService(new ReceiverService());
+
 			// Start Message Broker
 			broker.start();
 
@@ -56,15 +60,18 @@ public class Sample {
 
 			// Local or remote method call
 			broker.call("math.add", in).then(rsp -> {
-				
+
 				// Response
 				broker.getLogger().info("Response: " + rsp.asInteger());
-				
+
 			});
 
 			// Broadcast event
 			broker.broadcast("foo.xyz", "a", 3, "b", 5);
 
+			// Invoke sender service
+			broker.call("sender.send");
+			
 			// Stop Message Broker
 			broker.stop();
 
@@ -73,6 +80,102 @@ public class Sample {
 		}
 		System.out.println("STOP");
 	}
+
+	@Name("sender")
+	public static class SenderService extends Service {
+
+		public Action send = ctx -> {
+			PacketStream output = null;
+			Promise promise = null;
+			
+			// Send request (as stream)
+			try {
+
+				// Create stream
+				output = broker.createStream();
+
+				// Open stream
+				promise = ctx.call("receiver.receive", output);
+
+				// Push bytes into the output stream's queue
+				output.write("hello".getBytes());
+				
+			} finally {
+
+				// Close stream
+				if (output != null) {
+					output.close();
+				}
+			}
+			
+			// Receive response stream
+			promise.then(in -> {
+				
+				PacketStream input = (PacketStream) in.asObject();
+				input.addPacketListener(new PacketListener() {
+					
+					@Override
+					public void onData(byte[] bytes) throws Exception {
+						System.out.println("RESPONSE DATA: " + new String(bytes));
+					}
+					
+					@Override
+					public void onError(Throwable cause) throws Exception {
+						System.out.println("RESPONSE ERROR: " + cause);
+					}
+										
+					@Override
+					public void onClose() throws Exception {
+						System.out.println("RESPONSE CLOSED.");
+					}
+					
+				});
+				
+			}).catchError(err -> {
+				
+				// Catch error
+				logger.error("Unable to receive response!", err);
+				
+			});
+			
+			return null;
+		};
+
+	};
+
+	@Name("receiver")
+	public static class ReceiverService extends Service {
+
+		public Action receive = ctx -> {
+			
+			PacketStream input = (PacketStream) ctx.params.asObject();
+			PacketStream output = broker.createStream();
+			input.addPacketListener(new PacketListener() {
+				
+				@Override
+				public void onError(Throwable cause) throws Exception {
+					System.out.println("REQUEST ERROR: " + cause);
+					output.error(cause);
+				}
+				
+				@Override
+				public void onData(byte[] bytes) throws Exception {
+					System.out.println("REQUEST BYTES: " + new String(bytes));
+					output.write(bytes);
+				}
+				
+				@Override
+				public void onClose() throws Exception {
+					System.out.println("REQUEST CLOSED.");
+					output.close();
+				}
+				
+			});
+			return output;
+			
+		};
+
+	};
 
 	@Name("math")
 	public static class MathService extends Service {

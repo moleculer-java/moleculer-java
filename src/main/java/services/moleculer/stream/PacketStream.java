@@ -208,6 +208,11 @@ public class PacketStream {
 	// --- ACT AS WRITABLE BYTE CHANNEL ---
 
 	public WritableByteChannel asWritableByteChannel() {
+		return asWritableByteChannel(DEFAULT_PACKET_SIZE);
+	}
+	
+	public WritableByteChannel asWritableByteChannel(int packetSize) {
+		final OutputStream out = asOutputStream(packetSize);
 		final PacketStream self = this;
 		return new WritableByteChannel() {
 
@@ -218,20 +223,20 @@ public class PacketStream {
 
 			@Override
 			public void close() throws IOException {
-				self.close();
+				out.close();
 			}
 
 			@Override
 			public int write(ByteBuffer src) throws IOException {
 				if (src.hasArray()) {
 					byte[] bytes = src.array();
-					self.write(bytes);
+					out.write(bytes);
 					return bytes.length;
 				}
 				int len = src.remaining();
 				byte[] bytes = new byte[len];
 				src.get(bytes, 0, len);
-				self.write(bytes);
+				out.write(bytes, 0, len);
 				return len;
 			}
 
