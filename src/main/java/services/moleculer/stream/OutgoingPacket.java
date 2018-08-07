@@ -25,12 +25,12 @@
  */
 package services.moleculer.stream;
 
-public interface PacketListener {
+public interface OutgoingPacket {
 
-	public void onData(byte[] bytes) throws Exception;
+	public void sendData(byte[] bytes);
 	
-	public void onError(Throwable cause) throws Exception;
+	public void sendError(Throwable cause);
 	
-	public void onClose() throws Exception;
+	public void sendClose();
 	
 }

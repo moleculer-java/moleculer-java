@@ -25,7 +25,8 @@
  */
 package services.moleculer;
 
-import io.datatree.Promise;
+import java.io.File;
+
 import io.datatree.Tree;
 import services.moleculer.cacher.Cache;
 import services.moleculer.eventbus.Listener;
@@ -33,7 +34,6 @@ import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
-import services.moleculer.stream.PacketListener;
 import services.moleculer.stream.PacketStream;
 
 public class Sample {
@@ -84,60 +84,7 @@ public class Sample {
 	@Name("sender")
 	public static class SenderService extends Service {
 
-		public Action send = ctx -> {
-			PacketStream output = null;
-			Promise promise = null;
-			
-			// Send request (as stream)
-			try {
-
-				// Create stream
-				output = broker.createStream();
-
-				// Open stream
-				promise = ctx.call("receiver.receive", output);
-
-				// Push bytes into the output stream's queue
-				output.write("hello".getBytes());
-				
-			} finally {
-
-				// Close stream
-				if (output != null) {
-					output.close();
-				}
-			}
-			
-			// Receive response stream
-			promise.then(in -> {
-				
-				PacketStream input = (PacketStream) in.asObject();
-				input.addPacketListener(new PacketListener() {
-					
-					@Override
-					public void onData(byte[] bytes) throws Exception {
-						System.out.println("RESPONSE DATA: " + new String(bytes));
-					}
-					
-					@Override
-					public void onError(Throwable cause) throws Exception {
-						System.out.println("RESPONSE ERROR: " + cause);
-					}
-										
-					@Override
-					public void onClose() throws Exception {
-						System.out.println("RESPONSE CLOSED.");
-					}
-					
-				});
-				
-			}).catchError(err -> {
-				
-				// Catch error
-				logger.error("Unable to receive response!", err);
-				
-			});
-			
+		public Action send = ctx -> {	
 			return null;
 		};
 
@@ -147,32 +94,34 @@ public class Sample {
 	public static class ReceiverService extends Service {
 
 		public Action receive = ctx -> {
-			
+			PacketStream output = new PacketStream();
+
+			File file = new File("/temp/test.txt");
 			PacketStream input = (PacketStream) ctx.params.asObject();
-			PacketStream output = broker.createStream();
-			input.addPacketListener(new PacketListener() {
+			input.transferTo(file).then(received -> {
 				
-				@Override
-				public void onError(Throwable cause) throws Exception {
-					System.out.println("REQUEST ERROR: " + cause);
-					output.error(cause);
-				}
+				long receivedBytes = received.asLong();
+				System.out.println("Received bytes: " + receivedBytes);
 				
-				@Override
-				public void onData(byte[] bytes) throws Exception {
-					System.out.println("REQUEST BYTES: " + new String(bytes));
-					output.write(bytes);
-				}
+				output.transferFrom(file).then(submitted -> {
 				
-				@Override
-				public void onClose() throws Exception {
-					System.out.println("REQUEST CLOSED.");
-					output.close();
-				}
+					long submittedBytes = submitted.asLong();
+					System.out.println("Submitted bytes: " + submittedBytes);
+					
+				}).catchError(err -> {
+					
+					System.out.println("Unable to submit: " + err);
+					
+				});;
+				
+			}).catchError(err -> {
+				
+				System.out.println("Unable to receive: " + err);
 				
 			});
-			return output;
 			
+			
+			return output;
 		};
 
 	};
