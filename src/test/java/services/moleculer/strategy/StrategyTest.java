@@ -119,8 +119,8 @@ public abstract class StrategyTest extends TestCase {
 		Tree cfg = new Tree();
 		cfg.put("name", name);
 		DefaultServiceRegistry registry = (DefaultServiceRegistry) broker.getConfig().getServiceRegistry();
-		LocalActionEndpoint e = new LocalActionEndpoint(registry, broker.getConfig().getExecutor(), nodeID, cfg,
-				new Action() {
+		LocalActionEndpoint e = new LocalActionEndpoint(registry, broker.getConfig().getExecutor(), null, 0, nodeID,
+				cfg, new Action() {
 
 					@Override
 					public Object handler(Context ctx) throws Exception {

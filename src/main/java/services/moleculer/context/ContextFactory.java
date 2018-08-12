@@ -28,6 +28,7 @@ package services.moleculer.context;
 import io.datatree.Tree;
 import services.moleculer.service.MoleculerComponent;
 import services.moleculer.service.Name;
+import services.moleculer.stream.PacketStream;
 
 /**
  * Base superclass of all Context Factory implementations.
@@ -39,8 +40,8 @@ public abstract class ContextFactory extends MoleculerComponent {
 
 	// --- CREATE CONTEXT ---
 
-	public abstract Context create(String name, Tree params, CallOptions.Options opts, Context parent);
+	public abstract Context create(String name, Tree params, CallOptions.Options opts, PacketStream stream, Context parent);
 
-	public abstract Context create(String name, Tree params, CallOptions.Options opts, String id, int level, String requestID, String parentID);
+	public abstract Context create(String name, Tree params, CallOptions.Options opts, PacketStream stream, String id, int level, String requestID, String parentID);
 	
 }

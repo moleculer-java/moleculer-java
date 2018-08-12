@@ -26,16 +26,18 @@
 package services.moleculer.service;
 
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
+import services.moleculer.stream.PacketStream;
 
 public class LocalActionEndpoint extends ActionEndpoint {
 
 	// --- CONSTRUCTOR ---
 
-	public LocalActionEndpoint(DefaultServiceRegistry registry, ExecutorService executor, String nodeID, Tree config,
-			Action action) {
+	public LocalActionEndpoint(DefaultServiceRegistry registry, ExecutorService executor,
+			ScheduledExecutorService scheduler, long delay, String nodeID, Tree config, Action action) {
 		super(nodeID, config);
 
 		// Handle local timeout with a handler
@@ -56,7 +58,20 @@ public class LocalActionEndpoint extends ActionEndpoint {
 
 					// Invoke async method
 					try {
-						Promise.resolve(action.handler(ctx)).then(in -> {
+						Object rsp = action.handler(ctx);
+
+						// Data transfer (caller -> service)
+						if (ctx.stream != null) {
+							ctx.stream.transfer(scheduler, delay);
+						}
+
+						// Data transfer (service -> caller)
+						if (rsp != null && rsp instanceof PacketStream) {
+							((PacketStream) rsp).transfer(scheduler, delay);
+						}
+
+						// Deregister
+						Promise.resolve(rsp).then(in -> {
 							if (promise.complete(in)) {
 								registry.deregister(ctx.id);
 							}
@@ -78,8 +93,20 @@ public class LocalActionEndpoint extends ActionEndpoint {
 			} else {
 
 				// Invoke handler without timeout handling
-				return action.handler(ctx);
+				Object rsp = action.handler(ctx);
 
+				// Data transfer (caller -> service)
+				if (ctx.stream != null) {
+					ctx.stream.transfer(scheduler, delay);
+				}
+
+				// Data transfer (service -> caller)
+				if (rsp != null && rsp instanceof PacketStream) {
+					((PacketStream) rsp).transfer(scheduler, delay);
+				}
+
+				// Return response
+				return rsp;
 			}
 		};
 	}

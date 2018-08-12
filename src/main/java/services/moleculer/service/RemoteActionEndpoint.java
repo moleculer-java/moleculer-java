@@ -54,8 +54,16 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 			registry.register(ctx.id, promise, timeoutAt);
 
 			// Send request via transporter
-			Tree message = transporter.createRequestPacket(ctx);
-			transporter.publish(Transporter.PACKET_REQUEST, nodeID, message);
+			if (ctx.stream == null) {
+				
+				// Simple request
+				Tree message = transporter.createRequestPacket(ctx);
+				transporter.publish(Transporter.PACKET_REQUEST, nodeID, message);
+			} else {
+				
+				// Streamed request
+				ctx.stream.pipe(transporter.createPacketReceiver(ctx));
+			}
 
 			// Return promise
 			return promise;

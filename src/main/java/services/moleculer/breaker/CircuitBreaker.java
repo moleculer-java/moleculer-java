@@ -43,6 +43,7 @@ import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.Name;
 import services.moleculer.service.ServiceInvoker;
 import services.moleculer.service.ServiceRegistry;
+import services.moleculer.stream.PacketStream;
 
 /**
  * Special service invoker with retry logic + circuit breaker.
@@ -82,12 +83,12 @@ public class CircuitBreaker extends ServiceInvoker {
 	 * Half-open timeout in MILLISECONDS
 	 */
 	protected long lockTimeout = 10 * 1000L;
-	
+
 	/**
 	 * Write exceptions into the log file
 	 */
 	protected boolean writeErrorsToLog = true;
-	
+
 	// --- COMPONENTS ---
 
 	protected ServiceRegistry serviceRegistry;
@@ -124,7 +125,7 @@ public class CircuitBreaker extends ServiceInvoker {
 	// --- CALL SERVICE ---
 
 	@Override
-	public Promise call(String name, Tree params, Options opts, Context parent) {
+	public Promise call(String name, Tree params, Options opts, PacketStream stream, Context parent) {
 		String targetID;
 		int remaining;
 		if (opts == null) {
@@ -134,10 +135,11 @@ public class CircuitBreaker extends ServiceInvoker {
 			targetID = opts.nodeID;
 			remaining = opts.retryCount;
 		}
-		return call(name, params, opts, parent, targetID, remaining);
+		return call(name, params, opts, stream, parent, targetID, remaining);
 	}
 
-	protected Promise call(String name, Tree params, Options opts, Context parent, String targetID, int remaining) {
+	protected Promise call(String name, Tree params, Options opts, PacketStream stream, Context parent, String targetID,
+			int remaining) {
 		EndpointKey endpointKey = null;
 		ErrorCounter errorCounter = null;
 		try {
@@ -184,7 +186,7 @@ public class CircuitBreaker extends ServiceInvoker {
 			}
 
 			// Create new Context
-			Context ctx = contextFactory.create(name, params, opts, parent);
+			Context ctx = contextFactory.create(name, params, opts, stream, parent);
 
 			// Invoke Endpoint
 			final ErrorCounter currentCounter = errorCounter;
@@ -205,7 +207,7 @@ public class CircuitBreaker extends ServiceInvoker {
 				if (writeErrorsToLog) {
 					logger.error("Unexpected error occurred while invoking \"" + name + "\" action!", cause);
 				}
-				
+
 				// Increment error counter
 				increment(currentCounter, currentKey, cause, System.currentTimeMillis());
 
@@ -215,7 +217,7 @@ public class CircuitBreaker extends ServiceInvoker {
 				}
 
 				// Retry
-				return retry(cause, name, params, opts, parent, targetID, remaining);
+				return retry(cause, name, params, opts, stream, parent, targetID, remaining);
 			});
 
 		} catch (Throwable cause) {
@@ -234,17 +236,17 @@ public class CircuitBreaker extends ServiceInvoker {
 			}
 
 			// Retry
-			return retry(cause, name, params, opts, parent, targetID, remaining);
+			return retry(cause, name, params, opts, stream, parent, targetID, remaining);
 		}
 	}
 
 	// --- RETRY CALL ---
 
-	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, Context parent,
-			String targetID, int remaining) {
+	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, PacketStream stream,
+			Context parent, String targetID, int remaining) {
 		int newRemaining = remaining - 1;
 		logger.warn("Retrying request (" + newRemaining + " attempts left)...", cause);
-		return call(name, params, opts, parent, targetID, newRemaining);
+		return call(name, params, opts, stream, parent, targetID, newRemaining);
 	}
 
 	protected void increment(ErrorCounter errorCounter, EndpointKey endpointKey, Throwable cause, long now) {
@@ -335,7 +337,7 @@ public class CircuitBreaker extends ServiceInvoker {
 	public void setMaxErrors(int maxErrors) {
 		this.maxErrors = maxErrors;
 	}
-	
+
 	public boolean isWriteErrorsToLog() {
 		return writeErrorsToLog;
 	}
@@ -343,5 +345,5 @@ public class CircuitBreaker extends ServiceInvoker {
 	public void setWriteErrorsToLog(boolean writeErrorsToLog) {
 		this.writeErrorsToLog = writeErrorsToLog;
 	}
-	
+
 }

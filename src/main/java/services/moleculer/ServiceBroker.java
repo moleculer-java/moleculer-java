@@ -709,7 +709,7 @@ public class ServiceBroker {
 	 */
 	public Promise call(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		return serviceInvoker.call(name, res.data, res.opts, null);
+		return serviceInvoker.call(name, res.data, res.opts, res.stream, null);
 	}
 
 	/**
@@ -728,7 +728,7 @@ public class ServiceBroker {
 	 * @return response Promise
 	 */
 	public Promise call(String name, Tree params) {
-		return serviceInvoker.call(name, params, null, null);
+		return serviceInvoker.call(name, params, null, null, null);
 	}
 
 	/**
@@ -751,7 +751,7 @@ public class ServiceBroker {
 	 * @return response Promise
 	 */
 	public Promise call(String name, Tree params, CallOptions.Options opts) {
-		return serviceInvoker.call(name, params, opts, null);
+		return serviceInvoker.call(name, params, opts, null, null);
 	}
 
 	// --- EMIT EVENT TO EVENT GROUP ---

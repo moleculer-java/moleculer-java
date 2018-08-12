@@ -34,6 +34,8 @@ import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
+import services.moleculer.stream.NonBlockingQueue;
+import services.moleculer.stream.PacketReceiver;
 import services.moleculer.stream.PacketStream;
 
 public class Sample {
@@ -72,6 +74,8 @@ public class Sample {
 			// Invoke sender service
 			broker.call("sender.send");
 			
+			Thread.sleep(100000);
+			
 			// Stop Message Broker
 			broker.stop();
 
@@ -85,6 +89,36 @@ public class Sample {
 	public static class SenderService extends Service {
 
 		public Action send = ctx -> {	
+			
+			System.out.println("SENDER - called");
+			
+			File file1 = new File("/temp/test1.txt");
+			PacketStream output = new PacketStream(file1);
+			
+			output.pipe().then(submitted -> {
+				
+				long submittedBytes = submitted.asLong();
+				System.out.println("SENDER - submitted bytes: " + submittedBytes);
+				
+			}).catchError(err -> {
+				
+				System.out.println("SENDER - unable to submit: " + err);
+				
+			});
+			
+			ctx.call("receiver.receive", output).then(rsp -> {
+				
+				PacketStream input = (PacketStream) rsp.asObject();
+				File file2 = new File("/temp/test2.txt");
+				input.pipe(file2).then(received -> {
+				
+					long receivedBytes = received.asLong();
+					System.out.println("SENDER - received bytes: " + receivedBytes);
+					
+				});
+				
+			});
+			
 			return null;
 		};
 
@@ -94,32 +128,33 @@ public class Sample {
 	public static class ReceiverService extends Service {
 
 		public Action receive = ctx -> {
-			PacketStream output = new PacketStream();
+			
+			System.out.println("RECEIVER - called");
+			
+			NonBlockingQueue queue = new NonBlockingQueue();
+			PacketStream output = new PacketStream(queue);
 
-			File file = new File("/temp/test.txt");
-			PacketStream input = (PacketStream) ctx.params.asObject();
-			input.transferTo(file).then(received -> {
+			ctx.stream.pipe(new PacketReceiver() {
 				
-				long receivedBytes = received.asLong();
-				System.out.println("Received bytes: " + receivedBytes);
-				
-				output.transferFrom(file).then(submitted -> {
-				
-					long submittedBytes = submitted.asLong();
-					System.out.println("Submitted bytes: " + submittedBytes);
-					
-				}).catchError(err -> {
-					
-					System.out.println("Unable to submit: " + err);
-					
-				});;
-				
-			}).catchError(err -> {
-				
-				System.out.println("Unable to receive: " + err);
+				@Override
+				public void onData(byte[] bytes) throws Exception {
+					System.out.println("RECEIVER - Sending back " + bytes.length + " bytes...");
+					queue.sendData(bytes);
+				}
+
+				@Override
+				public void onError(Throwable cause) throws Exception {
+					System.out.println("RECEIVER - Sending back: error (" + cause + ")");
+					queue.sendError(cause);
+				}
+								
+				@Override
+				public void onClose() throws Exception {
+					System.out.println("RECEIVER - Sending back: close");
+					queue.sendClose();
+				}
 				
 			});
-			
 			
 			return output;
 		};

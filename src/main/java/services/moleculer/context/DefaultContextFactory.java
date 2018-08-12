@@ -32,6 +32,7 @@ import services.moleculer.error.MaxCallLevelError;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.service.Name;
 import services.moleculer.service.ServiceInvoker;
+import services.moleculer.stream.PacketStream;
 import services.moleculer.uid.UidGenerator;
 
 /**
@@ -75,14 +76,14 @@ public class DefaultContextFactory extends ContextFactory {
 	// --- CREATE CONTEXT ---
 
 	@Override
-	public Context create(String name, Tree params, CallOptions.Options opts, Context parent) {
+	public Context create(String name, Tree params, CallOptions.Options opts, PacketStream stream, Context parent) {
 
 		// Generate ID
 		String id = uid.nextUID();
 
 		// Create new Context
 		if (parent == null) {
-			return new Context(serviceInvoker, eventbus, id, name, params, opts);
+			return new Context(serviceInvoker, eventbus, id, name, params, opts, stream);
 		}
 
 		// Merge meta block
@@ -102,12 +103,12 @@ public class DefaultContextFactory extends ContextFactory {
 		}
 
 		// Create context (nested call)
-		return new Context(id, name, params, opts, parent);
+		return new Context(id, name, params, opts, stream, parent);
 	}
 
 	@Override
-	public Context create(String name, Tree params, CallOptions.Options opts, String id, int level, String requestID,
-			String parentID) {
+	public Context create(String name, Tree params, CallOptions.Options opts, PacketStream stream, String id, int level,
+			String requestID, String parentID) {
 
 		// Verify call level
 		if (maxCallLevel > 0 && level > maxCallLevel) {
@@ -115,7 +116,7 @@ public class DefaultContextFactory extends ContextFactory {
 		}
 
 		// Create new Context
-		return new Context(serviceInvoker, eventbus, id, name, params, opts, level, requestID, parentID);
+		return new Context(serviceInvoker, eventbus, id, name, params, opts, stream, level, requestID, parentID);
 	}
 
 	// --- PROPERTY GETTERS AND SETTERS ---

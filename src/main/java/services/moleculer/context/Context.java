@@ -34,6 +34,7 @@ import services.moleculer.eventbus.Eventbus;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.service.ServiceInvoker;
 import services.moleculer.strategy.Strategy;
+import services.moleculer.stream.PacketStream;
 import services.moleculer.util.ParseResult;
 
 public class Context {
@@ -80,6 +81,13 @@ public class Context {
 	 */
 	public final long startTime;
 
+	// --- STREAM ---
+
+	/**
+	 * Streamed content
+	 */
+	public PacketStream stream;
+	
 	// --- COMPONENTS ---
 
 	protected final ServiceInvoker serviceInvoker;
@@ -88,7 +96,7 @@ public class Context {
 	// --- CONSTRUCTORS ---
 
 	public Context(ServiceInvoker serviceInvoker, Eventbus eventbus, String id, String name, Tree params,
-			CallOptions.Options opts) {
+			CallOptions.Options opts, PacketStream stream) {
 
 		// Set components
 		this.serviceInvoker = serviceInvoker;
@@ -101,7 +109,8 @@ public class Context {
 		this.level = 1;
 		this.parentID = null;
 		this.opts = opts;
-
+		this.stream = stream;
+		
 		// Set the first ID
 		this.requestID = id;
 
@@ -113,7 +122,7 @@ public class Context {
 		}
 	}
 
-	public Context(String id, String name, Tree params, CallOptions.Options opts, Context parent) {
+	public Context(String id, String name, Tree params, CallOptions.Options opts, PacketStream stream, Context parent) {
 
 		// Set components
 		this.serviceInvoker = parent.serviceInvoker;
@@ -126,6 +135,7 @@ public class Context {
 		this.level = parent.level + 1;
 		this.parentID = parent.id;
 		this.opts = opts;
+		this.stream = stream;
 
 		// Get the request ID from parent
 		this.requestID = parent.requestID;
@@ -139,7 +149,7 @@ public class Context {
 	}
 
 	public Context(ServiceInvoker serviceInvoker, Eventbus eventbus, String id, String name, Tree params,
-			CallOptions.Options opts, int level, String requestID, String parentID) {
+			CallOptions.Options opts, PacketStream stream, int level, String requestID, String parentID) {
 
 		// Set components
 		this.serviceInvoker = serviceInvoker;
@@ -152,6 +162,7 @@ public class Context {
 		this.level = level;
 		this.parentID = parentID;
 		this.opts = opts;
+		this.stream = stream;
 		this.requestID = requestID;
 
 		// Start time
@@ -187,7 +198,7 @@ public class Context {
 	 */
 	public Promise call(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		return call(name, res.data, res.opts);
+		return call(name, res.data, res.opts, res.stream);
 	}
 
 	/**
@@ -211,7 +222,7 @@ public class Context {
 	 * @return response Promise
 	 */
 	public Promise call(String name, Tree params) {
-		return call(name, params, null);
+		return call(name, params, null, null);
 	}
 
 	/**
@@ -237,7 +248,26 @@ public class Context {
 	 * 
 	 * @return response Promise
 	 */
-	public Promise call(String name, Tree params, CallOptions.Options opts) {
+	protected Promise call(String name, Tree params, CallOptions.Options opts) {
+		return call(name, params, opts, null);
+	}
+
+	/**
+	 * Calls an action (local or remote).
+	 * 
+	 * @param name
+	 *            action name (eg. "math.add" in "service.action" syntax)
+	 * @param params
+	 *            {@link Tree} structure (input parameters of the method call)
+	 * @param opts
+	 *            calling options (target nodeID, call timeout, number of
+	 *            retries)
+	 * @param stream
+	 *            streamed data (optional)
+	 * 
+	 * @return response Promise
+	 */
+	protected Promise call(String name, Tree params, CallOptions.Options opts, PacketStream stream) {
 
 		// Recalculate distributed timeout
 		if (startTime > 0) {
@@ -258,7 +288,7 @@ public class Context {
 				opts = opts.timeout(distTimeout);
 			}
 		}
-		return serviceInvoker.call(name, params, opts, this);
+		return serviceInvoker.call(name, params, opts, stream, this);
 	}
 
 	// --- EMIT EVENT TO EVENT GROUP ---

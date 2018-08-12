@@ -25,12 +25,59 @@
  */
 package services.moleculer.stream;
 
-public interface OutgoingPacket {
+import io.datatree.Promise;
 
-	public void sendData(byte[] bytes);
+public class OutgoingPacket {
+
+	protected final PacketStream stream;
+	protected final PacketReceiver destination;
+	protected final Promise finished;
 	
-	public void sendError(Throwable cause);
+	protected long totalLength;
+
+	OutgoingPacket(PacketStream stream, PacketReceiver destination, Promise finished) {
+		this.stream = stream;
+		this.destination = destination;
+		this.finished = finished;
+	}
 	
-	public void sendClose();
+	public void sendData(byte[] bytes) {
+		if (!finished.isDone()) {
+			try {
+				if (bytes != null) {
+					totalLength += bytes.length;
+					destination.onData(bytes);
+				}
+				stream.transferNext();
+			} catch (Throwable cause) {
+				try {
+					destination.onError(cause);
+				} catch (Throwable ignored) {
+				} finally {
+					finished.complete(cause);
+				}
+			}
+		}
+	}
+
+	public void sendError(Throwable cause) {
+		if (!finished.isDone()) {
+			try {
+				destination.onError(cause);
+			} catch (Throwable ignored) {
+			} finally {
+				finished.complete(cause);
+			}
+		}
+	}
+
+	public void sendClose() {
+		try {
+			destination.onClose();
+		} catch (Throwable ignored) {
+		} finally {
+			finished.complete(totalLength);
+		}
+	}
 	
 }

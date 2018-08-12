@@ -20,6 +20,9 @@
 
 		<!-- Write invocation exceptions into the log file -->
 		<property name="writeErrorsToLog"     value="true" />
+
+		<!-- Time between the packets (in MILLISECONDS) when streaming -->
+		<property name="packetDelay"          value="5" />
 			
 	</bean>
 

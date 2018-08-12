@@ -33,6 +33,7 @@ import services.moleculer.context.CallOptions;
 import services.moleculer.context.CallOptions.Options;
 import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
+import services.moleculer.stream.PacketStream;
 
 /**
  * Default service invoker with retry logic.
@@ -41,12 +42,12 @@ import services.moleculer.context.ContextFactory;
 public class DefaultServiceInvoker extends ServiceInvoker {
 
 	// --- PROPERTIES ---
-	
+
 	/**
 	 * Write exceptions into the log file
 	 */
 	protected boolean writeErrorsToLog = true;
-	
+
 	// --- COMPONENTS ---
 
 	protected ServiceRegistry serviceRegistry;
@@ -67,7 +68,7 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 	// --- CALL SERVICE ---
 
 	@Override
-	public Promise call(String name, Tree params, Options opts, Context parent) {
+	public Promise call(String name, Tree params, Options opts, PacketStream stream, Context parent) {
 		String targetID;
 		int remaining;
 		if (opts == null) {
@@ -77,27 +78,28 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 			targetID = opts.nodeID;
 			remaining = opts.retryCount;
 		}
-		return call(name, params, opts, parent, targetID, remaining);
+		return call(name, params, opts, stream, parent, targetID, remaining);
 	}
 
-	protected Promise call(String name, Tree params, Options opts, Context parent, String targetID, int remaining) {
+	protected Promise call(String name, Tree params, Options opts, PacketStream stream, Context parent, String targetID,
+			int remaining) {
 		try {
 			Action action = serviceRegistry.getAction(name, targetID);
-			Context ctx = contextFactory.create(name, params, opts, parent);
+			Context ctx = contextFactory.create(name, params, opts, stream, parent);
 			if (remaining < 1) {
 				return Promise.resolve(action.handler(ctx));
 			}
 			return Promise.resolve(action.handler(ctx)).catchError(cause -> {
-				
+
 				// Write error to log file
 				if (writeErrorsToLog) {
 					logger.error("Unexpected error occurred while invoking \"" + name + "\" action!", cause);
 				}
 
-				return retry(cause, name, params, opts, parent, targetID, remaining);
+				return retry(cause, name, params, opts, stream, parent, targetID, remaining);
 			});
 		} catch (Throwable cause) {
-			
+
 			// Write error to log file
 			if (writeErrorsToLog) {
 				logger.error("Unexpected error occurred while invoking \"" + name + "\" action!", cause);
@@ -106,21 +108,21 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 			if (remaining < 1) {
 				return Promise.reject(cause);
 			}
-			return retry(cause, name, params, opts, parent, targetID, remaining);
+			return retry(cause, name, params, opts, stream, parent, targetID, remaining);
 		}
 	}
 
 	// --- RETRY CALL ---
 
-	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, Context parent,
-			String targetID, int remaining) {
+	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, PacketStream stream,
+			Context parent, String targetID, int remaining) {
 		int newRemaining = remaining - 1;
 		logger.warn("Retrying request (" + newRemaining + " attempts left)...", cause);
-		return call(name, params, opts, parent, targetID, newRemaining);
+		return call(name, params, opts, stream, parent, targetID, newRemaining);
 	}
 
 	// --- GETTERS / SETTERS ---
-	
+
 	public boolean isWriteErrorsToLog() {
 		return writeErrorsToLog;
 	}
@@ -128,5 +130,5 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 	public void setWriteErrorsToLog(boolean writeErrorsToLog) {
 		this.writeErrorsToLog = writeErrorsToLog;
 	}
-	
+
 }

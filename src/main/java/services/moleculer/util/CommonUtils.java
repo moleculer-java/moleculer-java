@@ -56,6 +56,7 @@ import services.moleculer.context.CallOptions;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.service.Name;
 import services.moleculer.service.Version;
+import services.moleculer.stream.PacketStream;
 import services.moleculer.transporter.Transporter;
 
 /**
@@ -326,6 +327,7 @@ public final class CommonUtils {
 		Tree data = null;
 		CallOptions.Options opts = null;
 		Groups groups = null;
+		PacketStream stream = null;
 		if (params != null) {
 			if (params.length == 1) {
 				if (params[0] instanceof Tree) {
@@ -334,6 +336,9 @@ public final class CommonUtils {
 					opts = (CallOptions.Options) params[0];
 				} else if (params[0] instanceof Groups) {
 					groups = (Groups) params[0];
+				} else if (params[0] instanceof PacketStream) {
+					data = new Tree();
+					stream = (PacketStream) params[0];
 				} else {
 					data = new CheckedTree(params[0]);
 				}
@@ -353,9 +358,13 @@ public final class CommonUtils {
 								groups = (Groups) value;
 								continue;
 							}
+							if (value instanceof PacketStream) {
+								stream = (PacketStream) value;
+								continue;
+							}
 							i++;
 							throw new IllegalArgumentException("Parameter #" + i + " (\"" + value
-									+ "\") must be String, Context, Groups, or CallOptions!");
+									+ "\") must be String, Context, Groups, PacketStream or CallOptions!");
 						}
 						prev = (String) value;
 						continue;
@@ -366,7 +375,7 @@ public final class CommonUtils {
 				data = new Tree(map);
 			}
 		}
-		return new ParseResult(data, opts, groups);
+		return new ParseResult(data, opts, groups, stream);
 	}
 
 	public static final String nameOf(String prefix, Field field) {

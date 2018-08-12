@@ -35,6 +35,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.util.Objects;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import io.datatree.Promise;
 
@@ -44,36 +47,39 @@ public class PacketStream {
 
 	protected static final int DEFAULT_BUFFER_SIZE = 1024 * 16;
 
-	// --- VARIABLES ---
+	// --- DATA SOURCE ---
 
-	protected PacketSource source;
-	protected PacketReceiver destination;
+	protected final PacketSource source;
 
-	protected final Promise allTransfered = new Promise();
+	// --- TRANSFERING VARIABLES ---
 
-	// --- "TRANSFER FROM" / SOURCE METHODS ---
+	protected OutgoingPacket handler;
+	protected ScheduledExecutorService scheduler;
+	protected long delay;
 
-	public Promise transferFrom(PacketSource source) {
-		this.source = source;
-		return allTransfered;
+	// --- "ALL PACKETS TRANSFERED" MARKER ---
+
+	protected final Promise finished = new Promise();
+
+	// --- CONSTRUCTORS ---
+
+	public PacketStream(File source) throws FileNotFoundException {
+		this(new FileInputStream(source));
 	}
 
-	public Promise transferFrom(File in) throws FileNotFoundException {
-		return transferFrom(new FileInputStream(in));
+	public PacketStream(InputStream source) {
+		this(source, true, DEFAULT_BUFFER_SIZE);
 	}
 
-	public Promise transferFrom(InputStream in) {
-		return transferFrom(in, true, DEFAULT_BUFFER_SIZE);
-	}
+	public PacketStream(InputStream source, boolean closeStream, int bufferSize) {
+		this(new PacketSource() {
 
-	public Promise transferFrom(InputStream in, boolean closeStream, int bufferSize) {
-		byte[] buffer = new byte[bufferSize];
-		return transferFrom(new PacketSource() {
+			private final byte[] buffer = new byte[bufferSize];
 
 			@Override
-			public void sendNextPacket(OutgoingPacket packet) throws Throwable {
+			public void sendNext(OutgoingPacket packet) throws Throwable {
 				try {
-					int len = in.read(buffer);
+					int len = source.read(buffer);
 					if (len < 0) {
 						try {
 							packet.sendClose();
@@ -103,7 +109,7 @@ public class PacketStream {
 			private void close() {
 				if (closeStream) {
 					try {
-						in.close();
+						source.close();
 					} catch (Exception ignored) {
 					}
 				}
@@ -112,29 +118,32 @@ public class PacketStream {
 		});
 	}
 
+	public PacketStream(NonBlockingQueue source) {
+		this((PacketSource) source);
+	}
+	
+	public PacketStream(PacketSource source) {
+		this.source = Objects.requireNonNull(source);
+	}
+
 	// --- DESTINATIONS ---
 
-	protected Promise transferTo(PacketReceiver destination) {
-		this.destination = destination;
-		return allTransfered;
+	public Promise pipe(File destination) throws FileNotFoundException {
+		return pipe(destination, false, DEFAULT_BUFFER_SIZE);
 	}
 
-	public Promise transferTo(File destination) throws FileNotFoundException {
-		return transferTo(destination, false, DEFAULT_BUFFER_SIZE);
+	public Promise pipe(File destination, boolean append, int bufferSize) throws FileNotFoundException {
+		return pipe(new FileOutputStream(destination, append), true, bufferSize);
 	}
 
-	public Promise transferTo(File destination, boolean append, int bufferSize) throws FileNotFoundException {
-		return transferTo(new FileOutputStream(destination, append), true, bufferSize);
-	}
-
-	public Promise transferTo(OutputStream destination) {
+	public Promise pipe(OutputStream destination) {
 		boolean buffered = destination instanceof BufferedOutputStream;
-		return transferTo(destination, true, buffered ? 0 : DEFAULT_BUFFER_SIZE);
+		return pipe(destination, true, buffered ? 0 : DEFAULT_BUFFER_SIZE);
 	}
 
-	public Promise transferTo(OutputStream destination, boolean closeStream, int bufferSize) {
+	public Promise pipe(OutputStream destination, boolean closeStream, int bufferSize) {
 		final OutputStream out = bufferSize > 1 ? new BufferedOutputStream(destination, bufferSize) : destination;
-		return transferTo(new PacketReceiver() {
+		return pipe(new PacketReceiver() {
 
 			@Override
 			public void onData(byte[] bytes) throws Exception {
@@ -171,13 +180,13 @@ public class PacketStream {
 		});
 	}
 
-	public Promise transferTo(WritableByteChannel destination) {
-		return transferTo(destination, true, DEFAULT_BUFFER_SIZE);
+	public Promise pipe(WritableByteChannel destination) {
+		return pipe(destination, true, DEFAULT_BUFFER_SIZE);
 	}
 
-	public Promise transferTo(WritableByteChannel destination, boolean closeChannel, int bufferSize) {
+	public Promise pipe(WritableByteChannel destination, boolean closeChannel, int bufferSize) {
 		if (bufferSize > 1) {
-			return transferTo(new OutputStream() {
+			return pipe(new OutputStream() {
 
 				@Override
 				public void write(int b) throws IOException {
@@ -205,7 +214,7 @@ public class PacketStream {
 
 			}, closeChannel, bufferSize);
 		}
-		return transferTo(new PacketReceiver() {
+		return pipe(new PacketReceiver() {
 
 			@Override
 			public void onData(byte[] bytes) throws Exception {
@@ -241,82 +250,39 @@ public class PacketStream {
 		});
 	}
 
-	// --- TRANSFER ---
+	public Promise pipe(PacketReceiver destination) {
+		this.handler = new OutgoingPacket(this, destination, finished);
+		return finished;
+	}
 
-	public boolean hasMorePackets() {
-		return !allTransfered.isDone();
+	public Promise pipe() {
+		return finished;
 	}
 	
-	public Promise sendNextPacket() {
-		Promise packetTransfered = new Promise();
-		try {
-			source.sendNextPacket(new OutgoingPacket() {
+	// --- TRANSFER PACKETS ---
 
-				private long totalLength;
-				
-				@Override
-				public void sendData(byte[] bytes) {
-					boolean transfered = true;
-					try {
-						if (bytes != null) {
-							totalLength += bytes.length;
-							destination.onData(bytes);
-						}
-					} catch (Throwable fatal) {
-						transfered = false;
-						packetTransfered.complete(fatal);
-						allTransfered.complete(fatal);
-					} finally {
-						if (transfered) {
-							packetTransfered.complete(totalLength);
-						}
-					}
-				}
+	public Promise transfer(ScheduledExecutorService scheduler, long delay) {
+		this.delay = delay;
+		this.scheduler = Objects.requireNonNull(scheduler);
+		transferNext();
+		return finished;
+	}
 
-				@Override
-				public void sendError(Throwable cause) {
-					boolean transfered = true;
-					try {
-						destination.onError(cause);
-					} catch (Throwable fatal) {
-						transfered = false;
-						packetTransfered.complete(fatal);
-						allTransfered.complete(fatal);
-					} finally {
-						if (transfered) {
-							packetTransfered.complete(cause);
-							allTransfered.complete(cause);
-						}
+	protected final void transferNext() {
+		if (!finished.isDone()) {
+			scheduler.schedule(() -> {
+				try {
+					if (handler == null) {
+						Thread.sleep(100);
+						transferNext();
+					} else {
+						source.sendNext(handler);
 					}
+				} catch (Throwable cause) {
+					handler.sendError(cause);
 				}
-
-				@Override
-				public void sendClose() {
-					boolean transfered = true;
-					try {
-						destination.onClose();
-					} catch (Throwable fatal) {
-						transfered = false;
-						packetTransfered.complete(fatal);
-						allTransfered.complete(fatal);
-					} finally {
-						if (transfered) {
-							packetTransfered.complete(totalLength);
-							allTransfered.complete(totalLength);
-						}
-					}
-				}
-			});
-		} catch (Throwable cause) {
-			try {
-				destination.onError(cause);
-			} catch (Throwable ignored) {
-			} finally {
-				packetTransfered.complete(cause);
-				allTransfered.complete(cause);
-			}
+			}, delay, TimeUnit.MILLISECONDS);
 		}
-		return packetTransfered;
 	}
-	
+
 }

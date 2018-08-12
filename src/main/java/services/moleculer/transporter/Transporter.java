@@ -53,6 +53,7 @@ import services.moleculer.serializer.Serializer;
 import services.moleculer.service.MoleculerComponent;
 import services.moleculer.service.Name;
 import services.moleculer.service.ServiceRegistry;
+import services.moleculer.stream.PacketReceiver;
 import services.moleculer.transporter.tcp.NodeDescriptor;
 import services.moleculer.transporter.tcp.RemoteAddress;
 import services.moleculer.uid.UidGenerator;
@@ -892,6 +893,27 @@ public abstract class Transporter extends MoleculerComponent {
 		// Do nothing by default
 	}
 
+	// --- STREAMING ---
+	
+	public PacketReceiver createPacketReceiver(Context ctx) {
+		return new PacketReceiver() {
+			
+			@Override
+			public void onData(byte[] bytes) throws Exception {
+				// TODO
+			}
+
+			@Override
+			public void onError(Throwable cause) throws Exception {
+			}
+						
+			@Override
+			public void onClose() throws Exception {
+			}
+			
+		};
+	}
+	
 	// --- GETTERS / SETTERS ---
 
 	public Serializer getSerializer() {

@@ -28,6 +28,6 @@ package services.moleculer.stream;
 @FunctionalInterface
 public interface PacketSource {
 
-	public void sendNextPacket(OutgoingPacket packet) throws Throwable;
+	public void sendNext(OutgoingPacket packet) throws Throwable;
 
 }

@@ -76,6 +76,7 @@ import services.moleculer.error.ServiceNotFoundError;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
+import services.moleculer.stream.PacketStream;
 import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.UidGenerator;
 import services.moleculer.util.FastBuildTree;
@@ -122,6 +123,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	 * Write exceptions into the log file
 	 */
 	protected boolean writeErrorsToLog = true;
+
+	/**
+	 * Time between the packets (in MILLISECONDS) when streaming
+	 */
+	protected long packetDelay = 5;
 
 	// --- LOCKS ---
 
@@ -451,8 +457,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		String parentID = message.get("parentID", (String) null);
 		String requestID = message.get("requestID", id);
 
+		// TODO Get stream
+		PacketStream stream = null;
+
 		// Create context
-		Context ctx = contextFactory.create(action, params, opts, id, level, requestID, parentID);
+		Context ctx = contextFactory.create(action, params, opts, stream, id, level, requestID, parentID);
 
 		// Invoke action
 		try {
@@ -732,7 +741,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				convertAnnotations(actionConfig, annotations);
 
 				// Register action
-				LocalActionEndpoint endpoint = new LocalActionEndpoint(this, executor, nodeID, actionConfig, action);
+				LocalActionEndpoint endpoint = new LocalActionEndpoint(this, executor, scheduler, packetDelay, nodeID,
+						actionConfig, action);
 				Strategy<ActionEndpoint> actionStrategy = strategies.get(actionName);
 				if (actionStrategy == null) {
 
@@ -1219,6 +1229,14 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	public void setWriteErrorsToLog(boolean writeErrorsToLog) {
 		this.writeErrorsToLog = writeErrorsToLog;
+	}
+
+	public long getPacketDelay() {
+		return packetDelay;
+	}
+
+	public void setPacketDelay(long packetDelay) {
+		this.packetDelay = packetDelay;
 	}
 
 }
