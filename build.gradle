@@ -130,7 +130,7 @@ dependencies {
     // --- SPRING DEPENDENCY INJECTION FRAMEWORK ---
 
 	// https://mvnrepository.com/artifact/org.springframework/spring-core
-	compile group: 'org.springframework', name: 'spring-context', version: '5.0.7.RELEASE'
+	compile group: 'org.springframework', name: 'spring-context', version: '5.0.8.RELEASE'
 
 		
 	// =============== CACHES ===============
