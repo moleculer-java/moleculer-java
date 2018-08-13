@@ -54,7 +54,7 @@ public class SpringRegistrator implements ApplicationContextAware {
 	// --- PROPERTIES ---
 
 	/**
-	 * Java package(s) where the custom (user-defined) commands are located.
+	 * Java package(s) where the custom Spring/Moleculer Services are located.
 	 */
 	protected String[] packagesToScan = {};
 

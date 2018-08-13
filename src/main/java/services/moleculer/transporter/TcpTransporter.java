@@ -213,7 +213,7 @@ public class TcpTransporter extends Transporter {
 	protected NodeDescriptor cachedDescriptor;
 
 	/**
-	 * Current node descriptor
+	 * Current node descriptor's timestamp
 	 */
 	protected AtomicLong timestamp = new AtomicLong();
 

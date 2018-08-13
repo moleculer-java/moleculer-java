@@ -694,18 +694,19 @@ public abstract class Transporter extends MoleculerComponent {
 	}
 
 	// --- GENERIC MOLECULER PACKETS ---
-
-	protected void sendDiscoverPacket(String channel) {
-		FastBuildTree msg = new FastBuildTree(2);
-		msg.putUnsafe("ver", PROTOCOL_VERSION);
-		msg.putUnsafe("sender", nodeID);
-		publish(channel, msg);
-	}
-
+	
 	protected void sendInfoPacket(String channel) {
 		Tree msg = registry.getDescriptor();
 		msg.put("ver", PROTOCOL_VERSION);
 		msg.put("sender", nodeID);
+		msg.put("seq", registry.getTimestamp());
+		publish(channel, msg);
+	}
+	
+	protected void sendDiscoverPacket(String channel) {
+		FastBuildTree msg = new FastBuildTree(2);
+		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("sender", nodeID);
 		publish(channel, msg);
 	}
 
