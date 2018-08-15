@@ -25,6 +25,8 @@
  */
 package services.moleculer.util;
 
+import java.util.ArrayList;
+
 import io.datatree.Tree;
 
 /**
@@ -54,19 +56,31 @@ public class FastBuildTree extends Tree {
 
 	// --- FAST AND UNSAFE PUT ---
 
-	public Tree putUnsafe(String path, Object value) {
-		map.put(path, value);
+	public FastBuildTree putUnsafe(String name, Object value) {
+		map.put(name, value);
 		return this;
 	}
 
-	public Tree putUnsafe(String path, Tree value) {
-		map.put(path, value == null ? null : value.asObject());
+	public FastBuildTree putUnsafe(String name, Tree value) {
+		map.put(name, value == null ? null : value.asObject());
 		return this;
 	}
 
-	public Tree putUnsafe(String path, FastBuildTree value) {
-		map.put(path, value == null ? null : value.map);
+	public FastBuildTree putUnsafe(String name, FastBuildTree value) {
+		map.put(name, value == null ? null : value.map);
 		return this;
+	}
+
+	public Tree putListUnsafe(String name, int size) {
+		ArrayList<Object> child = new ArrayList<>(size);
+		map.put(name, child);
+		return new Tree(child);
+	}
+
+	public FastBuildTree putMapUnsafe(String name, int size) {
+		FastBuildTree child = new FastBuildTree(size);
+		map.put(name, child.asObject());
+		return child;
 	}
 
 }

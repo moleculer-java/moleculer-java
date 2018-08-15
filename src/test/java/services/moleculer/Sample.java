@@ -37,6 +37,7 @@ import services.moleculer.service.Service;
 import services.moleculer.stream.NonBlockingQueue;
 import services.moleculer.stream.PacketReceiver;
 import services.moleculer.stream.PacketStream;
+import services.moleculer.transporter.RedisTransporter;
 
 public class Sample {
 
@@ -45,7 +46,7 @@ public class Sample {
 		try {
 
 			// Create Message Broker
-			ServiceBroker broker = ServiceBroker.builder().build();
+			ServiceBroker broker = ServiceBroker.builder().transporter(new RedisTransporter()).build();
 
 			// Deploy services
 			broker.createService(new MathService());
@@ -61,7 +62,7 @@ public class Sample {
 			in.put("b", 5);
 
 			// Local or remote method call
-			broker.call("math.add", in).then(rsp -> {
+			broker.call("java.math.add", in).then(rsp -> {
 
 				// Response
 				broker.getLogger().info("Response: " + rsp.asInteger());
@@ -71,8 +72,35 @@ public class Sample {
 			// Broadcast event
 			broker.broadcast("foo.xyz", "a", 3, "b", 5);
 
+			in = new Tree().put("withActions", true);
+			
+			System.out.println(broker.getConfig().getServiceRegistry().getDescriptor());
+			
+			System.out.println("--------------------------");
+			
+			broker.call("$node.services", in).then(rsp -> {
+
+				// Response
+				broker.getLogger().info("services response: " + rsp);
+
+			});
+					
+			broker.call("$node.actions", in).then(rsp -> {
+
+				// Response
+				broker.getLogger().info("actions response: " + rsp);
+
+			});
+
+			broker.call("$node.events", in).then(rsp -> {
+
+				// Response
+				broker.getLogger().info("events response: " + rsp);
+
+			});
+
 			// Invoke sender service
-			broker.call("sender.send");
+			// broker.call("sender.send");
 			
 			Thread.sleep(100000);
 			
@@ -161,7 +189,7 @@ public class Sample {
 
 	};
 
-	@Name("math")
+	@Name("java.math")
 	public static class MathService extends Service {
 
 		@Cache(keys = { "a", "b" }, ttl = 5000)

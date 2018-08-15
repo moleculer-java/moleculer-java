@@ -189,7 +189,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	// --- CACHED SERVICE DESCRIPTOR ---
 
-	private volatile Tree cachedDescriptor;
+	private volatile FastBuildTree cachedDescriptor;
 
 	// --- CONSTRUCTORS ---
 
@@ -1092,24 +1092,28 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	}
 
 	protected Tree currentDescriptor() {
-		Tree descriptor;
+		FastBuildTree descriptor;
 		readLock.lock();
 		try {
 			descriptor = cachedDescriptor;
 			if (descriptor == null) {
-
+				
 				// Create new descriptor block
-				descriptor = new Tree();
+				descriptor = new FastBuildTree(5);
 
 				// Services array
-				Tree services = descriptor.putList("services");
-				Tree servicesMap = new Tree();
+				int serviceCount = names.size();
+				Tree services = descriptor.putListUnsafe("services", serviceCount);
+				
+				// Actions map
+				HashMap<String, FastBuildTree> servicesMap = new HashMap<>(serviceCount * 2);
+				HashMap<String, FastBuildTree> actionsMap = new HashMap<>(serviceCount * 2);
+				
 				for (Map.Entry<String, Strategy<ActionEndpoint>> entry : strategies.entrySet()) {
 
-					// Split into parts ("math.add" -> "math" and "add")
-					String name = entry.getKey();
-					int i = name.lastIndexOf('.');
-					String service = name.substring(0, i);
+					// Get action and service names
+					String actionName = entry.getKey();
+					String serviceName = actionName.substring(0, actionName.lastIndexOf('.'));
 
 					// Get endpoint
 					ActionEndpoint endpoint = entry.getValue().getEndpoint(nodeID);
@@ -1117,54 +1121,59 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 						continue;
 					}
 
-					// Service block
-					Tree serviceMap = servicesMap.putMap(service, true);
-					serviceMap.put("name", service);
-
-					// Action block
-					@SuppressWarnings("unchecked")
-					Map<String, Object> actionBlock = (Map<String, Object>) serviceMap.putMap("actions", true)
-							.asObject();
-					actionBlock.put(name, endpoint.getConfig().asObject());
-
-					// Listener block
-					Tree listeners = eventbus.generateListenerDescriptor(service);
-					if (listeners != null && !listeners.isEmpty()) {
-						serviceMap.putObject("events", listeners);
+					// Create service block
+					FastBuildTree actions = actionsMap.get(serviceName);
+					if (actions == null) {
+						FastBuildTree service = new FastBuildTree(3);
+						service.putUnsafe("name", serviceName);
+						servicesMap.put(serviceName, service);
+						
+						actions = service.putMapUnsafe("actions", strategies.size());
+						actionsMap.put(serviceName, actions);
+						
+						// Create event listener block
+						Tree listeners = eventbus.generateListenerDescriptor(serviceName);
+						if (listeners != null && !listeners.isEmpty()) {
+							service.putUnsafe("events", listeners.asObject());
+						}
 					}
+
+					// Create action block
+					actions.putUnsafe(actionName, endpoint.getConfig());
 				}
 
 				// Add services (without actions)
-				for (String service : names) {
-					if (servicesMap.get(service) == null) {
+				for (String serviceName : names) {
+					if (!actionsMap.containsKey(serviceName)) {
 
-						// Service block
-						Tree serviceMap = servicesMap.putMap(service, true);
-						serviceMap.put("name", service);
-
-						// Listener block
-						Tree listeners = eventbus.generateListenerDescriptor(service);
+						// Create service block
+						FastBuildTree service = new FastBuildTree(2);
+						service.putUnsafe("name", serviceName);
+						servicesMap.put(serviceName, service);
+						
+						actionsMap.put(serviceName, new FastBuildTree(0));
+						
+						// Create event listener block
+						Tree listeners = eventbus.generateListenerDescriptor(serviceName);
 						if (listeners != null && !listeners.isEmpty()) {
-							serviceMap.putObject("events", listeners);
+							service.putUnsafe("events", listeners.asObject());
 						}
 					}
 				}
-				for (Tree service : servicesMap) {
+				for (FastBuildTree service : servicesMap.values()) {
 					services.addObject(service);
 				}
 
 				// Host name
-				descriptor.put("hostname", getHostName());
+				descriptor.putUnsafe("hostname", getHostName());
 
 				// IP array
-				Tree ipList = descriptor.putList("ipList");
-				HashSet<String> ips = new HashSet<>();
+				LinkedHashSet<String> ips = new LinkedHashSet<>();
 				try {
 					InetAddress local = InetAddress.getLocalHost();
 					String defaultAddress = local.getHostAddress();
 					if (!defaultAddress.startsWith("127.")) {
 						ips.add(defaultAddress);
-						ipList.add(defaultAddress);
 					}
 				} catch (Exception ignored) {
 				}
@@ -1176,24 +1185,22 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 						while (ee.hasMoreElements()) {
 							InetAddress i = (InetAddress) ee.nextElement();
 							if (!i.isLoopbackAddress()) {
-								String test = i.getHostAddress();
-								if (ips.add(test)) {
-									ipList.add(test);
-								}
+								ips.add(i.getHostAddress());
 							}
 						}
 					}
 				} catch (Exception ignored) {
 				}
-
+				Tree ipList = descriptor.putListUnsafe("ipList", ips.size());
+				for (String ip: ips) {
+					ipList.add(ip);
+				}
+				
 				// Client descriptor
-				Tree client = descriptor.putMap("client");
-				client.put("type", "java");
-				client.put("version", ServiceBroker.SOFTWARE_VERSION);
-				client.put("langVersion", System.getProperty("java.version", "1.8"));
-
-				// Config (not used in this version)
-				// root.putMap("config");
+				FastBuildTree client = descriptor.putMapUnsafe("client", 3);
+				client.putUnsafe("type", "java");
+				client.putUnsafe("version", ServiceBroker.SOFTWARE_VERSION);
+				client.putUnsafe("langVersion", System.getProperty("java.version", "1.8"));
 
 				// Set timestamp
 				timestamp.set(System.currentTimeMillis());
