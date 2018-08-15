@@ -474,7 +474,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				msg.putUnsafe("ver", PROTOCOL_VERSION);
 				msg.putUnsafe("success", true);
 				msg.putUnsafe("data", data);
-				Tree rspMeta = data.getMeta(false);
+				Tree rspMeta = data == null ? null : data.getMeta(false);
 				if (rspMeta != null && !rspMeta.isEmpty()) {
 					msg.putUnsafe("meta", rspMeta);
 				}
