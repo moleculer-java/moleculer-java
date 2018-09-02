@@ -27,6 +27,7 @@ package services.moleculer.transporter;
 
 import static services.moleculer.ServiceBroker.PROTOCOL_VERSION;
 import static services.moleculer.util.CommonUtils.nameOf;
+import static services.moleculer.util.CommonUtils.throwableToTree;
 
 import java.util.HashSet;
 import java.util.Iterator;
@@ -38,7 +39,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.datatree.Promise;
@@ -53,7 +53,6 @@ import services.moleculer.serializer.Serializer;
 import services.moleculer.service.MoleculerComponent;
 import services.moleculer.service.Name;
 import services.moleculer.service.ServiceRegistry;
-import services.moleculer.stream.PacketReceiver;
 import services.moleculer.transporter.tcp.NodeDescriptor;
 import services.moleculer.transporter.tcp.RemoteAddress;
 import services.moleculer.uid.UidGenerator;
@@ -341,12 +340,12 @@ public abstract class Transporter extends MoleculerComponent {
 
 	// --- REQUEST PACKET ---
 
-	public Tree createRequestPacket(Context ctx) throws TimeoutException {
-		FastBuildTree msg = new FastBuildTree(10);
+	public void sendRequestPacket(String nodeID, Context ctx) {
+		FastBuildTree msg = new FastBuildTree(11);
 
-		// Add basic properties
+		// Add basic properties (version, sender's nodeID, etc.)
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
-		msg.putUnsafe("sender", nodeID);
+		msg.putUnsafe("sender", this.nodeID);
 		msg.putUnsafe("id", ctx.id);
 		msg.putUnsafe("action", ctx.name);
 
@@ -375,8 +374,71 @@ public abstract class Transporter extends MoleculerComponent {
 		// Request ID
 		msg.putUnsafe("requestID", ctx.requestID);
 
-		// Return message
-		return msg;
+		// Stream marker (default is "false")
+		if (ctx.stream != null) {
+			msg.putUnsafe("stream", true);	
+		}
+		
+		// Send message
+		publish(Transporter.PACKET_REQUEST, nodeID, msg);
+	}
+	
+	// --- TODO DATA PACKET (STREAMING) ---
+	
+	public void sendDataPacket(String nodeID, Context ctx, byte[] bytes) {
+		FastBuildTree msg = new FastBuildTree(5);
+
+		// Add required properties (version, sender's nodeID, request ID)
+		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("sender", this.nodeID);
+		msg.putUnsafe("id", ctx.id);
+		
+		// Stream marker
+		msg.putUnsafe("stream", true);
+		
+		// Add "params" block
+		FastBuildTree params = new FastBuildTree(2);
+		msg.putUnsafe("params", params);
+		params.putUnsafe("type", "Buffer");
+		
+		// Convert signed byte array to unsigned short array
+		short[] data = new short[bytes.length];
+		for (int i = 0; i < bytes.length; i++) {
+			data[i] = (short) (bytes[i] & 0xFF);
+		}
+		params.putUnsafe("data", data);
+		
+		// Send message
+		publish(Transporter.PACKET_REQUEST, nodeID, msg);
+	}
+
+	// --- TODO ERROR PACKET (STREAMING) ---
+	
+	public void sendErrorPacket(String nodeID, Context ctx, Throwable cause) {
+		FastBuildTree msg = throwableToTree(ctx.id, nodeID, cause);
+
+		// Stream marker
+		msg.putUnsafe("stream", false);
+
+		// Send message 
+		publish(Transporter.PACKET_REQUEST, nodeID, msg);
+	}
+
+	// --- TODO CLOSE PACKET (STREAMING) ---
+	
+	public void sendClosePacket(String nodeID, Context ctx) {
+		FastBuildTree msg = new FastBuildTree(4);
+
+		// Add required properties (version, sender's nodeID, request ID)
+		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("sender", this.nodeID);
+		msg.putUnsafe("id", ctx.id);
+		
+		// Stream marker
+		msg.putUnsafe("stream", false);
+		
+		// Send message
+		publish(Transporter.PACKET_REQUEST, nodeID, msg);
 	}
 
 	// --- PUBLISH ---
@@ -894,27 +956,6 @@ public abstract class Transporter extends MoleculerComponent {
 		// Do nothing by default
 	}
 
-	// --- STREAMING ---
-	
-	public PacketReceiver createPacketReceiver(Context ctx) {
-		return new PacketReceiver() {
-			
-			@Override
-			public void onData(byte[] bytes) throws Exception {
-				// TODO
-			}
-
-			@Override
-			public void onError(Throwable cause) throws Exception {
-			}
-						
-			@Override
-			public void onClose() throws Exception {
-			}
-			
-		};
-	}
-	
 	// --- GETTERS / SETTERS ---
 
 	public Serializer getSerializer() {

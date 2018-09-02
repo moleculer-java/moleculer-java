@@ -43,7 +43,7 @@ import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.Name;
 import services.moleculer.service.ServiceInvoker;
 import services.moleculer.service.ServiceRegistry;
-import services.moleculer.stream.PacketStream;
+import services.moleculer.stream.IncomingStream;
 
 /**
  * Special service invoker with retry logic + circuit breaker.
@@ -125,7 +125,7 @@ public class CircuitBreaker extends ServiceInvoker {
 	// --- CALL SERVICE ---
 
 	@Override
-	public Promise call(String name, Tree params, Options opts, PacketStream stream, Context parent) {
+	public Promise call(String name, Tree params, Options opts, IncomingStream stream, Context parent) {
 		String targetID;
 		int remaining;
 		if (opts == null) {
@@ -138,7 +138,7 @@ public class CircuitBreaker extends ServiceInvoker {
 		return call(name, params, opts, stream, parent, targetID, remaining);
 	}
 
-	protected Promise call(String name, Tree params, Options opts, PacketStream stream, Context parent, String targetID,
+	protected Promise call(String name, Tree params, Options opts, IncomingStream stream, Context parent, String targetID,
 			int remaining) {
 		EndpointKey endpointKey = null;
 		ErrorCounter errorCounter = null;
@@ -242,7 +242,7 @@ public class CircuitBreaker extends ServiceInvoker {
 
 	// --- RETRY CALL ---
 
-	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, PacketStream stream,
+	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, IncomingStream stream,
 			Context parent, String targetID, int remaining) {
 		int newRemaining = remaining - 1;
 		logger.warn("Retrying request (" + newRemaining + " attempts left)...", cause);

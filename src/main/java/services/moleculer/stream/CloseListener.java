@@ -1,7 +1,7 @@
 /**
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
- * Copyright 2018 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
  * Based on Moleculer Framework for NodeJS [https://moleculer.services].
  * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -26,8 +26,8 @@
 package services.moleculer.stream;
 
 @FunctionalInterface
-public interface PacketSource {
+public interface CloseListener {
 
-	public void sendNext(OutgoingPacket packet) throws Throwable;
-
+	void onClose();
+	
 }

@@ -35,10 +35,10 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 
 	public RemoteActionEndpoint(DefaultServiceRegistry registry, Transporter transporter, String nodeID, Tree config) {
 		super(nodeID, config);
-		
+
 		// Handle remote timeout with a handler
-		current = ctx -> {	
-			
+		current = ctx -> {
+
 			// Create new promise
 			Promise promise = new Promise();
 
@@ -54,20 +54,24 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 			registry.register(ctx.id, promise, timeoutAt);
 
 			// Send request via transporter
-			if (ctx.stream == null) {
-				
-				// Simple request
-				Tree message = transporter.createRequestPacket(ctx);
-				transporter.publish(Transporter.PACKET_REQUEST, nodeID, message);
-			} else {
-				
-				// Streamed request
-				ctx.stream.pipe(transporter.createPacketReceiver(ctx));
+			transporter.sendRequestPacket(nodeID, ctx);
+
+			// Streamed content
+			if (ctx.stream != null) {
+				ctx.stream.onData(bytes -> {
+					transporter.sendDataPacket(nodeID, ctx, bytes);
+				});
+				ctx.stream.onError(cause -> {
+					transporter.sendErrorPacket(nodeID, ctx, cause);
+				});
+				ctx.stream.onClose(() -> {
+					transporter.sendClosePacket(nodeID, ctx);
+				});
 			}
 
 			// Return promise
 			return promise;
 		};
 	}
-	
+
 }

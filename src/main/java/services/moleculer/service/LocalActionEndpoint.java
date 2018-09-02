@@ -26,18 +26,18 @@
 package services.moleculer.service;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledExecutorService;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.stream.PacketStream;
+import services.moleculer.stream.IncomingStream;
+import services.moleculer.stream.OutgoingStream;
 
 public class LocalActionEndpoint extends ActionEndpoint {
 
 	// --- CONSTRUCTOR ---
 
 	public LocalActionEndpoint(DefaultServiceRegistry registry, ExecutorService executor,
-			ScheduledExecutorService scheduler, long delay, String nodeID, Tree config, Action action) {
+			String nodeID, Tree config, Action action) {
 		super(nodeID, config);
 
 		// Handle local timeout with a handler
@@ -60,16 +60,14 @@ public class LocalActionEndpoint extends ActionEndpoint {
 					try {
 						Object rsp = action.handler(ctx);
 
-						// Data transfer (caller -> service)
-						if (ctx.stream != null) {
-							ctx.stream.transfer(scheduler, delay);
+						// Convert outgoing stream to incoming stream (~= pipe)
+						if (rsp != null && rsp instanceof OutgoingStream) {
+							OutgoingStream out = (OutgoingStream) rsp;
+							IncomingStream in = new IncomingStream();
+							out.connect(in);
+							rsp = in;
 						}
-
-						// Data transfer (service -> caller)
-						if (rsp != null && rsp instanceof PacketStream) {
-							((PacketStream) rsp).transfer(scheduler, delay);
-						}
-
+						
 						// Deregister
 						Promise.resolve(rsp).then(in -> {
 							if (promise.complete(in)) {
@@ -94,20 +92,18 @@ public class LocalActionEndpoint extends ActionEndpoint {
 
 				// Invoke handler without timeout handling
 				Object rsp = action.handler(ctx);
-
-				// Data transfer (caller -> service)
-				if (ctx.stream != null) {
-					ctx.stream.transfer(scheduler, delay);
+				
+				// Convert outgoing stream to incoming stream (~= pipe)
+				if (rsp != null && rsp instanceof OutgoingStream) {
+					OutgoingStream out = (OutgoingStream) rsp;
+					IncomingStream in = new IncomingStream();
+					out.connect(in);
+					return in;
 				}
-
-				// Data transfer (service -> caller)
-				if (rsp != null && rsp instanceof PacketStream) {
-					((PacketStream) rsp).transfer(scheduler, delay);
-				}
-
-				// Return response
+				
 				return rsp;
 			}
+			
 		};
 	}
 

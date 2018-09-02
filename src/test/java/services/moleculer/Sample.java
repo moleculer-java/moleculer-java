@@ -26,18 +26,16 @@
 package services.moleculer;
 
 import java.io.File;
+import java.util.concurrent.ScheduledExecutorService;
 
-import io.datatree.Tree;
 import services.moleculer.cacher.Cache;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
-import services.moleculer.stream.NonBlockingQueue;
-import services.moleculer.stream.PacketReceiver;
-import services.moleculer.stream.PacketStream;
-import services.moleculer.transporter.RedisTransporter;
+import services.moleculer.stream.IncomingStream;
+import services.moleculer.stream.OutgoingStream;
 
 public class Sample {
 
@@ -46,64 +44,21 @@ public class Sample {
 		try {
 
 			// Create Message Broker
-			ServiceBroker broker = ServiceBroker.builder().transporter(new RedisTransporter()).build();
+			// .transporter(new RedisTransporter())
+			ServiceBroker broker = ServiceBroker.builder().build();
 
 			// Deploy services
-			broker.createService(new MathService());
 			broker.createService(new SenderService());
 			broker.createService(new ReceiverService());
 
 			// Start Message Broker
 			broker.start();
 
-			// Create input
-			Tree in = new Tree();
-			in.put("a", 3);
-			in.put("b", 5);
-
-			// Local or remote method call
-			broker.call("java.math.add", in).then(rsp -> {
-
-				// Response
-				broker.getLogger().info("Response: " + rsp.asInteger());
-
-			});
-
-			// Broadcast event
-			broker.broadcast("foo.xyz", "a", 3, "b", 5);
-
-			in = new Tree().put("withActions", true);
-			
-			System.out.println(broker.getConfig().getServiceRegistry().getDescriptor());
-			
-			System.out.println("--------------------------");
-			
-			broker.call("$node.services", in).then(rsp -> {
-
-				// Response
-				broker.getLogger().info("services response: " + rsp);
-
-			});
-					
-			broker.call("$node.actions", in).then(rsp -> {
-
-				// Response
-				broker.getLogger().info("actions response: " + rsp);
-
-			});
-
-			broker.call("$node.events", in).then(rsp -> {
-
-				// Response
-				broker.getLogger().info("events response: " + rsp);
-
-			});
-
 			// Invoke sender service
-			// broker.call("sender.send");
-			
+			broker.call("sender.send");
+
 			Thread.sleep(100000);
-			
+
 			// Stop Message Broker
 			broker.stop();
 
@@ -116,37 +71,38 @@ public class Sample {
 	@Name("sender")
 	public static class SenderService extends Service {
 
-		public Action send = ctx -> {	
-			
+		public Action send = ctx -> {
+
 			System.out.println("SENDER - called");
-			
+
 			File file1 = new File("/temp/test1.txt");
-			PacketStream output = new PacketStream(file1);
-			
-			output.pipe().then(submitted -> {
-				
-				long submittedBytes = submitted.asLong();
-				System.out.println("SENDER - submitted bytes: " + submittedBytes);
-				
-			}).catchError(err -> {
-				
-				System.out.println("SENDER - unable to submit: " + err);
-				
-			});
-			
+			File file2 = new File("/temp/test2.txt");
+
+			OutgoingStream output = new OutgoingStream();
+
 			ctx.call("receiver.receive", output).then(rsp -> {
-				
-				PacketStream input = (PacketStream) rsp.asObject();
-				File file2 = new File("/temp/test2.txt");
-				input.pipe(file2).then(received -> {
-				
-					long receivedBytes = received.asLong();
-					System.out.println("SENDER - received bytes: " + receivedBytes);
-					
+
+				IncomingStream in = (IncomingStream) rsp.asObject();
+				System.out.println("SENDER - received stream: " + in);
+
+				in.transferTo(file2).then(transfered -> {
+
+					System.out.println("SENDER - file saved.");
+
 				});
-				
+
 			});
+
+			System.out.println("SENDER - start transfer");
+
+			ScheduledExecutorService scheduler = broker.getConfig().getScheduler();
 			
+			output.transferFrom(file1, scheduler, 100, 100).then(rsp -> {
+
+				System.out.println("SENDER - transfer finished");
+
+			});
+
 			return null;
 		};
 
@@ -156,34 +112,22 @@ public class Sample {
 	public static class ReceiverService extends Service {
 
 		public Action receive = ctx -> {
-			
+
 			System.out.println("RECEIVER - called");
-			
-			NonBlockingQueue queue = new NonBlockingQueue();
-			PacketStream output = new PacketStream(queue);
 
-			ctx.stream.pipe(new PacketReceiver() {
-				
-				@Override
-				public void onData(byte[] bytes) throws Exception {
-					System.out.println("RECEIVER - Sending back " + bytes.length + " bytes...");
-					queue.sendData(bytes);
-				}
+			OutgoingStream output = new OutgoingStream();
 
-				@Override
-				public void onError(Throwable cause) throws Exception {
-					System.out.println("RECEIVER - Sending back: error (" + cause + ")");
-					queue.sendError(cause);
-				}
-								
-				@Override
-				public void onClose() throws Exception {
-					System.out.println("RECEIVER - Sending back: close");
-					queue.sendClose();
-				}
-				
+			ctx.stream.onData(bytes -> {
+				System.out.println("RECEIVER - Sending back " + bytes.length + " bytes...");
+				output.sendData(bytes);
+			}).onError(cause -> {
+				System.out.println("RECEIVER - Sending back: error (" + cause + ")");
+				output.sendError(cause);
+			}).onClose(() -> {
+				System.out.println("RECEIVER - Sending back: close");
+				output.sendClose();
 			});
-			
+
 			return output;
 		};
 

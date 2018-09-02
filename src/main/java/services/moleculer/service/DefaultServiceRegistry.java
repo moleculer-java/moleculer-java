@@ -31,6 +31,7 @@ import static services.moleculer.transporter.Transporter.PACKET_RESPONSE;
 import static services.moleculer.util.CommonUtils.convertAnnotations;
 import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.nameOf;
+import static services.moleculer.util.CommonUtils.throwableToTree;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -76,7 +77,8 @@ import services.moleculer.error.ServiceNotFoundError;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
-import services.moleculer.stream.PacketStream;
+import services.moleculer.stream.IncomingStream;
+import services.moleculer.stream.OutgoingStream;
 import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.UidGenerator;
 import services.moleculer.util.FastBuildTree;
@@ -107,6 +109,10 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	protected final ConcurrentHashMap<String, PendingPromise> promises = new ConcurrentHashMap<>(1024);
 
+	// --- REGISTERED STREAMS ---
+
+	protected final ConcurrentHashMap<String, OutgoingStream> streams = new ConcurrentHashMap<>(1024);
+
 	// --- PROPERTIES ---
 
 	/**
@@ -123,11 +129,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	 * Write exceptions into the log file
 	 */
 	protected boolean writeErrorsToLog = true;
-
-	/**
-	 * Time between the packets (in MILLISECONDS) when streaming
-	 */
-	protected long packetDelay = 5;
 
 	// --- LOCKS ---
 
@@ -397,7 +398,66 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			if (!PROTOCOL_VERSION.equals(ver)) {
 				logger.warn("Invalid protocol version (" + ver + ")!");
 				transporter.publish(PACKET_RESPONSE, sender,
-						throwableToTree(id, new ProtocolVersionMismatchError(nodeID, PROTOCOL_VERSION, ver)));
+						throwableToTree(id, nodeID, new ProtocolVersionMismatchError(nodeID, PROTOCOL_VERSION, ver)));
+				return;
+			}
+		}
+
+		// TODO Incoming stream handling
+		Tree stream = message.get("stream");
+		boolean streaming = false;
+		if (stream != null) {
+			streaming = stream.asBoolean();
+			OutgoingStream outStream = streams.get(id);
+			if (outStream != null) {
+				if (streaming) {
+
+					// Get data packet
+					Tree params = message.get("params");
+					if (params == null) {
+						logger.warn("Missing \"params\" structure!");
+						return;
+					}
+					Tree data = params.get("data");
+					if (data == null) {
+						logger.warn("Missing \"data\" structure!");
+						return;
+					}
+
+					// Convert unsigned list to signed byte array
+					try {
+						byte[] bytes = new byte[data.size()];
+						int i = 0;
+						for (Tree number : data) {
+							bytes[i++] = number.asByte();
+						}
+						outStream.sendData(bytes);
+					} catch (Exception cause) {
+						logger.error("Unable to convert \"data\" structure to byte array!", cause);
+						streams.remove(id);
+					}
+
+				} else {
+
+					// Close packet or error packet
+					try {
+						boolean success = message.get("success", true);
+						if (success) {
+
+							// Close packet
+							outStream.sendClose();
+
+						} else {
+
+							// Error packet
+							MoleculerError cause = MoleculerErrorFactory.create(message);
+							outStream.sendError(cause);
+							
+						}
+					} finally {
+						streams.remove(id);
+					}
+				}
 				return;
 			}
 		}
@@ -406,7 +466,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		String action = message.get("action", (String) null);
 		if (action == null || action.isEmpty()) {
 			logger.warn("Missing \"action\" property!");
-			transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, new InvalidPacketDataError(nodeID)));
+			transporter.publish(PACKET_RESPONSE, sender,
+					throwableToTree(id, nodeID, new InvalidPacketDataError(nodeID)));
 			return;
 		}
 
@@ -420,7 +481,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		}
 		if (strategy == null) {
 			logger.warn("Invalid action name (" + action + ")!");
-			transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, new ServiceNotFoundError(nodeID, action)));
+			transporter.publish(PACKET_RESPONSE, sender,
+					throwableToTree(id, nodeID, new ServiceNotFoundError(nodeID, action)));
 			return;
 		}
 
@@ -429,7 +491,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		if (endpoint == null) {
 			logger.warn("Not a local action (" + action + ")!");
 			transporter.publish(PACKET_RESPONSE, sender,
-					throwableToTree(id, new ServiceNotAvailableError(nodeID, action)));
+					throwableToTree(id, nodeID, new ServiceNotAvailableError(nodeID, action)));
 			return;
 		}
 
@@ -457,15 +519,44 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		String parentID = message.get("parentID", (String) null);
 		String requestID = message.get("requestID", id);
 
-		// TODO Get stream
-		PacketStream stream = null;
+		// Create stream
+		IncomingStream inStream = null;
+		OutgoingStream outStream = null;
+		if (streaming) {
+			inStream = new IncomingStream();
+			outStream = new OutgoingStream();
+			outStream.connect(inStream);
+			streams.put(id, outStream);
+		}
 
 		// Create context
-		Context ctx = contextFactory.create(action, params, opts, stream, id, level, requestID, parentID);
+		Context ctx = contextFactory.create(action, params, opts, inStream, id, level, requestID, parentID);
 
 		// Invoke action
+		final OutgoingStream out = outStream;
+		final Tree inputParams = params;
 		try {
 			new Promise(endpoint.handler(ctx)).then(data -> {
+
+				// Send the first data packet (optional)
+				if (out != null) {
+					Tree inputData = inputParams.get("data");
+					if (inputData != null) {
+
+						// Convert unsigned list to signed byte array
+						try {
+							byte[] bytes = new byte[inputData.size()];
+							int i = 0;
+							for (Tree number : inputData) {
+								bytes[i++] = number.asByte();
+							}
+							out.sendData(bytes);
+						} catch (Exception cause) {
+							logger.error("Unable to convert \"data\" structure to byte array!", cause);
+							streams.remove(id);
+						}
+					}
+				}
 
 				// Send response
 				FastBuildTree msg = new FastBuildTree(6);
@@ -483,7 +574,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			}).catchError(error -> {
 
 				// Send error
-				transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, error));
+				transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, nodeID, error));
 
 				// Write error to log file
 				if (writeErrorsToLog) {
@@ -494,7 +585,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		} catch (Throwable error) {
 
 			// Send error
-			transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, error));
+			transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, nodeID, error));
 
 			// Write error to log file
 			if (writeErrorsToLog) {
@@ -503,39 +594,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		}
 
-	}
-
-	// --- CONVERT THROWABLE TO RESPONSE MESSAGE ---
-
-	protected Tree throwableToTree(String id, Throwable error) {
-		FastBuildTree msg = new FastBuildTree(5);
-		try {
-			msg.putUnsafe("id", id);
-			msg.putUnsafe("ver", PROTOCOL_VERSION);
-			msg.putUnsafe("sender", nodeID);
-			msg.putUnsafe("success", false);
-			if (error != null) {
-
-				// Convert to Throwable to MoleculerError
-				MoleculerError moleculerError;
-				if (error instanceof MoleculerError) {
-					moleculerError = (MoleculerError) error;
-				} else {
-					String message = String.valueOf(error.getMessage());
-					message = message.replace('\r', ' ').replace('\n', ' ').trim();
-					moleculerError = new MoleculerError(message, error, "MoleculerError", nodeID, false, 500,
-							"UNKNOWN_ERROR");
-				}
-
-				// Convert MoleculerError to JSON
-				FastBuildTree errorMap = new FastBuildTree(8);
-				msg.putUnsafe("error", errorMap);
-				moleculerError.toTree(errorMap);
-			}
-		} catch (Throwable cause) {
-			logger.error("Unexpected error occurred!", cause);
-		}
-		return msg;
 	}
 
 	// --- RECEIVE PING-PONG RESPONSE ---
@@ -741,8 +799,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				convertAnnotations(actionConfig, annotations);
 
 				// Register action
-				LocalActionEndpoint endpoint = new LocalActionEndpoint(this, executor, scheduler, packetDelay, nodeID,
-						actionConfig, action);
+				LocalActionEndpoint endpoint = new LocalActionEndpoint(this, executor, nodeID, actionConfig, action);
 				Strategy<ActionEndpoint> actionStrategy = strategies.get(actionName);
 				if (actionStrategy == null) {
 
@@ -1097,18 +1154,18 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		try {
 			descriptor = cachedDescriptor;
 			if (descriptor == null) {
-				
+
 				// Create new descriptor block
 				descriptor = new FastBuildTree(5);
 
 				// Services array
 				int serviceCount = names.size();
 				Tree services = descriptor.putListUnsafe("services", serviceCount);
-				
+
 				// Actions map
 				HashMap<String, FastBuildTree> servicesMap = new HashMap<>(serviceCount * 2);
 				HashMap<String, FastBuildTree> actionsMap = new HashMap<>(serviceCount * 2);
-				
+
 				for (Map.Entry<String, Strategy<ActionEndpoint>> entry : strategies.entrySet()) {
 
 					// Get action and service names
@@ -1127,10 +1184,10 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 						FastBuildTree service = new FastBuildTree(3);
 						service.putUnsafe("name", serviceName);
 						servicesMap.put(serviceName, service);
-						
+
 						actions = service.putMapUnsafe("actions", strategies.size());
 						actionsMap.put(serviceName, actions);
-						
+
 						// Create event listener block
 						Tree listeners = eventbus.generateListenerDescriptor(serviceName);
 						if (listeners != null && !listeners.isEmpty()) {
@@ -1150,9 +1207,9 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 						FastBuildTree service = new FastBuildTree(2);
 						service.putUnsafe("name", serviceName);
 						servicesMap.put(serviceName, service);
-						
+
 						actionsMap.put(serviceName, new FastBuildTree(0));
-						
+
 						// Create event listener block
 						Tree listeners = eventbus.generateListenerDescriptor(serviceName);
 						if (listeners != null && !listeners.isEmpty()) {
@@ -1192,10 +1249,10 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				} catch (Exception ignored) {
 				}
 				Tree ipList = descriptor.putListUnsafe("ipList", ips.size());
-				for (String ip: ips) {
+				for (String ip : ips) {
 					ipList.add(ip);
 				}
-				
+
 				// Client descriptor
 				FastBuildTree client = descriptor.putMapUnsafe("client", 3);
 				client.putUnsafe("type", "java");
@@ -1236,14 +1293,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	public void setWriteErrorsToLog(boolean writeErrorsToLog) {
 		this.writeErrorsToLog = writeErrorsToLog;
-	}
-
-	public long getPacketDelay() {
-		return packetDelay;
-	}
-
-	public void setPacketDelay(long packetDelay) {
-		this.packetDelay = packetDelay;
 	}
 
 }

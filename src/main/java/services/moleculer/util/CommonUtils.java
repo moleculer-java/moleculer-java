@@ -25,6 +25,8 @@
  */
 package services.moleculer.util;
 
+import static services.moleculer.ServiceBroker.PROTOCOL_VERSION;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -53,10 +55,11 @@ import io.datatree.Tree;
 import io.datatree.dom.TreeReaderRegistry;
 import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallOptions;
+import services.moleculer.error.MoleculerError;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.service.Name;
 import services.moleculer.service.Version;
-import services.moleculer.stream.PacketStream;
+import services.moleculer.stream.OutgoingStream;
 import services.moleculer.transporter.Transporter;
 
 /**
@@ -71,6 +74,36 @@ public final class CommonUtils {
 	// --- DURATION FORMATTER ---
 
 	private static final NumberFormat numberFormatter = DecimalFormat.getInstance(Locale.US);
+
+	// --- CONVERT THROWABLE TO RESPONSE MESSAGE ---
+
+	public static final FastBuildTree throwableToTree(String id, String nodeID, Throwable error) {
+		FastBuildTree msg = new FastBuildTree(6);
+
+		msg.putUnsafe("id", id);
+		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("sender", nodeID);
+		msg.putUnsafe("success", false);
+		if (error != null) {
+
+			// Convert to Throwable to MoleculerError
+			MoleculerError moleculerError;
+			if (error instanceof MoleculerError) {
+				moleculerError = (MoleculerError) error;
+			} else {
+				String message = String.valueOf(error.getMessage());
+				message = message.replace('\r', ' ').replace('\n', ' ').trim();
+				moleculerError = new MoleculerError(message, error, "MoleculerError", nodeID, false, 500,
+						"UNKNOWN_ERROR");
+			}
+
+			// Convert MoleculerError to JSON
+			FastBuildTree errorMap = new FastBuildTree(8);
+			msg.putUnsafe("error", errorMap);
+			moleculerError.toTree(errorMap);
+		}
+		return msg;
+	}
 
 	// --- PATH FORMATTER ---
 
@@ -327,7 +360,7 @@ public final class CommonUtils {
 		Tree data = null;
 		CallOptions.Options opts = null;
 		Groups groups = null;
-		PacketStream stream = null;
+		OutgoingStream stream = null;
 		if (params != null) {
 			if (params.length == 1) {
 				if (params[0] instanceof Tree) {
@@ -336,9 +369,9 @@ public final class CommonUtils {
 					opts = (CallOptions.Options) params[0];
 				} else if (params[0] instanceof Groups) {
 					groups = (Groups) params[0];
-				} else if (params[0] instanceof PacketStream) {
+				} else if (params[0] instanceof OutgoingStream) {
 					data = new Tree();
-					stream = (PacketStream) params[0];
+					stream = (OutgoingStream) params[0];
 				} else {
 					data = new CheckedTree(params[0]);
 				}
@@ -358,13 +391,13 @@ public final class CommonUtils {
 								groups = (Groups) value;
 								continue;
 							}
-							if (value instanceof PacketStream) {
-								stream = (PacketStream) value;
+							if (value instanceof OutgoingStream) {
+								stream = (OutgoingStream) value;
 								continue;
 							}
 							i++;
 							throw new IllegalArgumentException("Parameter #" + i + " (\"" + value
-									+ "\") must be String, Context, Groups, PacketStream or CallOptions!");
+									+ "\") must be String, Context, Groups, OutgoingStream or CallOptions!");
 						}
 						prev = (String) value;
 						continue;

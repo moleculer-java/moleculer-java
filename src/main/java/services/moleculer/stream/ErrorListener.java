@@ -1,7 +1,7 @@
 /**
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
- * Copyright 2018 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
  * Based on Moleculer Framework for NodeJS [https://moleculer.services].
  * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -25,12 +25,9 @@
  */
 package services.moleculer.stream;
 
-public interface PacketReceiver {
+@FunctionalInterface
+public interface ErrorListener {
 
-	public void onData(byte[] bytes) throws Exception;
-	
-	public void onError(Throwable cause) throws Exception;
-	
-	public void onClose() throws Exception;
+	public void onError(Throwable error);
 	
 }

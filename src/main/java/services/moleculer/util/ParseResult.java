@@ -28,7 +28,7 @@ package services.moleculer.util;
 import io.datatree.Tree;
 import services.moleculer.context.CallOptions;
 import services.moleculer.eventbus.Groups;
-import services.moleculer.stream.PacketStream;
+import services.moleculer.stream.OutgoingStream;
 
 public final class ParseResult {
 
@@ -36,13 +36,13 @@ public final class ParseResult {
 
 	public final Tree data;
 	public final Groups groups;
-	public final PacketStream stream;
+	public final OutgoingStream stream;
 	
 	public CallOptions.Options opts;
 
 	// --- CONSTRUCTOR ---
 
-	ParseResult(Tree data, CallOptions.Options opts, Groups groups, PacketStream stream) {
+	ParseResult(Tree data, CallOptions.Options opts, Groups groups, OutgoingStream stream) {
 		this.data = data;
 		this.opts = opts;
 		this.groups = groups;

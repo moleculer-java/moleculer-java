@@ -1,7 +1,7 @@
 /**
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
- * Copyright 2018 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
  * Based on Moleculer Framework for NodeJS [https://moleculer.services].
  * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -25,59 +25,11 @@
  */
 package services.moleculer.stream;
 
-import io.datatree.Promise;
+import java.io.IOException;
 
-public class OutgoingPacket {
+@FunctionalInterface
+public interface DataListener {
 
-	protected final PacketStream stream;
-	protected final PacketReceiver destination;
-	protected final Promise finished;
-	
-	protected long totalLength;
-
-	OutgoingPacket(PacketStream stream, PacketReceiver destination, Promise finished) {
-		this.stream = stream;
-		this.destination = destination;
-		this.finished = finished;
-	}
-	
-	public void sendData(byte[] bytes) {
-		if (!finished.isDone()) {
-			try {
-				if (bytes != null) {
-					totalLength += bytes.length;
-					destination.onData(bytes);
-				}
-				stream.transferNext();
-			} catch (Throwable cause) {
-				try {
-					destination.onError(cause);
-				} catch (Throwable ignored) {
-				} finally {
-					finished.complete(cause);
-				}
-			}
-		}
-	}
-
-	public void sendError(Throwable cause) {
-		if (!finished.isDone()) {
-			try {
-				destination.onError(cause);
-			} catch (Throwable ignored) {
-			} finally {
-				finished.complete(cause);
-			}
-		}
-	}
-
-	public void sendClose() {
-		try {
-			destination.onClose();
-		} catch (Throwable ignored) {
-		} finally {
-			finished.complete(totalLength);
-		}
-	}
+	void onData(byte[] bytes) throws IOException;
 	
 }
