@@ -33,6 +33,7 @@ import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.throwableToTree;
 
+import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
@@ -78,7 +79,8 @@ import services.moleculer.eventbus.Eventbus;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.stream.IncomingStream;
-import services.moleculer.stream.OutgoingStream;
+import services.moleculer.stream.PacketListener;
+import services.moleculer.stream.PacketStream;
 import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.UidGenerator;
 import services.moleculer.util.FastBuildTree;
@@ -111,7 +113,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	// --- REGISTERED STREAMS ---
 
-	protected final ConcurrentHashMap<String, OutgoingStream> streams = new ConcurrentHashMap<>(1024);
+	protected final ConcurrentHashMap<String, IncomingStream> requestStreams = new ConcurrentHashMap<>(1024);
+	protected final ConcurrentHashMap<String, IncomingStream> responseStreams = new ConcurrentHashMap<>(1024);
 
 	// --- PROPERTIES ---
 
@@ -403,62 +406,31 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			}
 		}
 
-		// TODO Incoming stream handling
-		Tree stream = message.get("stream");
-		boolean streaming = false;
-		if (stream != null) {
-			streaming = stream.asBoolean();
-			OutgoingStream outStream = streams.get(id);
-			if (outStream != null) {
-				if (streaming) {
-
-					// Get data packet
-					Tree params = message.get("params");
-					if (params == null) {
-						logger.warn("Missing \"params\" structure!");
-						return;
-					}
-					Tree data = params.get("data");
-					if (data == null) {
-						logger.warn("Missing \"data\" structure!");
-						return;
-					}
-
-					// Convert unsigned list to signed byte array
-					try {
-						byte[] bytes = new byte[data.size()];
-						int i = 0;
-						for (Tree number : data) {
-							bytes[i++] = number.asByte();
-						}
-						outStream.sendData(bytes);
-					} catch (Exception cause) {
-						logger.error("Unable to convert \"data\" structure to byte array!", cause);
-						streams.remove(id);
-					}
-
-				} else {
-
-					// Close packet or error packet
-					try {
-						boolean success = message.get("success", true);
-						if (success) {
-
-							// Close packet
-							outStream.sendClose();
-
-						} else {
-
-							// Error packet
-							MoleculerError cause = MoleculerErrorFactory.create(message);
-							outStream.sendError(cause);
-							
-						}
-					} finally {
-						streams.remove(id);
-					}
+		// Incoming stream handling
+		IncomingStream requestStream = requestStreams.get(id);
+		if (requestStream != null) {
+			try {
+				if (requestStream.receive(message)) {
+					requestStreams.remove(id);
 				}
-				return;
+			} catch (Throwable error) {
+				requestStreams.remove(id);
+
+				// Send error
+				transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, nodeID, error));
+
+				// Write error to log file
+				if (writeErrorsToLog) {
+					logger.error("Unexpected error occurred while streaming!", error);
+				}
+
+			}
+			return;
+		}
+		if (message.get("stream", false)) {
+			requestStream = new IncomingStream(nodeID, scheduler);
+			if (!requestStream.receive(message)) {
+				requestStreams.put(id, requestStream);
 			}
 		}
 
@@ -519,44 +491,13 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		String parentID = message.get("parentID", (String) null);
 		String requestID = message.get("requestID", id);
 
-		// Create stream
-		IncomingStream inStream = null;
-		OutgoingStream outStream = null;
-		if (streaming) {
-			inStream = new IncomingStream();
-			outStream = new OutgoingStream();
-			outStream.connect(inStream);
-			streams.put(id, outStream);
-		}
-
 		// Create context
-		Context ctx = contextFactory.create(action, params, opts, inStream, id, level, requestID, parentID);
+		Context ctx = contextFactory.create(action, params, opts,
+				requestStream == null ? null : requestStream.getPacketStream(), id, level, requestID, parentID);
 
 		// Invoke action
-		final OutgoingStream out = outStream;
-		final Tree inputParams = params;
 		try {
 			new Promise(endpoint.handler(ctx)).then(data -> {
-
-				// Send the first data packet (optional)
-				if (out != null) {
-					Tree inputData = inputParams.get("data");
-					if (inputData != null) {
-
-						// Convert unsigned list to signed byte array
-						try {
-							byte[] bytes = new byte[inputData.size()];
-							int i = 0;
-							for (Tree number : inputData) {
-								bytes[i++] = number.asByte();
-							}
-							out.sendData(bytes);
-						} catch (Exception cause) {
-							logger.error("Unable to convert \"data\" structure to byte array!", cause);
-							streams.remove(id);
-						}
-					}
-				}
 
 				// Send response
 				FastBuildTree msg = new FastBuildTree(6);
@@ -564,12 +505,48 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				msg.putUnsafe("id", id);
 				msg.putUnsafe("ver", PROTOCOL_VERSION);
 				msg.putUnsafe("success", true);
-				msg.putUnsafe("data", data);
-				Tree rspMeta = data == null ? null : data.getMeta(false);
-				if (rspMeta != null && !rspMeta.isEmpty()) {
-					msg.putUnsafe("meta", rspMeta);
+
+				PacketStream responseStream = null;
+				if (data != null) {
+					Object d = data.asObject();
+					if (d != null && d instanceof PacketStream) {
+						msg.putUnsafe("stream", true);
+						responseStream = (PacketStream) d;
+					} else {
+						msg.putUnsafe("data", d);
+					}
+					Tree m = data.getMeta(false);
+					if (m != null && !m.isEmpty()) {
+						msg.putUnsafe("meta", m);
+					}
 				}
 				transporter.publish(PACKET_RESPONSE, sender, msg);
+
+				// Define sender for response stream
+				if (responseStream != null) {
+					responseStream.onPacket(new PacketListener() {
+
+						// Create sequence counter
+						private final AtomicLong sequence = new AtomicLong();
+
+						@Override
+						public final void onPacket(byte[] bytes, Throwable cause, boolean close) throws IOException {
+							if (bytes != null) {
+								sequence.compareAndSet(10000000, -1);
+								transporter.sendDataPacket(Transporter.PACKET_RESPONSE, sender, ctx, bytes,
+										sequence.incrementAndGet());
+							} else if (cause != null) {
+								transporter.sendErrorPacket(Transporter.PACKET_RESPONSE, sender, ctx, cause,
+										sequence.incrementAndGet());
+							}
+							if (close) {
+								transporter.sendClosePacket(Transporter.PACKET_RESPONSE, sender, ctx,
+										sequence.incrementAndGet());
+							}
+						}
+
+					});
+				}
 
 			}).catchError(error -> {
 
@@ -647,6 +624,31 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		if (id == null || id.isEmpty()) {
 			logger.warn("Missing \"id\" property!", message);
 			return;
+		}
+		
+		// Incoming (response) stream handling
+		IncomingStream responseStream = responseStreams.get(id);
+		if (responseStream != null) {
+			try {
+				if (responseStream.receive(message)) {
+					responseStreams.remove(id);
+				}
+			} catch (Throwable error) {
+				responseStreams.remove(id);
+
+				// Write error to log file
+				if (writeErrorsToLog) {
+					logger.error("Unexpected error occurred while streaming!", error);
+				}
+			}
+			return;
+		}
+		if (message.get("stream", false)) {
+			responseStream = new IncomingStream(nodeID, scheduler);
+			if (!responseStream.receive(message)) {
+				responseStreams.put(id, responseStream);
+			}
+			message.putObject("data", responseStream.getPacketStream());
 		}
 
 		// Get stored promise

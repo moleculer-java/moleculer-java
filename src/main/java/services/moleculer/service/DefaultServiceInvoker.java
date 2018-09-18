@@ -33,7 +33,7 @@ import services.moleculer.context.CallOptions;
 import services.moleculer.context.CallOptions.Options;
 import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
-import services.moleculer.stream.IncomingStream;
+import services.moleculer.stream.PacketStream;
 
 /**
  * Default service invoker with retry logic.
@@ -68,7 +68,7 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 	// --- CALL SERVICE ---
 
 	@Override
-	public Promise call(String name, Tree params, Options opts, IncomingStream stream, Context parent) {
+	public Promise call(String name, Tree params, Options opts, PacketStream stream, Context parent) {
 		String targetID;
 		int remaining;
 		if (opts == null) {
@@ -81,7 +81,7 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 		return call(name, params, opts, stream, parent, targetID, remaining);
 	}
 
-	protected Promise call(String name, Tree params, Options opts, IncomingStream stream, Context parent, String targetID,
+	protected Promise call(String name, Tree params, Options opts, PacketStream stream, Context parent, String targetID,
 			int remaining) {
 		try {
 			Action action = serviceRegistry.getAction(name, targetID);
@@ -114,7 +114,7 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 
 	// --- RETRY CALL ---
 
-	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, IncomingStream stream,
+	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, PacketStream stream,
 			Context parent, String targetID, int remaining) {
 		int newRemaining = remaining - 1;
 		logger.warn("Retrying request (" + newRemaining + " attempts left)...", cause);

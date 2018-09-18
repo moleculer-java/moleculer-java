@@ -34,7 +34,7 @@ import services.moleculer.eventbus.Eventbus;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.service.ServiceInvoker;
 import services.moleculer.strategy.Strategy;
-import services.moleculer.stream.IncomingStream;
+import services.moleculer.stream.PacketStream;
 import services.moleculer.util.ParseResult;
 
 public class Context {
@@ -86,7 +86,7 @@ public class Context {
 	/**
 	 * Streamed content
 	 */
-	public IncomingStream stream;
+	public PacketStream stream;
 	
 	// --- COMPONENTS ---
 
@@ -96,7 +96,7 @@ public class Context {
 	// --- CONSTRUCTORS ---
 
 	public Context(ServiceInvoker serviceInvoker, Eventbus eventbus, String id, String name, Tree params,
-			CallOptions.Options opts, IncomingStream stream) {
+			CallOptions.Options opts, PacketStream stream) {
 
 		// Set components
 		this.serviceInvoker = serviceInvoker;
@@ -122,7 +122,7 @@ public class Context {
 		}
 	}
 
-	public Context(String id, String name, Tree params, CallOptions.Options opts, IncomingStream stream, Context parent) {
+	public Context(String id, String name, Tree params, CallOptions.Options opts, PacketStream stream, Context parent) {
 
 		// Set components
 		this.serviceInvoker = parent.serviceInvoker;
@@ -149,7 +149,7 @@ public class Context {
 	}
 
 	public Context(ServiceInvoker serviceInvoker, Eventbus eventbus, String id, String name, Tree params,
-			CallOptions.Options opts, IncomingStream stream, int level, String requestID, String parentID) {
+			CallOptions.Options opts, PacketStream stream, int level, String requestID, String parentID) {
 
 		// Set components
 		this.serviceInvoker = serviceInvoker;
@@ -198,12 +198,7 @@ public class Context {
 	 */
 	public Promise call(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		IncomingStream stream = null;
-		if (res.stream != null) {
-			stream = new IncomingStream();
-			res.stream.connect(stream);
-		}
-		return call(name, res.data, res.opts, stream);
+		return call(name, res.data, res.opts, res.stream);
 	}
 
 	/**
@@ -272,7 +267,7 @@ public class Context {
 	 * 
 	 * @return response Promise
 	 */
-	protected Promise call(String name, Tree params, CallOptions.Options opts, IncomingStream stream) {
+	protected Promise call(String name, Tree params, CallOptions.Options opts, PacketStream stream) {
 
 		// Recalculate distributed timeout
 		if (startTime > 0) {

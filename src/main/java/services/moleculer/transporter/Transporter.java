@@ -140,6 +140,8 @@ public abstract class Transporter extends MoleculerComponent {
 
 	protected Serializer serializer = new JsonSerializer();
 
+	protected boolean usingJsonSerializer = true;
+
 	// --- COMPONENTS ---
 
 	protected ExecutorService executor;
@@ -376,69 +378,86 @@ public abstract class Transporter extends MoleculerComponent {
 
 		// Stream marker (default is "false")
 		if (ctx.stream != null) {
-			msg.putUnsafe("stream", true);	
+			msg.putUnsafe("stream", true);
 		}
-		
+
 		// Send message
 		publish(Transporter.PACKET_REQUEST, nodeID, msg);
 	}
-	
-	// --- TODO DATA PACKET (STREAMING) ---
-	
-	public void sendDataPacket(String nodeID, Context ctx, byte[] bytes) {
-		FastBuildTree msg = new FastBuildTree(5);
+
+	// --- DATA PACKET (STREAMING) ---
+
+	public void sendDataPacket(String cmd, String nodeID, Context ctx, byte[] bytes, long sequence) {
+		FastBuildTree msg = new FastBuildTree(6);
 
 		// Add required properties (version, sender's nodeID, request ID)
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
 		msg.putUnsafe("sender", this.nodeID);
 		msg.putUnsafe("id", ctx.id);
-		
+
 		// Stream marker
 		msg.putUnsafe("stream", true);
-		
+
 		// Add "params" block
 		FastBuildTree params = new FastBuildTree(2);
 		msg.putUnsafe("params", params);
 		params.putUnsafe("type", "Buffer");
-		
+
 		// Convert signed byte array to unsigned short array
-		short[] data = new short[bytes.length];
-		for (int i = 0; i < bytes.length; i++) {
-			data[i] = (short) (bytes[i] & 0xFF);
+		if (usingJsonSerializer) {
+
+			// Using NodeJS compatible byte-array encoding
+			short[] data = new short[bytes.length];
+			for (int i = 0; i < bytes.length; i++) {
+				data[i] = (short) (bytes[i] & 0xFF);
+			}
+			params.putUnsafe("data", data);
+		} else {
+
+			// Other formats, eg. MessagePack
+			params.putUnsafe("data", bytes);
 		}
-		params.putUnsafe("data", data);
-		
+
+		// Add "meta" block
+		FastBuildTree meta = new FastBuildTree(1);
+		meta.putUnsafe("seq", sequence);
+		msg.putUnsafe("meta", meta);
+
 		// Send message
-		publish(Transporter.PACKET_REQUEST, nodeID, msg);
+		publish(cmd, nodeID, msg);
 	}
 
-	// --- TODO ERROR PACKET (STREAMING) ---
-	
-	public void sendErrorPacket(String nodeID, Context ctx, Throwable cause) {
+	// --- ERROR PACKET (STREAMING) ---
+
+	public void sendErrorPacket(String cmd, String nodeID, Context ctx, Throwable cause, long sequence) {
 		FastBuildTree msg = throwableToTree(ctx.id, nodeID, cause);
 
-		// Stream marker
-		msg.putUnsafe("stream", false);
+		// Add "meta" block
+		FastBuildTree meta = new FastBuildTree(1);
+		meta.putUnsafe("seq", sequence);
+		msg.putUnsafe("meta", meta);
 
-		// Send message 
-		publish(Transporter.PACKET_REQUEST, nodeID, msg);
+		// Send message
+		publish(cmd, nodeID, msg);
 	}
 
-	// --- TODO CLOSE PACKET (STREAMING) ---
-	
-	public void sendClosePacket(String nodeID, Context ctx) {
+	// --- CLOSE PACKET (STREAMING) ---
+
+	public void sendClosePacket(String cmd, String nodeID, Context ctx, long sequence) {
 		FastBuildTree msg = new FastBuildTree(4);
 
 		// Add required properties (version, sender's nodeID, request ID)
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
 		msg.putUnsafe("sender", this.nodeID);
 		msg.putUnsafe("id", ctx.id);
-		
-		// Stream marker
-		msg.putUnsafe("stream", false);
-		
+
+		// Add "meta" block
+		FastBuildTree meta = new FastBuildTree(1);
+		meta.putUnsafe("seq", sequence);
+		msg.putUnsafe("meta", meta);
+
 		// Send message
-		publish(Transporter.PACKET_REQUEST, nodeID, msg);
+		publish(cmd, nodeID, msg);
 	}
 
 	// --- PUBLISH ---
@@ -511,7 +530,7 @@ public abstract class Transporter extends MoleculerComponent {
 				// It's our message
 				return;
 			}
-			
+
 			// Incoming response
 			if (channel.equals(responseChannel)) {
 				registry.receiveResponse(data);
@@ -756,7 +775,7 @@ public abstract class Transporter extends MoleculerComponent {
 	}
 
 	// --- GENERIC MOLECULER PACKETS ---
-	
+
 	protected void sendInfoPacket(String channel) {
 		Tree msg = registry.getDescriptor();
 		msg.put("ver", PROTOCOL_VERSION);
@@ -764,7 +783,7 @@ public abstract class Transporter extends MoleculerComponent {
 		msg.put("seq", registry.getTimestamp());
 		publish(channel, msg);
 	}
-	
+
 	protected void sendDiscoverPacket(String channel) {
 		FastBuildTree msg = new FastBuildTree(2);
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
@@ -964,6 +983,7 @@ public abstract class Transporter extends MoleculerComponent {
 
 	public void setSerializer(Serializer serializer) {
 		this.serializer = Objects.requireNonNull(serializer);
+		this.usingJsonSerializer = serializer.getFormat().toLowerCase().contains("json");
 	}
 
 	public int getHeartbeatInterval() {

@@ -25,8 +25,12 @@
  */
 package services.moleculer.service;
 
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicLong;
+
 import io.datatree.Promise;
 import io.datatree.Tree;
+import services.moleculer.stream.PacketListener;
 import services.moleculer.transporter.Transporter;
 
 public class RemoteActionEndpoint extends ActionEndpoint {
@@ -58,14 +62,27 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 
 			// Streamed content
 			if (ctx.stream != null) {
-				ctx.stream.onData(bytes -> {
-					transporter.sendDataPacket(nodeID, ctx, bytes);
-				});
-				ctx.stream.onError(cause -> {
-					transporter.sendErrorPacket(nodeID, ctx, cause);
-				});
-				ctx.stream.onClose(() -> {
-					transporter.sendClosePacket(nodeID, ctx);
+				ctx.stream.onPacket(new PacketListener() {
+
+					// Create sequence counter
+					private final AtomicLong sequence = new AtomicLong();
+
+					@Override
+					public final void onPacket(byte[] bytes, Throwable cause, boolean close) throws IOException {
+						if (bytes != null) {
+							sequence.compareAndSet(10000000, -1);
+							transporter.sendDataPacket(Transporter.PACKET_REQUEST, nodeID, ctx, bytes,
+									sequence.incrementAndGet());
+						} else if (cause != null) {
+							transporter.sendErrorPacket(Transporter.PACKET_REQUEST, nodeID, ctx, cause,
+									sequence.incrementAndGet());
+						}
+						if (close) {
+							transporter.sendClosePacket(Transporter.PACKET_REQUEST, nodeID, ctx,
+									sequence.incrementAndGet());
+						}
+					}
+
 				});
 			}
 

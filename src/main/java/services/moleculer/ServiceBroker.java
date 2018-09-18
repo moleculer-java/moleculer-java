@@ -76,7 +76,7 @@ import services.moleculer.strategy.SecureRandomStrategyFactory;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.strategy.XorShiftRandomStrategyFactory;
-import services.moleculer.stream.IncomingStream;
+import services.moleculer.stream.PacketStream;
 import services.moleculer.transporter.AmqpTransporter;
 import services.moleculer.transporter.GoogleTransporter;
 import services.moleculer.transporter.JmsTransporter;
@@ -710,12 +710,7 @@ public class ServiceBroker {
 	 */
 	public Promise call(String name, Object... params) {
 		ParseResult res = parseParams(params);
-		IncomingStream stream = null;
-		if (res.stream != null) {
-			stream = new IncomingStream();
-			res.stream.connect(stream);
-		}
-		return serviceInvoker.call(name, res.data, res.opts, stream, null);
+		return serviceInvoker.call(name, res.data, res.opts, res.stream, null);
 	}
 
 	/**
@@ -1049,6 +1044,29 @@ public class ServiceBroker {
 	 */
 	public Promise ping(long timeoutMillis, String nodeID) {
 		return serviceRegistry.ping(timeoutMillis, nodeID);
+	}
+
+	// --- STREAMED REQUEST OR RESPONSE ---
+
+	/**
+	 * Creates a virtual stream. Sample:<br>
+	 * <pre>
+	 * public Action send = ctx -> {
+	 *   PacketStream reqStream = broker.openStream();
+	 *   
+	 *   ctx.call("service.action", reqStream).then(rsp -> {
+	 *     PacketStream rspStream = (PacketStream) rsp.asObject();
+	 *     rspStream.transferTo(new File("out"));
+	 *   }
+	 *   
+	 *   reqStream.transferFrom(new File("in"));
+	 * }
+	 * </pre>
+	 * 
+	 * @return new stream
+	 */
+	public PacketStream openStream() {
+		return new PacketStream(config.getScheduler());
 	}
 
 	// --- START DEVELOPER CONSOLE ---

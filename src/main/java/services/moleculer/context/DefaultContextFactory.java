@@ -32,7 +32,7 @@ import services.moleculer.error.MaxCallLevelError;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.service.Name;
 import services.moleculer.service.ServiceInvoker;
-import services.moleculer.stream.IncomingStream;
+import services.moleculer.stream.PacketStream;
 import services.moleculer.uid.UidGenerator;
 
 /**
@@ -76,7 +76,7 @@ public class DefaultContextFactory extends ContextFactory {
 	// --- CREATE CONTEXT ---
 
 	@Override
-	public Context create(String name, Tree params, CallOptions.Options opts, IncomingStream stream, Context parent) {
+	public Context create(String name, Tree params, CallOptions.Options opts, PacketStream stream, Context parent) {
 
 		// Generate ID
 		String id = uid.nextUID();
@@ -107,7 +107,7 @@ public class DefaultContextFactory extends ContextFactory {
 	}
 
 	@Override
-	public Context create(String name, Tree params, CallOptions.Options opts, IncomingStream stream, String id, int level,
+	public Context create(String name, Tree params, CallOptions.Options opts, PacketStream stream, String id, int level,
 			String requestID, String parentID) {
 
 		// Verify call level

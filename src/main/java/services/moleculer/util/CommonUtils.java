@@ -59,7 +59,7 @@ import services.moleculer.error.MoleculerError;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.service.Name;
 import services.moleculer.service.Version;
-import services.moleculer.stream.OutgoingStream;
+import services.moleculer.stream.PacketStream;
 import services.moleculer.transporter.Transporter;
 
 /**
@@ -360,7 +360,7 @@ public final class CommonUtils {
 		Tree data = null;
 		CallOptions.Options opts = null;
 		Groups groups = null;
-		OutgoingStream stream = null;
+		PacketStream stream = null;
 		if (params != null) {
 			if (params.length == 1) {
 				if (params[0] instanceof Tree) {
@@ -369,9 +369,9 @@ public final class CommonUtils {
 					opts = (CallOptions.Options) params[0];
 				} else if (params[0] instanceof Groups) {
 					groups = (Groups) params[0];
-				} else if (params[0] instanceof OutgoingStream) {
+				} else if (params[0] instanceof PacketStream) {
 					data = new Tree();
-					stream = (OutgoingStream) params[0];
+					stream = (PacketStream) params[0];
 				} else {
 					data = new CheckedTree(params[0]);
 				}
@@ -391,13 +391,13 @@ public final class CommonUtils {
 								groups = (Groups) value;
 								continue;
 							}
-							if (value instanceof OutgoingStream) {
-								stream = (OutgoingStream) value;
+							if (value instanceof PacketStream) {
+								stream = (PacketStream) value;
 								continue;
 							}
 							i++;
 							throw new IllegalArgumentException("Parameter #" + i + " (\"" + value
-									+ "\") must be String, Context, Groups, OutgoingStream or CallOptions!");
+									+ "\") must be String, Context, Groups, PacketStream or CallOptions!");
 						}
 						prev = (String) value;
 						continue;

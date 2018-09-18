@@ -28,8 +28,8 @@ package services.moleculer.stream;
 import java.io.IOException;
 
 @FunctionalInterface
-public interface DataListener {
+public interface PacketListener {
 
-	void onData(byte[] bytes) throws IOException;
+	void onPacket(byte[] bytes, Throwable cause, boolean close) throws IOException;
 	
 }

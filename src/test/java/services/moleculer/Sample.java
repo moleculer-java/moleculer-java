@@ -26,7 +26,6 @@
 package services.moleculer;
 
 import java.io.File;
-import java.util.concurrent.ScheduledExecutorService;
 
 import services.moleculer.cacher.Cache;
 import services.moleculer.eventbus.Listener;
@@ -34,8 +33,9 @@ import services.moleculer.eventbus.Subscribe;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
-import services.moleculer.stream.IncomingStream;
-import services.moleculer.stream.OutgoingStream;
+import services.moleculer.stream.PacketStream;
+import services.moleculer.transporter.RedisTransporter;
+import services.moleculer.transporter.Transporter;
 
 public class Sample {
 
@@ -43,24 +43,34 @@ public class Sample {
 		System.out.println("START");
 		try {
 
-			// Create Message Broker
-			// .transporter(new RedisTransporter())
-			ServiceBroker broker = ServiceBroker.builder().build();
+			// Create Message Brokers
+			Transporter t1 = new RedisTransporter();
+			Transporter t2 = new RedisTransporter();
+			
+			boolean debug = false;
+			t1.setDebug(debug);
+			t2.setDebug(debug);
+			
+			ServiceBroker broker1 = ServiceBroker.builder().transporter(t1).nodeID("sender").build();
+			ServiceBroker broker2 = ServiceBroker.builder().transporter(t2).nodeID("receiver").build();
 
 			// Deploy services
-			broker.createService(new SenderService());
-			broker.createService(new ReceiverService());
+			broker1.createService(new SenderService());
+			broker2.createService(new ReceiverService());
 
 			// Start Message Broker
-			broker.start();
+			broker1.start();
+			broker2.start();
+			broker1.waitForServices("receiver").waitFor(5000);
 
 			// Invoke sender service
-			broker.call("sender.send");
+			Thread.sleep(1000);
+			broker1.call("sender.send");
+			Thread.sleep(120000);
 
-			Thread.sleep(100000);
-
-			// Stop Message Broker
-			broker.stop();
+			// Stop Message Brokers
+			broker1.stop();
+			broker2.stop();
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -78,11 +88,11 @@ public class Sample {
 			File file1 = new File("/temp/test1.txt");
 			File file2 = new File("/temp/test2.txt");
 
-			OutgoingStream output = new OutgoingStream();
+			PacketStream output = broker.openStream();
 
 			ctx.call("receiver.receive", output).then(rsp -> {
 
-				IncomingStream in = (IncomingStream) rsp.asObject();
+				PacketStream in = (PacketStream) rsp.asObject();
 				System.out.println("SENDER - received stream: " + in);
 
 				in.transferTo(file2).then(transfered -> {
@@ -95,9 +105,7 @@ public class Sample {
 
 			System.out.println("SENDER - start transfer");
 
-			ScheduledExecutorService scheduler = broker.getConfig().getScheduler();
-			
-			output.transferFrom(file1, scheduler, 100, 100).then(rsp -> {
+			output.transferFrom(file1).then(rsp -> {
 
 				System.out.println("SENDER - transfer finished");
 
@@ -115,17 +123,21 @@ public class Sample {
 
 			System.out.println("RECEIVER - called");
 
-			OutgoingStream output = new OutgoingStream();
+			PacketStream output = new PacketStream(broker.getConfig().getScheduler());
 
-			ctx.stream.onData(bytes -> {
-				System.out.println("RECEIVER - Sending back " + bytes.length + " bytes...");
-				output.sendData(bytes);
-			}).onError(cause -> {
-				System.out.println("RECEIVER - Sending back: error (" + cause + ")");
-				output.sendError(cause);
-			}).onClose(() -> {
-				System.out.println("RECEIVER - Sending back: close");
-				output.sendClose();
+			ctx.stream.onPacket((bytes, cause, close) -> {
+				if (bytes != null) {
+					System.out.println("RECEIVER - Sending back " + bytes.length + " bytes...");
+					output.sendData(bytes);
+				}
+				if (cause != null) {
+					System.out.println("RECEIVER - Sending back: error (" + cause + ")");
+					output.sendError(cause);
+				}
+				if (close) {
+					System.out.println("RECEIVER - Sending back: close");
+					output.sendClose();
+				}
 			});
 
 			return output;

@@ -25,127 +25,156 @@
  */
 package services.moleculer.stream;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
-import java.nio.ByteBuffer;
-import java.nio.channels.WritableByteChannel;
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.concurrent.ScheduledExecutorService;
 
-import io.datatree.Promise;
+import io.datatree.Tree;
+import services.moleculer.error.MoleculerError;
+import services.moleculer.error.MoleculerErrorFactory;
 
-/**
- * !!! These package are in development phase !!!
- */
 public class IncomingStream {
 
-	// --- VARIABLES ---
+	// --- PROPERTIES ---
 
-	protected HashSet<DataListener> dataListeners = new HashSet<>();
-	protected HashSet<ErrorListener> errorListeners = new HashSet<>();
-	protected HashSet<CloseListener> closeListeners = new HashSet<>();
+	protected final String nodeID;
+	
+	protected final PacketStream stream;
 
-	// --- RECEIVE BYTES ---
+	protected volatile long lastUsed = System.currentTimeMillis();
 
-	public IncomingStream onData(DataListener listener) {
-		dataListeners.add(listener);
-		return this;
+	protected volatile long lastSeq;
+
+	protected final HashMap<Long, Tree> pool = new HashMap<>();
+	
+	// --- CONSTRUCTOR ---
+
+	public IncomingStream(String nodeID, ScheduledExecutorService scheduler) {
+		this.nodeID = nodeID;
+		this.stream = new PacketStream(scheduler);
 	}
 
-	// --- RECEIVE ERROR ---
+	// --- RECEIVE PACKET ---
 
-	public IncomingStream onError(ErrorListener listener) {
-		errorListeners.add(listener);
-		return this;
-	}
+	public synchronized boolean receive(Tree message) {
 
-	// --- RECEIVE CLOSE MARKER ---
+		// Update timestamp
+		lastUsed = System.currentTimeMillis();
 
-	public IncomingStream onClose(CloseListener listener) {
-		closeListeners.add(listener);
-		return this;
-	}
-
-	// --- TRANSFER METHODS ---
-
-	public Promise transferTo(File destination) {
-		try {
-			return transferTo(new FileOutputStream(destination));
-		} catch (Throwable cause) {
-			return Promise.reject(cause);
+		// Check sequence number
+		long seq = 0;
+		Tree meta = message.get("meta");
+		if (meta != null) {
+			seq = meta.get("seq", 0L);
 		}
+		if (seq > 0) {
+			if (seq - 1 == lastSeq) {				
+				lastSeq = seq;
+			} else {
+				
+				// Process later
+				pool.put(seq, message);
+				return false;
+			}
+		} else {
+			lastSeq = 0;
+		}
+		
+		// Process current message
+		processMessage(message);
+
+		// Process pooled messages
+		boolean close = false;
+		long nextSeq = lastSeq;
+		while (true) {
+			Tree nextMessage = pool.remove(++nextSeq);
+			if (nextMessage == null) {
+				break;
+			}
+			if (processMessage(nextMessage)) {
+				close = true;
+			}
+		}
+		
+		// True = remove stream from registry
+		return close;
 	}
 
-	public Promise transferTo(OutputStream destination) {
-		return new Promise(res -> {
-			onData(bytes -> {
-				synchronized (destination) {
-					destination.write(bytes);
-				}
-			});
-			onError(err -> {
-				synchronized (destination) {
-					try {
-						destination.close();
-					} catch (Throwable ignored) {
+	protected boolean processMessage(Tree message) {
+
+		// Create processing variables
+		byte[] bytes = null;
+		Throwable cause = null;
+		boolean close = false;
+
+		// Parse incoming message
+		try {
+			Tree params = message.get("params");
+			if (params != null) {
+				Tree data = params.get("data");
+				if (data != null && data.isEnumeration()) {					
+					bytes = new byte[data.size()];
+					int idx = 0;
+					for (Tree item : data) {
+						bytes[idx++] = (byte) item.asInteger().intValue();
 					}
 				}
-				res.reject(err);
-			});
-			onClose(() -> {
-				Throwable err = null;
-				synchronized (destination) {
-					try {
-						destination.flush();
-						destination.close();
-					} catch (Throwable cause) {
-						err = cause;
+			}
+			if (bytes == null) {
+				boolean success = message.get("success", true);
+				if (!success) {
+					Tree error = message.get("error");
+					if (error == null) {
+						cause = new MoleculerError("Remote invocation failed!", null, "MoleculerError", nodeID,
+								false, 500, "UNKNOWN_ERROR", message);
+					} else {
+						cause = MoleculerErrorFactory.create(error);
 					}
 				}
-				if (err == null) {
-					res.resolve();
-				} else {
-					res.reject(err);
-				}
-			});
-		});
+			}
+			close = !message.get("stream", false);
+		} catch (Throwable error) {
+			cause = error;
+		}
+
+		// Bytes
+		if (bytes != null) {
+			try {
+				stream.sendData(bytes);
+			} catch (Throwable error) {
+				cause = error;
+			}
+		}
+
+		// Error
+		if (cause != null) {
+			try {
+				stream.sendError(cause);
+			} catch (Throwable ignored) {
+			}
+			return true;
+		}
+
+		// Close
+		if (close) {
+			try {
+				stream.sendClose();
+			} catch (Throwable ignored) {
+			}
+			return true;
+		}
+	
+		// Do not remove from stream registry
+		return false;
+	}
+	
+	// --- PROPERTY GETTERS ---
+
+	public long getLastUsed() {
+		return lastUsed;
 	}
 
-	public Promise transferTo(WritableByteChannel destination) {
-		return new Promise(res -> {
-			onData(bytes -> {
-				ByteBuffer buffer = ByteBuffer.wrap(bytes);
-				synchronized (destination) {
-					while (buffer.hasRemaining()) {
-						destination.write(buffer);
-					}
-				}
-			});
-			onError(err -> {
-				synchronized (destination) {
-					try {
-						destination.close();
-					} catch (Throwable ignored) {
-					}
-				}
-				res.reject(err);
-			});
-			onClose(() -> {
-				Throwable err = null;
-				synchronized (destination) {
-					try {
-						destination.close();
-					} catch (Throwable cause) {
-						err = cause;
-					}
-				}
-				if (err == null) {
-					res.resolve();
-				} else {
-					res.reject(err);
-				}
-			});
-		});
+	public PacketStream getPacketStream() {
+		return stream;
 	}
 
 }

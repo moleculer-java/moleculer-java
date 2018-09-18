@@ -29,8 +29,6 @@ import java.util.concurrent.ExecutorService;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.stream.IncomingStream;
-import services.moleculer.stream.OutgoingStream;
 
 public class LocalActionEndpoint extends ActionEndpoint {
 
@@ -59,14 +57,6 @@ public class LocalActionEndpoint extends ActionEndpoint {
 					// Invoke async method
 					try {
 						Object rsp = action.handler(ctx);
-
-						// Convert outgoing stream to incoming stream (~= pipe)
-						if (rsp != null && rsp instanceof OutgoingStream) {
-							OutgoingStream out = (OutgoingStream) rsp;
-							IncomingStream in = new IncomingStream();
-							out.connect(in);
-							rsp = in;
-						}
 						
 						// Deregister
 						Promise.resolve(rsp).then(in -> {
@@ -91,17 +81,7 @@ public class LocalActionEndpoint extends ActionEndpoint {
 			} else {
 
 				// Invoke handler without timeout handling
-				Object rsp = action.handler(ctx);
-				
-				// Convert outgoing stream to incoming stream (~= pipe)
-				if (rsp != null && rsp instanceof OutgoingStream) {
-					OutgoingStream out = (OutgoingStream) rsp;
-					IncomingStream in = new IncomingStream();
-					out.connect(in);
-					return in;
-				}
-				
-				return rsp;
+				return action.handler(ctx);
 			}
 			
 		};

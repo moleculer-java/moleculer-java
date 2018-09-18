@@ -138,7 +138,7 @@ public class ServiceBrokerConfig {
 
 		// Set the default NodeID
 		if (nodeID == null || nodeID.isEmpty()) {
-			this.nodeID = getHostName() + '-' + monitor.getPID();
+			this.nodeID = getHostName() + '-' + monitor.getPID() + '-' + System.nanoTime();
 		} else {
 			this.nodeID = nodeID;
 		}
