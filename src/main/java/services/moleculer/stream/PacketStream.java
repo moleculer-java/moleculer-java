@@ -135,6 +135,9 @@ public class PacketStream {
 	// --- SEND ERROR ---
 
 	public boolean sendError(Throwable cause) throws IOException {
+		if (cause == null) {
+			throw new NullPointerException("Unable to send \"null\" as Exception!");
+		}
 		if (closed.compareAndSet(false, true)) {
 			this.cause = cause;
 			if (listeners != null) {

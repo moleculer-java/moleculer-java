@@ -88,7 +88,7 @@ public class Sample {
 			File file1 = new File("/temp/test1.txt");
 			File file2 = new File("/temp/test2.txt");
 
-			PacketStream output = broker.openStream();
+			PacketStream output = broker.createStream();
 
 			ctx.call("receiver.receive", output).then(rsp -> {
 

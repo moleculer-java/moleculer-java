@@ -481,4 +481,32 @@ public class Context {
 		eventbus.broadcast(name, payload, null, true);
 	}
 
+	// --- STREAMED REQUEST OR RESPONSE ---
+
+	/**
+	 * Creates a stream what is suitable for transferring large files (or other
+	 * "unlimited" media content) between Moleculer Nodes. Sample:<br>
+	 * 
+	 * <pre>
+	 * public Action send = ctx -> {
+	 *   PacketStream reqStream = ctx.createStream();
+	 *   
+	 *   ctx.call("service.action", reqStream).then(rsp -> {
+	 *   
+	 *     // Receive bytes into file
+	 *     PacketStream rspStream = (PacketStream) rsp.asObject();
+	 *     rspStream.transferTo(new File("out"));
+	 *   }
+	 *   
+	 *   // Send bytes from file
+	 *   reqStream.transferFrom(new File("in"));
+	 * }
+	 * </pre>
+	 * 
+	 * @return new stream
+	 */
+	public PacketStream createStream() {
+		return new PacketStream(eventbus.getBroker().getConfig().getScheduler());
+	}
+	
 }

@@ -1049,23 +1049,28 @@ public class ServiceBroker {
 	// --- STREAMED REQUEST OR RESPONSE ---
 
 	/**
-	 * Creates a virtual stream. Sample:<br>
+	 * Creates a stream what is suitable for transferring large files (or other
+	 * "unlimited" media content) between Moleculer Nodes. Sample:<br>
+	 * 
 	 * <pre>
 	 * public Action send = ctx -> {
-	 *   PacketStream reqStream = broker.openStream();
+	 *   PacketStream reqStream = broker.createStream();
 	 *   
 	 *   ctx.call("service.action", reqStream).then(rsp -> {
+	 *   
+	 *     // Receive bytes into file
 	 *     PacketStream rspStream = (PacketStream) rsp.asObject();
 	 *     rspStream.transferTo(new File("out"));
 	 *   }
 	 *   
+	 *   // Send bytes from file
 	 *   reqStream.transferFrom(new File("in"));
 	 * }
 	 * </pre>
 	 * 
 	 * @return new stream
 	 */
-	public PacketStream openStream() {
+	public PacketStream createStream() {
 		return new PacketStream(config.getScheduler());
 	}
 

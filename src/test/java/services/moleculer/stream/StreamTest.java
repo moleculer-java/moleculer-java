@@ -83,16 +83,9 @@ public abstract class StreamTest extends TestCase {
 		br1 = ServiceBroker.builder().transporter(tr1).monitor(new ConstantMonitor()).nodeID("node1").build();
 		br2 = ServiceBroker.builder().transporter(tr2).monitor(new ConstantMonitor()).nodeID("node2").build();
 
-		// Create "marker" service
-		br1.createService("marker", new Service() {
-		});
-
 		// Start brokers
 		br1.start();
 		br2.start();
-
-		// Wait for connecting nodes
-		br2.waitForServices(15000, "marker").waitFor();
 	}
 
 	@Override
