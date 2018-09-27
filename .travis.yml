@@ -25,7 +25,8 @@ before_script:
   - unzip gnatsd.zip
   - ./gnatsd-v1.1.0-linux-amd64/gnatsd &
   
-install: gradle wrapper --gradle-version 2.14
+install: gradle wrapper
+# --gradle-version 2.14
   
 before_install:
   - chmod +x gradlew
