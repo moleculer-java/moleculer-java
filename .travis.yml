@@ -25,15 +25,9 @@ before_script:
   - unzip gnatsd.zip
   - ./gnatsd-v1.1.0-linux-amd64/gnatsd &
   # install Mosquitto server
-  - wget http://repo.mosquitto.org/debian/mosquitto-repo.gpg.key
-  - sudo apt-key add mosquitto-repo.gpg.key
-  - cd /etc/apt/sources.list.d/
-  - sudo wget http://repo.mosquitto.org/debian/mosquitto-jessie.list
-  - sudo apt-get update  
-  #- sudo apt-add-repository ppa:mosquitto-dev/mosquitto-ppa -y
-  #- sudo apt-get update -y
-  - sudo RUNLEVEL=1 apt-get install mosquitto  
-  #- sudo apt-get install mosquitto -y
+  - wget http://mosquitto.org/files/binary/linux/mosquitto-0.5.3-bin-lin-x86-static.tar.gz
+  - tar -xzf mosquitto-0.5.3-bin-lin-x86-static.tar.gz
+  - ./mosquitto-0.5.3-bin-lin-x86-static/bin/mosquitto &
    
 install: gradle wrapper --gradle-version 4.2
   
