@@ -24,6 +24,11 @@ before_script:
   - wget https://github.com/nats-io/gnatsd/releases/download/v1.1.0/gnatsd-v1.1.0-linux-amd64.zip -qO gnatsd.zip
   - unzip gnatsd.zip
   - ./gnatsd-v1.1.0-linux-amd64/gnatsd &
+  - wget http://repo.mosquitto.org/debian/mosquitto-repo.gpg.key
+  - sudo apt-key add mosquitto-repo.gpg.key
+  - cd /etc/apt/sources.list.d/
+  - sudo wget http://repo.mosquitto.org/debian/mosquitto-jessie.list
+  - sudo apt-get update  
   #- sudo apt-add-repository ppa:mosquitto-dev/mosquitto-ppa -y
   #- sudo apt-get update -y
   #- sudo apt-get install mosquitto -y
