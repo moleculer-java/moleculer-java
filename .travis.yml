@@ -12,18 +12,19 @@ services:
   - redis-server
   - rabbitmq
   
-addons:
-  apt:
-    sources:
-      - sourceline: 'ppa:mosquitto-dev/mosquitto-ppa'
-    packages:
-      - mosquitto  
+#addons:
+#  apt:
+#    sources:
+#      - sourceline: 'ppa:mosquitto-dev/mosquitto-ppa'
+#    packages:
+#      - mosquitto  
   
 before_script:
   # install NATS server
   - wget https://github.com/nats-io/gnatsd/releases/download/v1.1.0/gnatsd-v1.1.0-linux-amd64.zip -qO gnatsd.zip
   - unzip gnatsd.zip
   - ./gnatsd-v1.1.0-linux-amd64/gnatsd &
+  # install Mosquitto server
   - wget http://repo.mosquitto.org/debian/mosquitto-repo.gpg.key
   - sudo apt-key add mosquitto-repo.gpg.key
   - cd /etc/apt/sources.list.d/
@@ -31,6 +32,7 @@ before_script:
   - sudo apt-get update  
   #- sudo apt-add-repository ppa:mosquitto-dev/mosquitto-ppa -y
   #- sudo apt-get update -y
+  - sudo RUNLEVEL=1 apt-get install mosquitto  
   #- sudo apt-get install mosquitto -y
    
 install: gradle wrapper --gradle-version 4.2
