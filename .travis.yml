@@ -27,8 +27,8 @@ install: gradle wrapper --gradle-version 4.2
 before_install:
   - chmod +x gradlew
   
-script: ./gradlew -i check
-# script: ./gradlew check
+# script: ./gradlew -i check
+script: ./gradlew check
 
 after_success:
   - if [ -e ./gradlew ]; then ./gradlew jacocoTestReport;else gradle jacocoTestReport;fi

@@ -287,6 +287,9 @@ test {
     exclude '**/KafkaTransporterTest.class'
     exclude '**/JmsTransporterTest.class'
     exclude '**/GoogleTransporterTest.class'
+    
+    // Temporarily disabled (Mosquito Server does not start)
+    exclude '**/MqttTransporterTest.class'
 }
 
 // task copyRuntimeLibs(type: Copy) {
