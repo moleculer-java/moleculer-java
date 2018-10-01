@@ -11,23 +11,15 @@ cache:
 services:
   - redis-server
   - rabbitmq
-  
-#addons:
-#  apt:
-#    sources:
-#      - sourceline: 'ppa:mosquitto-dev/mosquitto-ppa'
-#    packages:
-#      - mosquitto  
-  
+    
 before_script:
   # install NATS server
   - wget https://github.com/nats-io/gnatsd/releases/download/v1.1.0/gnatsd-v1.1.0-linux-amd64.zip -qO gnatsd.zip
   - unzip gnatsd.zip
   - ./gnatsd-v1.1.0-linux-amd64/gnatsd &
   # install Mosquitto server
-  - wget http://mosquitto.org/files/binary/linux/mosquitto-0.5.3-bin-lin-x86-static.tar.gz
-  - ls
-  - tar -xzf mosquitto-0.5.3-bin-lin-x86-static.tar.gz
+  - wget http://mosquitto.org/files/binary/linux/mosquitto-0.5.3-bin-lin-x86-static.tar.gz -qO mosquitto.tar.gz
+  - tar -xzf mosquitto.tar.gz
   - ./mosquitto-0.5.3-bin-lin-x86-static/bin/mosquitto &
    
 install: gradle wrapper --gradle-version 4.2
