@@ -26,6 +26,7 @@ before_script:
   - ./gnatsd-v1.1.0-linux-amd64/gnatsd &
   # install Mosquitto server
   - wget http://mosquitto.org/files/binary/linux/mosquitto-0.5.3-bin-lin-x86-static.tar.gz
+  - ls
   - tar -xzf mosquitto-0.5.3-bin-lin-x86-static.tar.gz
   - ./mosquitto-0.5.3-bin-lin-x86-static/bin/mosquitto &
    
