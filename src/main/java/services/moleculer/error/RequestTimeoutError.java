@@ -25,7 +25,7 @@
  */
 package services.moleculer.error;
 
-import static services.moleculer.error.MoleculerErrorFactory.REQUEST_TIMEOUT_ERROR;
+import static services.moleculer.error.MoleculerErrorUtils.REQUEST_TIMEOUT_ERROR;
 
 import io.datatree.Tree;
 

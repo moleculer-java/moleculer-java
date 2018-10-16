@@ -246,6 +246,10 @@ public class KafkaTransporter extends Transporter {
 						transporter.received(record.topic(), record.value());
 					}
 				}
+			} catch (InterruptedException interrupt) {
+				
+				// Interrupted...
+				
 			} catch (WakeupException wakeUp) {
 
 				// Stopping...
@@ -255,7 +259,7 @@ public class KafkaTransporter extends Transporter {
 					firstError = false;
 					transporter.logger.error("Unable to connect to Kafka server!", cause);
 				}
-				if (cause != null && !(cause instanceof InterruptedException)) {
+				if (cause != null) {
 
 					// Reconnect
 					transporter.error(cause);

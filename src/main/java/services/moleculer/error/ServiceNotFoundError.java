@@ -25,7 +25,7 @@
  */
 package services.moleculer.error;
 
-import static services.moleculer.error.MoleculerErrorFactory.SERVICE_NOT_FOUND_ERROR;
+import static services.moleculer.error.MoleculerErrorUtils.SERVICE_NOT_FOUND_ERROR;
 
 import io.datatree.Tree;
 

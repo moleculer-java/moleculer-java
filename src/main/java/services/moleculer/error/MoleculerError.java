@@ -25,7 +25,7 @@
  */
 package services.moleculer.error;
 
-import static services.moleculer.error.MoleculerErrorFactory.MOLECULER_ERROR;
+import static services.moleculer.error.MoleculerErrorUtils.MOLECULER_ERROR;
 import static services.moleculer.util.CommonUtils.parseParams;
 
 import java.io.PrintStream;

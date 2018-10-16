@@ -70,10 +70,14 @@ public class ColoredConsoleLogger implements ConsoleLogger {
 			
 			@Override
 			public void flush() throws IOException {
+				
+				// Do nothing
 			}
 			
 			@Override
 			public void close() throws IOException {
+				
+				// Do nothing
 			}
 			
 		});

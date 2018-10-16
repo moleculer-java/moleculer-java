@@ -25,7 +25,7 @@
  */
 package services.moleculer.error;
 
-import static services.moleculer.error.MoleculerErrorFactory.PROTOCOL_VERSION_MISMATCH_ERROR;
+import static services.moleculer.error.MoleculerErrorUtils.PROTOCOL_VERSION_MISMATCH_ERROR;
 
 import io.datatree.Tree;
 

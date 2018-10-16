@@ -25,7 +25,7 @@
  */
 package services.moleculer.error;
 
-import static services.moleculer.error.MoleculerErrorFactory.BROKER_OPTIONS_ERROR;
+import static services.moleculer.error.MoleculerErrorUtils.BROKER_OPTIONS_ERROR;
 
 import io.datatree.Tree;
 

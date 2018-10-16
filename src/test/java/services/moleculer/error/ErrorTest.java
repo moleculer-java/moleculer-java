@@ -502,7 +502,7 @@ public class ErrorTest extends TestCase {
 		Tree t = e.toTree();
 		String s1 = t.toString();
 
-		MoleculerError e2 = MoleculerErrorFactory.create(t);
+		MoleculerError e2 = MoleculerErrorUtils.create(t);
 		Tree t2 = e2.toTree();
 		String s2 = t2.toString();
 
@@ -797,7 +797,7 @@ public class ErrorTest extends TestCase {
 	// --- CUSTOM ERROR CLASS ---
 	
 	static {
-		MoleculerErrorFactory.registerCustomError("CustomError", CustomError.class);
+		MoleculerErrorUtils.registerCustomError("CustomError", CustomError.class);
 	}
 	
 	public static class CustomError extends MoleculerClientError {

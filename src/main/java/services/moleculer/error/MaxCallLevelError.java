@@ -25,7 +25,7 @@
  */
 package services.moleculer.error;
 
-import static services.moleculer.error.MoleculerErrorFactory.MAX_CALL_LEVEL_ERROR;
+import static services.moleculer.error.MoleculerErrorUtils.MAX_CALL_LEVEL_ERROR;
 
 import io.datatree.Tree;
 

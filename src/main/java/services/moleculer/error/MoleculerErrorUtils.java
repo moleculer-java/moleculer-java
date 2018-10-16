@@ -30,7 +30,7 @@ import java.util.HashMap;
 
 import io.datatree.Tree;
 
-public class MoleculerErrorFactory {
+public class MoleculerErrorUtils {
 
 	// --- BUILT-IN / STANDARD ERROR TYPES ---
 

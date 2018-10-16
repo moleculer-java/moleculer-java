@@ -25,7 +25,7 @@
  */
 package services.moleculer.error;
 
-import static services.moleculer.error.MoleculerErrorFactory.INVALID_PACKET_DATA_ERROR;
+import static services.moleculer.error.MoleculerErrorUtils.INVALID_PACKET_DATA_ERROR;
 
 import io.datatree.Tree;
 

@@ -25,7 +25,7 @@
  */
 package services.moleculer.error;
 
-import static services.moleculer.error.MoleculerErrorFactory.VALIDATION_ERROR;
+import static services.moleculer.error.MoleculerErrorUtils.VALIDATION_ERROR;
 
 import io.datatree.Tree;
 

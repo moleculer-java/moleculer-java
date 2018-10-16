@@ -30,7 +30,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import io.datatree.Tree;
 import services.moleculer.error.MoleculerError;
-import services.moleculer.error.MoleculerErrorFactory;
+import services.moleculer.error.MoleculerErrorUtils;
 
 public class IncomingStream {
 
@@ -127,7 +127,7 @@ public class IncomingStream {
 						cause = new MoleculerError("Remote invocation failed!", null, "MoleculerError", nodeID,
 								false, 500, "UNKNOWN_ERROR", message);
 					} else {
-						cause = MoleculerErrorFactory.create(error);
+						cause = MoleculerErrorUtils.create(error);
 					}
 				}
 			}

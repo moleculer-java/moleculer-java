@@ -109,7 +109,7 @@ public class AsyncFileLogger extends Handler implements Runnable {
 		if (logToConsole) {
 			if (enableColors) {
 				try {
-					
+
 					// Create ANSI console for "colorized" logging
 					Class.forName("com.diogonunes.jcdp.color.ColoredPrinter");
 					console = (ConsoleLogger) Class.forName("services.moleculer.logger.ColoredConsoleLogger")
@@ -118,7 +118,7 @@ public class AsyncFileLogger extends Handler implements Runnable {
 
 					// Required dependency:
 					// https://mvnrepository.com/artifact/com.diogonunes/JCDP
-					
+
 				}
 			}
 			if (console == null) {
@@ -261,55 +261,53 @@ public class AsyncFileLogger extends Handler implements Runnable {
 				file.delete();
 				continue;
 			}
-			if (isLog) {
 
-				// Compress old files
-				if (days > compressAfterDays) {
-					ZipOutputStream zos = null;
-					FileInputStream in = null;
-					File zf = null;
-					try {
-						zf = new File(logDirectory, file.getName() + ".zip");
-						FileOutputStream fos = new FileOutputStream(zf);
-						zos = new ZipOutputStream(fos);
-						zos.setLevel(Deflater.BEST_SPEED);
-						ZipEntry ze = new ZipEntry(file.getName());
-						ze.setTime(time);
-						zos.putNextEntry(ze);
-						in = new FileInputStream(file);
-						int len;
-						while ((len = in.read(buffer)) > 0) {
-							zos.write(buffer, 0, len);
-						}
-						in.close();
-						in = null;
-						zos.closeEntry();
-						zos.close();
-						zos = null;
-						zf.setLastModified(time);
-						file.delete();
+			// Compress old files
+			if (isLog && days > compressAfterDays) {
+				ZipOutputStream zos = null;
+				FileInputStream in = null;
+				File zf = null;
+				try {
+					zf = new File(logDirectory, file.getName() + ".zip");
+					FileOutputStream fos = new FileOutputStream(zf);
+					zos = new ZipOutputStream(fos);
+					zos.setLevel(Deflater.BEST_SPEED);
+					ZipEntry ze = new ZipEntry(file.getName());
+					ze.setTime(time);
+					zos.putNextEntry(ze);
+					in = new FileInputStream(file);
+					int len;
+					while ((len = in.read(buffer)) > 0) {
+						zos.write(buffer, 0, len);
+					}
+					in.close();
+					in = null;
+					zos.closeEntry();
+					zos.close();
+					zos = null;
+					zf.setLastModified(time);
+					file.delete();
 
-						count++;
-						if (count > 100) {
-							break;
+					count++;
+					if (count > 100) {
+						break;
+					}
+				} catch (Exception e) {
+					if (zf != null) {
+						zf.delete();
+					}
+					continue;
+				} finally {
+					if (in != null) {
+						try {
+							in.close();
+						} catch (Exception ignored) {
 						}
-					} catch (Exception e) {
-						if (zf != null) {
-							zf.delete();
-						}
-						continue;
-					} finally {
-						if (in != null) {
-							try {
-								in.close();
-							} catch (Exception ignored) {
-							}
-						}
-						if (zos != null) {
-							try {
-								zos.close();
-							} catch (Exception ignored) {
-							}
+					}
+					if (zos != null) {
+						try {
+							zos.close();
+						} catch (Exception ignored) {
 						}
 					}
 				}

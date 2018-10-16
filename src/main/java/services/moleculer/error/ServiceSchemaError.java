@@ -25,7 +25,7 @@
  */
 package services.moleculer.error;
 
-import static services.moleculer.error.MoleculerErrorFactory.SERVICE_SCHEMA_ERROR;
+import static services.moleculer.error.MoleculerErrorUtils.SERVICE_SCHEMA_ERROR;
 
 import io.datatree.Tree;
 

@@ -25,7 +25,7 @@
  */
 package services.moleculer.error;
 
-import static services.moleculer.error.MoleculerErrorFactory.QUEUE_IS_FULL_ERROR;
+import static services.moleculer.error.MoleculerErrorUtils.QUEUE_IS_FULL_ERROR;
 
 import io.datatree.Tree;
 

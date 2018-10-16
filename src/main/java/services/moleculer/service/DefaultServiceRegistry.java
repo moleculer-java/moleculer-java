@@ -71,7 +71,7 @@ import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.error.InvalidPacketDataError;
 import services.moleculer.error.MoleculerError;
-import services.moleculer.error.MoleculerErrorFactory;
+import services.moleculer.error.MoleculerErrorUtils;
 import services.moleculer.error.ProtocolVersionMismatchError;
 import services.moleculer.error.ServiceNotAvailableError;
 import services.moleculer.error.ServiceNotFoundError;
@@ -107,6 +107,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	protected final HashSet<String> names = new HashSet<>(64);
 
+	// =========== IDÁIG VAN LOCK-AL VÉDVE ===========
+	
 	// --- PENDING REMOTE INVOCATIONS ---
 
 	protected final ConcurrentHashMap<String, PendingPromise> promises = new ConcurrentHashMap<>(1024);
@@ -533,14 +535,14 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 						public final void onPacket(byte[] bytes, Throwable cause, boolean close) throws IOException {
 							if (bytes != null) {
 								sequence.compareAndSet(10000000, -1);
-								transporter.sendDataPacket(Transporter.PACKET_RESPONSE, sender, ctx, bytes,
+								transporter.sendDataPacket(PACKET_RESPONSE, sender, ctx, bytes,
 										sequence.incrementAndGet());
 							} else if (cause != null) {
-								transporter.sendErrorPacket(Transporter.PACKET_RESPONSE, sender, ctx, cause,
+								transporter.sendErrorPacket(PACKET_RESPONSE, sender, ctx, cause,
 										sequence.incrementAndGet());
 							}
 							if (close) {
-								transporter.sendClosePacket(Transporter.PACKET_RESPONSE, sender, ctx,
+								transporter.sendClosePacket(PACKET_RESPONSE, sender, ctx,
 										sequence.incrementAndGet());
 							}
 						}
@@ -675,7 +677,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					moleculerError = new MoleculerError("Remote invocation failed!", null, "MoleculerError", nodeID,
 							false, 500, "UNKNOWN_ERROR", message);
 				} else {
-					moleculerError = MoleculerErrorFactory.create(error);
+					moleculerError = MoleculerErrorUtils.create(error);
 				}
 
 				pending.promise.complete(moleculerError);
@@ -737,7 +739,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		if (serviceName == null || serviceName.isEmpty()) {
 			serviceName = service.getName();
 		} else {
-			service.redefineName(serviceName);
+			service.name = serviceName;
 		}
 		final String name = serviceName.replace(' ', '-');
 		Class<? extends Service> clazz = service.getClass();

@@ -197,11 +197,15 @@ public class UDPLocator {
 		int udpMaxDiscovery = transporter.getUdpMaxDiscovery();
 		if (udpMaxDiscovery > 0) {
 			if (numberOfSubmittedPackets >= udpMaxDiscovery) {
+				
+				// Has no timer
 				if (timer != null) {
 					logger.info("Discovery service stopped successfully, " + udpMaxDiscovery + " packets sent.");
 					timer.cancel(false);
 					timer = null;
 				}
+				
+				// Has timer
 				return;
 			}
 		}

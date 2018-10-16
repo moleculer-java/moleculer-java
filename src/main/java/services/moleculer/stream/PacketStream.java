@@ -196,6 +196,8 @@ public class PacketStream {
 
 			@Override
 			public final void flush() throws IOException {
+				
+				// Do nothing
 			}
 
 			@Override
