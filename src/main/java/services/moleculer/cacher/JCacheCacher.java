@@ -33,8 +33,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.StampedLock;
 
 import javax.cache.Cache.Entry;
 import javax.cache.CacheManager;
@@ -111,10 +110,9 @@ public class JCacheCacher extends DistributedCacher {
 	 */
 	protected Map<String, Configuration<String, byte[]>> cacheConfigurations = new HashMap<>();
 
-	// --- LOCKS ---
+	// --- READ/WRITE LOCK ---
 
-	protected final Lock readLock;
-	protected final Lock writeLock;
+	protected final StampedLock lock = new StampedLock();
 
 	// --- CONSTUCTORS ---
 
@@ -150,11 +148,6 @@ public class JCacheCacher extends DistributedCacher {
 			}
 
 		};
-
-		// Init locks
-		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);
-		readLock = lock.readLock();
-		writeLock = lock.writeLock();
 	}
 
 	// --- START CACHER ---
@@ -186,11 +179,11 @@ public class JCacheCacher extends DistributedCacher {
 		}
 
 		// Clear partitions
-		writeLock.lock();
+		final long stamp = lock.writeLock();
 		try {
 			partitions.clear();
 		} finally {
-			writeLock.unlock();
+			lock.unlockWrite(stamp);
 		}
 	}
 
@@ -204,13 +197,7 @@ public class JCacheCacher extends DistributedCacher {
 			// Prefix is the name of the partition / region (eg.
 			// "user" from the "user.name" cache key)
 			String prefix = key.substring(0, pos);
-			javax.cache.Cache<String, byte[]> partition;
-			readLock.lock();
-			try {
-				partition = partitions.get(prefix);
-			} finally {
-				readLock.unlock();
-			}
+			javax.cache.Cache<String, byte[]> partition = getPartition(prefix);
 			if (partition != null) {
 				byte[] bytes = partition.get(key.substring(pos + 1));
 				if (bytes != null) {
@@ -228,6 +215,27 @@ public class JCacheCacher extends DistributedCacher {
 		return Promise.resolve((Object) null);
 	}
 
+	protected javax.cache.Cache<String, byte[]> getPartition(String prefix) {
+		javax.cache.Cache<String, byte[]> partition = null;
+		long stamp = lock.tryOptimisticRead();
+		if (stamp != 0) {
+			try {
+				partition = partitions.get(prefix);
+			} catch (Exception modified) {
+				stamp = 0;
+			}
+		}
+		if (!lock.validate(stamp) || stamp == 0) {
+			stamp = lock.readLock();
+			try {
+				partition = partitions.get(prefix);
+			} finally {
+				lock.unlockRead(stamp);
+			}
+		}
+		return partition;
+	}
+
 	@Override
 	public Promise set(String key, Tree value, int ttl) {
 		try {
@@ -236,29 +244,28 @@ public class JCacheCacher extends DistributedCacher {
 			// Prefix is the name of the partition / region (eg.
 			// "user" from the "user.name" cache key)
 			String prefix = key.substring(0, pos);
-			javax.cache.Cache<String, byte[]> partition;
-			writeLock.lock();
-			try {
-				partition = partitions.get(prefix);
+			javax.cache.Cache<String, byte[]> partition = getPartition(prefix);
+			if (partition == null) {
+				partition = cacheManager.getCache(prefix, String.class, byte[].class);
 				if (partition == null) {
-					partition = cacheManager.getCache(prefix, String.class, byte[].class);
-					if (partition == null) {
 
-						// Find partition-specific config
-						Configuration<String, byte[]> cfg = cacheConfigurations.get(prefix);
-						if (cfg == null) {
+					// Find partition-specific config
+					Configuration<String, byte[]> cfg = cacheConfigurations.get(prefix);
+					if (cfg == null) {
 
-							// Use default config
-							cfg = defaultConfiguration;
-						}
-
-						// Create new cache
-						partition = cacheManager.createCache(prefix, cfg);
+						// Use default config
+						cfg = defaultConfiguration;
 					}
-					partitions.put(prefix, partition);
+
+					// Create new cache
+					partition = cacheManager.createCache(prefix, cfg);
 				}
-			} finally {
-				writeLock.unlock();
+				final long stamp = lock.writeLock();
+				try {
+					partitions.put(prefix, partition);
+				} finally {
+					lock.unlockWrite(stamp);
+				}
 			}
 			if (value == null) {
 				partition.remove(key);
@@ -280,13 +287,7 @@ public class JCacheCacher extends DistributedCacher {
 		// Prefix is the name of the partition / region (eg.
 		// "user" from the "user.name" cache key)
 		String prefix = key.substring(0, pos);
-		javax.cache.Cache<String, byte[]> partition;
-		readLock.lock();
-		try {
-			partition = partitions.get(prefix);
-		} finally {
-			readLock.unlock();
-		}
+		javax.cache.Cache<String, byte[]> partition = getPartition(prefix);
 		if (partition != null) {
 			partition.remove(key.substring(pos + 1));
 		}
@@ -301,13 +302,7 @@ public class JCacheCacher extends DistributedCacher {
 
 				// Remove items in partitions
 				String prefix = match.substring(0, pos);
-				javax.cache.Cache<String, byte[]> partition;
-				readLock.lock();
-				try {
-					partition = partitions.get(prefix);
-				} finally {
-					readLock.unlock();
-				}
+				javax.cache.Cache<String, byte[]> partition = getPartition(prefix);
 				if (partition != null) {
 					clean(partition, match.substring(pos + 1));
 				}
@@ -315,7 +310,7 @@ public class JCacheCacher extends DistributedCacher {
 			} else {
 
 				// Remove entire partitions
-				writeLock.lock();
+				final long stamp = lock.writeLock();
 				try {
 					if (match.isEmpty() || "**".equals(match)) {
 						if (closeEmptyPartitions) {
@@ -347,7 +342,7 @@ public class JCacheCacher extends DistributedCacher {
 						}
 					}
 				} finally {
-					writeLock.unlock();
+					lock.unlockWrite(stamp);
 				}
 			}
 		} catch (Throwable cause) {
@@ -374,8 +369,8 @@ public class JCacheCacher extends DistributedCacher {
 	protected int partitionPosition(String key, boolean throwErrorIfMissing) {
 		int i = key.indexOf('.');
 		if (i == -1 && throwErrorIfMissing) {
-			throw new MoleculerServerError("Invalid cache key, a point is missing from the key (" + key + ")!",
-					null, broker.getNodeID(), "INVALID_CACHE_KEY", "key", key);
+			throw new MoleculerServerError("Invalid cache key, a point is missing from the key (" + key + ")!", null,
+					broker.getNodeID(), "INVALID_CACHE_KEY", "key", key);
 		}
 		return i;
 	}

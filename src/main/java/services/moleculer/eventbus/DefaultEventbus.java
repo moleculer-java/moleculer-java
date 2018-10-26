@@ -41,6 +41,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.datatree.Tree;
 import io.datatree.dom.Cache;
+import io.datatree.dom.Config;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.service.Name;
@@ -62,9 +63,9 @@ public class DefaultEventbus extends Eventbus {
 
 	// --- CACHES ---
 
-	protected final Cache<String, Strategy<ListenerEndpoint>[]> emitterCache = new Cache<>(1024, true);
-	protected final Cache<String, ListenerEndpoint[]> broadcasterCache = new Cache<>(1024, true);
-	protected final Cache<String, ListenerEndpoint[]> localBroadcasterCache = new Cache<>(1024, true);
+	protected final Cache<String, Strategy<ListenerEndpoint>[]> emitterCache = new Cache<>(Config.CACHE_SIZE);
+	protected final Cache<String, ListenerEndpoint[]> broadcasterCache = new Cache<>(Config.CACHE_SIZE);
+	protected final Cache<String, ListenerEndpoint[]> localBroadcasterCache = new Cache<>(Config.CACHE_SIZE);
 
 	// --- PROPERTIES ---
 

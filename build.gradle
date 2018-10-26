@@ -87,13 +87,13 @@ dependencies {
     // --- DATATREE API ---
     	    
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-adapters
-	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.6'
+	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.8'
 
     // --- PROMISE API ---
     
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-promise
 	// compile project(':datatree-promise')
-	compile group: 'com.github.berkesa', name: 'datatree-promise', version: '1.0.4'
+	compile group: 'com.github.berkesa', name: 'datatree-promise', version: '1.0.5'
 
     // --- SERIALIZER APIS ---
    

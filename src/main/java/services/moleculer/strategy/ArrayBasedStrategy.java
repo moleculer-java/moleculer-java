@@ -30,6 +30,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import io.datatree.dom.Cache;
+import io.datatree.dom.Config;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Endpoint;
 
@@ -51,7 +52,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 
 	// --- CACHE ---
 
-	protected final Cache<String, Endpoint[]> endpointCache = new Cache<>(1024, true);
+	protected final Cache<String, Endpoint[]> endpointCache = new Cache<>(Config.CACHE_SIZE);
 
 	// --- PROPERTIES ---
 

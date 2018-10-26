@@ -59,8 +59,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.StampedLock;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
@@ -107,8 +106,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	protected final HashSet<String> names = new HashSet<>(64);
 
-	// =========== IDÁIG VAN LOCK-AL VÉDVE ===========
-	
 	// --- PENDING REMOTE INVOCATIONS ---
 
 	protected final ConcurrentHashMap<String, PendingPromise> promises = new ConcurrentHashMap<>(1024);
@@ -135,17 +132,9 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	 */
 	protected boolean writeErrorsToLog = true;
 
-	// --- LOCKS ---
+	// --- READ/WRITE LOCK ---
 
-	/**
-	 * Reader lock of configuration
-	 */
-	protected final Lock readLock;
-
-	/**
-	 * Writer lock of configuration
-	 */
-	protected final Lock writeLock;
+	protected final StampedLock lock = new StampedLock();
 
 	// --- LOCAL NODE ID ---
 
@@ -207,11 +196,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Async or direct local invocation
 		this.asyncLocalInvocation = asyncLocalInvocation;
-
-		// Create locks
-		ReentrantReadWriteLock configLock = new ReentrantReadWriteLock(true);
-		readLock = configLock.readLock();
-		writeLock = configLock.writeLock();
 	}
 
 	// --- INIT SERVICE REGISTRY ---
@@ -258,7 +242,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		}
 
 		// Stop all services
-		writeLock.lock();
+		final long stamp = lock.writeLock();
 		try {
 
 			// Stop registered services
@@ -284,7 +268,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			clearDescriptorCache();
 
 		} finally {
-			writeLock.unlock();
+			lock.unlockWrite(stamp);
 		}
 	}
 
@@ -446,12 +430,22 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		}
 
 		// Get strategy (action endpoint array) by action name
-		Strategy<ActionEndpoint> strategy;
-		readLock.lock();
-		try {
-			strategy = strategies.get(action);
-		} finally {
-			readLock.unlock();
+		Strategy<ActionEndpoint> strategy = null;
+		long stamp = lock.tryOptimisticRead();
+		if (stamp != 0) {
+			try {
+				strategy = strategies.get(action);
+			} catch (Exception modified) {
+				stamp = 0;
+			}
+		}
+		if (!lock.validate(stamp) || stamp == 0) {
+			stamp = lock.readLock();
+			try {
+				strategy = strategies.get(action);
+			} finally {
+				lock.unlockRead(stamp);
+			}
 		}
 		if (strategy == null) {
 			logger.warn("Invalid action name (" + action + ")!");
@@ -542,8 +536,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 										sequence.incrementAndGet());
 							}
 							if (close) {
-								transporter.sendClosePacket(PACKET_RESPONSE, sender, ctx,
-										sequence.incrementAndGet());
+								transporter.sendClosePacket(PACKET_RESPONSE, sender, ctx, sequence.incrementAndGet());
 							}
 						}
 
@@ -627,7 +620,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			logger.warn("Missing \"id\" property!", message);
 			return;
 		}
-		
+
 		// Incoming (response) stream handling
 		IncomingStream responseStream = responseStreams.get(id);
 		if (responseStream != null) {
@@ -695,7 +688,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	@Override
 	public void use(Collection<Middleware> middlewares) {
 		LinkedList<Middleware> newMiddlewares = new LinkedList<>();
-		writeLock.lock();
+		final long stamp = lock.writeLock();
 		try {
 
 			// Register middlewares
@@ -728,7 +721,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 			}
 		} finally {
-			writeLock.unlock();
+			lock.unlockWrite(stamp);
 		}
 	}
 
@@ -782,7 +775,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		Field[] fields = clazz.getFields();
 		int actionCounter = 0;
 
-		writeLock.lock();
+		final long stamp = lock.writeLock();
 		try {
 
 			// Initialize actions in service
@@ -833,7 +826,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			logger.error("Unable to register local service!", cause);
 			return;
 		} finally {
-			writeLock.unlock();
+			lock.unlockWrite(stamp);
 		}
 
 		// Notify local listeners about the new LOCAL service
@@ -875,7 +868,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	public void addActions(String nodeID, Tree config) {
 		Tree actions = config.get("actions");
 		String serviceName = config.get("name", "");
-		writeLock.lock();
+		final long stamp = lock.writeLock();
 		try {
 			if (actions != null && actions.isMap()) {
 				for (Tree actionConfig : actions) {
@@ -894,7 +887,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			}
 			names.add(serviceName);
 		} finally {
-			writeLock.unlock();
+			lock.unlockWrite(stamp);
 		}
 
 		// Notify local listeners about the new REMOTE service
@@ -905,7 +898,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	@Override
 	public void removeActions(String nodeID) {
-		writeLock.lock();
+		final long stamp = lock.writeLock();
 		try {
 			Iterator<Strategy<ActionEndpoint>> endpoints = strategies.values().iterator();
 			while (endpoints.hasNext()) {
@@ -918,16 +911,10 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			if (this.nodeID.equals(nodeID)) {
 
 				// Stop local services
-				writeLock.lock();
-				try {
-					stopAllLocalServices();
+				stopAllLocalServices();
 
-					// Delete cached node descriptor
-					clearDescriptorCache();
-
-				} finally {
-					writeLock.unlock();
-				}
+				// Delete cached node descriptor
+				clearDescriptorCache();
 
 				// Notify local listeners (LOCAL services changed)
 				broadcastServicesChanged(true);
@@ -938,7 +925,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				broadcastServicesChanged(false);
 			}
 		} finally {
-			writeLock.unlock();
+			lock.unlockWrite(stamp);
 		}
 	}
 
@@ -959,12 +946,22 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	@Override
 	public Service getService(String name) {
-		Service service;
-		readLock.lock();
-		try {
-			service = services.get(name);
-		} finally {
-			readLock.unlock();
+		Service service = null;
+		long stamp = lock.tryOptimisticRead();
+		if (stamp != 0) {
+			try {
+				service = services.get(name);
+			} catch (Exception modified) {
+				stamp = 0;
+			}
+		}
+		if (!lock.validate(stamp) || stamp == 0) {
+			stamp = lock.readLock();
+			try {
+				service = services.get(name);
+			} finally {
+				lock.unlockRead(stamp);
+			}
 		}
 		if (service == null) {
 			throw new ServiceNotFoundError(nodeID, name);
@@ -976,12 +973,22 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	@Override
 	public Action getAction(String name, String nodeID) {
-		Strategy<ActionEndpoint> strategy;
-		readLock.lock();
-		try {
-			strategy = strategies.get(name);
-		} finally {
-			readLock.unlock();
+		Strategy<ActionEndpoint> strategy = null;
+		long stamp = lock.tryOptimisticRead();
+		if (stamp != 0) {
+			try {
+				strategy = strategies.get(name);
+			} catch (Exception modified) {
+				stamp = 0;
+			}
+		}
+		if (!lock.validate(stamp) || stamp == 0) {
+			stamp = lock.readLock();
+			try {
+				strategy = strategies.get(name);
+			} finally {
+				lock.unlockRead(stamp);
+			}
 		}
 		if (strategy == null) {
 			throw new ServiceNotFoundError(nodeID, name);
@@ -1074,21 +1081,37 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	protected boolean isServicesOnline(Collection<String> requiredServices) {
 		int foundCounter = 0;
-		readLock.lock();
-		try {
-			for (String service : requiredServices) {
-				if (names.contains(service)) {
-					foundCounter++;
-					continue;
-				}
-				if (foundCounter == 0) {
-					break;
-				}
+		long stamp = lock.tryOptimisticRead();
+		if (stamp != 0) {
+			try {
+				foundCounter = countOnlineServices(requiredServices);
+			} catch (Exception modified) {
+				stamp = 0;
 			}
-		} finally {
-			readLock.unlock();
+		}
+		if (!lock.validate(stamp) || stamp == 0) {
+			stamp = lock.readLock();
+			try {
+				foundCounter = countOnlineServices(requiredServices);
+			} finally {
+				lock.unlockRead(stamp);
+			}
 		}
 		return foundCounter == requiredServices.size();
+	}
+
+	protected int countOnlineServices(Collection<String> requiredServices) {
+		int foundCounter = 0;
+		for (String service : requiredServices) {
+			if (names.contains(service)) {
+				foundCounter++;
+				continue;
+			}
+			if (foundCounter == 0) {
+				break;
+			}
+		}
+		return foundCounter;
 	}
 
 	// --- PING / PONG HANDLING ---
@@ -1154,7 +1177,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	protected Tree currentDescriptor() {
 		FastBuildTree descriptor;
-		readLock.lock();
+		final long stamp = lock.readLock();
 		try {
 			descriptor = cachedDescriptor;
 			if (descriptor == null) {
@@ -1268,7 +1291,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				cachedDescriptor = descriptor;
 			}
 		} finally {
-			readLock.unlock();
+			lock.unlockRead(stamp);
 		}
 		return descriptor;
 	}

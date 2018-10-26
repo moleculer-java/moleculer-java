@@ -28,11 +28,11 @@ package services.moleculer.cacher;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.StampedLock;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
@@ -81,10 +81,18 @@ public class MemoryCacher extends Cacher implements Runnable {
 	 */
 	protected int cleanup = 5;
 
-	// --- LOCKS ---
+	/**
+	 * Do you need to make a copy of the returned values? Cloning the values is
+	 * much safer, but little bit slower. If the services work with common
+	 * objects, they can modify the cached object. If you turn off cloning, the
+	 * cache will be faster, but you need to be careful NOT TO CHANGE the values
+	 * from the cache!
+	 */
+	protected boolean useCloning = true;
 
-	protected final Lock readLock;
-	protected final Lock writeLock;
+	// --- READ/WRITE LOCK ---
+
+	protected final StampedLock lock = new StampedLock();
 
 	// --- PARTITIONS / CACHE REGIONS ---
 
@@ -118,11 +126,6 @@ public class MemoryCacher extends Cacher implements Runnable {
 		this.capacity = capacityPerPartition;
 		this.ttl = defaultTtl;
 		this.cleanup = cleanupSeconds;
-
-		// Init locks
-		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);
-		readLock = lock.readLock();
-		writeLock = lock.writeLock();
 	}
 
 	// --- START CACHER ---
@@ -152,13 +155,13 @@ public class MemoryCacher extends Cacher implements Runnable {
 	@Override
 	public void run() {
 		long now = System.currentTimeMillis();
-		readLock.lock();
+		final long stamp = lock.readLock();
 		try {
 			for (MemoryPartition partition : partitions.values()) {
 				partition.removeOldEntries(now);
 			}
 		} finally {
-			readLock.unlock();
+			lock.unlockRead(stamp);
 		}
 	}
 
@@ -174,11 +177,11 @@ public class MemoryCacher extends Cacher implements Runnable {
 		}
 
 		// Clear partitions
-		writeLock.lock();
+		final long stamp = lock.writeLock();
 		try {
 			partitions.clear();
 		} finally {
-			writeLock.unlock();
+			lock.unlockWrite(stamp);
 		}
 	}
 
@@ -192,13 +195,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 			// Prefix is the name of the partition / region (eg.
 			// "user" from the "user.name" cache key)
 			String prefix = key.substring(0, pos);
-			MemoryPartition partition;
-			readLock.lock();
-			try {
-				partition = partitions.get(prefix);
-			} finally {
-				readLock.unlock();
-			}
+			MemoryPartition partition = getPartition(prefix);
 			if (partition != null) {
 				return Promise.resolve(partition.get(key.substring(pos + 1)));
 			}
@@ -206,6 +203,27 @@ public class MemoryCacher extends Cacher implements Runnable {
 			logger.warn("Unable to get data from the cache!", cause);
 		}
 		return Promise.resolve((Object) null);
+	}
+
+	protected MemoryPartition getPartition(String prefix) {
+		MemoryPartition partition = null;
+		long stamp = lock.tryOptimisticRead();
+		if (stamp != 0) {
+			try {
+				partition = partitions.get(prefix);
+			} catch (Exception modified) {
+				stamp = 0;
+			}
+		}
+		if (!lock.validate(stamp) || stamp == 0) {
+			stamp = lock.readLock();
+			try {
+				partition = partitions.get(prefix);
+			} finally {
+				lock.unlockRead(stamp);
+			}
+		}
+		return partition;
 	}
 
 	@Override
@@ -216,16 +234,15 @@ public class MemoryCacher extends Cacher implements Runnable {
 			// Prefix is the name of the partition / region (eg.
 			// "user" from the "user.name" cache key)
 			String prefix = key.substring(0, pos);
-			MemoryPartition partition;
-			writeLock.lock();
-			try {
-				partition = partitions.get(prefix);
-				if (partition == null) {
-					partition = new MemoryPartition(capacity);
+			MemoryPartition partition = getPartition(prefix);
+			if (partition == null) {
+				partition = new MemoryPartition(capacity, useCloning);
+				final long stamp = lock.writeLock();
+				try {
 					partitions.put(prefix, partition);
+				} finally {
+					lock.unlockWrite(stamp);
 				}
-			} finally {
-				writeLock.unlock();
 			}
 			int entryTTL;
 			if (ttl > 0) {
@@ -237,7 +254,12 @@ public class MemoryCacher extends Cacher implements Runnable {
 				// Use the default TTL
 				entryTTL = this.ttl;
 			}
-			partition.set(key.substring(pos + 1), value.clone(), entryTTL);
+			if (useCloning) {
+
+				// Create another, cloned instance
+				value = value.clone();
+			}
+			partition.set(key.substring(pos + 1), value, entryTTL);
 		} catch (Throwable cause) {
 			logger.warn("Unable to set data to the cache!", cause);
 		}
@@ -252,13 +274,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 			// Prefix is the name of the partition / region (eg.
 			// "user" from the "user.name" cache key)
 			String prefix = key.substring(0, pos);
-			MemoryPartition partition;
-			readLock.lock();
-			try {
-				partition = partitions.get(prefix);
-			} finally {
-				readLock.unlock();
-			}
+			MemoryPartition partition = getPartition(prefix);
 			if (partition != null) {
 				partition.del(key.substring(pos + 1));
 			}
@@ -279,13 +295,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 				// Remove items in partitions
 				String prefix = match.substring(0, pos);
-				MemoryPartition partition;
-				readLock.lock();
-				try {
-					partition = partitions.get(prefix);
-				} finally {
-					readLock.unlock();
-				}
+				MemoryPartition partition = getPartition(prefix);
 				if (partition != null) {
 					partition.clean(match.substring(pos + 1));
 				}
@@ -293,7 +303,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 			} else {
 
 				// Remove entire partitions
-				writeLock.lock();
+				final long stamp = lock.writeLock();
 				try {
 					if (match.isEmpty() || match.startsWith("*")) {
 						partitions.clear();
@@ -313,7 +323,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 						}
 					}
 				} finally {
-					writeLock.unlock();
+					lock.unlockWrite(stamp);
 				}
 			}
 		} catch (Throwable cause) {
@@ -325,8 +335,8 @@ public class MemoryCacher extends Cacher implements Runnable {
 	protected int partitionPosition(String key, boolean throwErrorIfMissing) {
 		int i = key.indexOf('.');
 		if (i == -1 && throwErrorIfMissing) {
-			throw new MoleculerServerError("Invalid cache key, a point is missing from the key (" + key + ")!",
-					null, broker.getNodeID(), "INVALID_CACHE_KEY", "key", key);
+			throw new MoleculerServerError("Invalid cache key, a point is missing from the key (" + key + ")!", null,
+					broker.getNodeID(), "INVALID_CACHE_KEY", "key", key);
 		}
 		return i;
 	}
@@ -335,10 +345,20 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 	protected static class MemoryPartition {
 
-		// --- LOCKS ---
+		// --- CLONE VALUES ---
 
-		protected final Lock readerLock;
-		protected final Lock writerLock;
+		/**
+		 * Do you need to make a copy of the returned values? Cloning the values
+		 * is much SAFER, but little bit slower. If the services work with
+		 * common objects, they can modify the cached object. If you turn off
+		 * cloning, the cache will be faster, but you need to be careful NOT TO
+		 * CHANGE the values from the cache!
+		 */
+		protected boolean useCloning = true;
+
+		// --- READ/WRITE LOCK ---
+
+		protected final StampedLock lock = new StampedLock();
 
 		// --- MEMORY CACHE PARTITION ---
 
@@ -346,15 +366,8 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 		// --- CONSTUCTORS ---
 
-		protected MemoryPartition(int capacity) {
-
-			// Create lockers
-			ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);
-			readerLock = lock.readLock();
-			writerLock = lock.writeLock();
-
-			// Create cache partition
-			cache = new LinkedHashMap<String, PartitionEntry>(capacity + 1, 1.0f, true) {
+		protected MemoryPartition(int capacity, boolean useCloning) {
+			cache = new LinkedHashMap<String, PartitionEntry>(capacity, 1.0f, true) {
 
 				private static final long serialVersionUID = 5994447707758047152L;
 
@@ -362,46 +375,84 @@ public class MemoryCacher extends Cacher implements Runnable {
 					return size() > capacity;
 				};
 			};
+			this.useCloning = useCloning;
 		}
 
 		// --- REMOVE OLD ENTRIES ---
 
 		protected void removeOldEntries(long now) {
-			writerLock.lock();
+			LinkedList<String> expiredKeys = new LinkedList<>();
+			long stamp = lock.tryOptimisticRead();
+			if (stamp != 0) {
+				try {
+					collectExpiredEntries(now, expiredKeys);
+				} catch (Exception modified) {
+					stamp = 0;
+					expiredKeys.clear();
+				}
+			}
+			if (!lock.validate(stamp) || stamp == 0) {
+				stamp = lock.readLock();
+				try {
+					collectExpiredEntries(now, expiredKeys);
+				} finally {
+					lock.unlockRead(stamp);
+				}
+			}
+			if (expiredKeys.isEmpty()) {
+				return;
+			}
+			stamp = lock.writeLock();
 			try {
-				Iterator<Map.Entry<String, PartitionEntry>> i = cache.entrySet().iterator();
-				Map.Entry<String, PartitionEntry> mEntry;
-				PartitionEntry pEntry;
-				while (i.hasNext()) {
-					mEntry = i.next();
-					pEntry = mEntry.getValue();
-					if (pEntry.expireAt > 0 && pEntry.expireAt <= now) {
-						i.remove();
-					}
+				for (String key : expiredKeys) {
+					cache.remove(key);
 				}
 			} finally {
-				writerLock.unlock();
+				lock.unlockWrite(stamp);
+			}
+		}
+
+		protected void collectExpiredEntries(long now, LinkedList<String> expiredKeys) {
+			PartitionEntry pEntry;
+			for (Map.Entry<String, PartitionEntry> entry : cache.entrySet()) {
+				pEntry = entry.getValue();
+				if (pEntry.expireAt > 0 && pEntry.expireAt <= now) {
+					expiredKeys.addLast(entry.getKey());
+				}
 			}
 		}
 
 		// --- CACHE METHODS ---
 
 		protected Tree get(String key) throws Exception {
-			PartitionEntry entry;
-			readerLock.lock();
-			try {
-				entry = cache.get(key);
-			} finally {
-				readerLock.unlock();
+			PartitionEntry entry = null;
+			long stamp = lock.tryOptimisticRead();
+			if (stamp != 0) {
+				try {
+					entry = cache.get(key);
+				} catch (Exception modified) {
+					stamp = 0;
+				}
+			}
+			if (!lock.validate(stamp) || stamp == 0) {
+				stamp = lock.readLock();
+				try {
+					entry = cache.get(key);
+				} finally {
+					lock.unlockRead(stamp);
+				}
 			}
 			if (entry == null) {
 				return null;
 			}
-			return entry.value.clone();
+			if (useCloning) {
+				return entry.value.clone();
+			}
+			return entry.value;
 		}
 
 		protected void set(String key, Tree value, int ttl) {
-			writerLock.lock();
+			final long stamp = lock.writeLock();
 			try {
 				if (value == null) {
 					cache.remove(key);
@@ -415,21 +466,21 @@ public class MemoryCacher extends Cacher implements Runnable {
 					cache.put(key, new PartitionEntry(value, expireAt));
 				}
 			} finally {
-				writerLock.unlock();
+				lock.unlockWrite(stamp);
 			}
 		}
 
 		protected void del(String key) {
-			writerLock.lock();
+			final long stamp = lock.writeLock();
 			try {
 				cache.remove(key);
 			} finally {
-				writerLock.unlock();
+				lock.unlockWrite(stamp);
 			}
 		}
 
 		protected void clean(String match) {
-			writerLock.lock();
+			final long stamp = lock.writeLock();
 			try {
 				if (match.isEmpty() || "**".equals(match)) {
 					cache.clear();
@@ -446,7 +497,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 					}
 				}
 			} finally {
-				writerLock.unlock();
+				lock.unlockWrite(stamp);
 			}
 		}
 
@@ -490,6 +541,14 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 	public void setCleanup(int cleanup) {
 		this.cleanup = cleanup;
+	}
+
+	public boolean isUseCloning() {
+		return useCloning;
+	}
+
+	public void setUseCloning(boolean useCloning) {
+		this.useCloning = useCloning;
 	}
 
 }

@@ -28,6 +28,7 @@ package services.moleculer.eventbus;
 import java.util.regex.Pattern;
 
 import io.datatree.dom.Cache;
+import io.datatree.dom.Config;
 
 /**
  * Event mask matcher (eg. "service.event.**").
@@ -36,7 +37,7 @@ public final class Matcher {
 
 	// --- CACHE OF COMPILED PATTERNS ---
 
-	private static final Cache<String, Pattern> regexCache = new Cache<>(128, true);
+	private static final Cache<String, Pattern> regexCache = new Cache<>(Config.CACHE_SIZE);
 
 	// --- MATCHER ---
 

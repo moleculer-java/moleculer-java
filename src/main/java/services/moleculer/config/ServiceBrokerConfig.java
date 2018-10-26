@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 
 import services.moleculer.cacher.Cacher;
 import services.moleculer.cacher.MemoryCacher;
@@ -88,6 +89,13 @@ public class ServiceBrokerConfig {
 	 */
 	protected String jsonWriters;
 
+	// --- INSTANCE COUNTER ---
+
+	/**
+	 * Service Broker instance counter (0...N)
+	 */
+	protected AtomicLong instanceCounter = new AtomicLong();
+	
 	// --- INTERNAL COMPONENTS ---
 
 	protected UidGenerator uidGenerator = new IncrementalUidGenerator();
@@ -136,9 +144,13 @@ public class ServiceBrokerConfig {
 		// Set the default System Monitor
 		monitor = defaultMonitor;
 
-		// Set the default NodeID
+		// Set the default (generated) NodeID
 		if (nodeID == null || nodeID.isEmpty()) {
-			this.nodeID = getHostName() + '-' + monitor.getPID() + '-' + System.nanoTime();
+			this.nodeID = getHostName() + '-' + monitor.getPID();
+			long index = instanceCounter.incrementAndGet();
+			if (index > 1) {
+				this.nodeID += '-' + Long.toString(index);
+			}
 		} else {
 			this.nodeID = nodeID;
 		}
