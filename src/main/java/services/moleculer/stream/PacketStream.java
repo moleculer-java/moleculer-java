@@ -60,18 +60,45 @@ public class PacketStream {
 
 	// --- VARIABLES ---
 
+	/**
+	 * Is stream closed?
+	 * 
+	 * @see isClosed
+	 */
 	protected final AtomicBoolean closed = new AtomicBoolean();
 
+	/**
+	 * Memory-buffer of an unconnected stream. Connected streams do not use this
+	 * buffer.
+	 */
 	protected final LinkedList<byte[]> buffer = new LinkedList<>();
 
+	/**
+	 * Counter of transfered bytes.
+	 * 
+	 * @see getTransferedBytes
+	 */
 	protected final AtomicLong transferedBytes = new AtomicLong();
 
+	/**
+	 * Array of PacketListeners (receivers).
+	 */
 	protected PacketListener[] listeners;
 
+	/**
+	 * Cause (blocking error).
+	 */
 	protected Throwable cause;
 
+	/**
+	 * Minimum size of packets.
+	 */
 	protected int packetSize = DEFAULT_MIN_PACKET_SIZE;
 
+	/**
+	 * Time between each packet sent. This may be necessary because the other
+	 * Threads will get some CPU-time.
+	 */
 	protected long packetDelay = 10;
 
 	// --- CONSTRUCTOR ---
@@ -114,7 +141,7 @@ public class PacketStream {
 	}
 
 	// --- SEND BYTES ---
-	
+
 	public boolean sendData(byte[] bytes) throws IOException {
 		if (bytes != null && bytes.length > 0 && !closed.get()) {
 			if (listeners == null) {
@@ -196,7 +223,7 @@ public class PacketStream {
 
 			@Override
 			public final void flush() throws IOException {
-				
+
 				// Do nothing
 			}
 
@@ -493,7 +520,7 @@ public class PacketStream {
 			});
 		});
 	}
-	
+
 	// --- GETTERS AND SETTERS ---
 
 	public int getPacketSize() {

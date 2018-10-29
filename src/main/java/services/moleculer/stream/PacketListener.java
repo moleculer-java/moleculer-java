@@ -27,6 +27,9 @@ package services.moleculer.stream;
 
 import java.io.IOException;
 
+/**
+ * Interface of all packet/stream receivers.
+ */
 @FunctionalInterface
 public interface PacketListener {
 
