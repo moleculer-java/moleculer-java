@@ -528,7 +528,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 						@Override
 						public final void onPacket(byte[] bytes, Throwable cause, boolean close) throws IOException {
 							if (bytes != null) {
-								sequence.compareAndSet(10000000, -1);
 								transporter.sendDataPacket(PACKET_RESPONSE, sender, ctx, bytes,
 										sequence.incrementAndGet());
 							} else if (cause != null) {

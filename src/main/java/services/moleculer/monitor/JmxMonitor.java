@@ -41,18 +41,16 @@ public class JmxMonitor extends Monitor {
 
 	// --- PROPERTIES ---
 
-	protected OperatingSystemMXBean mxBean;
+	protected static OperatingSystemMXBean mxBean;
 
-	// --- CONSTRUCTOR ---
+	// --- STATIC CONSTRUCTOR ---
 
-	public JmxMonitor() {
-		if (!invalidMonitor.get()) {
-			try {
-				mxBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
-			} catch (Exception cause) {
-				logger.error("Unable to reach OperatingSystemMXBean!", cause);
-				invalidMonitor.set(true);
-			}
+	static {
+		try {
+			mxBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
+		} catch (Exception cause) {
+			cause.printStackTrace();
+			invalidMonitor.set(true);
 		}
 	}
 

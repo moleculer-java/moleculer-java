@@ -517,16 +517,18 @@ public final class CommonUtils {
 	}
 
 	public static final String getFormat(String path) {
-		path = path.toLowerCase();
-		int i = path.lastIndexOf('.');
+		String format = path.toLowerCase();
+		int i = format.lastIndexOf('.');
 		if (i > 0) {
-			String format = path.substring(i + 1);
+			format = format.substring(i + 1);
 			try {
 
 				// Is format valid?
 				TreeReaderRegistry.getReader(format);
 				return format;
 			} catch (Exception notSupported) {
+				
+				// Unsupported format
 			}
 		}
 

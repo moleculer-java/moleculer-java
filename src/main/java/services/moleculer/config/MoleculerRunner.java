@@ -81,10 +81,7 @@ public final class MoleculerRunner {
 	 */
 	public static final void main(String[] args) throws Exception {
 		try {
-			if (args == null) {
-				args = new String[0];
-			}
-			if (args.length > 0) {
+			if (args != null && args.length > 0) {
 
 				// Second optional argument is stop port
 				if (args.length > 1) {
@@ -219,7 +216,7 @@ public final class MoleculerRunner {
 				Thread.sleep(600);
 			} catch (Throwable interrupted) {
 			}
-			System.exit(0);
+			Runtime.getRuntime().exit(0);
 		}
 	}
 

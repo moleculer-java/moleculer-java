@@ -117,13 +117,14 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 	public MemoryCacher(int capacityPerPartition, int defaultTtl, int cleanupSeconds) {
 
-		// Check variables
+		// Set capacity
 		if (capacityPerPartition < 16) {
-			capacityPerPartition = 16;
+			this.capacity = 16;
+		} else {
+			this.capacity = capacityPerPartition;
 		}
 
-		// Set properties
-		this.capacity = capacityPerPartition;
+		// Set other properties
 		this.ttl = defaultTtl;
 		this.cleanup = cleanupSeconds;
 	}
@@ -254,12 +255,12 @@ public class MemoryCacher extends Cacher implements Runnable {
 				// Use the default TTL
 				entryTTL = this.ttl;
 			}
-			if (useCloning) {
 
-				// Create another, cloned instance
-				value = value.clone();
-			}
-			partition.set(key.substring(pos + 1), value, entryTTL);
+			// Create another, cloned instance
+			Tree v = useCloning ? value.clone() : value;
+
+			// Store value
+			partition.set(key.substring(pos + 1), v, entryTTL);
 		} catch (Throwable cause) {
 			logger.warn("Unable to set data to the cache!", cause);
 		}

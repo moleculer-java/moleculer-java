@@ -266,12 +266,12 @@ public class CircuitBreaker extends ServiceInvoker {
 
 			// Create new Error Counter
 			if (errorCounter == null) {
-				errorCounter = new ErrorCounter(windowLength, lockTimeout, maxErrors);
-				ErrorCounter prev = errorCounters.put(endpointKey, errorCounter);
+				ErrorCounter counter = new ErrorCounter(windowLength, lockTimeout, maxErrors);
+				ErrorCounter prev = errorCounters.put(endpointKey, counter);
 				if (prev != null) {
-					errorCounter = prev;
+					counter = prev;
 				}
-				errorCounter.increment(now);
+				counter.increment(now);
 			} else {
 				errorCounter.increment(now);
 			}

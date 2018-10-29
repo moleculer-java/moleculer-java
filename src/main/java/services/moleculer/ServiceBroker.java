@@ -360,61 +360,10 @@ public class ServiceBroker {
 			logger.info("Starting Moleculer Service Broker (version " + SOFTWARE_VERSION + ")...");
 
 			// Set global JSON reader API (Jackson, Gson, Boon, FastJson, etc.)
-			String readerList = config.getJsonReaders();
-			if (readerList != null) {
-				String[] readers = readerList.split(",");
-				Set<String> supportedReaders = TreeReaderRegistry.getReadersByFormat("json");
-				TreeReader selectedReader = null;
-				for (String reader : readers) {
-					reader = reader.trim().toLowerCase();
-					if (!reader.isEmpty()) {
-						for (String supportedReader : supportedReaders) {
-							int i = supportedReader.lastIndexOf('.');
-							if (i > -1) {
-								supportedReader = supportedReader.substring(i + 1);
-							}
-							if (supportedReader.toLowerCase().contains(reader)) {
-								selectedReader = TreeReaderRegistry.getReader(supportedReader);
-								logger.info(
-										"Default JSON deserializer/reader is \"" + selectedReader.getClass() + "\".");
-								TreeReaderRegistry.setReader("json", selectedReader);
-								break;
-							}
-						}
-						if (selectedReader != null) {
-							break;
-						}
-					}
-				}
-			}
+			initJsonReader();
 
 			// Set global JSON writer API (Jackson, Gson, Boon, FastJson, etc.)
-			String writerList = config.getJsonWriters();
-			if (writerList != null) {
-				String[] writers = writerList.split(",");
-				Set<String> supportedWriters = TreeWriterRegistry.getWritersByFormat("json");
-				TreeWriter selectedWriter = null;
-				for (String writer : writers) {
-					writer = writer.trim().toLowerCase();
-					if (!writer.isEmpty()) {
-						for (String supportedWriter : supportedWriters) {
-							int i = supportedWriter.lastIndexOf('.');
-							if (i > -1) {
-								supportedWriter = supportedWriter.substring(i + 1);
-							}
-							if (supportedWriter.toLowerCase().contains(writer)) {
-								selectedWriter = TreeWriterRegistry.getWriter(supportedWriter);
-								logger.info("Default JSON serializer/writer is \"" + selectedWriter.getClass() + "\".");
-								TreeWriterRegistry.setWriter("json", selectedWriter);
-								break;
-							}
-						}
-						if (selectedWriter != null) {
-							break;
-						}
-					}
-				}
-			}
+			initJsonWriter();
 
 			// Set internal components
 			uidGenerator = start(config.getUidGenerator());
@@ -463,6 +412,71 @@ public class ServiceBroker {
 		}
 	}
 
+	/**
+	 * Set global JSON reader API (Jackson, Gson, Boon, FastJson, etc.).
+	 */
+	protected void initJsonReader() {
+		String readerList = config.getJsonReaders();
+		if (readerList != null) {
+			String[] readers = readerList.split(",");
+			Set<String> supportedReaders = TreeReaderRegistry.getReadersByFormat("json");
+			TreeReader selectedReader = null;
+			for (String reader : readers) {
+				reader = reader.trim().toLowerCase();
+				if (!reader.isEmpty()) {
+					for (String supportedReader : supportedReaders) {
+						int i = supportedReader.lastIndexOf('.');
+						if (i > -1) {
+							supportedReader = supportedReader.substring(i + 1);
+						}
+						if (supportedReader.toLowerCase().contains(reader)) {
+							selectedReader = TreeReaderRegistry.getReader(supportedReader);
+							logger.info(
+									"Default JSON deserializer/reader is \"" + selectedReader.getClass() + "\".");
+							TreeReaderRegistry.setReader("json", selectedReader);
+							break;
+						}
+					}
+					if (selectedReader != null) {
+						break;
+					}
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Set global JSON writer API (Jackson, Gson, Boon, FastJson, etc.)
+	 */
+	protected void initJsonWriter() {
+		String writerList = config.getJsonWriters();
+		if (writerList != null) {
+			String[] writers = writerList.split(",");
+			Set<String> supportedWriters = TreeWriterRegistry.getWritersByFormat("json");
+			TreeWriter selectedWriter = null;
+			for (String writer : writers) {
+				writer = writer.trim().toLowerCase();
+				if (!writer.isEmpty()) {
+					for (String supportedWriter : supportedWriters) {
+						int i = supportedWriter.lastIndexOf('.');
+						if (i > -1) {
+							supportedWriter = supportedWriter.substring(i + 1);
+						}
+						if (supportedWriter.toLowerCase().contains(writer)) {
+							selectedWriter = TreeWriterRegistry.getWriter(supportedWriter);
+							logger.info("Default JSON serializer/writer is \"" + selectedWriter.getClass() + "\".");
+							TreeWriterRegistry.setWriter("json", selectedWriter);
+							break;
+						}
+					}
+					if (selectedWriter != null) {
+						break;
+					}
+				}
+			}
+		}
+	}
+	
 	/**
 	 * Starts the specified {@link MoleculerComponent}.
 	 * 

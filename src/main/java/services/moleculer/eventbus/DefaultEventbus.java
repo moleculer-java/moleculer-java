@@ -219,9 +219,7 @@ public class DefaultEventbus extends Eventbus {
 	public void addListeners(String serviceName, Service service) {
 
 		// Service name with version
-		if (serviceName == null || serviceName.isEmpty()) {
-			serviceName = service.getName();
-		}
+		String name = (serviceName == null || serviceName.isEmpty()) ? service.getName() : serviceName;
 		Class<? extends Service> clazz = service.getClass();
 		Field[] fields = clazz.getFields();
 
@@ -237,7 +235,7 @@ public class DefaultEventbus extends Eventbus {
 					hasListener = true;
 
 					// Name of the action (eg. "service.action")
-					String listenerName = nameOf(serviceName, field);
+					String listenerName = nameOf(name, field);
 
 					// Process "Subscribe" annotation
 					Subscribe s = field.getAnnotation(Subscribe.class);
@@ -256,7 +254,7 @@ public class DefaultEventbus extends Eventbus {
 						group = g.value();
 					}
 					if (group == null || group.isEmpty()) {
-						group = serviceName;
+						group = name;
 					}
 
 					// Register listener in EventBus
@@ -278,8 +276,8 @@ public class DefaultEventbus extends Eventbus {
 					}
 
 					// Add endpoint to strategy
-					strategy.addEndpoint(new LocalListenerEndpoint(executor, nodeID, serviceName, group, subscribe,
-							listener, asyncLocalInvocation));
+					strategy.addEndpoint(new LocalListenerEndpoint(executor, nodeID, name, group, subscribe, listener,
+							asyncLocalInvocation));
 				}
 			}
 		} catch (Exception cause) {

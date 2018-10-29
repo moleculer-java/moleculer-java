@@ -82,15 +82,16 @@ public final class Matcher {
 		// Regex (eg. "prefix.ab?cd.*.foo")
 		Pattern regex = regexCache.get(pattern);
 		if (regex == null) {
-			if (pattern.startsWith("$")) {
-				pattern = '\\' + pattern;
+			String regexPattern = pattern;
+			if (regexPattern.startsWith("$")) {
+				regexPattern = '\\' + regexPattern;
 			}
-			pattern = pattern.replace("?", ".");
-			pattern = pattern.replace("**", "§§§");
-			pattern = pattern.replace("*", "[^\\.]*");
-			pattern = pattern.replace("§§§", ".*");
-			regex = Pattern.compile("^" + pattern + "$");
-			regexCache.put(pattern, regex);
+			regexPattern = regexPattern.replace("?", ".");
+			regexPattern = regexPattern.replace("**", "§§§");
+			regexPattern = regexPattern.replace("*", "[^\\.]*");
+			regexPattern = regexPattern.replace("§§§", ".*");
+			regex = Pattern.compile("^" + regexPattern + "$");
+			regexCache.put(regexPattern, regex);
 		}
 		return regex.matcher(text).matches();
 	}

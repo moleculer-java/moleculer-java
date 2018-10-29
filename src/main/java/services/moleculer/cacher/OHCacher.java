@@ -302,14 +302,17 @@ public class OHCacher extends Cacher {
 			if (match.isEmpty() || match.startsWith("*")) {
 				cache.clear();
 			} else {
+				String pattern;
 				if (match.indexOf('.') == -1 && (match.endsWith("*") && !match.endsWith("**"))) {
-					match += "*";
+					pattern = match + '*';
+				} else {
+					pattern = match;
 				}
 				Iterator<byte[]> i = cache.keyIterator();
 				String key;
 				while (i.hasNext()) {
 					key = bytesToKey(i.next());
-					if (Matcher.matches(key, match)) {
+					if (Matcher.matches(key, pattern)) {
 						i.remove();
 					}
 				}

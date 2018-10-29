@@ -48,19 +48,17 @@ public class SigarMonitor extends Monitor {
 
 	protected static Sigar sigar;
 
-	// --- CONSTRUCTOR ---
-
-	public SigarMonitor() {
-		if (!invalidMonitor.get() && sigar == null) {
-			try {
-				sigar = new Sigar();
-			} catch (Throwable cause) {
-				logger.error("Unable to reach Sigar API!", cause);
-				invalidMonitor.set(true);
-			}
-		}
+	// --- STATIC CONSTRUCTOR ---	
+	
+	static {
+		try {
+			sigar = new Sigar();
+		} catch (Throwable cause) {
+			cause.printStackTrace();
+			invalidMonitor.set(true);
+		}		
 	}
-
+	
 	// --- SYSTEM MONITORING METHODS ---
 
 	/**
