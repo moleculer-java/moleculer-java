@@ -369,7 +369,7 @@ public class InternalStreamTest extends TestCase {
 		try {
 			stream.sendError(null);
 			throw new Exception("Invalid position!");
-		} catch (NullPointerException e) {
+		} catch (IllegalArgumentException e) {
 			// Ok!
 		}
 
