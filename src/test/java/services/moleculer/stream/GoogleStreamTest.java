@@ -23,13 +23,22 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.transporter;
+package services.moleculer.stream;
 
-public class TcpTransporterTest extends TransporterTest {
+import services.moleculer.transporter.GoogleTransporter;
+import services.moleculer.transporter.Transporter;
+
+public class GoogleStreamTest extends StreamTest {
 
 	@Override
 	public Transporter createTransporter() {
-		return new TcpTransporter();
+		try {
+			String pathToConfig = "/temp/test.json";
+			return new GoogleTransporter(pathToConfig);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 
 }

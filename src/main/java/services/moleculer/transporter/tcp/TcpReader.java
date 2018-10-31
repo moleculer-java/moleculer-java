@@ -25,6 +25,7 @@
  */
 package services.moleculer.transporter.tcp;
 
+import java.io.EOFException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.StandardSocketOptions;
@@ -255,7 +256,7 @@ public class TcpReader implements Runnable {
 						readBuffer.clear();
 						n = channel.read(readBuffer);
 						if (n < 0) {
-							throw new InvalidPacketDataError(transporter.getBroker().getNodeID(), "port", currentPort);
+							throw new EOFException();
 						}
 						if (n == 0) {
 							keys.remove();
@@ -298,6 +299,11 @@ public class TcpReader implements Runnable {
 							key.attach(remaining);
 						}
 
+					} catch (EOFException eof) {
+						
+						// Peer closed
+						close(key, null);
+						
 					} catch (Exception cause) {
 						close(key, cause);
 					} finally {
