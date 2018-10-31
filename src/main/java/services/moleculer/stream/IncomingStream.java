@@ -37,7 +37,7 @@ public class IncomingStream {
 	// --- PROPERTIES ---
 
 	protected final String nodeID;
-	
+
 	protected final PacketStream stream;
 
 	protected volatile long lastUsed = System.currentTimeMillis();
@@ -45,7 +45,7 @@ public class IncomingStream {
 	protected volatile long lastSeq;
 
 	protected final HashMap<Long, Tree> pool = new HashMap<>();
-	
+
 	// --- CONSTRUCTOR ---
 
 	public IncomingStream(String nodeID, ScheduledExecutorService scheduler) {
@@ -67,10 +67,10 @@ public class IncomingStream {
 			seq = meta.get("seq", 0L);
 		}
 		if (seq > 0) {
-			if (seq - 1 == lastSeq) {				
+			if (seq - 1 == lastSeq) {
 				lastSeq = seq;
 			} else {
-				
+
 				// Process later
 				pool.put(seq, message);
 				return false;
@@ -78,7 +78,7 @@ public class IncomingStream {
 		} else {
 			lastSeq = 0;
 		}
-		
+
 		// Process current message
 		processMessage(message);
 
@@ -94,7 +94,7 @@ public class IncomingStream {
 				close = true;
 			}
 		}
-		
+
 		// True = remove stream from registry
 		return close;
 	}
@@ -108,30 +108,32 @@ public class IncomingStream {
 
 		// Parse incoming message
 		try {
-			Tree params = message.get("params");
-			if (params != null) {
-				Tree data = params.get("data");
-				if (data != null && data.isEnumeration()) {					
-					bytes = new byte[data.size()];
-					int idx = 0;
-					for (Tree item : data) {
-						bytes[idx++] = (byte) item.asInteger().intValue();
+			boolean success = message.get("success", true);
+			if (success) {
+				Tree params = message.get("params");
+				if (params != null) {
+					Tree data = params.get("data");
+					if (data != null && data.isEnumeration()) {
+						bytes = new byte[data.size()];
+						int idx = 0;
+						for (Tree item : data) {
+							bytes[idx++] = (byte) item.asInteger().intValue();
+						}
 					}
 				}
-			}
-			if (bytes == null) {
-				boolean success = message.get("success", true);
-				if (!success) {
-					Tree error = message.get("error");
+				close = !message.get("stream", false);
+			} else {
+				Tree error = message.get("error");
+				if (!success || error != null) {
 					if (error == null) {
-						cause = new MoleculerError("Remote invocation failed!", null, "MoleculerError", nodeID,
-								false, 500, "UNKNOWN_ERROR", message);
+						cause = new MoleculerError("Remote invocation failed!", null, "MoleculerError", nodeID, false,
+								500, "UNKNOWN_ERROR", message);
 					} else {
 						cause = MoleculerErrorUtils.create(error);
 					}
 				}
+				close = true;
 			}
-			close = !message.get("stream", false);
 		} catch (Throwable error) {
 			cause = error;
 		}
@@ -162,11 +164,11 @@ public class IncomingStream {
 			}
 			return true;
 		}
-	
+
 		// Do not remove from stream registry
 		return false;
 	}
-	
+
 	// --- PROPERTY GETTERS ---
 
 	public long getLastUsed() {

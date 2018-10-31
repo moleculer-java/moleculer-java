@@ -25,6 +25,8 @@
  */
 package services.moleculer.service;
 
+import static services.moleculer.transporter.Transporter.PACKET_REQUEST;
+
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -70,16 +72,12 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 					@Override
 					public final void onPacket(byte[] bytes, Throwable cause, boolean close) throws IOException {
 						if (bytes != null) {
-							sequence.compareAndSet(10000000, -1);
-							transporter.sendDataPacket(Transporter.PACKET_REQUEST, nodeID, ctx, bytes,
-									sequence.incrementAndGet());
+							transporter.sendDataPacket(PACKET_REQUEST, nodeID, ctx, bytes, sequence.incrementAndGet());
 						} else if (cause != null) {
-							transporter.sendErrorPacket(Transporter.PACKET_REQUEST, nodeID, ctx, cause,
-									sequence.incrementAndGet());
+							transporter.sendErrorPacket(PACKET_REQUEST, nodeID, ctx, cause, sequence.incrementAndGet());
 						}
 						if (close) {
-							transporter.sendClosePacket(Transporter.PACKET_REQUEST, nodeID, ctx,
-									sequence.incrementAndGet());
+							transporter.sendClosePacket(PACKET_REQUEST, nodeID, ctx, sequence.incrementAndGet());
 						}
 					}
 

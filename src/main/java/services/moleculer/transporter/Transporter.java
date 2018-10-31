@@ -430,7 +430,7 @@ public abstract class Transporter extends MoleculerComponent {
 	// --- ERROR PACKET (STREAMING) ---
 
 	public void sendErrorPacket(String cmd, String nodeID, Context ctx, Throwable cause, long sequence) {
-		FastBuildTree msg = throwableToTree(ctx.id, nodeID, cause);
+		FastBuildTree msg = throwableToTree(ctx.id, this.nodeID, cause);
 
 		// Add "meta" block
 		FastBuildTree meta = new FastBuildTree(1);
