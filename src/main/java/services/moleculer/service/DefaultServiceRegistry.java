@@ -411,21 +411,28 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				}
 
 			}
-			return;
-		}
-		if (message.get("stream", false)) {
-			requestStream = new IncomingStream(nodeID, scheduler);
-			if (!requestStream.receive(message)) {
-				requestStreams.put(id, requestStream);
+		} else {
+			if (message.get("stream", false)) {
+				requestStream = new IncomingStream(nodeID, scheduler);
+				if (!requestStream.receive(message)) {
+					requestStreams.put(id, requestStream);
+				}
 			}
 		}
 
 		// Get action property
 		String action = message.get("action", (String) null);
 		if (action == null || action.isEmpty()) {
-			logger.warn("Missing \"action\" property!");
-			transporter.publish(PACKET_RESPONSE, sender,
-					throwableToTree(id, nodeID, new InvalidPacketDataError(nodeID)));
+			if (requestStream == null) {
+				logger.warn("Missing \"action\" property!");
+				transporter.publish(PACKET_RESPONSE, sender,
+						throwableToTree(id, nodeID, new InvalidPacketDataError(nodeID)));
+			}
+			return;
+		}
+		if (requestStream != null && requestStream.inited()) {
+			
+			// Action method invoked (do not invoke twice)
 			return;
 		}
 

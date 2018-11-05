@@ -27,6 +27,7 @@ package services.moleculer.stream;
 
 import java.util.HashMap;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.datatree.Tree;
 import services.moleculer.error.MoleculerError;
@@ -46,6 +47,8 @@ public class IncomingStream {
 
 	protected final HashMap<Long, Tree> pool = new HashMap<>();
 
+	protected AtomicBoolean inited = new AtomicBoolean();
+	
 	// --- CONSTRUCTOR ---
 
 	public IncomingStream(String nodeID, ScheduledExecutorService scheduler) {
@@ -53,6 +56,28 @@ public class IncomingStream {
 		this.stream = new PacketStream(scheduler);
 	}
 
+	// --- RESET ---
+	
+	/**
+	 * Used for testing. Resets internal variables.
+	 */
+	public synchronized void reset() {
+		lastUsed = System.currentTimeMillis();
+		lastSeq = 0;
+		pool.clear();
+		stream.closed.set(false);
+		stream.buffer.clear();
+		stream.cause = null;
+		stream.transferedBytes.set(0);
+		inited.set(false);
+	}
+	
+	// --- INIT ---
+	
+	public boolean inited() {
+		return !inited.compareAndSet(false, true);
+	}
+	
 	// --- RECEIVE PACKET ---
 
 	public synchronized boolean receive(Tree message) {
@@ -80,16 +105,16 @@ public class IncomingStream {
 		}
 
 		// Process current message
-		processMessage(message);
+		boolean close = processMessage(message);
 
 		// Process pooled messages
-		boolean close = false;
 		long nextSeq = lastSeq;
 		while (true) {
 			Tree nextMessage = pool.remove(++nextSeq);
 			if (nextMessage == null) {
 				break;
 			}
+			lastSeq = nextSeq;
 			if (processMessage(nextMessage)) {
 				close = true;
 			}

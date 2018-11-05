@@ -302,15 +302,17 @@ public abstract class StreamTest extends TestCase {
 			assertTrue(trans % 10 == 0);
 		}
 
-		out.close();
-
+		out.close();		
+		listener.waitForPackets(102);
+		
 		// --- TEST 8 (LOAD FROM FILE) ---
 
 		listener.reset();
 		stream = br1.createStream();
 		rsp = br1.call("stream-receiver.receive", stream).waitFor();
 		assertEquals(123, (int) rsp.asInteger());
-
+		listener.assertEmpty();
+		
 		File f1 = File.createTempFile("MoleculerStreamTest", ".tmp");
 		save(f1, all);
 		
