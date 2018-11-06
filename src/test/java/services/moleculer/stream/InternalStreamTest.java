@@ -426,7 +426,7 @@ public class InternalStreamTest extends TestCase {
 	}
 
 	public PacketStream newStream(TestListener listener) throws Exception {
-		PacketStream s = new PacketStream(scheduler);
+		PacketStream s = new PacketStream("node-1", scheduler);
 		assertTrue(s.onPacket(listener));
 		assertFalse(s.onPacket(listener));
 		return s;

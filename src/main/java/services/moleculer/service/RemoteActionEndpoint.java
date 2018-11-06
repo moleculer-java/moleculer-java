@@ -27,11 +27,12 @@ package services.moleculer.service;
 
 import static services.moleculer.transporter.Transporter.PACKET_REQUEST;
 
-import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
+import services.moleculer.error.MoleculerClientError;
+import services.moleculer.error.MoleculerError;
 import services.moleculer.stream.PacketListener;
 import services.moleculer.transporter.Transporter;
 
@@ -70,7 +71,19 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 					private final AtomicLong sequence = new AtomicLong();
 
 					@Override
-					public final void onPacket(byte[] bytes, Throwable cause, boolean close) throws IOException {
+					public final void onPacket(byte[] bytes, Throwable cause, boolean close) {
+						if (promise.isRejected()) {
+							try {
+								
+								// Throws an error
+								promise.waitFor();
+								
+							} catch (MoleculerError moleculerError) {
+								throw moleculerError;
+							} catch (Exception error) {
+								throw new MoleculerClientError("Remote invocation failed!", error, nodeID, null);
+							}
+						}
 						if (bytes != null) {
 							transporter.sendDataPacket(PACKET_REQUEST, nodeID, ctx, bytes, sequence.incrementAndGet());
 						} else if (cause != null) {

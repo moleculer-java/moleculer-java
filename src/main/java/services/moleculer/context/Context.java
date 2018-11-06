@@ -29,6 +29,7 @@ import static services.moleculer.util.CommonUtils.parseParams;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
+import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.error.RequestRejectedError;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.eventbus.Groups;
@@ -506,7 +507,8 @@ public class Context {
 	 * @return new stream
 	 */
 	public PacketStream createStream() {
-		return new PacketStream(eventbus.getBroker().getConfig().getScheduler());
+		ServiceBrokerConfig config = eventbus.getBroker().getConfig();
+		return new PacketStream(config.getNodeID(), config.getScheduler());
 	}
 	
 }

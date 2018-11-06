@@ -25,14 +25,12 @@
  */
 package services.moleculer.stream;
 
-import java.io.IOException;
-
 /**
  * Interface of all packet/stream receivers.
  */
 @FunctionalInterface
 public interface PacketListener {
 
-	void onPacket(byte[] bytes, Throwable cause, boolean close) throws IOException;
+	void onPacket(byte[] bytes, Throwable cause, boolean close) throws Throwable;
 	
 }

@@ -28,6 +28,7 @@ package services.moleculer.stream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -41,6 +42,7 @@ import io.datatree.Promise;
 import io.datatree.Tree;
 import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
+import services.moleculer.error.MoleculerError;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
@@ -347,11 +349,106 @@ public abstract class StreamTest extends TestCase {
 		stream.sendData(bytes3);
 		stream.sendClose();
 		
-		Tree prsp = promise.waitFor(3000);
+		Tree prsp = promise.waitFor(4000);
 		assertEquals(sum, (int) prsp.asInteger()); 
+		
+		// --- TEST 10 (FAULTY SERVICE) ---
+		
+		br2.createService(new FaultyService());
+		br1.waitForServices("faulty-receiver").waitFor(3000);
+
+		stream = br1.createStream();
+		promise = br1.call("faulty-receiver.receive", stream);
+		
+		// Ok
+		stream.sendData("12".getBytes());
+		
+		// Ok
+		stream.sendData("123".getBytes());
+		
+		// Ok
+		stream.sendData("1234".getBytes());
+		
+		// Generating fault
+		stream.sendData("12345".getBytes());
+
+		// Check fault
+		try {
+			promise.waitFor(3000);	
+			throw new Exception("Invalid position!");
+		} catch (MoleculerError e) {
+			
+			// Ok
+			assertTrue(e.getStack().contains("xyz"));
+		}
+				
+		// Already faulty
+		try {
+			stream.sendData("123456".getBytes());
+			throw new Exception("Invalid position!");
+		} catch (MoleculerError e) {
+			
+			// Ok
+			assertTrue(e.getStack().contains("xyz"));
+		}
+		
+		// Already closed
+		boolean canClose = stream.sendClose();
+		assertFalse(canClose);
+		
+		// --- TEST 11 (SEND ERROR) ---
+		
+		br2.createService(new ErrorReceiver());
+		br1.waitForServices("error-receiver").waitFor(3000);
+
+		stream = br1.createStream();
+		promise = br1.call("error-receiver.receive", stream);
+		
+		stream.sendData("123".getBytes());
+		
+		stream.sendError(new Exception("abc"));
+		
+		String msg = promise.waitFor(3000).asString();
+		assertEquals("abc", msg);
 	}
 	
 	// --- SAMPLES ---
+
+	@Name("error-receiver")
+	protected static final class ErrorReceiver extends Service {
+		
+		public Action receive = ctx -> {
+			return new Promise(res -> {
+				ctx.stream.onPacket((bytes, cause, close) -> {
+					if (cause != null) {
+						res.resolve(cause.getMessage());
+					}
+					if (close) {
+						res.resolve();
+					}
+				});
+			});
+		};
+		
+	}
+
+	@Name("faulty-receiver")
+	protected static final class FaultyService extends Service {
+		
+		public Action receive = ctx -> {
+			return new Promise(res -> {
+				ctx.stream.onPacket((bytes, cause, close) -> {
+					if (bytes != null && bytes.length == 5) {
+						throw new IOException("xyz");
+					}
+					if (close) {
+						res.resolve();
+					}
+				});
+			});
+		};
+		
+	}
 	
 	@Name("promise-producer")
 	protected static final class PromiseProducerService extends Service {

@@ -123,7 +123,7 @@ public class Sample {
 
 			System.out.println("RECEIVER - called");
 
-			PacketStream output = new PacketStream(broker.getConfig().getScheduler());
+			PacketStream output = broker.createStream();
 
 			ctx.stream.onPacket((bytes, cause, close) -> {
 				if (bytes != null) {

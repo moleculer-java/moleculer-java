@@ -33,7 +33,6 @@ import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.throwableToTree;
 
-import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
@@ -431,7 +430,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			return;
 		}
 		if (requestStream != null && requestStream.inited()) {
-			
+
 			// Action method invoked (do not invoke twice)
 			return;
 		}
@@ -533,7 +532,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 						private final AtomicLong sequence = new AtomicLong();
 
 						@Override
-						public final void onPacket(byte[] bytes, Throwable cause, boolean close) throws IOException {
+						public final void onPacket(byte[] bytes, Throwable cause, boolean close) {
 							if (bytes != null) {
 								transporter.sendDataPacket(PACKET_RESPONSE, sender, ctx, bytes,
 										sequence.incrementAndGet());
@@ -709,6 +708,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				for (Middleware middleware : newMiddlewares) {
 					try {
 						middleware.started(broker);
+					} catch (MoleculerError moleculerError) {
+						throw moleculerError;
 					} catch (Exception cause) {
 						throw new MoleculerError("Unable to start middleware!", cause, "MoleculerError", nodeID, false,
 								500, "MIDDLEWARE_ERROR");

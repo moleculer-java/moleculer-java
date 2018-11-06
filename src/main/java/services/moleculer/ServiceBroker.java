@@ -1085,7 +1085,7 @@ public class ServiceBroker {
 	 * @return new stream
 	 */
 	public PacketStream createStream() {
-		return new PacketStream(config.getScheduler());
+		return new PacketStream(nodeID, config.getScheduler());
 	}
 
 	// --- START DEVELOPER CONSOLE ---

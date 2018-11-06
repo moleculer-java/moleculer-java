@@ -48,16 +48,16 @@ public class IncomingStream {
 	protected final HashMap<Long, Tree> pool = new HashMap<>();
 
 	protected AtomicBoolean inited = new AtomicBoolean();
-	
+
 	// --- CONSTRUCTOR ---
 
 	public IncomingStream(String nodeID, ScheduledExecutorService scheduler) {
 		this.nodeID = nodeID;
-		this.stream = new PacketStream(scheduler);
+		this.stream = new PacketStream(nodeID, scheduler);
 	}
 
 	// --- RESET ---
-	
+
 	/**
 	 * Used for testing. Resets internal variables.
 	 */
@@ -71,13 +71,13 @@ public class IncomingStream {
 		stream.transferedBytes.set(0);
 		inited.set(false);
 	}
-	
+
 	// --- INIT ---
-	
+
 	public boolean inited() {
 		return !inited.compareAndSet(false, true);
 	}
-	
+
 	// --- RECEIVE PACKET ---
 
 	public synchronized boolean receive(Tree message) {
@@ -165,28 +165,18 @@ public class IncomingStream {
 
 		// Bytes
 		if (bytes != null) {
-			try {
-				stream.sendData(bytes);
-			} catch (Throwable error) {
-				cause = error;
-			}
+			stream.sendData(bytes);
 		}
 
 		// Error
 		if (cause != null) {
-			try {
-				stream.sendError(cause);
-			} catch (Throwable ignored) {
-			}
+			stream.sendError(cause);
 			return true;
 		}
 
 		// Close
 		if (close) {
-			try {
-				stream.sendClose();
-			} catch (Throwable ignored) {
-			}
+			stream.sendClose();
 			return true;
 		}
 

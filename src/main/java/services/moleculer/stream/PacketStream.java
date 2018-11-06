@@ -41,7 +41,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.datatree.Promise;
+import services.moleculer.error.MoleculerClientError;
+import services.moleculer.error.MoleculerError;
 
 /**
  * !!! This package are in development phase !!!
@@ -54,11 +59,20 @@ public class PacketStream {
 
 	protected static final byte[] CLOSE_MARKER = new byte[0];
 
+	// --- LOGGER ---
+
+	protected static final Logger logger = LoggerFactory.getLogger(PacketStream.class);
+
 	// --- COMPONENTS ---
 
 	protected final ScheduledExecutorService scheduler;
 
 	// --- VARIABLES ---
+
+	/**
+	 * Current node ID.
+	 */
+	protected final String nodeID;
 
 	/**
 	 * Is stream closed?
@@ -103,13 +117,14 @@ public class PacketStream {
 
 	// --- CONSTRUCTOR ---
 
-	public PacketStream(ScheduledExecutorService scheduler) {
+	public PacketStream(String nodeID, ScheduledExecutorService scheduler) {
+		this.nodeID = nodeID;
 		this.scheduler = scheduler;
 	}
 
 	// --- SET EVENT LISTENER ---
 
-	public boolean onPacket(PacketListener listener) throws IOException {
+	public boolean onPacket(PacketListener listener) {
 		if (listener == null) {
 			return false;
 		}
@@ -126,34 +141,46 @@ public class PacketStream {
 			copy[listeners.length] = listener;
 			listeners = copy;
 		}
-		if (cause == null) {
-			for (byte[] bytes : buffer) {
-				if (bytes == CLOSE_MARKER) {
-					listener.onPacket(null, null, true);
-				} else {
-					listener.onPacket(bytes, null, false);
+		try {
+			if (cause == null) {
+				for (byte[] bytes : buffer) {
+					if (bytes == CLOSE_MARKER) {
+						listener.onPacket(null, null, true);
+					} else {
+						listener.onPacket(bytes, null, false);
+					}
 				}
+			} else {
+				listener.onPacket(null, cause, true);
 			}
-		} else {
-			listener.onPacket(null, cause, true);
+		} catch (MoleculerError moleculerError) {
+			throw moleculerError;
+		} catch (Throwable error) {
+			throw new MoleculerClientError("Unable to send packet to stream listener!", error, nodeID, null);
 		}
 		return true;
 	}
 
 	// --- SEND BYTES ---
 
-	public boolean sendData(byte[] bytes) throws IOException {
+	public boolean sendData(byte[] bytes) {
 		if (bytes != null && bytes.length > 0 && !closed.get()) {
-			if (listeners == null) {
-				buffer.addLast(bytes);
-			} else if (listeners.length == 1) {
-				listeners[0].onPacket(bytes, null, false);
-			} else {
-				for (PacketListener listener : listeners) {
-					listener.onPacket(bytes, null, false);
+			try {
+				if (listeners == null) {
+					buffer.addLast(bytes);
+				} else if (listeners.length == 1) {
+					listeners[0].onPacket(bytes, null, false);
+				} else {
+					for (PacketListener listener : listeners) {
+						listener.onPacket(bytes, null, false);
+					}
 				}
+				transferedBytes.addAndGet(bytes.length);
+			} catch (MoleculerError moleculerError) {
+				throw moleculerError;
+			} catch (Throwable error) {
+				throw new MoleculerClientError("Unable to send bytes to stream listener!", error, nodeID, null);
 			}
-			transferedBytes.addAndGet(bytes.length);
 			return true;
 		}
 		return false;
@@ -161,19 +188,25 @@ public class PacketStream {
 
 	// --- SEND ERROR ---
 
-	public boolean sendError(Throwable cause) throws IOException {
+	public boolean sendError(Throwable cause) {
 		if (cause == null) {
 			throw new IllegalArgumentException("Unable to send \"null\" as Exception!");
 		}
 		if (closed.compareAndSet(false, true)) {
 			this.cause = cause;
 			if (listeners != null) {
-				if (listeners.length == 1) {
-					listeners[0].onPacket(null, cause, true);
-				} else {
-					for (PacketListener listener : listeners) {
-						listener.onPacket(null, cause, true);
+				try {
+					if (listeners.length == 1) {
+						listeners[0].onPacket(null, cause, true);
+					} else {
+						for (PacketListener listener : listeners) {
+							listener.onPacket(null, cause, true);
+						}
 					}
+				} catch (MoleculerError moleculerError) {
+					throw moleculerError;
+				} catch (Throwable error) {
+					throw new MoleculerClientError("Unable to send error to stream listener!", error, nodeID, null);
 				}
 			}
 			return true;
@@ -183,16 +216,21 @@ public class PacketStream {
 
 	// --- SEND CLOSE MARKER ---
 
-	public boolean sendClose() throws IOException {
+	public boolean sendClose() {
 		if (closed.compareAndSet(false, true)) {
-			if (listeners == null) {
-				buffer.addLast(CLOSE_MARKER);
-			} else if (listeners.length == 1) {
-				listeners[0].onPacket(null, cause, true);
-			} else {
-				for (PacketListener listener : listeners) {
-					listener.onPacket(null, cause, true);
+			try {
+				if (listeners == null) {
+					buffer.addLast(CLOSE_MARKER);
+				} else if (listeners.length == 1) {
+					listeners[0].onPacket(null, cause, true);
+				} else {
+					for (PacketListener listener : listeners) {
+						listener.onPacket(null, cause, true);
+					}
 				}
+			} catch (Throwable error) {
+				logger.warn("Unable to send close marker to stream listener!", error);
+				return false;
 			}
 			return true;
 		}
@@ -205,30 +243,30 @@ public class PacketStream {
 		OutputStream out = new OutputStream() {
 
 			@Override
-			public final void write(int b) throws IOException {
+			public final void write(int b) {
 				sendData(new byte[] { (byte) b });
 			}
 
 			@Override
-			public final void write(byte[] b) throws IOException {
+			public final void write(byte[] b) {
 				write(b, 0, b.length);
 			}
 
 			@Override
-			public final void write(byte[] b, int off, int len) throws IOException {
+			public final void write(byte[] b, int off, int len) {
 				byte[] copy = new byte[len];
 				System.arraycopy(b, 0, copy, 0, len);
 				sendData(copy);
 			}
 
 			@Override
-			public final void flush() throws IOException {
+			public final void flush() {
 
 				// Do nothing
 			}
 
 			@Override
-			public final void close() throws IOException {
+			public final void close() {
 				sendClose();
 			}
 
@@ -257,12 +295,12 @@ public class PacketStream {
 				}
 
 				@Override
-				public final void close() throws IOException {
+				public final void close() {
 					sendClose();
 				}
 
 				@Override
-				public final int write(ByteBuffer src) throws IOException {
+				public final int write(ByteBuffer src) {
 					try {
 						int len = src.remaining();
 						if (len > 0) {
@@ -378,7 +416,7 @@ public class PacketStream {
 					destination.write(copy);
 					scheduleNextPacket(source, destination, promise, packet);
 				}
-			} catch (IOException cause) {
+			} catch (Throwable cause) {
 				try {
 					try {
 						source.close();
@@ -424,7 +462,7 @@ public class PacketStream {
 					destination.write(copy);
 					scheduleNextPacket(source, destination, promise, packet);
 				}
-			} catch (IOException cause) {
+			} catch (Throwable cause) {
 				try {
 					try {
 						source.close();
@@ -461,7 +499,11 @@ public class PacketStream {
 
 				// Data received
 				if (bytes != null) {
-					destination.write(bytes);
+					try {
+						destination.write(bytes);
+					} catch (Throwable err) {
+						cause = err;
+					}
 				}
 
 				// Close received
@@ -492,11 +534,15 @@ public class PacketStream {
 
 				// Data received
 				if (bytes != null) {
-					ByteBuffer buffer = ByteBuffer.wrap(bytes);
-					int pos = 0;
-					while (buffer.hasRemaining()) {
-						pos += destination.write(buffer);
-						buffer.position(pos);
+					try {
+						ByteBuffer buffer = ByteBuffer.wrap(bytes);
+						int pos = 0;
+						while (buffer.hasRemaining()) {
+							pos += destination.write(buffer);
+							buffer.position(pos);
+						}
+					} catch (Throwable err) {
+						cause = err;
 					}
 				}
 
