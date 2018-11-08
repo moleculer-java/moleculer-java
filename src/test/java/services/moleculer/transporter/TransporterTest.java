@@ -166,11 +166,36 @@ public abstract class TransporterTest extends TestCase {
 		Thread.sleep(sleep);
 		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
 		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
+		Tree v;
+		if (g1_a.payloads.isEmpty()) {
+			v = g1_b.payloads.peek();
+		} else {
+			v = g1_a.payloads.peek();
+		}
+		assertTrue(v.isEmpty());
+		assertTrue(!v.isNull());
 		g1_a.payloads.clear();
 		g1_b.payloads.clear();
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
-
+		
+		// Emit NULL
+		br1.emit("test.a", (Tree) null);
+		Thread.sleep(sleep);
+		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
+		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
+		v = null;
+		if (g1_a.payloads.isEmpty()) {
+			v = g1_b.payloads.peek();
+		} else {
+			v = g1_a.payloads.peek();
+		}
+		assertNull(v);
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+		g2_a.payloads.clear();
+		g2_b.payloads.clear();
+		
 		// Emit to group1
 		br1.emit("test.a", new Tree(), Groups.of("group1"));
 		Thread.sleep(sleep);
@@ -179,6 +204,21 @@ public abstract class TransporterTest extends TestCase {
 		g1_a.payloads.clear();
 		g1_b.payloads.clear();
 
+		// Emit NULL to group1
+		br1.emit("test.a", (Tree) null, Groups.of("group1"));
+		Thread.sleep(sleep);
+		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
+		assertEquals(0, g2_a.payloads.size() + g2_b.payloads.size());
+		v = null;
+		if (g1_a.payloads.isEmpty()) {
+			v = g1_b.payloads.peek();
+		} else {
+			v = g1_a.payloads.peek();
+		}
+		assertNull(v);
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+		
 		// Emit to group2
 		br1.emit("test.a", new Tree(), Groups.of("group2"));
 		Thread.sleep(sleep);
@@ -186,6 +226,12 @@ public abstract class TransporterTest extends TestCase {
 		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
+		
+		// Test null service
+		br1.createService(new NullService());
+		br2.waitForServices("nullService").waitFor(3000);
+		Tree rsp = br2.call("nullService.nullAction", (Tree) null).waitFor();
+		assertNull(rsp);
 	}
 
 	private void checkPing(ServiceBroker broker, String nodeID) throws Exception {
@@ -196,6 +242,15 @@ public abstract class TransporterTest extends TestCase {
 
 	// --- SAMPLES ---
 
+	protected static final class NullService extends Service {
+
+		public Action nullAction = ctx -> {
+			assertNull(ctx.params);
+			return null;
+		};
+		
+	}
+	
 	protected static final class Group1Listener extends Service {
 
 		protected LinkedList<Tree> payloads = new LinkedList<>();

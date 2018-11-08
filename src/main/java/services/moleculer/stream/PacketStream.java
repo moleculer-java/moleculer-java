@@ -49,7 +49,39 @@ import services.moleculer.error.MoleculerClientError;
 import services.moleculer.error.MoleculerError;
 
 /**
- * !!! This package are in development phase !!!
+ * NodeJS compatible streaming API to transfer binary files.<br>
+ * <br>
+ * WARNING: It's a kind of "pre-release version" of streaming. The API will not
+ * change but additional compatibility tests are required.<br>
+ * <br>
+ * Sample service invocation with a stream:
+ * 
+ * <pre>
+ * PacketStream stream = broker.createStream();
+ * broker.call("streamService.action", stream);
+ * stream.sendData("body".getBytes());
+ * stream.sendClose(); // It must be closed
+ * </pre>
+ * 
+ * Sample stream receiver service:
+ * 
+ * <pre>
+ * public class StreamService extends Service {
+ * 	public Action action = ctx -> {
+ * 		return new Promise(res -> {
+ * 			ctx.stream.onPacket((bytes, cause, close) -> {
+ * 				if (bytes != null) {
+ * 					// Do something with the bytes
+ * 				}
+ * 				if (close) {
+ * 					res.resolve("Ok"); // Send response, can be a structure
+ * 										// (Tree)
+ * 				}
+ * 			});
+ * 		});
+ * 	};
+ * }
+ * </pre>
  */
 public class PacketStream {
 

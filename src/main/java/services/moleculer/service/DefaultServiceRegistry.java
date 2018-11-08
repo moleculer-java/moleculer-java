@@ -471,11 +471,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Process params and meta
 		Tree params = message.get("params");
-		if (params == null) {
-			params = new Tree();
-		}
 		Tree meta = message.get("meta");
 		if (meta != null && !meta.isEmpty()) {
+			if (params == null) {
+				params = new Tree();
+			}
 			params.getMeta().setObject(params);
 		}
 

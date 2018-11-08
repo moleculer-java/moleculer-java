@@ -88,6 +88,10 @@ public class ServiceTest extends TestCase {
 		assertEquals(true, rsp.get("success", false));
 		assertEquals(123, rsp.get("data", -1));
 		assertEquals("MOL.RES.node5", rsp.get("channel", ""));
+		
+		br.createService(new NullService());
+		rsp = br.call("nullService.nullAction", (Tree) null).waitFor();
+		assertNull(rsp);
 	}
 
 	protected void putIncomingCall(String name, Tree params) throws Exception {
@@ -102,6 +106,15 @@ public class ServiceTest extends TestCase {
 		tr.received(tr.requestChannel, msg);
 	}
 
+	protected static final class NullService extends Service {
+
+		public Action nullAction = ctx -> {
+			assertNull(ctx.params);
+			return null;
+		};
+		
+	}
+	
 	protected static final class TestService extends Service {
 
 		public Action add = ctx -> {

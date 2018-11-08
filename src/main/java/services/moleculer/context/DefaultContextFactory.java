@@ -87,13 +87,15 @@ public class DefaultContextFactory extends ContextFactory {
 		}
 
 		// Merge meta block
-		Tree parentMeta = parent.params.getMeta(false);
-		if (parentMeta != null && !parentMeta.isEmpty()) {
-			Tree currentMeta = params.getMeta(true);
-			if (currentMeta.isEmpty()) {
-				currentMeta.setObject(parentMeta.asObject());
-			} else {
-				currentMeta.copyFrom(parentMeta, false);
+		if (parent.params != null) {
+			Tree parentMeta = parent.params.getMeta(false);
+			if (parentMeta != null && !parentMeta.isEmpty()) {
+				Tree currentMeta = params.getMeta(true);
+				if (currentMeta.isEmpty()) {
+					currentMeta.setObject(parentMeta.asObject());
+				} else {
+					currentMeta.copyFrom(parentMeta, false);
+				}
 			}
 		}
 
