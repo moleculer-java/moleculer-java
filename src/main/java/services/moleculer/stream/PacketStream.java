@@ -49,7 +49,7 @@ import services.moleculer.error.MoleculerClientError;
 import services.moleculer.error.MoleculerError;
 
 /**
- * NodeJS compatible streaming API to transfer binary files.<br>
+ * NodeJS compatible (EXPERIMENTAL) streaming API to transfer binary files.<br>
  * <br>
  * WARNING: It's a kind of "pre-release version" of streaming. The API will not
  * change but additional compatibility tests are required.<br>
@@ -156,7 +156,7 @@ public class PacketStream {
 
 	// --- SET EVENT LISTENER ---
 
-	public boolean onPacket(PacketListener listener) {
+	public synchronized boolean onPacket(PacketListener listener) {
 		if (listener == null) {
 			return false;
 		}
@@ -195,7 +195,7 @@ public class PacketStream {
 
 	// --- SEND BYTES ---
 
-	public boolean sendData(byte[] bytes) {
+	public synchronized boolean sendData(byte[] bytes) {
 		if (bytes != null && bytes.length > 0 && !closed.get()) {
 			try {
 				if (listeners == null) {
@@ -220,7 +220,7 @@ public class PacketStream {
 
 	// --- SEND ERROR ---
 
-	public boolean sendError(Throwable cause) {
+	public synchronized boolean sendError(Throwable cause) {
 		if (cause == null) {
 			throw new IllegalArgumentException("Unable to send \"null\" as Exception!");
 		}
@@ -248,7 +248,7 @@ public class PacketStream {
 
 	// --- SEND CLOSE MARKER ---
 
-	public boolean sendClose() {
+	public synchronized boolean sendClose() {
 		if (closed.compareAndSet(false, true)) {
 			try {
 				if (listeners == null) {

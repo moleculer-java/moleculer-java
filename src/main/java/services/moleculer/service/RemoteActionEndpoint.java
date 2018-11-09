@@ -84,7 +84,7 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 								throw new MoleculerClientError("Remote invocation failed!", error, nodeID, null);
 							}
 						}
-						if (bytes != null) {
+						if (bytes != null && bytes.length > 0) {
 							transporter.sendDataPacket(PACKET_REQUEST, nodeID, ctx, bytes, sequence.incrementAndGet());
 						} else if (cause != null) {
 							transporter.sendErrorPacket(PACKET_REQUEST, nodeID, ctx, cause, sequence.incrementAndGet());

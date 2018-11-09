@@ -60,7 +60,7 @@ public abstract class StreamTest extends TestCase {
 	protected ServiceBroker br2;
 
 	protected Random rnd = new Random();
-	
+
 	// --- ABSTRACT METHODS ---
 
 	public abstract Transporter createTransporter();
@@ -71,25 +71,25 @@ public abstract class StreamTest extends TestCase {
 	public void testStreams() throws Exception {
 
 		// --- TEST 1 ---
-		
+
 		byte[] bytes1 = randomBytes(300);
 		PacketStream stream = br1.createStream();
 		Tree rsp = br1.call("stream-receiver.receive", stream).waitFor();
 		assertEquals(123, (int) rsp.asInteger());
 		assertTrue(stream.sendData(bytes1));
-		
+
 		StreamReceiverService listener = (StreamReceiverService) br2.getLocalService("stream-receiver");
 		listener.waitForPackets(1);
-		
+
 		listener.assertOpened();
 		listener.assertNotFaulty();
 		listener.assertDataEquals(bytes1);
 		assertEquals(bytes1.length, stream.getTransferedBytes());
-		
+
 		byte[] bytes2 = randomBytes(300);
 		assertTrue(stream.sendData(bytes2));
 		listener.waitForPackets(2);
-		
+
 		listener.assertOpened();
 		listener.assertNotFaulty();
 		assertEquals(bytes1.length + bytes2.length, stream.getTransferedBytes());
@@ -97,11 +97,11 @@ public abstract class StreamTest extends TestCase {
 		byte[] bytes3 = randomBytes(300);
 		assertTrue(stream.sendData(bytes3));
 		listener.waitForPackets(3);
-		
+
 		listener.assertOpened();
 		listener.assertNotFaulty();
 		assertEquals(bytes1.length + bytes2.length + bytes3.length, stream.getTransferedBytes());
-		
+
 		byte[] all = new byte[bytes1.length + bytes2.length + bytes3.length];
 		System.arraycopy(bytes1, 0, all, 0, bytes1.length);
 		System.arraycopy(bytes2, 0, all, bytes1.length, bytes2.length);
@@ -111,7 +111,7 @@ public abstract class StreamTest extends TestCase {
 
 		assertTrue(stream.sendClose());
 		listener.waitForPackets(4);
-		
+
 		listener.assertClosed();
 		listener.assertNotFaulty();
 
@@ -125,7 +125,7 @@ public abstract class StreamTest extends TestCase {
 		listener.assertDataEquals(all);
 		listener.assertClosed();
 		listener.assertNotFaulty();
-		
+
 		// --- TEST 2 ---
 
 		listener.reset();
@@ -140,7 +140,7 @@ public abstract class StreamTest extends TestCase {
 
 		assertTrue(stream.sendData(bytes1));
 		listener.waitForPackets(1);
-		
+
 		listener.assertOpened();
 		listener.assertNotFaulty();
 		listener.assertDataEquals(bytes1);
@@ -149,7 +149,7 @@ public abstract class StreamTest extends TestCase {
 
 		assertTrue(stream.sendError(new Exception()));
 		listener.waitForPackets(2);
-		
+
 		listener.assertClosed();
 		listener.assertFaulty();
 		listener.assertDataEquals(bytes1);
@@ -160,7 +160,7 @@ public abstract class StreamTest extends TestCase {
 
 		listener.assertDataEquals(bytes1);
 		assertEquals(bytes1.length, stream.getTransferedBytes());
-		
+
 		// --- TEST 3 (BUFFERED STREAM) ---
 
 		listener.reset();
@@ -183,12 +183,12 @@ public abstract class StreamTest extends TestCase {
 
 		out.close();
 		listener.waitForPackets(2);
-		
+
 		assertEquals(all.length, stream.getTransferedBytes());
 		listener.assertDataEquals(all);
 		listener.assertClosed();
 		listener.assertNotFaulty();
-		
+
 		// --- TEST 4 (BUFFERED CHANNEL) ---
 
 		listener.reset();
@@ -211,12 +211,12 @@ public abstract class StreamTest extends TestCase {
 
 		channel.close();
 		listener.waitForPackets(2);
-		
+
 		assertEquals(all.length, stream.getTransferedBytes());
 		listener.assertDataEquals(all);
 		listener.assertClosed();
 		listener.assertNotFaulty();
-		
+
 		// --- TEST 5 (UNBUFFERED STREAM) ---
 
 		listener.reset();
@@ -246,11 +246,11 @@ public abstract class StreamTest extends TestCase {
 
 		out.close();
 		listener.waitForPackets(4);
-		
+
 		listener.assertDataEquals(all);
 		listener.assertClosed();
 		listener.assertNotFaulty();
-		
+
 		// --- TEST 6 (UNBUFFERED CHANNEL) ---
 
 		listener.reset();
@@ -280,11 +280,11 @@ public abstract class StreamTest extends TestCase {
 
 		channel.close();
 		listener.waitForPackets(4);
-		
+
 		listener.assertDataEquals(all);
 		listener.assertClosed();
 		listener.assertNotFaulty();
-		
+
 		// --- TEST 7 (BUFFER SIZE = 10 BYTES) ---
 
 		listener.reset();
@@ -304,9 +304,9 @@ public abstract class StreamTest extends TestCase {
 			assertTrue(trans % 10 == 0);
 		}
 
-		out.close();		
+		out.close();
 		listener.waitForPackets(102);
-		
+
 		// --- TEST 8 (LOAD FROM FILE) ---
 
 		listener.reset();
@@ -314,10 +314,10 @@ public abstract class StreamTest extends TestCase {
 		rsp = br1.call("stream-receiver.receive", stream).waitFor();
 		assertEquals(123, (int) rsp.asInteger());
 		listener.assertEmpty();
-		
+
 		File f1 = File.createTempFile("MoleculerStreamTest", ".tmp");
 		save(f1, all);
-		
+
 		stream.transferFrom(f1).waitFor(5000);
 		f1.delete();
 		for (int i = 0; i < 30; i++) {
@@ -326,21 +326,21 @@ public abstract class StreamTest extends TestCase {
 				break;
 			}
 		}
-		
+
 		listener.assertDataEquals(all);
 		listener.assertClosed();
 		listener.assertNotFaulty();
-		
+
 		// --- TEST 9 (SERVICE RETURNS WITH A PROMISE) ---
-		
+
 		br1.createService(new PromiseProducerService());
 		br2.waitForServices("promise-producer").waitFor(3000);
-		
+
 		int sum = 0;
-		for (byte b: all) {
+		for (byte b : all) {
 			sum += b;
 		}
-		
+
 		stream = br2.createStream();
 		Promise promise = br2.call("promise-producer.sum", stream);
 
@@ -348,75 +348,75 @@ public abstract class StreamTest extends TestCase {
 		stream.sendData(bytes2);
 		stream.sendData(bytes3);
 		stream.sendClose();
-		
+
 		Tree prsp = promise.waitFor(4000);
-		assertEquals(sum, (int) prsp.asInteger()); 
-		
+		assertEquals(sum, (int) prsp.asInteger());
+
 		// --- TEST 10 (FAULTY SERVICE) ---
-		
+
 		br2.createService(new FaultyService());
 		br1.waitForServices("faulty-receiver").waitFor(3000);
 
 		stream = br1.createStream();
 		promise = br1.call("faulty-receiver.receive", stream);
-		
+
 		// Ok
 		stream.sendData("12".getBytes());
-		
+
 		// Ok
 		stream.sendData("123".getBytes());
-		
+
 		// Ok
 		stream.sendData("1234".getBytes());
-		
+
 		// Generating fault
 		stream.sendData("12345".getBytes());
 
 		// Check fault
 		try {
-			promise.waitFor(3000);	
+			promise.waitFor(3000);
 			throw new Exception("Invalid position!");
 		} catch (MoleculerError e) {
-			
+
 			// Ok
 			assertTrue(e.getStack().contains("xyz"));
 		}
-				
+
 		// Already faulty
 		try {
 			stream.sendData("123456".getBytes());
 			throw new Exception("Invalid position!");
 		} catch (MoleculerError e) {
-			
+
 			// Ok
 			assertTrue(e.getStack().contains("xyz"));
 		}
-		
+
 		// Already closed
 		boolean canClose = stream.sendClose();
 		assertFalse(canClose);
-		
+
 		// --- TEST 11 (SEND ERROR) ---
-		
+
 		br2.createService(new ErrorReceiver());
 		br1.waitForServices("error-receiver").waitFor(3000);
 
 		stream = br1.createStream();
 		promise = br1.call("error-receiver.receive", stream);
-		
+
 		stream.sendData("123".getBytes());
-		
+
 		stream.sendError(new Exception("abc"));
-		
+
 		String msg = promise.waitFor(3000).asString();
 		assertEquals("abc", msg);
 	}
-	
+
 	// --- SAMPLES ---
 
 	@Name("error-receiver")
 	protected static final class ErrorReceiver extends Service {
-		
+
 		public Action receive = ctx -> {
 			return new Promise(res -> {
 				ctx.stream.onPacket((bytes, cause, close) -> {
@@ -429,12 +429,12 @@ public abstract class StreamTest extends TestCase {
 				});
 			});
 		};
-		
+
 	}
 
 	@Name("faulty-receiver")
 	protected static final class FaultyService extends Service {
-		
+
 		public Action receive = ctx -> {
 			return new Promise(res -> {
 				ctx.stream.onPacket((bytes, cause, close) -> {
@@ -447,21 +447,21 @@ public abstract class StreamTest extends TestCase {
 				});
 			});
 		};
-		
+
 	}
-	
+
 	@Name("promise-producer")
 	protected static final class PromiseProducerService extends Service {
-		
+
 		@Name("sum")
 		public Action action = ctx -> {
 			return new Promise(res -> {
-				
-				AtomicInteger sum = new AtomicInteger();
-				
+
+				final AtomicInteger sum = new AtomicInteger();
+
 				ctx.stream.onPacket((bytes, cause, close) -> {
 					if (bytes != null) {
-						for (byte b: bytes) {
+						for (byte b : bytes) {
 							sum.addAndGet(b);
 						}
 					}
@@ -469,14 +469,14 @@ public abstract class StreamTest extends TestCase {
 						res.resolve("ERR");
 					}
 					if (close) {
-						res.resolve(sum.get());					
-					}					
+						res.resolve(sum.get());
+					}
 				});
 			});
 		};
-		
+
 	}
-	
+
 	@Name("stream-receiver")
 	protected static final class StreamReceiverService extends Service {
 
@@ -486,7 +486,7 @@ public abstract class StreamTest extends TestCase {
 
 		protected volatile int packetCounter;
 		protected Object waitLock = new Object();
-		
+
 		public Action receive = ctx -> {
 			assertNotNull(ctx.stream);
 			ctx.stream.onPacket((bytes, cause, close) -> {
@@ -497,7 +497,7 @@ public abstract class StreamTest extends TestCase {
 					error = cause;
 				}
 				if (close) {
-					closed = true;					
+					closed = true;
 				}
 				synchronized (waitLock) {
 					packetCounter++;
@@ -519,11 +519,11 @@ public abstract class StreamTest extends TestCase {
 					}
 					waitLock.wait(1000);
 				}
-				assertTrue(packetCounter == numberOfPackets);
+				assertEquals(numberOfPackets, packetCounter);
 			}
 			return this;
 		}
-				
+
 		public void reset() {
 			buffer.reset();
 			error = null;
@@ -558,9 +558,9 @@ public abstract class StreamTest extends TestCase {
 		public void assertEmpty() {
 			assertEquals(0, buffer.size());
 		}
-		
+
 	}
-	
+
 	// --- UTILITIES ---
 
 	public void save(File file, byte[] bytes) throws Exception {
@@ -582,13 +582,13 @@ public abstract class StreamTest extends TestCase {
 			}
 		}
 	}
-	
+
 	public byte[] randomBytes(int len) {
 		byte[] bytes = new byte[len];
 		rnd.nextBytes(bytes);
 		return bytes;
 	}
-	
+
 	@Override
 	protected void setUp() throws Exception {
 
@@ -606,11 +606,11 @@ public abstract class StreamTest extends TestCase {
 
 		// Install service
 		br2.createService(new StreamReceiverService());
-		
+
 		// Start brokers
 		br1.start();
 		br2.start();
-		
+
 		// Wait for "stream-receiver" service
 		br1.waitForServices("stream-receiver").waitFor(5000);
 	}
@@ -624,5 +624,5 @@ public abstract class StreamTest extends TestCase {
 			br2.stop();
 		}
 	}
-	
+
 }

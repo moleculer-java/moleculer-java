@@ -43,7 +43,7 @@ public class IncomingStream {
 
 	protected volatile long lastUsed = System.currentTimeMillis();
 
-	protected volatile long lastSeq;
+	protected volatile long prevSeq = -1;
 
 	protected final HashMap<Long, Tree> pool = new HashMap<>();
 
@@ -63,13 +63,19 @@ public class IncomingStream {
 	 */
 	public synchronized void reset() {
 		lastUsed = System.currentTimeMillis();
-		lastSeq = 0;
+		prevSeq = -1;
 		pool.clear();
 		stream.closed.set(false);
 		stream.buffer.clear();
 		stream.cause = null;
 		stream.transferedBytes.set(0);
 		inited.set(false);
+	}
+
+	// --- ERROR ---
+
+	public void error(Throwable cause) {
+		stream.sendError(cause);
 	}
 
 	// --- INIT ---
@@ -86,14 +92,10 @@ public class IncomingStream {
 		lastUsed = System.currentTimeMillis();
 
 		// Check sequence number
-		long seq = 0;
-		Tree meta = message.get("meta");
-		if (meta != null) {
-			seq = meta.get("seq", 0L);
-		}
-		if (seq > 0) {
-			if (seq - 1 == lastSeq) {
-				lastSeq = seq;
+		long seq = message.get("seq", -1);
+		if (seq > -1) {
+			if (seq - 1 == prevSeq) {
+				prevSeq = seq;
 			} else {
 
 				// Process later
@@ -101,20 +103,20 @@ public class IncomingStream {
 				return false;
 			}
 		} else {
-			lastSeq = 0;
+			prevSeq = -1;
 		}
 
 		// Process current message
 		boolean close = processMessage(message);
 
 		// Process pooled messages
-		long nextSeq = lastSeq;
+		long nextSeq = prevSeq;
 		while (true) {
 			Tree nextMessage = pool.remove(++nextSeq);
 			if (nextMessage == null) {
 				break;
 			}
-			lastSeq = nextSeq;
+			prevSeq = nextSeq;
 			if (processMessage(nextMessage)) {
 				close = true;
 			}
@@ -125,6 +127,11 @@ public class IncomingStream {
 	}
 
 	protected boolean processMessage(Tree message) {
+
+		// Stream closed
+		if (stream.isClosed()) {
+			return true;
+		}
 
 		// Create processing variables
 		byte[] bytes = null;
@@ -149,13 +156,11 @@ public class IncomingStream {
 				close = !message.get("stream", false);
 			} else {
 				Tree error = message.get("error");
-				if (!success || error != null) {
-					if (error == null) {
-						cause = new MoleculerError("Remote invocation failed!", null, "MoleculerError", nodeID, false,
-								500, "UNKNOWN_ERROR", message);
-					} else {
-						cause = MoleculerErrorUtils.create(error);
-					}
+				if (error == null) {
+					cause = new MoleculerError("Remote invocation failed!", null, "MoleculerError", nodeID, false, 500,
+							"UNKNOWN_ERROR", message);
+				} else {
+					cause = MoleculerErrorUtils.create(error);
 				}
 				close = true;
 			}

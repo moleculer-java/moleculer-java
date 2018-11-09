@@ -26,8 +26,8 @@
 package services.moleculer.stream;
 
 import java.io.ByteArrayOutputStream;
+import java.util.HashMap;
 import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -99,23 +99,23 @@ public class SequenceTest extends TestCase {
 
 		// --- NORMAL SEQUENCE ---
 
-		shouldClose = incomingStream.receive(createStartStreamingPacket(id, 1));
+		shouldClose = incomingStream.receive(createStartStreamingPacket(id));
 		assertFalse(shouldClose);
-		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 2, b1));
+		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 1, b1));
 		assertFalse(shouldClose);
 		listener.assertDataEquals(b1);
 		listener.assertOpened();
 		listener.assertNotFaulty();
 		assertEquals(b1.length, incomingStream.stream.getTransferedBytes());
-		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 3, b2));
+		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 2, b2));
 		assertFalse(shouldClose);
-		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 4, b3));
+		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 3, b3));
 		assertFalse(shouldClose);
 		assertEquals(all.length, incomingStream.stream.getTransferedBytes());
 		listener.assertDataEquals(all);
 		listener.assertOpened();
 		listener.assertNotFaulty();
-		shouldClose = incomingStream.receive(createCloseStreamingPacket(id, 5));
+		shouldClose = incomingStream.receive(createCloseStreamingPacket(id, 4));
 		assertTrue(shouldClose);
 		listener.assertDataEquals(all);
 		listener.assertClosed();
@@ -125,14 +125,15 @@ public class SequenceTest extends TestCase {
 
 		// --- SCRAMBLED SEQUENCE 1 ---
 				
-		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 2, b1));
+		id = uid.nextUID();
+		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 1, b1));
 		assertFalse(shouldClose);
-		shouldClose = incomingStream.receive(createStartStreamingPacket(id, 1));
+		shouldClose = incomingStream.receive(createStartStreamingPacket(id));
 		assertFalse(shouldClose);
 		listener.assertDataEquals(b1);
 		listener.assertOpened();
 		listener.assertNotFaulty();
-		shouldClose = incomingStream.receive(createCloseStreamingPacket(id, 3));
+		shouldClose = incomingStream.receive(createCloseStreamingPacket(id, 2));
 		assertTrue(shouldClose);
 		listener.assertDataEquals(b1);
 		listener.assertClosed();
@@ -142,13 +143,14 @@ public class SequenceTest extends TestCase {
 
 		// --- SCRAMBLED SEQUENCE 2 ---
 
-		shouldClose = incomingStream.receive(createCloseStreamingPacket(id, 3));
+		id = uid.nextUID();
+		shouldClose = incomingStream.receive(createCloseStreamingPacket(id, 2));
 		assertFalse(shouldClose);
 		listener.assertOpened();
 		listener.assertNotFaulty();
-		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 2, b1));
+		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 1, b1));
 		assertFalse(shouldClose);
-		shouldClose = incomingStream.receive(createStartStreamingPacket(id, 1));
+		shouldClose = incomingStream.receive(createStartStreamingPacket(id));
 		assertTrue(shouldClose);
 		listener.assertDataEquals(b1);
 		listener.assertClosed();
@@ -158,17 +160,37 @@ public class SequenceTest extends TestCase {
 
 		// --- SCRAMBLED SEQUENCE 3 ---
 
-		shouldClose = incomingStream.receive(createCloseStreamingPacket(id, 5));
+		id = uid.nextUID();
+		shouldClose = incomingStream.receive(createCloseStreamingPacket(id, 4));
 		assertFalse(shouldClose);
 		listener.assertOpened();
 		listener.assertNotFaulty();
-		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 2, b1));
+		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 1, b1));
 		assertFalse(shouldClose);
-		shouldClose = incomingStream.receive(createStartStreamingPacket(id, 1));
+		shouldClose = incomingStream.receive(createStartStreamingPacket(id));
 		assertFalse(shouldClose);
-		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 4, b3));
+		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 3, b3));
 		assertFalse(shouldClose);
-		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 3, b2));		
+		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 2, b2));		
+		assertTrue(shouldClose);
+		listener.assertDataEquals(all);
+		listener.assertClosed();
+		listener.assertNotFaulty();
+		incomingStream.reset();
+		listener.reset();
+		
+		// --- SCRAMBLED SEQUENCE 4 ---
+
+		id = uid.nextUID();
+		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 1, b1));
+		assertFalse(shouldClose);
+		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 2, b2));
+		assertFalse(shouldClose);
+		shouldClose = incomingStream.receive(createStartStreamingPacket(id));
+		assertFalse(shouldClose);
+		shouldClose = incomingStream.receive(createCloseStreamingPacket(id, 4));
+		assertFalse(shouldClose);
+		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 3, b3));
 		assertTrue(shouldClose);
 		listener.assertDataEquals(all);
 		listener.assertClosed();
@@ -182,18 +204,18 @@ public class SequenceTest extends TestCase {
 
 		id = uid.nextUID();
 		TestTransporter t = (TestTransporter) br.getConfig().getTransporter();
-		t.receive(createStartStreamingPacket(id, 1));
+		t.receive(createStartStreamingPacket(id));
 		assertEquals(1, serviceRegistry.getRequestStreams().size());
-		t.receive(createDataStreamingPacket(id, 2, b1));
+		t.receive(createDataStreamingPacket(id, 1, b1));
 		assertEquals(1, serviceRegistry.getRequestStreams().size());
 		listener.assertDataEquals(b1);
 		listener.assertOpened();
 		listener.assertNotFaulty();
-		t.receive(createDataStreamingPacket(id, 3, b2));
+		t.receive(createDataStreamingPacket(id, 2, b2));
 		assertEquals(1, serviceRegistry.getRequestStreams().size());
-		t.receive(createDataStreamingPacket(id, 4, b3));
+		t.receive(createDataStreamingPacket(id, 3, b3));
 		assertEquals(1, serviceRegistry.getRequestStreams().size());
-		t.receive(createCloseStreamingPacket(id, 5));
+		t.receive(createCloseStreamingPacket(id, 4));
 		assertEquals(0, serviceRegistry.getRequestStreams().size());
 		assertEquals(0, serviceRegistry.getResponseStreams().size());
 		listener.assertDataEquals(all);
@@ -205,22 +227,22 @@ public class SequenceTest extends TestCase {
 		
 		id = uid.nextUID();
 
-		t.receive(createDataStreamingPacket(id, 2, b1));
+		t.receive(createDataStreamingPacket(id, 1, b1));
 		assertEquals(1, serviceRegistry.getRequestStreams().size());
 
-		t.receive(createStartStreamingPacket(id, 1));
+		t.receive(createStartStreamingPacket(id));
 		assertEquals(1, serviceRegistry.getRequestStreams().size());
 		listener.assertDataEquals(b1);
 		listener.assertOpened();
 		listener.assertNotFaulty();
 
-		t.receive(createCloseStreamingPacket(id, 5));
+		t.receive(createCloseStreamingPacket(id, 4));
 		assertEquals(1, serviceRegistry.getRequestStreams().size());
 
-		t.receive(createDataStreamingPacket(id, 4, b3));
+		t.receive(createDataStreamingPacket(id, 3, b3));
 		assertEquals(1, serviceRegistry.getRequestStreams().size());
 
-		t.receive(createDataStreamingPacket(id, 3, b2));
+		t.receive(createDataStreamingPacket(id, 2, b2));
 		assertEquals(0, serviceRegistry.getRequestStreams().size());		
 		assertEquals(0, serviceRegistry.getResponseStreams().size());
 		listener.assertDataEquals(all);
@@ -231,16 +253,17 @@ public class SequenceTest extends TestCase {
 
 	// --- UTILITIES ---
 
-	public Tree createStartStreamingPacket(String id, int seq) {
+	public Tree createStartStreamingPacket(String id) {
 		Tree n = new Tree();
 		n.put("ver", "3");
 		n.put("sender", "node2");
 		n.put("id", id);
-		n.put("action", "service.action");
-		n.put("level", "1");
-		n.put("requestID", id);
 		n.put("stream", true);
-		n.putMap("meta").put("seq", seq);
+		n.put("seq", 0);
+		
+		n.put("action", "service.action");
+		n.put("level", 1);
+		n.put("requestID", id);
 		return n;
 	}
 
@@ -250,6 +273,8 @@ public class SequenceTest extends TestCase {
 		n.put("sender", "node2");
 		n.put("id", id);
 		n.put("stream", true);
+		n.put("seq", seq);
+		
 		Tree params = n.putMap("params");
 		params.put("type", "Buffer");
 		short[] data = new short[bytes.length];
@@ -257,7 +282,6 @@ public class SequenceTest extends TestCase {
 			data[i] = (short) (bytes[i] & 0xFF);
 		}
 		params.putObject("data", data);
-		n.putMap("meta").put("seq", seq);
 		return n;
 	}
 
@@ -266,7 +290,7 @@ public class SequenceTest extends TestCase {
 		n.put("ver", "3");
 		n.put("sender", "node2");
 		n.put("id", id);
-		n.putMap("meta").put("seq", seq);
+		n.put("seq", seq);
 		return n;
 	}
 
@@ -303,11 +327,11 @@ public class SequenceTest extends TestCase {
 
 	public static final class TestServiceRegistry extends DefaultServiceRegistry {
 
-		public ConcurrentHashMap<String, IncomingStream> getRequestStreams() {
+		public HashMap<String, IncomingStream> getRequestStreams() {
 			return requestStreams;
 		}
 
-		public ConcurrentHashMap<String, IncomingStream> getResponseStreams() {
+		public HashMap<String, IncomingStream> getResponseStreams() {
 			return responseStreams;
 		}
 

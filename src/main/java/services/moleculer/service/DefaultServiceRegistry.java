@@ -58,6 +58,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.StampedLock;
 
 import io.datatree.Promise;
@@ -111,8 +113,15 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	// --- REGISTERED STREAMS ---
 
-	protected final ConcurrentHashMap<String, IncomingStream> requestStreams = new ConcurrentHashMap<>(1024);
-	protected final ConcurrentHashMap<String, IncomingStream> responseStreams = new ConcurrentHashMap<>(1024);
+	protected final HashMap<String, IncomingStream> requestStreams = new HashMap<>(1024);
+	protected final HashMap<String, IncomingStream> responseStreams = new HashMap<>(1024);
+
+	// --- STREAM LOCKS ---
+
+	protected final Lock requestStreamReadLock;
+	protected final Lock requestStreamWriteLock;
+	protected final Lock responseStreamReadLock;
+	protected final Lock responseStreamWriteLock;
 
 	// --- PROPERTIES ---
 
@@ -195,6 +204,15 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Async or direct local invocation
 		this.asyncLocalInvocation = asyncLocalInvocation;
+
+		// Init locks
+		ReentrantReadWriteLock requestStreamLock = new ReentrantReadWriteLock(false);
+		requestStreamReadLock = requestStreamLock.readLock();
+		requestStreamWriteLock = requestStreamLock.writeLock();
+
+		ReentrantReadWriteLock responseStreamLock = new ReentrantReadWriteLock(false);
+		responseStreamReadLock = responseStreamLock.readLock();
+		responseStreamWriteLock = responseStreamLock.writeLock();
 	}
 
 	// --- INIT SERVICE REGISTRY ---
@@ -392,17 +410,28 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		}
 
 		// Incoming stream handling
-		IncomingStream requestStream = requestStreams.get(id);
+		IncomingStream requestStream;
+		requestStreamReadLock.lock();
+		try {
+			requestStream = requestStreams.get(id);
+		} finally {
+			requestStreamReadLock.unlock();
+		}
 		if (requestStream != null) {
+			boolean remove = false;
 			try {
 				if (requestStream.receive(message)) {
-					requestStreams.remove(id);
+					remove = true;
 				}
 			} catch (Throwable error) {
-				requestStreams.remove(id);
+				remove = true;
 
 				// Send error
-				transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, nodeID, error));
+				try {
+					transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, nodeID, error));
+				} catch (Throwable ignored) {
+					logger.debug("Unable to send response!", ignored);
+				}
 
 				// Write error to log file
 				if (writeErrorsToLog) {
@@ -410,12 +439,32 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				}
 
 			}
-		} else {
-			if (message.get("stream", false)) {
-				requestStream = new IncomingStream(nodeID, scheduler);
-				if (!requestStream.receive(message)) {
+			if (remove) {
+				requestStreamWriteLock.lock();
+				try {
+					requestStreams.remove(id);
+				} finally {
+					requestStreamWriteLock.unlock();
+				}
+			}
+		} else if (message.get("stream", false)) {
+			requestStreamWriteLock.lock();
+			try {
+				requestStream = requestStreams.get(id);
+				if (requestStream == null) {
+					requestStream = new IncomingStream(nodeID, scheduler);
 					requestStreams.put(id, requestStream);
 				}
+			} finally {
+				requestStreamWriteLock.unlock();
+			}
+			if (requestStream.receive(message)) {
+				requestStreamWriteLock.lock();
+				try {
+					requestStreams.remove(id);
+				} finally {
+					requestStreamWriteLock.unlock();
+				}				
 			}
 		}
 
@@ -502,7 +551,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			new Promise(endpoint.handler(ctx)).then(data -> {
 
 				// Send response
-				FastBuildTree msg = new FastBuildTree(6);
+				FastBuildTree msg = new FastBuildTree(7);
 				msg.putUnsafe("sender", nodeID);
 				msg.putUnsafe("id", id);
 				msg.putUnsafe("ver", PROTOCOL_VERSION);
@@ -513,6 +562,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					Object d = data.asObject();
 					if (d != null && d instanceof PacketStream) {
 						msg.putUnsafe("stream", true);
+						msg.putUnsafe("seq", 0);
 						responseStream = (PacketStream) d;
 					} else {
 						msg.putUnsafe("data", d);
@@ -627,26 +677,55 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		}
 
 		// Incoming (response) stream handling
-		IncomingStream responseStream = responseStreams.get(id);
+		IncomingStream responseStream;
+		responseStreamReadLock.lock();
+		try {
+			responseStream = responseStreams.get(id);
+		} finally {
+			responseStreamReadLock.unlock();
+		}
 		if (responseStream != null) {
+			boolean remove = false;
 			try {
 				if (responseStream.receive(message)) {
-					responseStreams.remove(id);
+					remove = true;
 				}
 			} catch (Throwable error) {
-				responseStreams.remove(id);
+				remove = true;
 
 				// Write error to log file
 				if (writeErrorsToLog) {
 					logger.error("Unexpected error occurred while streaming!", error);
 				}
 			}
+			if (remove) {
+				responseStreamWriteLock.lock();
+				try {
+					responseStreams.remove(id);
+				} finally {
+					responseStreamWriteLock.unlock();
+				}
+			}
 			return;
 		}
 		if (message.get("stream", false)) {
-			responseStream = new IncomingStream(nodeID, scheduler);
-			if (!responseStream.receive(message)) {
-				responseStreams.put(id, responseStream);
+			responseStreamWriteLock.lock();
+			try {
+				responseStream = responseStreams.get(id);
+				if (responseStream == null) {
+					responseStream = new IncomingStream(nodeID, scheduler);
+					responseStreams.put(id, responseStream);
+				}
+			} finally {
+				responseStreamWriteLock.unlock();
+			}
+			if (responseStream.receive(message)) {
+				responseStreamWriteLock.lock();
+				try {
+					responseStreams.remove(id);
+				} finally {
+					responseStreamWriteLock.unlock();
+				}				
 			}
 			message.putObject("data", responseStream.getPacketStream());
 		}

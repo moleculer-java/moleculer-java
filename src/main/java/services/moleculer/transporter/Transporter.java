@@ -376,9 +376,14 @@ public abstract class Transporter extends MoleculerComponent {
 		// Request ID
 		msg.putUnsafe("requestID", ctx.requestID);
 
-		// Stream marker (default is "false")
+		// Stream packet counter (default is "0" = packet isn't streamed)
 		if (ctx.stream != null) {
+
+			// Streaming in progress
 			msg.putUnsafe("stream", true);
+
+			// First sequence
+			msg.putUnsafe("seq", 0);
 		}
 
 		// Send message
@@ -394,9 +399,12 @@ public abstract class Transporter extends MoleculerComponent {
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
 		msg.putUnsafe("sender", this.nodeID);
 		msg.putUnsafe("id", ctx.id);
-
-		// Stream marker
+		
+		// Streaming in progress
 		msg.putUnsafe("stream", true);
+
+		// Stream packet counter (1...N)
+		msg.putUnsafe("seq", sequence);
 
 		// Add "params" block
 		FastBuildTree params = new FastBuildTree(2);
@@ -418,11 +426,6 @@ public abstract class Transporter extends MoleculerComponent {
 			params.putUnsafe("data", bytes);
 		}
 
-		// Add "meta" block
-		FastBuildTree meta = new FastBuildTree(1);
-		meta.putUnsafe("seq", sequence);
-		msg.putUnsafe("meta", meta);
-
 		// Send message
 		publish(cmd, nodeID, msg);
 	}
@@ -432,10 +435,8 @@ public abstract class Transporter extends MoleculerComponent {
 	public void sendErrorPacket(String cmd, String nodeID, Context ctx, Throwable cause, long sequence) {
 		FastBuildTree msg = throwableToTree(ctx.id, this.nodeID, cause);
 
-		// Add "meta" block
-		FastBuildTree meta = new FastBuildTree(1);
-		meta.putUnsafe("seq", sequence);
-		msg.putUnsafe("meta", meta);
+		// Stream packet counter (1...N)
+		msg.putUnsafe("seq", sequence);
 
 		// Send message
 		publish(cmd, nodeID, msg);
@@ -451,10 +452,8 @@ public abstract class Transporter extends MoleculerComponent {
 		msg.putUnsafe("sender", this.nodeID);
 		msg.putUnsafe("id", ctx.id);
 
-		// Add "meta" block
-		FastBuildTree meta = new FastBuildTree(1);
-		meta.putUnsafe("seq", sequence);
-		msg.putUnsafe("meta", meta);
+		// Stream packet counter (1...N)
+		msg.putUnsafe("seq", sequence);
 
 		// Send message
 		publish(cmd, nodeID, msg);
