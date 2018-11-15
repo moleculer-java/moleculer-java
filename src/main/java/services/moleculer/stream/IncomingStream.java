@@ -37,11 +37,25 @@ public class IncomingStream {
 
 	// --- PROPERTIES ---
 
+	/**
+	 * Currrent nodeID.
+	 */
 	protected final String nodeID;
 
+	/**
+	 * Internal stream with listeners.
+	 */
 	protected final PacketStream stream;
+	
+	/**
+	 * Stream inactivity/read timeout in MILLISECONDS (0 = no timeout).
+	 */
+	protected final long timeoutMillis;
 
-	protected volatile long lastUsed = System.currentTimeMillis();
+	/**
+	 * Timestamp of the next timeout (0 = no timeout).
+	 */
+	protected volatile long timeoutAt;
 
 	protected volatile long prevSeq = -1;
 
@@ -51,9 +65,13 @@ public class IncomingStream {
 
 	// --- CONSTRUCTOR ---
 
-	public IncomingStream(String nodeID, ScheduledExecutorService scheduler) {
+	public IncomingStream(String nodeID, ScheduledExecutorService scheduler, long timeoutMillis) {
 		this.nodeID = nodeID;
 		this.stream = new PacketStream(nodeID, scheduler);
+		this.timeoutMillis = timeoutMillis;
+		if (timeoutMillis > 0) {
+			timeoutAt = System.currentTimeMillis() + timeoutMillis;
+		}
 	}
 
 	// --- RESET ---
@@ -62,7 +80,7 @@ public class IncomingStream {
 	 * Used for testing. Resets internal variables.
 	 */
 	public synchronized void reset() {
-		lastUsed = System.currentTimeMillis();
+		timeoutAt = 0;
 		prevSeq = -1;
 		pool.clear();
 		stream.closed.set(false);
@@ -89,7 +107,9 @@ public class IncomingStream {
 	public synchronized boolean receive(Tree message) {
 
 		// Update timestamp
-		lastUsed = System.currentTimeMillis();
+		if (timeoutMillis > 0) {
+			timeoutAt = System.currentTimeMillis() + timeoutMillis;
+		}
 
 		// Check sequence number
 		long seq = message.get("seq", -1);
@@ -191,8 +211,8 @@ public class IncomingStream {
 
 	// --- PROPERTY GETTERS ---
 
-	public long getLastUsed() {
-		return lastUsed;
+	public long getTimeoutAt() {
+		return timeoutAt;
 	}
 
 	public PacketStream getPacketStream() {

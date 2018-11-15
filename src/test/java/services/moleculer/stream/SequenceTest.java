@@ -60,7 +60,7 @@ public class SequenceTest extends TestCase {
 	@Override
 	protected void setUp() throws Exception {
 		scheduler = Executors.newSingleThreadScheduledExecutor();
-		incomingStream = new IncomingStream("node1", scheduler);
+		incomingStream = new IncomingStream("node1", scheduler, 0);
 		listener = new InternalStreamTest.TestListener();
 		incomingStream.getPacketStream().onPacket(listener);
 		br = ServiceBroker.builder().transporter(new TestTransporter()).registry(new TestServiceRegistry())

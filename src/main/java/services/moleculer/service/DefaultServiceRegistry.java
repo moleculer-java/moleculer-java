@@ -55,7 +55,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
@@ -73,6 +72,7 @@ import services.moleculer.error.InvalidPacketDataError;
 import services.moleculer.error.MoleculerError;
 import services.moleculer.error.MoleculerErrorUtils;
 import services.moleculer.error.ProtocolVersionMismatchError;
+import services.moleculer.error.RequestTimeoutError;
 import services.moleculer.error.ServiceNotAvailableError;
 import services.moleculer.error.ServiceNotFoundError;
 import services.moleculer.eventbus.Eventbus;
@@ -120,6 +120,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	protected final Lock requestStreamReadLock;
 	protected final Lock requestStreamWriteLock;
+
 	protected final Lock responseStreamReadLock;
 	protected final Lock responseStreamWriteLock;
 
@@ -139,6 +140,12 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	 * Write exceptions into the log file
 	 */
 	protected boolean writeErrorsToLog = true;
+
+	/**
+	 * Stream inactivity/read timeout in MILLISECONDS (0 = no timeout). It may
+	 * be useful if you want to remove the wrong packages from the memory.
+	 */
+	protected long streamTimeout;
 
 	// --- READ/WRITE LOCK ---
 
@@ -293,17 +300,59 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	protected void checkTimeouts() {
 		long now = System.currentTimeMillis();
+
+		// Check timeouted promises
 		PendingPromise pending;
 		Iterator<PendingPromise> i = promises.values().iterator();
 		boolean removed = false;
 		while (i.hasNext()) {
 			pending = i.next();
 			if (pending.timeoutAt > 0 && now >= pending.timeoutAt) {
-				pending.promise.complete(new TimeoutException("Action invocation timeouted!"));
+
+				// Action is unknown at this location
+				pending.promise.complete(new RequestTimeoutError(nodeID, "unknown"));
 				i.remove();
 				removed = true;
 			}
 		}
+
+		// Check timeouted request streams
+		IncomingStream stream;
+		long timeoutAt;
+		Iterator<IncomingStream> j = requestStreams.values().iterator();
+		while (j.hasNext()) {
+			stream = j.next();
+			timeoutAt = stream.getTimeoutAt();
+			if (timeoutAt > 0 && now >= timeoutAt) {
+				stream.error(new RequestTimeoutError(nodeID, "unknown"));
+				requestStreamWriteLock.lock();
+				try {
+					j.remove();
+				} finally {
+					requestStreamWriteLock.unlock();
+				}
+				removed = true;
+			}
+		}
+
+		// Check timeouted response streams
+		j = responseStreams.values().iterator();
+		while (j.hasNext()) {
+			stream = j.next();
+			timeoutAt = stream.getTimeoutAt();
+			if (timeoutAt > 0 && now >= timeoutAt) {
+				stream.error(new RequestTimeoutError(nodeID, "unknown"));
+				responseStreamWriteLock.lock();
+				try {
+					j.remove();
+				} finally {
+					responseStreamWriteLock.unlock();
+				}
+				removed = true;
+			}
+		}
+
+		// Reschedule
 		if (removed) {
 			scheduler.execute(() -> {
 				reschedule(Long.MAX_VALUE);
@@ -316,7 +365,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	// --- CALL TIMEOUT HANDLING ---
 
 	/**
-	 * Recalculates the next timeout checking time
+	 * Recalculates the next timeout checking time.
 	 * 
 	 * @param minTimeoutAt
 	 *            next / closest timestamp
@@ -327,6 +376,29 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				if (pending.timeoutAt > 0 && pending.timeoutAt < minTimeoutAt) {
 					minTimeoutAt = pending.timeoutAt;
 				}
+			}
+			long timeoutAt;
+			requestStreamReadLock.lock();
+			try {
+				for (IncomingStream stream : requestStreams.values()) {
+					timeoutAt = stream.getTimeoutAt();
+					if (timeoutAt > 0 && timeoutAt < minTimeoutAt) {
+						minTimeoutAt = timeoutAt;
+					}
+				}
+			} finally {
+				requestStreamReadLock.unlock();
+			}
+			responseStreamReadLock.lock();
+			try {
+				for (IncomingStream stream : responseStreams.values()) {
+					timeoutAt = stream.getTimeoutAt();
+					if (timeoutAt > 0 && timeoutAt < minTimeoutAt) {
+						minTimeoutAt = timeoutAt;
+					}
+				}
+			} finally {
+				responseStreamReadLock.unlock();
 			}
 		}
 		long now = System.currentTimeMillis();
@@ -452,7 +524,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			try {
 				requestStream = requestStreams.get(id);
 				if (requestStream == null) {
-					requestStream = new IncomingStream(nodeID, scheduler);
+					requestStream = new IncomingStream(nodeID, scheduler, streamTimeout);
 					requestStreams.put(id, requestStream);
 				}
 			} finally {
@@ -464,7 +536,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					requestStreams.remove(id);
 				} finally {
 					requestStreamWriteLock.unlock();
-				}				
+				}
 			}
 		}
 
@@ -713,7 +785,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			try {
 				responseStream = responseStreams.get(id);
 				if (responseStream == null) {
-					responseStream = new IncomingStream(nodeID, scheduler);
+					responseStream = new IncomingStream(nodeID, scheduler, streamTimeout);
 					responseStreams.put(id, responseStream);
 				}
 			} finally {
@@ -725,7 +797,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					responseStreams.remove(id);
 				} finally {
 					responseStreamWriteLock.unlock();
-				}				
+				}
 			}
 			message.putObject("data", responseStream.getPacketStream());
 		}
@@ -1406,6 +1478,14 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	public void setWriteErrorsToLog(boolean writeErrorsToLog) {
 		this.writeErrorsToLog = writeErrorsToLog;
+	}
+
+	public long getStreamTimeout() {
+		return streamTimeout;
+	}
+
+	public void setStreamTimeout(long streamTimeout) {
+		this.streamTimeout = streamTimeout;
 	}
 
 }
