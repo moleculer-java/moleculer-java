@@ -46,7 +46,7 @@ public class IncomingStream {
 	 * Internal stream with listeners.
 	 */
 	protected final PacketStream stream;
-	
+
 	/**
 	 * Stream inactivity/read timeout in MILLISECONDS (0 = no timeout).
 	 */

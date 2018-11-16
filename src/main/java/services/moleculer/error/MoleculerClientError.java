@@ -43,11 +43,11 @@ public class MoleculerClientError extends MoleculerError {
 	public MoleculerClientError(String message, String nodeID) {
 		this(message, null, nodeID, null);
 	}
-	
+
 	public MoleculerClientError(String message, Throwable cause, String nodeID, Tree data) {
 		this(message, cause, nodeID, 400, "CLIENT_ERROR", data);
 	}
-	
+
 	public MoleculerClientError(String message, Throwable cause, String nodeID, int code, String type, Tree data) {
 		this(message, cause, MOLECULER_CLIENT_ERROR, nodeID, code, type, data);
 	}

@@ -34,5 +34,5 @@ public class RedisStreamTest extends StreamTest {
 	public Transporter createTransporter() {
 		return new RedisTransporter();
 	}
-	
+
 }

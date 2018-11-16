@@ -258,7 +258,7 @@ public class AmqpTransporter extends Transporter {
 						if (debug) {
 							logger.info(nodeID + " received message from queue \"" + queueName + "\".");
 						}
-						
+
 						// We are running in the shared executor's pool,
 						// do not create new task.
 						processReceivedMessage(channel, body);

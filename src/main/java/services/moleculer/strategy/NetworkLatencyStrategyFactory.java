@@ -76,7 +76,7 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 	 * Number of samples used for average calculation.
 	 */
 	protected int averageSamples = 5;
-	
+
 	// --- COMPONENTS ---
 
 	protected ScheduledExecutorService scheduler;
@@ -158,10 +158,10 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 
 	protected void sendNextPing() {
 		Set<String> nodeIDs = transporter.getAllNodeIDs();
-		
+
 		// Remove this node's ID
 		nodeIDs.remove(nodeID);
-		
+
 		// Remove duplications by IP address
 		int size = nodeIDs.size() * 2;
 		HashSet<String> ips = new HashSet<>(size);
@@ -175,7 +175,7 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 			if (ipList == null) {
 				continue;
 			}
-			for (Tree ip: ipList) {
+			for (Tree ip : ipList) {
 				if (ip == null) {
 					continue;
 				}
@@ -195,12 +195,12 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 				return;
 			}
 		}
-		
+
 		// Has peers?
 		if (nodeIDs.isEmpty()) {
 			return;
 		}
-				
+
 		// Find the next nodeID
 		boolean submitted = false;
 		if (previousNodeID != null) {
@@ -242,10 +242,10 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 			Samples samples = responseTimes.get(nextNodeID);
 			if (samples == null) {
 				samples = new Samples(averageSamples);
-				responseTimes.put(nextNodeID, samples);				
+				responseTimes.put(nextNodeID, samples);
 			}
 			samples.addValue(duration);
-			
+
 		}).catchError(err -> {
 
 			// No response / node is down
@@ -275,21 +275,21 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 	}
 
 	// --- SAMPLES ---
-	
+
 	protected static class Samples {
-		
+
 		protected final long[] data;
-		
+
 		protected volatile int pointer;
 		protected volatile long average;
-		
+
 		protected Samples(int averageSamples) {
 			data = new long[averageSamples];
 			for (int i = 0; i < averageSamples; i++) {
 				data[i] = -1;
 			}
 		}
-		
+
 		protected synchronized void addValue(long value) {
 			pointer++;
 			if (pointer >= data.length) {
@@ -304,15 +304,15 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 					count++;
 				}
 			}
-		    average = total / count;
+			average = total / count;
 		}
-		
+
 		protected synchronized long getAverage() {
 			return average;
 		}
-		
+
 	}
-	
+
 	// --- GETTERS / SETTERS ---
 
 	public int getMaxTries() {

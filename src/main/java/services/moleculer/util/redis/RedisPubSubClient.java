@@ -25,116 +25,43 @@
  */
 package services.moleculer.util.redis;
 
-import static services.moleculer.util.redis.RedisGetSetClient.parseURLs;
-
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import com.lambdaworks.redis.RedisClient;
 import com.lambdaworks.redis.RedisURI;
 import com.lambdaworks.redis.cluster.RedisClusterClient;
 import com.lambdaworks.redis.codec.ByteArrayCodec;
-import com.lambdaworks.redis.event.Event;
 import com.lambdaworks.redis.event.EventBus;
 import com.lambdaworks.redis.pubsub.RedisPubSubListener;
 import com.lambdaworks.redis.pubsub.StatefulRedisPubSubConnection;
 import com.lambdaworks.redis.pubsub.api.async.RedisPubSubAsyncCommands;
-import com.lambdaworks.redis.resource.DefaultClientResources;
-import com.lambdaworks.redis.resource.EventLoopGroupProvider;
 
 import io.datatree.Promise;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.util.concurrent.DefaultEventExecutor;
-import io.netty.util.concurrent.EventExecutorGroup;
-import io.netty.util.concurrent.Future;
-import rx.Observable;
 
 /**
  * Promise-based pub/sub Redis client.
  */
-public final class RedisPubSubClient {
+public final class RedisPubSubClient extends AbstractRedisClient {
 
 	// --- VARIABLES ---
 
-	private final String[] urls;
-	private final String password;
-	private final boolean secure;
-	private final ExecutorService executor;
-	private final EventBus eventBus;
 	private final RedisPubSubListener<byte[], byte[]> listener;
-
-	private ExecutorService acceptor;
-	private NioEventLoopGroup group;
-	private DefaultClientResources resources;
-	private RedisPubSubAsyncCommands<byte[], byte[]> commands;
+	private RedisPubSubAsyncCommands<byte[], byte[]> client;
 
 	// --- CONSTRUCTOR ---
 
 	public RedisPubSubClient(String[] urls, String password, boolean secure, ExecutorService executor,
 			EventBus eventBus, RedisPubSubListener<byte[], byte[]> listener) {
-		this.urls = urls;
-		this.password = password;
-		this.secure = secure;
-		this.executor = executor;
-		this.eventBus = eventBus;
+		super(urls, password, secure, executor, eventBus);
 		this.listener = listener;
 	}
 
 	// --- CONNECT ---
 
 	public final void connect() {
-		DefaultClientResources.Builder builder = DefaultClientResources.builder();
-		acceptor = Executors.newSingleThreadExecutor();
-		group = new NioEventLoopGroup(1, acceptor);
-		builder.eventLoopGroupProvider(new EventLoopGroupProvider() {
-
-			@Override
-			public final int threadPoolSize() {
-				return 1;
-			}
-
-			@Override
-			public final Future<Boolean> shutdown(long quietPeriod, long timeout, TimeUnit timeUnit) {
-				return null;
-			}
-
-			@Override
-			public final Future<Boolean> release(EventExecutorGroup eventLoopGroup, long quietPeriod, long timeout,
-					TimeUnit unit) {
-				return null;
-			}
-
-			@SuppressWarnings("unchecked")
-			@Override
-			public final <T extends EventLoopGroup> T allocate(Class<T> type) {
-				return (T) group;
-			}
-
-		});
-		builder.eventExecutorGroup(new DefaultEventExecutor(executor));
-		if (eventBus == null) {
-			builder.eventBus(new EventBus() {
-
-				@Override
-				public final void publish(Event event) {
-
-					// Do nothing
-				}
-
-				@Override
-				public final Observable<Event> get() {
-					return null;
-				}
-
-			});
-		} else {
-			builder.eventBus(eventBus);
-		}
-		resources = builder.build();
+		super.connect();
 		List<RedisURI> redisURIs = parseURLs(urls, password, secure);
 		StatefulRedisPubSubConnection<byte[], byte[]> connection;
 		ByteArrayCodec codec = new ByteArrayCodec();
@@ -153,53 +80,30 @@ public final class RedisPubSubClient {
 		if (listener != null) {
 			connection.addListener(listener);
 		}
-		commands = connection.async();
+		client = connection.async();
 	}
 
 	// --- SUBSCRIBE ---
 
 	public final Promise subscribe(String channel) {
-		return new Promise(commands.subscribe(channel.getBytes(StandardCharsets.UTF_8)));
+		return new Promise(client.subscribe(channel.getBytes(StandardCharsets.UTF_8)));
 	}
 
 	// --- PUBLISH ---
 
 	public final void publish(String channel, byte[] message) {
-		commands.publish(channel.getBytes(StandardCharsets.UTF_8), message);
+		client.publish(channel.getBytes(StandardCharsets.UTF_8), message);
 	}
 
 	// --- DISCONNECT ---
 
+	@Override
 	public final Promise disconnect() {
-		if (commands != null) {
-			commands.close();
-			commands = null;
+		if (client != null) {
+			client.close();
+			client = null;
 		}
-		if (group != null) {
-			try {
-				group.shutdownGracefully(1, 1, TimeUnit.SECONDS).await(1, TimeUnit.SECONDS);
-			} catch (InterruptedException ignored) {
-			} finally {
-				group = null;
-			}
-		}
-		if (resources != null) {
-			try {
-				resources.shutdown(1, 1, TimeUnit.SECONDS).await(1, TimeUnit.SECONDS);
-			} catch (InterruptedException ignored) {
-			} finally {
-				resources = null;
-			}
-		}
-		if (acceptor != null) {
-			try {
-				acceptor.shutdownNow();
-			} catch (Exception ignored) {
-			} finally {
-				acceptor = null;
-			}
-		}
-		return Promise.resolve();
+		return super.disconnect();
 	}
 
 }

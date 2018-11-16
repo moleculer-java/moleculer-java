@@ -74,10 +74,10 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 					public final void onPacket(byte[] bytes, Throwable cause, boolean close) {
 						if (promise.isRejected()) {
 							try {
-								
+
 								// Throws an error
 								promise.waitFor();
-								
+
 							} catch (MoleculerError moleculerError) {
 								throw moleculerError;
 							} catch (Exception error) {

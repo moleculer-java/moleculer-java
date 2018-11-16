@@ -56,30 +56,30 @@ public class ColoredConsoleLogger implements ConsoleLogger {
 
 	protected final ColoredPrinter coloredPrinter;
 	protected final PrintWriter errorWriter;
-	
+
 	// --- CONSTRUCTOR ---
 
 	public ColoredConsoleLogger() {
 		coloredPrinter = new ColoredPrinter.Builder(1, false).build();
 		errorWriter = new PrintWriter(new Writer() {
-			
+
 			@Override
 			public void write(char[] cbuf, int off, int len) throws IOException {
 				coloredPrinter.print(new String(cbuf, off, len));
 			}
-			
+
 			@Override
 			public void flush() throws IOException {
-				
+
 				// Do nothing
 			}
-			
+
 			@Override
 			public void close() throws IOException {
-				
+
 				// Do nothing
 			}
-			
+
 		});
 	}
 

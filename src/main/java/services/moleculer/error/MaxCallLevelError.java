@@ -51,12 +51,12 @@ public class MaxCallLevelError extends MoleculerError {
 	}
 
 	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
-	
+
 	public MaxCallLevelError(Tree payload) {
 		super(payload);
 		this.level = data == null ? -1 : data.get("level", -1);
 	}
-	
+
 	// --- PROPERTY GETTERS ---
 
 	public int getLevel() {

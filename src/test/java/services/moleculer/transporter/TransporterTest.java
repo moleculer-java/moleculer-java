@@ -178,7 +178,7 @@ public abstract class TransporterTest extends TestCase {
 		g1_b.payloads.clear();
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
-		
+
 		// Emit NULL
 		br1.emit("test.a", (Tree) null);
 		Thread.sleep(sleep);
@@ -195,7 +195,7 @@ public abstract class TransporterTest extends TestCase {
 		g1_b.payloads.clear();
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
-		
+
 		// Emit to group1
 		br1.emit("test.a", new Tree(), Groups.of("group1"));
 		Thread.sleep(sleep);
@@ -218,7 +218,7 @@ public abstract class TransporterTest extends TestCase {
 		assertNull(v);
 		g1_a.payloads.clear();
 		g1_b.payloads.clear();
-		
+
 		// Emit to group2
 		br1.emit("test.a", new Tree(), Groups.of("group2"));
 		Thread.sleep(sleep);
@@ -226,7 +226,7 @@ public abstract class TransporterTest extends TestCase {
 		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
-		
+
 		// Test null service
 		br1.createService(new NullService());
 		br2.waitForServices("nullService").waitFor(3000);
@@ -248,9 +248,9 @@ public abstract class TransporterTest extends TestCase {
 			assertNull(ctx.params);
 			return null;
 		};
-		
+
 	}
-	
+
 	protected static final class Group1Listener extends Service {
 
 		protected LinkedList<Tree> payloads = new LinkedList<>();

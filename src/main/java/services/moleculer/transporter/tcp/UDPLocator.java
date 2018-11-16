@@ -80,12 +80,12 @@ public class UDPLocator {
 	protected final ArrayList<UDPReceiver> receivers = new ArrayList<>();
 
 	// --- TIMERS ---
-	
+
 	/**
 	 * Cancelable timer of sender
 	 */
 	protected volatile ScheduledFuture<?> timer;
-	
+
 	// --- CONSTRUCTOR ---
 
 	public UDPLocator(String nodeID, TcpTransporter transporter, ScheduledExecutorService scheduler) {
@@ -197,14 +197,14 @@ public class UDPLocator {
 		int udpMaxDiscovery = transporter.getUdpMaxDiscovery();
 		if (udpMaxDiscovery > 0) {
 			if (numberOfSubmittedPackets >= udpMaxDiscovery) {
-				
+
 				// Has no timer
 				if (timer != null) {
 					logger.info("Discovery service stopped successfully, " + udpMaxDiscovery + " packets sent.");
 					timer.cancel(false);
 					timer = null;
 				}
-				
+
 				// Has timer
 				return;
 			}

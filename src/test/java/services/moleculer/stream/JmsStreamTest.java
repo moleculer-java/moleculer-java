@@ -36,5 +36,5 @@ public class JmsStreamTest extends StreamTest {
 	public Transporter createTransporter() {
 		return new JmsTransporter(new ActiveMQConnectionFactory());
 	}
-	
+
 }

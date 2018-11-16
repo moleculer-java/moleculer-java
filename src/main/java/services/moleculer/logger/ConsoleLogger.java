@@ -31,5 +31,5 @@ import java.util.logging.LogRecord;
 public interface ConsoleLogger {
 
 	public void log(LinkedList<LogRecord> records, StringBuilder lines);
-	
+
 }

@@ -300,10 +300,10 @@ public class TcpReader implements Runnable {
 						}
 
 					} catch (EOFException eof) {
-						
+
 						// Peer closed
 						close(key, null);
-						
+
 					} catch (Exception cause) {
 						close(key, cause);
 					} finally {
@@ -326,10 +326,12 @@ public class TcpReader implements Runnable {
 				| (0xFF & bytes[pos + 4]);
 
 		if (maxPacketSize > 0 && len > maxPacketSize) {
-			throw new InvalidPacketDataError("Incoming packet is larger than the \"maxPacketSize\" limit (" + len + " > "
-					+ maxPacketSize + ")!", "maxPacketSize", maxPacketSize, "packetSize", len);
+			throw new InvalidPacketDataError(
+					"Incoming packet is larger than the \"maxPacketSize\" limit (" + len + " > " + maxPacketSize + ")!",
+					"maxPacketSize", maxPacketSize, "packetSize", len);
 		} else if (len < 6) {
-			throw new InvalidPacketDataError("Incoming packet is smaller than the header's size (" + len + " < 6)!", "packetSize", len);
+			throw new InvalidPacketDataError("Incoming packet is smaller than the header's size (" + len + " < 6)!",
+					"packetSize", len);
 		}
 
 		// If all data present
@@ -338,7 +340,8 @@ public class TcpReader implements Runnable {
 			// Verify header's CRC
 			byte crc = (byte) (bytes[pos + 1] ^ bytes[pos + 2] ^ bytes[pos + 3] ^ bytes[pos + 4] ^ bytes[pos + 5]);
 			if (crc != bytes[pos]) {
-				throw new InvalidPacketDataError("Invalid CRC (" + crc + " != " + bytes[pos] + ")!", "crc", crc, "byte", bytes[pos]);
+				throw new InvalidPacketDataError("Invalid CRC (" + crc + " != " + bytes[pos] + ")!", "crc", crc, "byte",
+						bytes[pos]);
 			}
 
 			// Verify type

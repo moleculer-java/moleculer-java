@@ -95,7 +95,7 @@ public class ServiceBrokerConfig {
 	 * Service Broker instance counter (0...N)
 	 */
 	protected AtomicLong instanceCounter = new AtomicLong();
-	
+
 	// --- INTERNAL COMPONENTS ---
 
 	protected UidGenerator uidGenerator = new IncrementalUidGenerator();

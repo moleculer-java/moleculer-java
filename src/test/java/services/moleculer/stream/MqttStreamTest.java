@@ -34,5 +34,5 @@ public class MqttStreamTest extends StreamTest {
 	public Transporter createTransporter() {
 		return new MqttTransporter();
 	}
-	
+
 }

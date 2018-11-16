@@ -123,7 +123,7 @@ public class MoleculerErrorUtils {
 				Class<? extends MoleculerError> errorClass = customErrors.get(name);
 				if (errorClass != null) {
 					try {
-						Constructor<? extends MoleculerError> c = errorClass.getConstructor(new Class[]{ Tree.class });
+						Constructor<? extends MoleculerError> c = errorClass.getConstructor(new Class[] { Tree.class });
 						return c.newInstance(payload);
 					} catch (Exception cause) {
 						throw new MoleculerError("Unable to create error class '" + name + "'!", cause,

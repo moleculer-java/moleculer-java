@@ -35,7 +35,7 @@ import io.datatree.Tree;
 public class ServiceSchemaError extends MoleculerError {
 
 	// --- SERIAL VERSION UID ---
-	
+
 	private static final long serialVersionUID = -1404051965811526872L;
 
 	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---

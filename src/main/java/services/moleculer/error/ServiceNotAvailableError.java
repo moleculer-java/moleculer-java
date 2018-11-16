@@ -46,8 +46,8 @@ public class ServiceNotAvailableError extends MoleculerRetryableError {
 
 	public ServiceNotAvailableError(String nodeID, String action) {
 		super(nodeID == null ? "Service '" + action + "' is not available."
-				: "Service '" + action + "' is not available on '" + nodeID + "' node.", null, SERVICE_NOT_AVAILABLE_ERROR,
-				nodeID, 404, "SERVICE_NOT_AVAILABLE", "action", action);
+				: "Service '" + action + "' is not available on '" + nodeID + "' node.", null,
+				SERVICE_NOT_AVAILABLE_ERROR, nodeID, 404, "SERVICE_NOT_AVAILABLE", "action", action);
 		this.action = action;
 	}
 

@@ -34,5 +34,5 @@ public class TcpStreamTest extends StreamTest {
 	public Transporter createTransporter() {
 		return new TcpTransporter();
 	}
-	
+
 }

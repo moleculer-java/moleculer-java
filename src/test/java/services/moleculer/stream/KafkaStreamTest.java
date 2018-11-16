@@ -34,5 +34,5 @@ public class KafkaStreamTest extends StreamTest {
 	public Transporter createTransporter() {
 		return new KafkaTransporter();
 	}
-	
+
 }

@@ -48,17 +48,17 @@ public class SigarMonitor extends Monitor {
 
 	protected static Sigar sigar;
 
-	// --- STATIC CONSTRUCTOR ---	
-	
+	// --- STATIC CONSTRUCTOR ---
+
 	static {
 		try {
 			sigar = new Sigar();
 		} catch (Throwable cause) {
 			cause.printStackTrace();
 			invalidMonitor.set(true);
-		}		
+		}
 	}
-	
+
 	// --- SYSTEM MONITORING METHODS ---
 
 	/**

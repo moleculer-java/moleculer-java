@@ -35,17 +35,17 @@ import io.datatree.Tree;
 public class InvalidPacketDataError extends MoleculerError {
 
 	// --- SERIAL VERSION UID ---
-	
+
 	private static final long serialVersionUID = -6254666171962972761L;
 
 	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
-	
+
 	public InvalidPacketDataError(String nodeID, Object... data) {
 		super("Invalid packet data.", null, INVALID_PACKET_DATA_ERROR, nodeID, false, 500, "INVALID_PACKET_DATA", data);
 	}
 
 	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
-	
+
 	public InvalidPacketDataError(Tree payload) {
 		super(payload);
 	}

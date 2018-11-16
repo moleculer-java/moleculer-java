@@ -124,7 +124,7 @@ public class SequenceTest extends TestCase {
 		listener.reset();
 
 		// --- SCRAMBLED SEQUENCE 1 ---
-				
+
 		id = uid.nextUID();
 		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 1, b1));
 		assertFalse(shouldClose);
@@ -171,14 +171,14 @@ public class SequenceTest extends TestCase {
 		assertFalse(shouldClose);
 		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 3, b3));
 		assertFalse(shouldClose);
-		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 2, b2));		
+		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 2, b2));
 		assertTrue(shouldClose);
 		listener.assertDataEquals(all);
 		listener.assertClosed();
 		listener.assertNotFaulty();
 		incomingStream.reset();
 		listener.reset();
-		
+
 		// --- SCRAMBLED SEQUENCE 4 ---
 
 		id = uid.nextUID();
@@ -197,7 +197,7 @@ public class SequenceTest extends TestCase {
 		listener.assertNotFaulty();
 		incomingStream.reset();
 		listener.reset();
-		
+
 		// --- INVOKE VIA BROKER 1 ---
 
 		TestServiceRegistry serviceRegistry = (TestServiceRegistry) br.getConfig().getServiceRegistry();
@@ -222,9 +222,9 @@ public class SequenceTest extends TestCase {
 		listener.assertClosed();
 		listener.assertNotFaulty();
 		listener.reset();
-		
+
 		// --- INVOKE VIA BROKER 2 ---
-		
+
 		id = uid.nextUID();
 
 		t.receive(createDataStreamingPacket(id, 1, b1));
@@ -243,7 +243,7 @@ public class SequenceTest extends TestCase {
 		assertEquals(1, serviceRegistry.getRequestStreams().size());
 
 		t.receive(createDataStreamingPacket(id, 2, b2));
-		assertEquals(0, serviceRegistry.getRequestStreams().size());		
+		assertEquals(0, serviceRegistry.getRequestStreams().size());
 		assertEquals(0, serviceRegistry.getResponseStreams().size());
 		listener.assertDataEquals(all);
 		listener.assertClosed();
@@ -260,7 +260,7 @@ public class SequenceTest extends TestCase {
 		n.put("id", id);
 		n.put("stream", true);
 		n.put("seq", 0);
-		
+
 		n.put("action", "service.action");
 		n.put("level", 1);
 		n.put("requestID", id);
@@ -274,7 +274,7 @@ public class SequenceTest extends TestCase {
 		n.put("id", id);
 		n.put("stream", true);
 		n.put("seq", seq);
-		
+
 		Tree params = n.putMap("params");
 		params.put("type", "Buffer");
 		short[] data = new short[bytes.length];

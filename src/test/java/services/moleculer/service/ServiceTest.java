@@ -88,7 +88,7 @@ public class ServiceTest extends TestCase {
 		assertEquals(true, rsp.get("success", false));
 		assertEquals(123, rsp.get("data", -1));
 		assertEquals("MOL.RES.node5", rsp.get("channel", ""));
-		
+
 		br.createService(new NullService());
 		rsp = br.call("nullService.nullAction", (Tree) null).waitFor();
 		assertNull(rsp);
@@ -112,15 +112,15 @@ public class ServiceTest extends TestCase {
 			assertNull(ctx.params);
 			return null;
 		};
-		
+
 	}
-	
+
 	protected static final class TestService extends Service {
 
 		public Action add = ctx -> {
 			return ctx.params.get("a", 0) + ctx.params.get("b", 0);
 		};
-		
+
 	}
 
 	public class TestFilter extends Middleware {

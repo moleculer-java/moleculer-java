@@ -247,9 +247,9 @@ public class KafkaTransporter extends Transporter {
 					}
 				}
 			} catch (InterruptedException interrupt) {
-				
+
 				// Interrupted...
-				
+
 			} catch (WakeupException wakeUp) {
 
 				// Stopping...

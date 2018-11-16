@@ -293,7 +293,7 @@ public abstract class CacherTest extends TestCase {
 
 		cr.del("test.test2:4|3").waitFor(); // --------
 		testService.counter.set(0);
-		
+
 		rsp2 = cr.get("test.test2:4|3").waitFor();
 		assertNull(rsp2);
 
@@ -303,9 +303,9 @@ public abstract class CacherTest extends TestCase {
 			assertEquals(12, (int) rsp.asInteger());
 		}
 		assertEquals(1, testService.counter.get());
-		
+
 		cr.del("test.test:6").waitFor(); // --------
-		
+
 		for (int i = 0; i < 10; i++) {
 			rsp = br.call("test.test", params).waitFor();
 			assertEquals(12, (int) rsp.asInteger());
@@ -317,7 +317,7 @@ public abstract class CacherTest extends TestCase {
 	public class TestService extends Service {
 
 		AtomicInteger counter = new AtomicInteger();
-		
+
 		@Cache(keys = { "a" })
 		public Action test = ctx -> {
 			counter.incrementAndGet();

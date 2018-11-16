@@ -34,8 +34,8 @@ public class LocalActionEndpoint extends ActionEndpoint {
 
 	// --- CONSTRUCTOR ---
 
-	public LocalActionEndpoint(DefaultServiceRegistry registry, ExecutorService executor,
-			String nodeID, Tree config, Action action) {
+	public LocalActionEndpoint(DefaultServiceRegistry registry, ExecutorService executor, String nodeID, Tree config,
+			Action action) {
 		super(nodeID, config);
 
 		// Handle local timeout with a handler
@@ -57,7 +57,7 @@ public class LocalActionEndpoint extends ActionEndpoint {
 					// Invoke async method
 					try {
 						Object rsp = action.handler(ctx);
-						
+
 						// Deregister
 						Promise.resolve(rsp).then(in -> {
 							if (promise.complete(in)) {
@@ -83,7 +83,7 @@ public class LocalActionEndpoint extends ActionEndpoint {
 				// Invoke handler without timeout handling
 				return action.handler(ctx);
 			}
-			
+
 		};
 	}
 

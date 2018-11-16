@@ -31,14 +31,13 @@ import io.datatree.Promise;
 import io.datatree.Tree;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.error.RequestRejectedError;
+import services.moleculer.eventbus.EventEmitter;
 import services.moleculer.eventbus.Eventbus;
-import services.moleculer.eventbus.Groups;
 import services.moleculer.service.ServiceInvoker;
-import services.moleculer.strategy.Strategy;
 import services.moleculer.stream.PacketStream;
 import services.moleculer.util.ParseResult;
 
-public class Context {
+public class Context extends EventEmitter {
 
 	// --- PROPERTIES ---
 
@@ -88,20 +87,19 @@ public class Context {
 	 * Streamed content
 	 */
 	public PacketStream stream;
-	
+
 	// --- COMPONENTS ---
 
 	protected final ServiceInvoker serviceInvoker;
-	protected final Eventbus eventbus;
 
 	// --- CONSTRUCTORS ---
 
 	public Context(ServiceInvoker serviceInvoker, Eventbus eventbus, String id, String name, Tree params,
 			CallOptions.Options opts, PacketStream stream) {
+		super(eventbus);
 
-		// Set components
+		// Set invoker (default or circuit breaker)
 		this.serviceInvoker = serviceInvoker;
-		this.eventbus = eventbus;
 
 		// Set properties
 		this.id = id;
@@ -111,7 +109,7 @@ public class Context {
 		this.parentID = null;
 		this.opts = opts;
 		this.stream = stream;
-		
+
 		// Set the first ID
 		this.requestID = id;
 
@@ -124,10 +122,10 @@ public class Context {
 	}
 
 	public Context(String id, String name, Tree params, CallOptions.Options opts, PacketStream stream, Context parent) {
+		super(parent.eventbus);
 
-		// Set components
+		// Set invoker (default or circuit breaker)
 		this.serviceInvoker = parent.serviceInvoker;
-		this.eventbus = parent.eventbus;
 
 		// Set properties
 		this.id = id;
@@ -151,10 +149,10 @@ public class Context {
 
 	public Context(ServiceInvoker serviceInvoker, Eventbus eventbus, String id, String name, Tree params,
 			CallOptions.Options opts, PacketStream stream, int level, String requestID, String parentID) {
+		super(eventbus);
 
-		// Set components
+		// Set invoker (default or circuit breaker)
 		this.serviceInvoker = serviceInvoker;
-		this.eventbus = eventbus;
 
 		// Set properties
 		this.id = id;
@@ -274,8 +272,7 @@ public class Context {
 		if (startTime > 0) {
 
 			// Distributed timeout handling. Decrementing the timeout value with
-			// the elapsed time.
-			// If the timeout below 0, skip the call.
+			// the elapsed time. If the timeout below 0, skip the call.
 			final long duration = System.currentTimeMillis() - startTime;
 			final long distTimeout = this.opts.timeout - duration;
 
@@ -290,196 +287,6 @@ public class Context {
 			}
 		}
 		return serviceInvoker.call(name, params, opts, stream, this);
-	}
-
-	// --- EMIT EVENT TO EVENT GROUP ---
-
-	/**
-	 * Emits an event to <b>ONE</b> listener from ALL (or the specified) event
-	 * group(s), who are listening this event. The service broker uses the
-	 * default {@link Strategy strategy} of the broker for event redirection and
-	 * node selection. Sample code:<br>
-	 * <br>
-	 * ctx.emit("user.deleted", "a", 1, "b", 2);<br>
-	 * <br>
-	 * ...or send event to (one or more) listener group(s):<br>
-	 * <br>
-	 * ctx.emit("user.deleted", "a", 1, "b", 2, Groups.of("logger"));
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.deleted")
-	 * @param params
-	 *            list of parameter name-value pairs and an optional
-	 *            {@link Groups event group} container
-	 */
-	public void emit(String name, Object... params) {
-		ParseResult res = parseParams(params);
-		eventbus.emit(name, res.data, res.groups, false);
-	}
-
-	/**
-	 * Emits an event to <b>ONE</b> listener from the specified event group(s),
-	 * who are listening this event. The service broker uses the default
-	 * {@link Strategy strategy} of the broker for event redirection and node
-	 * selection. Sample code:<br>
-	 * <br>
-	 * Tree params = new Tree();<br>
-	 * params.put("a", true);<br>
-	 * params.putList("b").add(1).add(2).add(3);<br>
-	 * ctx.emit("user.created", params, Groups.of("group1", "group2"));
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.modified")
-	 * @param payload
-	 *            {@link Tree} structure (payload of the event)
-	 * @param groups
-	 *            {@link Groups event group} container
-	 */
-	public void emit(String name, Tree payload, Groups groups) {
-		eventbus.emit(name, payload, groups, false);
-	}
-
-	/**
-	 * Emits an event to <b>ONE</b> listener from ALL event groups, who are
-	 * listening this event. The service broker uses the default {@link Strategy
-	 * strategy} of the broker for event redirection and node selection. Sample
-	 * code:<br>
-	 * <br>
-	 * Tree params = new Tree();<br>
-	 * params.put("a", true);<br>
-	 * params.putList("b").add(1).add(2).add(3);<br>
-	 * ctx.emit("user.modified", params);
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.created")
-	 * @param payload
-	 *            {@link Tree} structure (payload of the event)
-	 */
-	public void emit(String name, Tree payload) {
-		eventbus.emit(name, payload, null, false);
-	}
-
-	// --- BROADCAST EVENT TO ALL LISTENERS ---
-
-	/**
-	 * Emits an event to <b>ALL</b> listeners from ALL (or the specified) event
-	 * group(s), who are listening this event. Sample code:<br>
-	 * <br>
-	 * ctx.broadcast("user.deleted", "a", 1, "b", 2);<br>
-	 * <br>
-	 * ...or send event to (one or more) listener group(s):<br>
-	 * <br>
-	 * ctx.broadcast("user.deleted", "a", 1, "b", 2, Groups.of("logger"));
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.deleted")
-	 * @param params
-	 *            list of parameter name-value pairs and an optional
-	 *            {@link Groups event group} container
-	 */
-	public void broadcast(String name, Object... params) {
-		ParseResult res = parseParams(params);
-		eventbus.broadcast(name, res.data, res.groups, false);
-	}
-
-	/**
-	 * Emits an event to <b>ALL</b> listeners from the specified event group(s),
-	 * who are listening this event. Sample code:<br>
-	 * <br>
-	 * Tree params = new Tree();<br>
-	 * params.put("a", true);<br>
-	 * params.putList("b").add(1).add(2).add(3);<br>
-	 * ctx.broadcast("user.created", params, Groups.of("group1", "group2"));
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.modified")
-	 * @param payload
-	 *            {@link Tree} structure (payload of the event)
-	 * @param groups
-	 *            {@link Groups event group} container
-	 */
-	public void broadcast(String name, Tree payload, Groups groups) {
-		eventbus.broadcast(name, payload, groups, false);
-	}
-
-	/**
-	 * Emits an event to <b>ALL</b> listeners from ALL event groups, who are
-	 * listening this event. Sample code:<br>
-	 * <br>
-	 * Tree params = new Tree();<br>
-	 * params.put("a", true);<br>
-	 * params.putList("b").add(1).add(2).add(3);<br>
-	 * ctx.broadcast("user.modified", params);
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.created")
-	 * @param payload
-	 *            {@link Tree} structure (payload of the event)
-	 */
-	public void broadcast(String name, Tree payload) {
-		eventbus.broadcast(name, payload, null, false);
-	}
-
-	// --- BROADCAST EVENT TO LOCAL LISTENERS ---
-
-	/**
-	 * Emits a <b>LOCAL</b> event to <b>ALL</b> listeners from ALL (or the
-	 * specified) event group(s), who are listening this event. Sample code:<br>
-	 * <br>
-	 * ctx.broadcastLocal("user.deleted", "a", 1, "b", 2);<br>
-	 * <br>
-	 * ...or send event to (one or more) local listener group(s):<br>
-	 * <br>
-	 * ctx.broadcastLocal("user.deleted", "a", 1, "b", 2, Groups.of("logger"));
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.deleted")
-	 * @param params
-	 *            list of parameter name-value pairs and an optional
-	 *            {@link Groups event group} container
-	 */
-	public void broadcastLocal(String name, Object... params) {
-		ParseResult res = parseParams(params);
-		eventbus.broadcast(name, res.data, res.groups, true);
-	}
-
-	/**
-	 * Emits a <b>LOCAL</b> event to <b>ALL</b> listeners from the specified
-	 * event group(s), who are listening this event. Sample code:<br>
-	 * <br>
-	 * Tree params = new Tree();<br>
-	 * params.put("a", true);<br>
-	 * params.putList("b").add(1).add(2).add(3);<br>
-	 * ctx.broadcastLocal("user.created", params, Groups.of("group1",
-	 * "group2"));
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.modified")
-	 * @param payload
-	 *            {@link Tree} structure (payload of the event)
-	 * @param groups
-	 *            {@link Groups event group} container
-	 */
-	public void broadcastLocal(String name, Tree payload, Groups groups) {
-		eventbus.broadcast(name, payload, groups, true);
-	}
-
-	/**
-	 * Emits a <b>LOCAL</b> event to <b>ALL</b> listeners from ALL event groups,
-	 * who are listening this event. Sample code:<br>
-	 * <br>
-	 * Tree params = new Tree();<br>
-	 * params.put("a", true);<br>
-	 * params.putList("b").add(1).add(2).add(3);<br>
-	 * ctx.broadcastLocal("user.modified", params);
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.created")
-	 * @param payload
-	 *            {@link Tree} structure (payload of the event)
-	 */
-	public void broadcastLocal(String name, Tree payload) {
-		eventbus.broadcast(name, payload, null, true);
 	}
 
 	// --- STREAMED REQUEST OR RESPONSE ---
@@ -510,5 +317,5 @@ public class Context {
 		ServiceBrokerConfig config = eventbus.getBroker().getConfig();
 		return new PacketStream(config.getNodeID(), config.getScheduler());
 	}
-	
+
 }

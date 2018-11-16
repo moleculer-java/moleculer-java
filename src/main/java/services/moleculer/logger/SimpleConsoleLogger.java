@@ -43,9 +43,9 @@ public class SimpleConsoleLogger implements ConsoleLogger {
 	protected static final char[] FINE = "FINE    ".toCharArray();
 	protected static final char[] FINER = "FINER   ".toCharArray();
 	protected static final char[] FINEST = "FINEST  ".toCharArray();
-	
+
 	// --- LOGGER ---
-	
+
 	@Override
 	public void log(LinkedList<LogRecord> records, StringBuilder lines) {
 		Throwable cause;
@@ -81,5 +81,5 @@ public class SimpleConsoleLogger implements ConsoleLogger {
 			}
 		}
 	}
-	
+
 }

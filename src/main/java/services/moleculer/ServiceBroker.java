@@ -56,9 +56,7 @@ import services.moleculer.context.CallOptions;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.context.DefaultContextFactory;
 import services.moleculer.error.MoleculerServerError;
-import services.moleculer.eventbus.DefaultEventbus;
-import services.moleculer.eventbus.Eventbus;
-import services.moleculer.eventbus.Groups;
+import services.moleculer.eventbus.EventEmitter;
 import services.moleculer.internal.NodeService;
 import services.moleculer.service.Action;
 import services.moleculer.service.DefaultServiceInvoker;
@@ -73,7 +71,6 @@ import services.moleculer.strategy.NanoSecRandomStrategyFactory;
 import services.moleculer.strategy.NetworkLatencyStrategyFactory;
 import services.moleculer.strategy.RoundRobinStrategyFactory;
 import services.moleculer.strategy.SecureRandomStrategyFactory;
-import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.strategy.XorShiftRandomStrategyFactory;
 import services.moleculer.stream.PacketStream;
@@ -125,7 +122,7 @@ import services.moleculer.util.ParseResult;
  * Node.js (https://moleculer.services). Special thanks to the Moleculer's
  * project owner (https://github.com/icebob) for the consultations.
  */
-public class ServiceBroker {
+public class ServiceBroker extends EventEmitter {
 
 	// --- VERSIONS ---
 
@@ -220,16 +217,6 @@ public class ServiceBroker {
 	protected ServiceInvoker serviceInvoker;
 
 	/**
-	 * Implementation of the event bus of the current node. Use
-	 * <code>getConfig().getEventbus()</code> to access this instance.
-	 * 
-	 * @see DefaultEventbus
-	 * @see #broadcast(String, Object...)
-	 * @see #emit(String, Object...)
-	 */
-	protected Eventbus eventbus;
-
-	/**
 	 * Implementation of the service registry of the current node. Use
 	 * <code>getConfig().getServiceRegistry()</code> to access this instance.
 	 * 
@@ -277,6 +264,7 @@ public class ServiceBroker {
 	 *            configuration of the Broker
 	 */
 	public ServiceBroker(ServiceBrokerConfig config) {
+		super(config.getEventbus());
 		this.config = config;
 		this.nodeID = config.getNodeID();
 	}
@@ -370,7 +358,7 @@ public class ServiceBroker {
 			strategyFactory = start(config.getStrategyFactory());
 			contextFactory = start(config.getContextFactory());
 			serviceInvoker = start(config.getServiceInvoker());
-			eventbus = start(config.getEventbus());
+			start(config.getEventbus());
 			serviceRegistry = start(config.getServiceRegistry());
 			transporter = start(config.getTransporter());
 
@@ -431,8 +419,7 @@ public class ServiceBroker {
 						}
 						if (supportedReader.toLowerCase().contains(reader)) {
 							selectedReader = TreeReaderRegistry.getReader(supportedReader);
-							logger.info(
-									"Default JSON deserializer/reader is \"" + selectedReader.getClass() + "\".");
+							logger.info("Default JSON deserializer/reader is \"" + selectedReader.getClass() + "\".");
 							TreeReaderRegistry.setReader("json", selectedReader);
 							break;
 						}
@@ -444,7 +431,7 @@ public class ServiceBroker {
 			}
 		}
 	}
-	
+
 	/**
 	 * Set global JSON writer API (Jackson, Gson, Boon, FastJson, etc.)
 	 */
@@ -476,7 +463,7 @@ public class ServiceBroker {
 			}
 		}
 	}
-	
+
 	/**
 	 * Starts the specified {@link MoleculerComponent}.
 	 * 
@@ -767,197 +754,6 @@ public class ServiceBroker {
 	 */
 	public Promise call(String name, Tree params, CallOptions.Options opts) {
 		return serviceInvoker.call(name, params, opts, null, null);
-	}
-
-	// --- EMIT EVENT TO EVENT GROUP ---
-
-	/**
-	 * Emits an event to <b>ONE</b> listener from ALL (or the specified) event
-	 * group(s), who are listening this event. The service broker uses the
-	 * default {@link Strategy strategy} of the broker for event redirection and
-	 * node selection. Sample code:<br>
-	 * <br>
-	 * broker.emit("user.deleted", "a", 1, "b", 2);<br>
-	 * <br>
-	 * ...or send event to (one or more) listener group(s):<br>
-	 * <br>
-	 * broker.emit("user.deleted", "a", 1, "b", 2, Groups.of("logger"));
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.deleted")
-	 * @param params
-	 *            list of parameter name-value pairs and an optional
-	 *            {@link Groups event group} container
-	 */
-	public void emit(String name, Object... params) {
-		ParseResult res = parseParams(params);
-		eventbus.emit(name, res.data, res.groups, false);
-	}
-
-	/**
-	 * Emits an event to <b>ONE</b> listener from the specified event group(s),
-	 * who are listening this event. The service broker uses the default
-	 * {@link Strategy strategy} of the broker for event redirection and node
-	 * selection. Sample code:<br>
-	 * <br>
-	 * Tree params = new Tree();<br>
-	 * params.put("a", true);<br>
-	 * params.putList("b").add(1).add(2).add(3);<br>
-	 * broker.emit("user.created", params, Groups.of("group1", "group2"));
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.modified")
-	 * @param payload
-	 *            {@link Tree} structure (payload of the event)
-	 * @param groups
-	 *            {@link Groups event group} container
-	 */
-	public void emit(String name, Tree payload, Groups groups) {
-		eventbus.emit(name, payload, groups, false);
-	}
-
-	/**
-	 * Emits an event to <b>ONE</b> listener from ALL event groups, who are
-	 * listening this event. The service broker uses the default {@link Strategy
-	 * strategy} of the broker for event redirection and node selection. Sample
-	 * code:<br>
-	 * <br>
-	 * Tree params = new Tree();<br>
-	 * params.put("a", true);<br>
-	 * params.putList("b").add(1).add(2).add(3);<br>
-	 * broker.emit("user.modified", params);
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.created")
-	 * @param payload
-	 *            {@link Tree} structure (payload of the event)
-	 */
-	public void emit(String name, Tree payload) {
-		eventbus.emit(name, payload, null, false);
-	}
-
-	// --- BROADCAST EVENT TO ALL LISTENERS ---
-
-	/**
-	 * Emits an event to <b>ALL</b> listeners from ALL (or the specified) event
-	 * group(s), who are listening this event. Sample code:<br>
-	 * <br>
-	 * broker.broadcast("user.deleted", "a", 1, "b", 2);<br>
-	 * <br>
-	 * ...or send event to (one or more) listener group(s):<br>
-	 * <br>
-	 * broker.broadcast("user.deleted", "a", 1, "b", 2, Groups.of("logger"));
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.deleted")
-	 * @param params
-	 *            list of parameter name-value pairs and an optional
-	 *            {@link Groups event group} container
-	 */
-	public void broadcast(String name, Object... params) {
-		ParseResult res = parseParams(params);
-		eventbus.broadcast(name, res.data, res.groups, false);
-	}
-
-	/**
-	 * Emits an event to <b>ALL</b> listeners from the specified event group(s),
-	 * who are listening this event. Sample code:<br>
-	 * <br>
-	 * Tree params = new Tree();<br>
-	 * params.put("a", true);<br>
-	 * params.putList("b").add(1).add(2).add(3);<br>
-	 * broker.broadcast("user.created", params, Groups.of("group1", "group2"));
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.modified")
-	 * @param payload
-	 *            {@link Tree} structure (payload of the event)
-	 * @param groups
-	 *            {@link Groups event group} container
-	 */
-	public void broadcast(String name, Tree payload, Groups groups) {
-		eventbus.broadcast(name, payload, groups, false);
-	}
-
-	/**
-	 * Emits an event to <b>ALL</b> listeners from ALL event groups, who are
-	 * listening this event. Sample code:<br>
-	 * <br>
-	 * Tree params = new Tree();<br>
-	 * params.put("a", true);<br>
-	 * params.putList("b").add(1).add(2).add(3);<br>
-	 * broker.broadcast("user.modified", params);
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.created")
-	 * @param payload
-	 *            {@link Tree} structure (payload of the event)
-	 */
-	public void broadcast(String name, Tree payload) {
-		eventbus.broadcast(name, payload, null, false);
-	}
-
-	// --- BROADCAST EVENT TO LOCAL LISTENERS ---
-
-	/**
-	 * Emits a <b>LOCAL</b> event to <b>ALL</b> listeners from ALL (or the
-	 * specified) event group(s), who are listening this event. Sample code:<br>
-	 * <br>
-	 * broker.broadcastLocal("user.deleted", "a", 1, "b", 2);<br>
-	 * <br>
-	 * ...or send event to (one or more) local listener group(s):<br>
-	 * <br>
-	 * broker.broadcastLocal("user.deleted", "a", 1, "b", 2,
-	 * Groups.of("logger"));
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.deleted")
-	 * @param params
-	 *            list of parameter name-value pairs and an optional
-	 *            {@link Groups event group} container
-	 */
-	public void broadcastLocal(String name, Object... params) {
-		ParseResult res = parseParams(params);
-		eventbus.broadcast(name, res.data, res.groups, true);
-	}
-
-	/**
-	 * Emits a <b>LOCAL</b> event to <b>ALL</b> listeners from the specified
-	 * event group(s), who are listening this event. Sample code:<br>
-	 * <br>
-	 * Tree params = new Tree();<br>
-	 * params.put("a", true);<br>
-	 * params.putList("b").add(1).add(2).add(3);<br>
-	 * broker.broadcastLocal("user.created", params, Groups.of("group1",
-	 * "group2"));
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.modified")
-	 * @param payload
-	 *            {@link Tree} structure (payload of the event)
-	 * @param groups
-	 *            {@link Groups event group} container
-	 */
-	public void broadcastLocal(String name, Tree payload, Groups groups) {
-		eventbus.broadcast(name, payload, groups, true);
-	}
-
-	/**
-	 * Emits a <b>LOCAL</b> event to <b>ALL</b> listeners from ALL event groups,
-	 * who are listening this event. Sample code:<br>
-	 * <br>
-	 * Tree params = new Tree();<br>
-	 * params.put("a", true);<br>
-	 * params.putList("b").add(1).add(2).add(3);<br>
-	 * broker.broadcastLocal("user.modified", params);
-	 * 
-	 * @param name
-	 *            name of event (eg. "user.created")
-	 * @param payload
-	 *            {@link Tree} structure (payload of the event)
-	 */
-	public void broadcastLocal(String name, Tree payload) {
-		eventbus.broadcast(name, payload, null, true);
 	}
 
 	// --- WAIT FOR SERVICE(S) ---

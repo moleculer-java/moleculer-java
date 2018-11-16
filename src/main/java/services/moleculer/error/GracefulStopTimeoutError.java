@@ -35,17 +35,18 @@ import io.datatree.Tree;
 public class GracefulStopTimeoutError extends MoleculerError {
 
 	// --- SERIAL VERSION UID ---
-	
+
 	private static final long serialVersionUID = -646255411925946294L;
 
 	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
-	
+
 	public GracefulStopTimeoutError(String nodeID, Object... data) {
-		super("Unable to stop service gracefully.", null, GRACEFUL_STOP_TIMEOUT_ERROR, nodeID, false, 500, "GRACEFUL_STOP_TIMEOUT", data);
+		super("Unable to stop service gracefully.", null, GRACEFUL_STOP_TIMEOUT_ERROR, nodeID, false, 500,
+				"GRACEFUL_STOP_TIMEOUT", data);
 	}
 
 	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
-	
+
 	public GracefulStopTimeoutError(Tree payload) {
 		super(payload);
 	}

@@ -62,20 +62,20 @@ public class TimeoutTest extends TestCase {
 		for (int i = 0; i < 10; i++) {
 			assertFalse(invokeSlowService(100));
 		}
-		
+
 		// --- DISTRIBUTED TIMEOUT ---
-		
+
 		// Create services
 		Level1Service level1Service = new Level1Service();
 		br.createService(level1Service);
 		br.createService(new Level2Service());
-		
+
 		assertTrue(invokeServices(1500, 500));
 		assertFalse(level1Service.timeouted);
-	
-		assertFalse(invokeServices(500, 1500));		
+
+		assertFalse(invokeServices(500, 1500));
 		assertFalse(level1Service.timeouted);
-		
+
 		Thread.sleep(1200);
 		assertTrue(level1Service.timeouted);
 	}
@@ -99,9 +99,9 @@ public class TimeoutTest extends TestCase {
 		};
 
 	}
-	
+
 	// --- DISTRIBUTED TIMEOUT ---
-	
+
 	protected boolean invokeServices(long timeout, long sleep) {
 		try {
 			Tree req = new Tree();
@@ -110,10 +110,10 @@ public class TimeoutTest extends TestCase {
 			long b = Math.abs(timeout * System.currentTimeMillis() % 10);
 			req.put("b", b);
 			req.put("sleep", sleep);
-			Tree rsp = br.call("level1Service.action", req, CallOptions.timeout(timeout)).waitFor();			
+			Tree rsp = br.call("level1Service.action", req, CallOptions.timeout(timeout)).waitFor();
 
 			return rsp.asLong() == a * b;
-			
+
 		} catch (Exception e) {
 			return false;
 		}
@@ -122,18 +122,18 @@ public class TimeoutTest extends TestCase {
 	protected static final class Level1Service extends Service {
 
 		public boolean timeouted;
-		
+
 		public Action action = ctx -> {
 			timeouted = false;
-			long sleep = ctx.params.get("sleep", 0L);		
+			long sleep = ctx.params.get("sleep", 0L);
 			Thread.sleep(sleep);
 			return ctx.call("level2Service.action", ctx.params).catchError(err -> {
 				if (err instanceof RequestRejectedError) {
-					
+
 					// Rejected
 					timeouted = true;
 				}
-			});				
+			});
 		};
 
 	}

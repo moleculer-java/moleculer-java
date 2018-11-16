@@ -527,7 +527,7 @@ public final class CommonUtils {
 				TreeReaderRegistry.getReader(format);
 				return format;
 			} catch (Exception notSupported) {
-				
+
 				// Unsupported format
 			}
 		}
@@ -647,11 +647,6 @@ public final class CommonUtils {
 			i = buffer.indexOf("gbyte", 0);
 			if (i != -1) {
 				unit = 1024 * 1024 * 1024;
-				break;
-			}
-			i = buffer.indexOf("tbyte", 0);
-			if (i != -1) {
-				unit = 1024 * 1024 * 1024 * 1024;
 				break;
 			}
 			i = buffer.indexOf("byte", 0);

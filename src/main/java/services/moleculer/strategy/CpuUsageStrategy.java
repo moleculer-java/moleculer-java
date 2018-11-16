@@ -50,7 +50,7 @@ public class CpuUsageStrategy<T extends Endpoint> extends XorShiftRandomStrategy
 	 * This strategy compares number of 'maxTries' random node.
 	 */
 	protected final int maxTries;
-	
+
 	/**
 	 * lowCpuUsage ~= zero CPU usage
 	 */

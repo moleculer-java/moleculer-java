@@ -45,7 +45,7 @@ public class ValidationError extends MoleculerClientError {
 	}
 
 	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
-	
+
 	public ValidationError(Tree payload) {
 		super(payload);
 	}

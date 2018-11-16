@@ -147,9 +147,9 @@ public abstract class Cacher extends Middleware {
 				}
 				appendToKey(key, params.get(k));
 			}
-		}		
+		}
 	}
-	
+
 	protected void appendToKey(StringBuilder key, Tree tree) {
 		if (tree == null) {
 			key.append("null");
@@ -254,7 +254,7 @@ public abstract class Cacher extends Middleware {
 	 *            new value
 	 * @param ttl
 	 *            optional TTL of entry (0 == use default TTL)
-	 *            
+	 * 
 	 * @return Promise with empty value
 	 */
 	public abstract Promise set(String key, Tree value, int ttl);

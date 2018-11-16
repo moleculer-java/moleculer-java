@@ -59,7 +59,7 @@ public class MatcherTest extends TestCase {
 		assertMatch("abcd", "*d*");
 		assertMatch("abcd", "*a*");
 		assertMatch("abcd", "a*");
-		
+
 		// --- DOUBLE STARS CASES ---
 
 		assertNotMatch("aa.bb.cc", "aa.*");

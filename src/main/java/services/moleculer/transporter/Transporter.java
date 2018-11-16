@@ -399,7 +399,7 @@ public abstract class Transporter extends MoleculerComponent {
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
 		msg.putUnsafe("sender", this.nodeID);
 		msg.putUnsafe("id", ctx.id);
-		
+
 		// Streaming in progress
 		msg.putUnsafe("stream", true);
 

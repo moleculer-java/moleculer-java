@@ -54,7 +54,7 @@ public abstract class MoleculerComponent {
 	public MoleculerComponent(String name) {
 		this.name = Objects.requireNonNull(name);
 	}
-	
+
 	// --- INSTANCE STARTED ---
 
 	public void started(ServiceBroker broker) throws Exception {

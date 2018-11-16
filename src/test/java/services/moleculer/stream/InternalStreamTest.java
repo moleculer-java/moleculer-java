@@ -285,9 +285,9 @@ public class InternalStreamTest extends TestCase {
 
 		File f1 = File.createTempFile("MoleculerStreamTest", ".tmp");
 		save(f1, all);
-		
+
 		stream.transferFrom(f1).waitFor(5000);
-		
+
 		listener.assertDataEquals(all);
 		listener.assertClosed();
 		listener.assertNotFaulty();
@@ -298,9 +298,9 @@ public class InternalStreamTest extends TestCase {
 		stream = newStream(listener);
 		stream.setPacketSize(10);
 		stream.setPacketDelay(1);
-		
+
 		stream.transferFrom(f1).waitFor(5000);
-		
+
 		listener.assertDataEquals(all);
 		listener.assertClosed();
 		listener.assertNotFaulty();
@@ -309,7 +309,7 @@ public class InternalStreamTest extends TestCase {
 
 		listener.reset();
 		stream = newStream(listener);
-		
+
 		FileInputStream in1 = new FileInputStream(f1);
 		FileChannel fc1 = in1.getChannel();
 		WritableByteChannel c1 = stream.asWritableByteChannel();
@@ -318,46 +318,46 @@ public class InternalStreamTest extends TestCase {
 		assertTrue(fc1.isOpen());
 		fc1.close();
 		in1.close();
-		
+
 		listener.assertDataEquals(all);
 		listener.assertClosed();
 		listener.assertNotFaulty();
-		
+
 		// --- TEST 11 (LOAD FROM CHANNEL) ---
 
 		listener.reset();
 		stream = newStream(listener);
-		
+
 		FileInputStream in2 = new FileInputStream(f1);
 		FileChannel fc2 = in2.getChannel();
 		stream.transferFrom(fc2).waitFor(5000);
 		assertFalse(fc2.isOpen());
 		f1.delete();
 		in2.close();
-		
+
 		listener.assertDataEquals(all);
 		listener.assertClosed();
 		listener.assertNotFaulty();
-		
+
 		// --- TEST 12 (LOAD FROM STREAM) ---
 
 		listener.reset();
 		stream = newStream(listener);
-		
+
 		stream.transferFrom(new ByteArrayInputStream(all)).waitFor(1000);
-		
+
 		listener.assertDataEquals(all);
 		listener.assertClosed();
 		listener.assertNotFaulty();
 
 		// --- TEST 13 (EMPTY BLOCKS) ---
-		
+
 		listener.reset();
 		stream = newStream(listener);
 
 		stream.sendData(bytes1);
 		assertEquals(bytes1.length, stream.getTransferedBytes());
-		
+
 		stream.sendData(new byte[0]);
 		assertEquals(bytes1.length, stream.getTransferedBytes());
 

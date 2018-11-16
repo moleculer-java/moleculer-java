@@ -35,17 +35,17 @@ import io.datatree.Tree;
 public class BrokerOptionsError extends MoleculerError {
 
 	// --- SERIAL VERSION UID ---
-	
+
 	private static final long serialVersionUID = 6016262167903015550L;
-	
+
 	// --- CONSTRUCTOR FOR LOCAL EXCEPTIONS ---
-	
+
 	public BrokerOptionsError(String message, String nodeID, Object... data) {
 		super(message, null, BROKER_OPTIONS_ERROR, nodeID, false, 500, "BROKER_OPTIONS_ERROR", data);
 	}
 
 	// --- CONSTRUCTOR FOR REMOTE EXCEPTIONS ---
-	
+
 	public BrokerOptionsError(Tree payload) {
 		super(payload);
 	}

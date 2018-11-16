@@ -42,6 +42,7 @@ public abstract class ServiceInvoker extends MoleculerComponent {
 
 	// --- CALL ACTION ---
 
-	public abstract Promise call(String name, Tree params, CallOptions.Options opts, PacketStream stream, Context parent);
+	public abstract Promise call(String name, Tree params, CallOptions.Options opts, PacketStream stream,
+			Context parent);
 
 }

@@ -32,5 +32,5 @@ package services.moleculer.stream;
 public interface PacketListener {
 
 	void onPacket(byte[] bytes, Throwable cause, boolean close) throws Throwable;
-	
+
 }

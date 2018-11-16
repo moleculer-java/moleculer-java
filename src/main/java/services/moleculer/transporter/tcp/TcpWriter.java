@@ -86,7 +86,7 @@ public class TcpWriter implements Runnable {
 	 * Writer thread
 	 */
 	protected ExecutorService executor;
-	
+
 	// --- CONSTRUCTOR ---
 
 	public TcpWriter(TcpTransporter transporter) {

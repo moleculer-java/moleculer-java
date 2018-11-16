@@ -34,5 +34,5 @@ public class NatsStreamTest extends StreamTest {
 	public Transporter createTransporter() {
 		return new NatsTransporter();
 	}
-	
+
 }

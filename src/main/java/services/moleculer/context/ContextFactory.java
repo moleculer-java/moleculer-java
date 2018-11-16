@@ -40,8 +40,10 @@ public abstract class ContextFactory extends MoleculerComponent {
 
 	// --- CREATE CONTEXT ---
 
-	public abstract Context create(String name, Tree params, CallOptions.Options opts, PacketStream stream, Context parent);
+	public abstract Context create(String name, Tree params, CallOptions.Options opts, PacketStream stream,
+			Context parent);
 
-	public abstract Context create(String name, Tree params, CallOptions.Options opts, PacketStream stream, String id, int level, String requestID, String parentID);
-	
+	public abstract Context create(String name, Tree params, CallOptions.Options opts, PacketStream stream, String id,
+			int level, String requestID, String parentID);
+
 }

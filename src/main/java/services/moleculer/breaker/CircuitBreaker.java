@@ -35,13 +35,12 @@ import io.datatree.Promise;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
-import services.moleculer.context.CallOptions;
 import services.moleculer.context.CallOptions.Options;
 import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
 import services.moleculer.service.ActionEndpoint;
+import services.moleculer.service.DefaultServiceInvoker;
 import services.moleculer.service.Name;
-import services.moleculer.service.ServiceInvoker;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.stream.PacketStream;
 
@@ -49,7 +48,7 @@ import services.moleculer.stream.PacketStream;
  * Special service invoker with retry logic + circuit breaker.
  */
 @Name("Circuit Breaker")
-public class CircuitBreaker extends ServiceInvoker {
+public class CircuitBreaker extends DefaultServiceInvoker {
 
 	// --- PROPERTIES ---
 
@@ -84,11 +83,6 @@ public class CircuitBreaker extends ServiceInvoker {
 	 */
 	protected long lockTimeout = 10 * 1000L;
 
-	/**
-	 * Write exceptions into the log file
-	 */
-	protected boolean writeErrorsToLog = true;
-
 	// --- COMPONENTS ---
 
 	protected ServiceRegistry serviceRegistry;
@@ -110,8 +104,8 @@ public class CircuitBreaker extends ServiceInvoker {
 
 		// Set components
 		ServiceBrokerConfig cfg = broker.getConfig();
-		this.serviceRegistry = cfg.getServiceRegistry();
-		this.contextFactory = cfg.getContextFactory();
+		serviceRegistry = cfg.getServiceRegistry();
+		contextFactory = cfg.getContextFactory();
 	}
 
 	// --- STOP BREAKER ---
@@ -125,19 +119,6 @@ public class CircuitBreaker extends ServiceInvoker {
 	// --- CALL SERVICE ---
 
 	@Override
-	public Promise call(String name, Tree params, Options opts, PacketStream stream, Context parent) {
-		String targetID;
-		int remaining;
-		if (opts == null) {
-			targetID = null;
-			remaining = 0;
-		} else {
-			targetID = opts.nodeID;
-			remaining = opts.retryCount;
-		}
-		return call(name, params, opts, stream, parent, targetID, remaining);
-	}
-
 	protected Promise call(String name, Tree params, Options opts, PacketStream stream, Context parent, String targetID,
 			int remaining) {
 		EndpointKey endpointKey = null;
@@ -240,15 +221,6 @@ public class CircuitBreaker extends ServiceInvoker {
 		}
 	}
 
-	// --- RETRY CALL ---
-
-	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, PacketStream stream,
-			Context parent, String targetID, int remaining) {
-		int newRemaining = remaining - 1;
-		logger.warn("Retrying request (" + newRemaining + " attempts left)...", cause);
-		return call(name, params, opts, stream, parent, targetID, newRemaining);
-	}
-
 	protected void increment(ErrorCounter errorCounter, EndpointKey endpointKey, Throwable cause, long now) {
 		if (endpointKey != null) {
 
@@ -336,14 +308,6 @@ public class CircuitBreaker extends ServiceInvoker {
 
 	public void setMaxErrors(int maxErrors) {
 		this.maxErrors = maxErrors;
-	}
-
-	public boolean isWriteErrorsToLog() {
-		return writeErrorsToLog;
-	}
-
-	public void setWriteErrorsToLog(boolean writeErrorsToLog) {
-		this.writeErrorsToLog = writeErrorsToLog;
 	}
 
 }

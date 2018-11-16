@@ -46,11 +46,11 @@ public class Sample {
 			// Create Message Brokers
 			Transporter t1 = new RedisTransporter();
 			Transporter t2 = new RedisTransporter();
-			
+
 			boolean debug = false;
 			t1.setDebug(debug);
 			t2.setDebug(debug);
-			
+
 			ServiceBroker broker1 = ServiceBroker.builder().transporter(t1).nodeID("sender").build();
 			ServiceBroker broker2 = ServiceBroker.builder().transporter(t2).nodeID("receiver").build();
 
