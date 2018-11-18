@@ -318,7 +318,7 @@ public abstract class StreamTest extends TestCase {
 		File f1 = File.createTempFile("MoleculerStreamTest", ".tmp");
 		save(f1, all);
 
-		stream.transferFrom(f1).waitFor(5000);
+		stream.transferFrom(f1).waitFor(7000);
 		f1.delete();
 		for (int i = 0; i < 30; i++) {
 			Thread.sleep(100);
@@ -334,7 +334,7 @@ public abstract class StreamTest extends TestCase {
 		// --- TEST 9 (SERVICE RETURNS WITH A PROMISE) ---
 
 		br1.createService(new PromiseProducerService());
-		br2.waitForServices("promise-producer").waitFor(3000);
+		br2.waitForServices("promise-producer").waitFor(5000);
 
 		int sum = 0;
 		for (byte b : all) {
@@ -349,13 +349,13 @@ public abstract class StreamTest extends TestCase {
 		stream.sendData(bytes3);
 		stream.sendClose();
 
-		Tree prsp = promise.waitFor(4000);
+		Tree prsp = promise.waitFor(6000);
 		assertEquals(sum, (int) prsp.asInteger());
 
 		// --- TEST 10 (FAULTY SERVICE) ---
 
 		br2.createService(new FaultyService());
-		br1.waitForServices("faulty-receiver").waitFor(3000);
+		br1.waitForServices("faulty-receiver").waitFor(5000);
 
 		stream = br1.createStream();
 		promise = br1.call("faulty-receiver.receive", stream);
@@ -374,7 +374,7 @@ public abstract class StreamTest extends TestCase {
 
 		// Check fault
 		try {
-			promise.waitFor(3000);
+			promise.waitFor(5000);
 			throw new Exception("Invalid position!");
 		} catch (MoleculerError e) {
 
@@ -399,7 +399,7 @@ public abstract class StreamTest extends TestCase {
 		// --- TEST 11 (SEND ERROR) ---
 
 		br2.createService(new ErrorReceiver());
-		br1.waitForServices("error-receiver").waitFor(3000);
+		br1.waitForServices("error-receiver").waitFor(5000);
 
 		stream = br1.createStream();
 		promise = br1.call("error-receiver.receive", stream);
@@ -408,7 +408,7 @@ public abstract class StreamTest extends TestCase {
 
 		stream.sendError(new Exception("abc"));
 
-		String msg = promise.waitFor(3000).asString();
+		String msg = promise.waitFor(5000).asString();
 		assertEquals("abc", msg);
 	}
 
