@@ -81,14 +81,14 @@ public class MoleculerRunnerTest extends TestCase {
 		xml.append("	</bean>\r\n");
 		xml.append("</beans>");
 		
-		File file = new File(System.getProperty("user.home", "") + "/test.xml");
-		file.deleteOnExit();
+		File file = new File(System.getProperty("java.io.tmpdir", "") + "/test.xml");
 		FileOutputStream out = new FileOutputStream(file);
 		out.write(xml.toString().getBytes(StandardCharsets.UTF_8));
 		out.flush();
-		out.close();
+		out.close();		
 		String path = file.getAbsolutePath();
-		
+		file.deleteOnExit();
+
 		String[] args = new String[3];
 		args[0] = path;
 		args[1] = "6789";
