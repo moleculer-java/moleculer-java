@@ -87,6 +87,7 @@ public class MoleculerRunnerTest extends TestCase {
 		out.write(xml.toString().getBytes(StandardCharsets.UTF_8));
 		out.flush();
 		out.close();
+		file.setReadable(true);
 		String path = file.getCanonicalPath();
 		
 		String[] args = new String[3];
@@ -97,13 +98,12 @@ public class MoleculerRunnerTest extends TestCase {
 		MoleculerRunner.main(args);
 		
 		for (int i = 0; i < 10; i++) {
-			Thread.sleep(200);
 			ctx = MoleculerRunner.context.get();
 			if (ctx != null) {
 				break;
 			}
+			Thread.sleep(200);
 		}
-		file.delete();
 	}
 
 	// --- STOP INSTANCE ---
