@@ -81,12 +81,12 @@ public class MoleculerRunnerTest extends TestCase {
 		xml.append("	</bean>\r\n");
 		xml.append("</beans>");
 		
-		File file = new File(System.getProperty("java.io.tmpdir", "") + "/test.xml");
+		File file = new File("test.xml");
 		FileOutputStream out = new FileOutputStream(file);
 		out.write(xml.toString().getBytes(StandardCharsets.UTF_8));
 		out.flush();
 		out.close();		
-		String path = file.getAbsolutePath();
+		String path = "test.xml";
 		file.deleteOnExit();
 
 		String[] args = new String[3];
@@ -104,6 +104,7 @@ public class MoleculerRunnerTest extends TestCase {
 			Thread.sleep(200);
 		}
 		assertNotNull(ctx);
+		file.delete();
 	}
 
 	// --- STOP INSTANCE ---
