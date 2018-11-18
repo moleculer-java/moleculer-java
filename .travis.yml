@@ -31,8 +31,8 @@ before_install:
 
 # wget -O ~/codacy-coverage-reporter-assembly-latest.jar $(curl https://api.github.com/repos/codacy/codacy-coverage-reporter/releases/latest | jq -r '.assets[0].browser_download_url')
   
-script: ./gradlew -i check
-# script: ./gradlew check
+# script: ./gradlew -i check
+script: ./gradlew check
 
 after_success:
   - if [ -e ./gradlew ]; then ./gradlew jacocoTestReport;else gradle jacocoTestReport;fi
