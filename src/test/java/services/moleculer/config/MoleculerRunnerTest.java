@@ -27,7 +27,6 @@ package services.moleculer.config;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 import org.junit.Test;
