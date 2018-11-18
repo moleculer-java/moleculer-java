@@ -94,8 +94,15 @@ public class MoleculerRunnerTest extends TestCase {
 		args[1] = "6789";
 		args[2] = "secret123";
 		
-		MoleculerRunner.main(args);		
-		ctx = MoleculerRunner.context.get();
+		MoleculerRunner.main(args);
+		
+		for (int i = 0; i < 10; i++) {
+			Thread.sleep(200);
+			ctx = MoleculerRunner.context.get();
+			if (ctx != null) {
+				break;
+			}
+		}
 		file.delete();
 	}
 
