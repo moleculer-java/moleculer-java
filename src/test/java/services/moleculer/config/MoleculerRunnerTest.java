@@ -25,7 +25,10 @@
  */
 package services.moleculer.config;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 
 import org.junit.Test;
 import org.springframework.context.support.AbstractXmlApplicationContext;
@@ -57,8 +60,35 @@ public class MoleculerRunnerTest extends TestCase {
 
 	@Override
 	protected void setUp() throws Exception {
-		URL url = getClass().getResource("test.config.xml");
-		String path = url.getFile();
+		StringBuilder xml = new StringBuilder(512);
+		xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n");
+		xml.append("<beans xmlns=\"http://www.springframework.org/schema/beans\"\r\n");
+		xml.append("	xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:context=\"http://www.springframework.org/schema/context\"\r\n");
+		xml.append("	xsi:schemaLocation=\"http://www.springframework.org/schema/beans\r\n");
+		xml.append("	   http://www.springframework.org/schema/beans/spring-beans-3.0.xsd\r\n");
+		xml.append("	   http://www.springframework.org/schema/context\r\n");
+		xml.append("	   http://www.springframework.org/schema/context/spring-context-3.0.xsd\">\r\n");
+		xml.append("	<context:annotation-config />\r\n");
+		xml.append("	<bean id=\"registrator\" class=\"services.moleculer.config.SpringRegistrator\" depends-on=\"broker\">\r\n");
+		xml.append("		<property name=\"packagesToScan\" value=\"services.moleculer.config\" />\r\n");
+		xml.append("	</bean>\r\n");
+		xml.append("	<bean id=\"broker\" class=\"services.moleculer.ServiceBroker\"\r\n");
+		xml.append("		init-method=\"start\" destroy-method=\"stop\">\r\n");
+		xml.append("		<constructor-arg ref=\"brokerConfig\" />\r\n");
+		xml.append("	</bean>\r\n");
+		xml.append("	<bean id=\"brokerConfig\" class=\"services.moleculer.config.ServiceBrokerConfig\">\r\n");
+		xml.append("		<property name=\"namespace\"           value=\"\" />\r\n");
+		xml.append("		<property name=\"nodeID\"              value=\"node-1\" />\r\n");
+		xml.append("	</bean>\r\n");
+		xml.append("</beans>");
+		
+		File file = File.createTempFile("test", ".xml");
+		file.deleteOnExit();
+		FileOutputStream out = new FileOutputStream(file);
+		out.write(xml.toString().getBytes(StandardCharsets.UTF_8));
+		out.flush();
+		out.close();
+		String path = file.getCanonicalPath();
 		
 		String[] args = new String[3];
 		args[0] = path;
@@ -67,6 +97,7 @@ public class MoleculerRunnerTest extends TestCase {
 		
 		MoleculerRunner.main(args);		
 		ctx = MoleculerRunner.context.get();
+		file.delete();
 	}
 
 	// --- STOP INSTANCE ---
