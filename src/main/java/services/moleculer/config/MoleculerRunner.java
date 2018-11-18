@@ -51,7 +51,7 @@ public final class MoleculerRunner {
 
 	// --- SERVICE BROKER INSTANCE ---
 
-	private static final AtomicReference<AbstractXmlApplicationContext> context = new AtomicReference<>();
+	protected static final AtomicReference<AbstractXmlApplicationContext> context = new AtomicReference<>();
 
 	// --- MAIN ENTRY POINT (START / STOP SERVICE BROKER) ---
 
@@ -216,7 +216,7 @@ public final class MoleculerRunner {
 				Thread.sleep(600);
 			} catch (Throwable interrupted) {
 			}
-			Runtime.getRuntime().exit(0);
+			Runtime.getRuntime().halt(0);
 		}
 	}
 
