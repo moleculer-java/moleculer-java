@@ -163,6 +163,9 @@ public class IncomingStream {
 			boolean success = message.get("success", true);
 			if (success) {
 				Tree params = message.get("params");
+				if (params == null) {
+					params = message.get("data");
+				}
 				if (params != null) {
 					Tree data = params.get("data");
 					if (data != null && data.isEnumeration()) {

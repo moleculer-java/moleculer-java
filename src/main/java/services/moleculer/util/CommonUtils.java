@@ -78,7 +78,7 @@ public final class CommonUtils {
 	// --- CONVERT THROWABLE TO RESPONSE MESSAGE ---
 
 	public static final FastBuildTree throwableToTree(String id, String nodeID, Throwable error) {
-		FastBuildTree msg = new FastBuildTree(6);
+		FastBuildTree msg = new FastBuildTree(7);
 
 		msg.putUnsafe("id", id);
 		msg.putUnsafe("ver", PROTOCOL_VERSION);

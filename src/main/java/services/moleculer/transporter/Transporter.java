@@ -393,7 +393,7 @@ public abstract class Transporter extends MoleculerComponent {
 	// --- DATA PACKET (STREAMING) ---
 
 	public void sendDataPacket(String cmd, String nodeID, Context ctx, byte[] bytes, long sequence) {
-		FastBuildTree msg = new FastBuildTree(6);
+		FastBuildTree msg = new FastBuildTree(7);
 
 		// Add required properties (version, sender's nodeID, request ID)
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
@@ -408,7 +408,12 @@ public abstract class Transporter extends MoleculerComponent {
 
 		// Add "params" block
 		FastBuildTree params = new FastBuildTree(2);
-		msg.putUnsafe("params", params);
+		if (PACKET_RESPONSE.equals(cmd)) {
+			msg.putUnsafe("success", true);
+			msg.putUnsafe("data", params);
+		} else {
+			msg.putUnsafe("params", params);
+		}
 		params.putUnsafe("type", "Buffer");
 
 		// Convert signed byte array to unsigned short array
@@ -438,6 +443,9 @@ public abstract class Transporter extends MoleculerComponent {
 		// Stream packet counter (1...N)
 		msg.putUnsafe("seq", sequence);
 
+		// End of streaming
+		msg.putUnsafe("stream", false);
+
 		// Send message
 		publish(cmd, nodeID, msg);
 	}
@@ -445,15 +453,19 @@ public abstract class Transporter extends MoleculerComponent {
 	// --- CLOSE PACKET (STREAMING) ---
 
 	public void sendClosePacket(String cmd, String nodeID, Context ctx, long sequence) {
-		FastBuildTree msg = new FastBuildTree(4);
+		FastBuildTree msg = new FastBuildTree(6);
 
 		// Add required properties (version, sender's nodeID, request ID)
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
 		msg.putUnsafe("sender", this.nodeID);
 		msg.putUnsafe("id", ctx.id);
-
+		msg.putUnsafe("success", true);
+		
 		// Stream packet counter (1...N)
 		msg.putUnsafe("seq", sequence);
+
+		// End of streaming
+		msg.putUnsafe("stream", false);
 
 		// Send message
 		publish(cmd, nodeID, msg);
