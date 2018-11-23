@@ -92,7 +92,7 @@ dependencies {
     // --- DATATREE API ---
     	    
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-adapters
-	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.8'
+	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.9'
 
     // --- PROMISE API ---
     
@@ -206,7 +206,8 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-version = '1.0.5-SNAPSHOT'
+// version = '1.0.5-SNAPSHOT'
+version = '1.0.5'
 
 modifyPom {
     project {
@@ -234,13 +235,13 @@ modifyPom {
             dependency {
                 groupId 'com.github.berkesa'
                 artifactId 'datatree-adapters'
-                version '1.0.6'
+                version '1.0.9'
                 scope 'runtime'
             }
             dependency {
                 groupId 'com.github.berkesa'
                 artifactId 'datatree-promise'
-                version '1.0.4'
+                version '1.0.5'
                 scope 'runtime'
             }            
             dependency {
@@ -306,6 +307,6 @@ test {
 }
 
 // task copyRuntimeLibs(type: Copy) {
-//     into "lib"
-//     from configurations.runtime
+//      into "lib"
+//      from configurations.runtime
 // }

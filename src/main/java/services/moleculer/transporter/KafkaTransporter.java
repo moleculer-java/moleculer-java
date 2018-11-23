@@ -337,7 +337,7 @@ public class KafkaTransporter extends Transporter {
 	public void publish(String channel, Tree message) {
 		if (producer != null) {
 			try {
-				if (debug) {
+				if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
 				}
 				producer.send(new ProducerRecord<byte[], byte[]>(channel, serializer.write(message)));

@@ -256,7 +256,7 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 	public void publish(String channel, Tree message) {
 		if (client != null) {
 			try {
-				if (debug) {
+				if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
 				}
 				client.publish(channel, serializer.write(message));

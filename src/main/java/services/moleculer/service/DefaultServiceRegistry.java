@@ -659,6 +659,9 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 								transporter.sendDataPacket(PACKET_RESPONSE, sender, ctx, bytes,
 										sequence.incrementAndGet());
 							} else if (cause != null) {
+								if (writeErrorsToLog) {
+									logger.error("Unexpected error occured while streaming!", cause);
+								}
 								transporter.sendErrorPacket(PACKET_RESPONSE, sender, ctx, cause,
 										sequence.incrementAndGet());
 							}
@@ -1030,6 +1033,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		try {
 			if (actions != null && actions.isMap()) {
 				for (Tree actionConfig : actions) {
+					actionConfig = actionConfig.clone();
 					actionConfig.putObject("nodeID", nodeID, true);
 					String actionName = actionConfig.get("name", "");
 

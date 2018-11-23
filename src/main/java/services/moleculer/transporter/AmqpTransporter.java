@@ -255,9 +255,6 @@ public class AmqpTransporter extends Transporter {
 					@Override
 					public final void handleDelivery(String consumerTag, Envelope envelope,
 							AMQP.BasicProperties properties, byte[] body) throws IOException {
-						if (debug) {
-							logger.info(nodeID + " received message from queue \"" + queueName + "\".");
-						}
 
 						// We are running in the shared executor's pool,
 						// do not create new task.
@@ -282,28 +279,28 @@ public class AmqpTransporter extends Transporter {
 
 					@Override
 					public final void handleConsumeOk(String consumerTag) {
-						if (debug) {
+						if (debugHeartbeats) {
 							logger.info("ConsumeOk packet received (consumerTag: " + consumerTag + ").");
 						}
 					}
 
 					@Override
 					public final void handleCancelOk(String consumerTag) {
-						if (debug) {
+						if (debugHeartbeats) {
 							logger.info("CancelOk packet received (consumerTag: " + consumerTag + ").");
 						}
 					}
 
 					@Override
 					public final void handleCancel(String consumerTag) throws IOException {
-						if (debug) {
+						if (debugHeartbeats) {
 							logger.info("Cancel packet received (consumerTag: " + consumerTag + ").");
 						}
 					}
 
 					@Override
 					public final void handleRecoverOk(String consumerTag) {
-						if (debug) {
+						if (debugHeartbeats) {
 							logger.info("RecoverOk packet received (consumerTag: " + consumerTag + ").");
 						}
 					}
@@ -327,7 +324,7 @@ public class AmqpTransporter extends Transporter {
 				if (channel.indexOf('.', pos + 1) > -1) {
 
 					// Send to queue directly
-					if (debug) {
+					if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 						logger.info("Submitting message to queue \"" + channel + "\":\r\n" + message.toString());
 					}
 					this.channel.basicPublish("", channel, mandatory, immediate, messageProperties,
@@ -336,7 +333,7 @@ public class AmqpTransporter extends Transporter {
 				} else {
 
 					// Send to exchange
-					if (debug) {
+					if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 						logger.info("Submitting message to exchange \"" + channel + "\":\r\n" + message.toString());
 					}
 					this.channel.basicPublish(channel, "", mandatory, immediate, messageProperties,

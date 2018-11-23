@@ -212,7 +212,7 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	public void publish(String channel, Tree message) {
 		if (status.get() == STATUS_CONNECTED) {
 			try {
-				if (debug) {
+				if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
 				}
 				clientPub.publish(channel, serializer.write(message));

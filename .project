@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>datatree-promise</name>
-	<comment>Project datatree-promise created by Buildship.</comment>
+	<name>moleculer-java</name>
+	<comment>Fast and powerful microservices framework for Java.</comment>
 	<projects>
 	</projects>
 	<buildSpec>

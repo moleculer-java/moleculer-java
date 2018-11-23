@@ -186,6 +186,7 @@ public class NodeDescriptor {
 			this.offlineSince = 0;
 			this.host = host;
 			this.port = port;
+			cpuWhen = System.currentTimeMillis();
 			return true;
 		}
 		return false;

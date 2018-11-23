@@ -424,7 +424,7 @@ public class GoogleTransporter extends Transporter {
 	public void publish(String channel, Tree message) {
 		if (connected.get()) {
 			try {
-				if (debug) {
+				if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
 				}
 				byte[] bytes = serializer.write(message);

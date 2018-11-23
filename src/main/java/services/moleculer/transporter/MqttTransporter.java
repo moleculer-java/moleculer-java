@@ -278,7 +278,7 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 	public void publish(String channel, Tree message) {
 		if (client != null) {
 			try {
-				if (debug) {
+				if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
 				}
 				client.publish(new PublishMessage(channel, qos, serializer.write(message), false));
@@ -290,7 +290,7 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 
 	@Override
 	public void published(MqttClient client, PublishMessage message) {
-		if (debug) {
+		if (debugHeartbeats) {
 			logger.info(
 					"Submitted message received by the server at " + new Date(message.getReceivedTimestamp()) + ".");
 		}

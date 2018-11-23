@@ -49,10 +49,7 @@ import services.moleculer.error.MoleculerClientError;
 import services.moleculer.error.MoleculerError;
 
 /**
- * NodeJS compatible (EXPERIMENTAL) streaming API to transfer binary files.<br>
- * <br>
- * WARNING: It's a kind of "pre-release version" of streaming. The API will not
- * change but additional compatibility tests are required.<br>
+ * NodeJS compatible streaming API to transfer binary files/content.<br>
  * <br>
  * Sample service invocation with a stream:
  * 
@@ -60,7 +57,7 @@ import services.moleculer.error.MoleculerError;
  * PacketStream stream = broker.createStream();
  * broker.call("streamService.action", stream);
  * stream.sendData("body".getBytes());
- * stream.sendClose(); // It must be closed
+ * stream.sendClose(); // Must close!
  * </pre>
  * 
  * Sample stream receiver service:
@@ -74,8 +71,8 @@ import services.moleculer.error.MoleculerError;
  * 					// Do something with the bytes
  * 				}
  * 				if (close) {
- * 					res.resolve("Ok"); // Send response, can be a structure
- * 										// (Tree)
+ * 					// Send response, can be a structure (Tree)
+ * 					res.resolve("Ok");
  * 				}
  * 			});
  * 		});
@@ -425,8 +422,11 @@ public class PacketStream {
 			ByteBuffer packet) {
 		scheduler.schedule(() -> {
 			try {
-				packet.rewind();
-				int len = source.read(packet);
+				int len = -1;
+				if (!promise.isDone()) {
+					packet.rewind();
+					len = source.read(packet);
+				}
 				if (len < 0) {
 					try {
 						try {
@@ -472,7 +472,7 @@ public class PacketStream {
 	protected void scheduleNextPacket(InputStream source, OutputStream destination, Promise promise, byte[] packet) {
 		scheduler.schedule(() -> {
 			try {
-				int len = source.read(packet);
+				int len = promise.isDone() ? -1 : source.read(packet);
 				if (len < 0) {
 					try {
 						try {
@@ -518,14 +518,56 @@ public class PacketStream {
 	// --- "TRANSFER TO" METHODS ---
 
 	public Promise transferTo(File destination) {
-		try {
-			return transferTo(new FileOutputStream(destination));
-		} catch (Throwable cause) {
-			return Promise.reject(cause);
-		}
+		return transferTo(destination, false);
+	}
+
+	public Promise transferTo(File destination, boolean append) {
+		return new Promise(res -> {
+
+			// First data packet?
+			final AtomicBoolean first = new AtomicBoolean(!append);
+
+			onPacket((bytes, cause, close) -> {
+
+				// Data received
+				if (bytes != null) {
+					FileOutputStream out = null;
+					try {
+						out = new FileOutputStream(destination, !first.compareAndSet(true, false));
+						out.write(bytes);
+						out.flush();
+					} catch (Throwable err) {
+						cause = err;
+					} finally {
+						if (out != null) {
+							try {
+								out.close();
+							} catch (Throwable ignored) {
+
+								// Do nothing
+							}
+						}
+					}
+				}
+				if (cause != null) {
+
+					// Error received
+					res.reject(cause);
+
+				} else if (close) {
+
+					// Close received
+					res.resolve();
+				}
+			});
+		});
 	}
 
 	public Promise transferTo(OutputStream destination) {
+		return transferTo(destination, true);
+	}
+
+	public Promise transferTo(OutputStream destination, boolean closeStream) {
 		return new Promise(res -> {
 			onPacket((bytes, cause, close) -> {
 
@@ -542,12 +584,15 @@ public class PacketStream {
 				if (close) {
 					try {
 						destination.flush();
-						destination.close();
-						if (cause == null) {
-							res.resolve();
+						if (closeStream) {
+							destination.close();
 						}
 					} catch (Throwable error) {
 						cause = error;
+					} finally {
+						if (cause == null) {
+							res.resolve();
+						}
 					}
 				}
 
@@ -561,6 +606,10 @@ public class PacketStream {
 	}
 
 	public Promise transferTo(WritableByteChannel destination) {
+		return transferTo(destination, true);
+	}
+
+	public Promise transferTo(WritableByteChannel destination, boolean closeChannel) {
 		return new Promise(res -> {
 			onPacket((bytes, cause, close) -> {
 
@@ -581,12 +630,15 @@ public class PacketStream {
 				// Close received
 				if (close) {
 					try {
-						destination.close();
-						if (cause == null) {
-							res.resolve();
+						if (closeChannel) {
+							destination.close();
 						}
 					} catch (Throwable error) {
 						cause = error;
+					} finally {
+						if (cause == null) {
+							res.resolve();
+						}
 					}
 				}
 
@@ -606,7 +658,7 @@ public class PacketStream {
 	}
 
 	public void setPacketSize(int packetSize) {
-		this.packetSize = packetSize < 0 ? 0 : packetSize;
+		this.packetSize = Math.max(0, packetSize);
 	}
 
 	public long getPacketDelay() {
@@ -614,7 +666,7 @@ public class PacketStream {
 	}
 
 	public void setPacketDelay(long packetDelay) {
-		this.packetDelay = packetDelay < 0 ? 0 : packetDelay;
+		this.packetDelay = Math.max(0L, packetDelay);
 	}
 
 	public boolean isClosed() {

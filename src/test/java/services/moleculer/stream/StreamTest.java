@@ -74,7 +74,7 @@ public abstract class StreamTest extends TestCase {
 
 		byte[] bytes1 = randomBytes(300);
 		PacketStream stream = br1.createStream();
-		Tree rsp = br1.call("stream-receiver.receive", stream).waitFor();
+		Tree rsp = br1.call("stream-receiver.receive", stream).waitFor(10000);
 		assertEquals(123, (int) rsp.asInteger());
 		assertTrue(stream.sendData(bytes1));
 

@@ -25,6 +25,7 @@
  */
 package services.moleculer.stream;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -168,11 +169,21 @@ public class IncomingStream {
 				}
 				if (params != null) {
 					Tree data = params.get("data");
-					if (data != null && data.isEnumeration()) {
+					if (data == null) {
+						data = params;
+					}					
+					if (data.isEnumeration()) {
 						bytes = new byte[data.size()];
 						int idx = 0;
 						for (Tree item : data) {
 							bytes[idx++] = (byte) item.asInteger().intValue();
+						}
+					} else if (data.isStructure()) {
+						bytes = data.toBinary();						
+					} else {
+						String value = data.asString();
+						if (value != null && !value.isEmpty()) {
+							bytes = value.getBytes(StandardCharsets.UTF_8);
 						}
 					}
 				}

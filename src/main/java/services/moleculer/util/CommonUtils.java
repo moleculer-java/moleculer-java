@@ -46,6 +46,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
@@ -88,6 +89,9 @@ public final class CommonUtils {
 
 			// Convert to Throwable to MoleculerError
 			MoleculerError moleculerError;
+			if (error instanceof CompletionException) {
+				error = error.getCause();
+			}
 			if (error instanceof MoleculerError) {
 				moleculerError = (MoleculerError) error;
 			} else {

@@ -25,15 +25,13 @@
  */
 package services.moleculer;
 
-import java.io.File;
-
 import services.moleculer.cacher.Cache;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
+import services.moleculer.serializer.MsgPackSerializer;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
-import services.moleculer.stream.PacketStream;
 import services.moleculer.transporter.RedisTransporter;
 import services.moleculer.transporter.Transporter;
 
@@ -42,108 +40,24 @@ public class Sample {
 	public static void main(String[] args) throws Exception {
 		System.out.println("START");
 		try {
-
-			// Create Message Brokers
-			Transporter t1 = new RedisTransporter();
-			Transporter t2 = new RedisTransporter();
-
-			boolean debug = false;
-			t1.setDebug(debug);
-			t2.setDebug(debug);
-
-			ServiceBroker broker1 = ServiceBroker.builder().transporter(t1).nodeID("sender").build();
-			ServiceBroker broker2 = ServiceBroker.builder().transporter(t2).nodeID("receiver").build();
-
-			// Deploy services
-			broker1.createService(new SenderService());
-			broker2.createService(new ReceiverService());
+			
+			// Create Message Broker
+			Transporter t = new RedisTransporter("192.168.51.100");
+			t.setSerializer(new MsgPackSerializer());
+			t.setDebug(false);
+			ServiceBroker broker = ServiceBroker.builder().transporter(t).nodeID("node2").build();
 
 			// Start Message Broker
-			broker1.start();
-			broker2.start();
-			broker1.waitForServices("receiver").waitFor(5000);
-
-			// Invoke sender service
-			Thread.sleep(1000);
-			broker1.call("sender.send");
-			Thread.sleep(120000);
-
-			// Stop Message Brokers
-			broker1.stop();
-			broker2.stop();
+			broker.start();
+			
+			// Stop Message Broker
+			broker.repl();
 
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		System.out.println("STOP");
 	}
-
-	@Name("sender")
-	public static class SenderService extends Service {
-
-		public Action send = ctx -> {
-
-			System.out.println("SENDER - called");
-
-			File file1 = new File("/temp/test1.txt");
-			File file2 = new File("/temp/test2.txt");
-
-			PacketStream output = broker.createStream();
-
-			ctx.call("receiver.receive", output).then(rsp -> {
-
-				PacketStream in = (PacketStream) rsp.asObject();
-				System.out.println("SENDER - received stream: " + in);
-
-				in.transferTo(file2).then(transfered -> {
-
-					System.out.println("SENDER - file saved.");
-
-				});
-
-			});
-
-			System.out.println("SENDER - start transfer");
-
-			output.transferFrom(file1).then(rsp -> {
-
-				System.out.println("SENDER - transfer finished");
-
-			});
-
-			return null;
-		};
-
-	};
-
-	@Name("receiver")
-	public static class ReceiverService extends Service {
-
-		public Action receive = ctx -> {
-
-			System.out.println("RECEIVER - called");
-
-			PacketStream output = broker.createStream();
-
-			ctx.stream.onPacket((bytes, cause, close) -> {
-				if (bytes != null) {
-					System.out.println("RECEIVER - Sending back " + bytes.length + " bytes...");
-					output.sendData(bytes);
-				}
-				if (cause != null) {
-					System.out.println("RECEIVER - Sending back: error (" + cause + ")");
-					output.sendError(cause);
-				}
-				if (close) {
-					System.out.println("RECEIVER - Sending back: close");
-					output.sendClose();
-				}
-			});
-
-			return output;
-		};
-
-	};
 
 	@Name("java.math")
 	public static class MathService extends Service {

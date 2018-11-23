@@ -303,7 +303,7 @@ public class JmsTransporter extends Transporter {
 	public void publish(String channel, Tree message) {
 		if (client != null) {
 			try {
-				if (debug) {
+				if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
 				}
 				TopicPublisher publisher = createOrGetPublisher(channel);

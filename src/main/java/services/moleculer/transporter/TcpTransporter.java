@@ -764,7 +764,7 @@ public class TcpTransporter extends Transporter {
 	public void udpPacketReceived(String sender, String host, int port) {
 
 		// Debug
-		if (debug) {
+		if (debugHeartbeats) {
 			logger.info("Discovery message received from \"" + sender + "\" node (host: " + host + ", port: " + port
 					+ ").");
 		}
@@ -779,7 +779,7 @@ public class TcpTransporter extends Transporter {
 
 		// Debug
 		String sender = data.get("sender", (String) null);
-		if (debug) {
+		if (debugHeartbeats) {
 			logger.info("Gossip \"hello\" received from \"" + sender + "\" node:\r\n" + data);
 		}
 
@@ -987,7 +987,7 @@ public class TcpTransporter extends Transporter {
 		}
 
 		// Debug
-		if (debug) {
+		if (debugHeartbeats) {
 			logger.info("Gossip request submitting to \"" + nodeID + "\" node:\r\n" + message);
 		}
 
@@ -1001,7 +1001,7 @@ public class TcpTransporter extends Transporter {
 
 		// Debug
 		String sender = data.get("sender", (String) null);
-		if (debug) {
+		if (debugHeartbeats) {
 			logger.info("Gossip request received from \"" + sender + "\" node:\r\n" + data);
 		}
 
@@ -1158,7 +1158,7 @@ public class TcpTransporter extends Transporter {
 		}
 
 		// Debug
-		if (debug) {
+		if (debugHeartbeats) {
 			logger.info("Gossip response submitting to \"" + sender + "\" node:\r\n" + root);
 		}
 
@@ -1183,7 +1183,7 @@ public class TcpTransporter extends Transporter {
 	protected void processGossipResponse(Tree data) throws Exception {
 
 		// Debug
-		if (debug) {
+		if (debugHeartbeats) {
 			String sender = data.get("sender", (String) null);
 			logger.info("Gossip response received from \"" + sender + "\" node:\r\n" + data);
 		}

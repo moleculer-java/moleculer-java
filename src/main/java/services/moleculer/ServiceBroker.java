@@ -334,8 +334,9 @@ public class ServiceBroker extends EventEmitter {
 	 * 
 	 * @throws Exception
 	 *             fatal error (missing classes or JARs, used port, etc.)
+	 * @return this ServiceBroker instance (from "method chaining")
 	 */
-	public void start() throws Exception {
+	public ServiceBroker start() throws Exception {
 
 		// Check state
 		if (serviceRegistry != null) {
@@ -398,6 +399,7 @@ public class ServiceBroker extends EventEmitter {
 			middlewares.clear();
 			services.clear();
 		}
+		return this;
 	}
 
 	/**
@@ -492,8 +494,10 @@ public class ServiceBroker extends EventEmitter {
 	 * Stop broker and all internal components (event bus, context factory,
 	 * etc.). If the Broker has a Transporter, transporter.disconnect() will be
 	 * called.
+	 * 
+	 * @return this ServiceBroker instance (from "method chaining")
 	 */
-	public void stop() {
+	public ServiceBroker stop() {
 
 		// Stop internal components
 		stop(transporter);
@@ -523,6 +527,7 @@ public class ServiceBroker extends EventEmitter {
 			}
 			logger.info("Task Scheduler Service stopped.");
 		}
+		return this;
 	}
 
 	/**
@@ -586,9 +591,11 @@ public class ServiceBroker extends EventEmitter {
 	 * 
 	 * @param service
 	 *            the new service instance
+	 * @return this ServiceBroker instance (from "method chaining")
 	 */
-	public void createService(Service service) {
+	public ServiceBroker createService(Service service) {
 		createService(service.getName(), service);
+		return this;
 	}
 
 	/**
@@ -600,8 +607,9 @@ public class ServiceBroker extends EventEmitter {
 	 *            etc.)
 	 * @param service
 	 *            the new service instance
+	 * @return this ServiceBroker instance (from "method chaining")
 	 */
-	public void createService(String name, Service service) {
+	public ServiceBroker createService(String name, Service service) {
 		if (serviceRegistry == null) {
 
 			// Start service later
@@ -612,6 +620,7 @@ public class ServiceBroker extends EventEmitter {
 			eventbus.addListeners(name, service);
 			serviceRegistry.addActions(name, service);
 		}
+		return this;
 	}
 
 	// --- GET LOCAL SERVICE ---
@@ -638,8 +647,9 @@ public class ServiceBroker extends EventEmitter {
 	 * 
 	 * @param middlewares
 	 *            collection of middlewares
+	 * @return this ServiceBroker instance (from "method chaining")
 	 */
-	public void use(Collection<Middleware> middlewares) {
+	public ServiceBroker use(Collection<Middleware> middlewares) {
 		if (serviceRegistry == null) {
 
 			// Apply middlewares later
@@ -649,6 +659,7 @@ public class ServiceBroker extends EventEmitter {
 			// Apply middlewares now
 			serviceRegistry.use(middlewares);
 		}
+		return this;
 	}
 
 	/**
@@ -656,9 +667,10 @@ public class ServiceBroker extends EventEmitter {
 	 * 
 	 * @param middlewares
 	 *            array of middlewares
+	 * @return this ServiceBroker instance (from "method chaining")
 	 */
-	public void use(Middleware... middlewares) {
-		use(Arrays.asList(middlewares));
+	public ServiceBroker use(Middleware... middlewares) {
+		return use(Arrays.asList(middlewares));
 	}
 
 	// --- GET LOCAL OR REMOTE ACTION ---

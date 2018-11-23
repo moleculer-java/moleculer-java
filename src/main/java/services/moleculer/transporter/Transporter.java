@@ -29,6 +29,7 @@ import static services.moleculer.ServiceBroker.PROTOCOL_VERSION;
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.throwableToTree;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -134,7 +135,15 @@ public abstract class Transporter extends MoleculerComponent {
 
 	// --- DEBUG COMMUNICATION ---
 
+	/**
+	 * Writes the communication of method calls and events into the log.
+	 */
 	protected boolean debug;
+
+	/**
+	 * Writes the communication of heartbeats/gossiping into the log.
+	 */
+	protected boolean debugHeartbeats;
 
 	// --- SERIALIZER / DESERIALIZER ---
 
@@ -271,7 +280,7 @@ public abstract class Transporter extends MoleculerComponent {
 
 				// Do the discovery process
 				sendDiscoverPacket(discoverBroadcastChannel);
-				sendInfoPacket(infoBroadcastChannel);
+				broadcastInfoPacket();
 
 				// Start sendHeartbeat timer
 				if (heartBeatTimer == null && heartbeatInterval > 0) {
@@ -281,8 +290,9 @@ public abstract class Transporter extends MoleculerComponent {
 
 				// Start timeout checker's timer
 				if (checkTimeoutTimer == null && (heartbeatTimeout > 0 || offlineTimeout > 0)) {
-					checkTimeoutTimer = scheduler.scheduleAtFixedRate(this::checkTimeouts, heartbeatTimeout,
-							heartbeatTimeout, TimeUnit.SECONDS);
+					int checkPeriod = Math.max(5, heartbeatTimeout / 3);
+					checkTimeoutTimer = scheduler.scheduleAtFixedRate(this::checkTimeouts, checkPeriod, checkPeriod,
+							TimeUnit.SECONDS);
 				}
 
 			}).catchError(error -> {
@@ -453,13 +463,14 @@ public abstract class Transporter extends MoleculerComponent {
 	// --- CLOSE PACKET (STREAMING) ---
 
 	public void sendClosePacket(String cmd, String nodeID, Context ctx, long sequence) {
-		FastBuildTree msg = new FastBuildTree(6);
+		FastBuildTree msg = new FastBuildTree(7);
 
 		// Add required properties (version, sender's nodeID, request ID)
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
 		msg.putUnsafe("sender", this.nodeID);
 		msg.putUnsafe("id", ctx.id);
 		msg.putUnsafe("success", true);
+		msg.putUnsafe("meta", Collections.EMPTY_MAP);
 		
 		// Stream packet counter (1...N)
 		msg.putUnsafe("seq", sequence);
@@ -523,7 +534,7 @@ public abstract class Transporter extends MoleculerComponent {
 		}
 
 		// Debug
-		if (debug) {
+		if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 			logger.info("Message received from channel \"" + channel + "\":\r\n" + data);
 		}
 
@@ -838,13 +849,16 @@ public abstract class Transporter extends MoleculerComponent {
 			long offlineTimeoutMillis = offlineTimeout * 1000L;
 			while (i.hasNext()) {
 				node = i.next();
+				if (node.local) {
+					continue;
+				}
 				node.readLock.lock();
 				try {
 					if (node.offlineSince > 0 && now - node.offlineSince > offlineTimeoutMillis) {
 
-						// Remove node from Map
+						// Remove node info from registry
 						i.remove();
-						logger.info("Node \"" + nodeID + "\" is no longer registered because it was inactive for "
+						logger.info("Node \"" + node.nodeID + "\" is no longer registered because it was inactive for "
 								+ offlineTimeout + " seconds.");
 
 					}
@@ -861,6 +875,9 @@ public abstract class Transporter extends MoleculerComponent {
 			LinkedList<NodeDescriptor> disconnectedNodes = new LinkedList<>();
 			while (i.hasNext()) {
 				node = i.next();
+				if (node.local) {
+					continue;
+				}
 				node.writeLock.lock();
 				try {
 					if (node.cpuWhen > 0 && now - node.cpuWhen > heartbeatTimeoutMillis && node.markAsOffline()) {
@@ -879,9 +896,8 @@ public abstract class Transporter extends MoleculerComponent {
 				node = i.next();
 
 				// Notify listeners
-				logger.info("Node \"" + node.nodeID
-						+ "\" is no longer available because it hasn't submitted heartbeat signal for "
-						+ heartbeatTimeout + " seconds.");
+				logger.info("Heartbeat is not received from \"" + node.nodeID + "\" node.");
+				logger.info("Node \"" + node.nodeID + "\" disconnected unexpectedly.");
 				broadcastNodeDisconnected(node.info, true);
 			}
 		}
@@ -1059,6 +1075,14 @@ public abstract class Transporter extends MoleculerComponent {
 
 	public void setSubscriptionTimeout(int subscriptionTimeout) {
 		this.subscriptionTimeout = subscriptionTimeout;
+	}
+
+	public boolean isDebugHeartbeats() {
+		return debugHeartbeats;
+	}
+
+	public void setDebugHeartbeats(boolean debugHeartbeats) {
+		this.debugHeartbeats = debugHeartbeats;
 	}
 
 }

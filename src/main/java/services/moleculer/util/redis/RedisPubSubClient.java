@@ -92,7 +92,9 @@ public final class RedisPubSubClient extends AbstractRedisClient {
 	// --- PUBLISH ---
 
 	public final void publish(String channel, byte[] message) {
-		client.publish(channel.getBytes(StandardCharsets.UTF_8), message);
+		if (client != null) {
+			client.publish(channel.getBytes(StandardCharsets.UTF_8), message);
+		}
 	}
 
 	// --- DISCONNECT ---

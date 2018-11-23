@@ -80,7 +80,7 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 
 							} catch (MoleculerError moleculerError) {
 								throw moleculerError;
-							} catch (Exception error) {
+							} catch (Throwable error) {
 								throw new MoleculerClientError("Remote invocation failed!", error, nodeID, null);
 							}
 						}

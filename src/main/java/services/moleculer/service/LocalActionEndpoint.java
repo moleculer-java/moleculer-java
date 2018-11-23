@@ -68,7 +68,7 @@ public class LocalActionEndpoint extends ActionEndpoint {
 								registry.deregister(ctx.id);
 							}
 						});
-					} catch (Exception cause) {
+					} catch (Throwable cause) {
 						registry.deregister(ctx.id);
 						promise.complete(cause);
 					}
