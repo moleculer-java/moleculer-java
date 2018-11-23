@@ -64,9 +64,9 @@ import services.moleculer.error.MoleculerError;
  * 
  * <pre>
  * public class StreamService extends Service {
- * 	public Action action = ctx -> {
- * 		return new Promise(res -> {
- * 			ctx.stream.onPacket((bytes, cause, close) -> {
+ * 	public Action action = ctx -&gt; {
+ * 		return new Promise(res -&gt; {
+ * 			ctx.stream.onPacket((bytes, cause, close) -&gt; {
  * 				if (bytes != null) {
  * 					// Do something with the bytes
  * 				}

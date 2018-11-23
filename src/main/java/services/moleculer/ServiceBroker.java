@@ -875,10 +875,10 @@ public class ServiceBroker extends EventEmitter {
 	 * "unlimited" media content) between Moleculer Nodes. Sample:<br>
 	 * 
 	 * <pre>
-	 * public Action send = ctx -> {
+	 * public Action send = ctx -&gt; {
 	 *   PacketStream reqStream = broker.createStream();
 	 *   
-	 *   ctx.call("service.action", reqStream).then(rsp -> {
+	 *   ctx.call("service.action", reqStream).then(rsp -&gt; {
 	 *   
 	 *     // Receive bytes into file
 	 *     PacketStream rspStream = (PacketStream) rsp.asObject();

@@ -333,7 +333,7 @@ public abstract class TransporterTest extends TestCase {
 		br2.start();
 
 		// Wait for connecting nodes
-		br2.waitForServices(15000, "marker").waitFor(20000);
+		br2.waitForServices(15000, "marker").waitFor(15000);
 	}
 
 	@Override

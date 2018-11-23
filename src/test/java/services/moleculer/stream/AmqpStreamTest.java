@@ -25,10 +25,14 @@
  */
 package services.moleculer.stream;
 
-public class AmqpStreamTest {
+import services.moleculer.transporter.AmqpTransporter;
+import services.moleculer.transporter.Transporter;
 
-	public AmqpStreamTest() {
-		// TODO Auto-generated constructor stub
+public class AmqpStreamTest extends StreamTest {
+
+	@Override
+	public Transporter createTransporter() {
+		return new AmqpTransporter();
 	}
 
 }
