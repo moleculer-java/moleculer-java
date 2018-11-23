@@ -864,7 +864,7 @@ public class ErrorTest extends TestCase {
 		br2.start();
 
 		// Wait for connecting peer
-		br2.waitForServices(15000, "test").waitFor();
+		br2.waitForServices(15000, "test").waitFor(20000);
 	}
 
 	@Override

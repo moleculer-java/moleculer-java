@@ -77,13 +77,13 @@ public abstract class TransporterTest extends TestCase {
 		br1.createService("math", new TestService());
 
 		// Wait for "math" service on node2
-		br2.waitForServices(10000, "math").waitFor();
+		br2.waitForServices(10000, "math").waitFor(20000);
 
 		// Wait for "math" service on node2 (again)
-		br2.waitForServices(10000, "math").waitFor();
+		br2.waitForServices(10000, "math").waitFor(20000);
 
 		// Wait for "math" service on node1
-		br1.waitForServices(10000, "math").waitFor();
+		br1.waitForServices(10000, "math").waitFor(20000);
 
 		// Get local action
 		Action action = br1.getAction("math.add");
@@ -97,7 +97,7 @@ public abstract class TransporterTest extends TestCase {
 
 		// Invoke "math" service from node2
 		for (int i = 0; i < 10; i++) {
-			Tree rsp = br2.call("math.add", "a", i, "b", 1).waitFor();
+			Tree rsp = br2.call("math.add", "a", i, "b", 1).waitFor(20000);
 			assertEquals(i + 1, (int) rsp.asInteger());
 		}
 
@@ -114,15 +114,15 @@ public abstract class TransporterTest extends TestCase {
 		Group2Listener g2_b = (Group2Listener) br2.getLocalService("g2_b");
 
 		// Wait for listener services on node1
-		br1.waitForServices(10000, "g1_a", "g1_b", "g2_a", "g2_b").waitFor();
+		br1.waitForServices(10000, "g1_a", "g1_b", "g2_a", "g2_b").waitFor(20000);
 
 		// Broadcast
 		br1.broadcast("test.a", new Tree());
 		Thread.sleep(sleep);
-		g1_a.waitFor();
-		g1_b.waitFor();
-		g2_a.waitFor();
-		g2_b.waitFor();
+		g1_a.waitFor(20000);
+		g1_b.waitFor(20000);
+		g2_a.waitFor(20000);
+		g2_b.waitFor(20000);
 		g1_a.payloads.clear();
 		g1_b.payloads.clear();
 		g2_a.payloads.clear();
@@ -130,8 +130,8 @@ public abstract class TransporterTest extends TestCase {
 
 		// Broadcast to group1
 		br1.broadcast("test.a", new Tree(), Groups.of("group1"));
-		g1_a.waitFor();
-		g1_b.waitFor();
+		g1_a.waitFor(20000);
+		g1_b.waitFor(20000);
 		assertEquals(1, g1_a.payloads.size());
 		assertEquals(1, g1_b.payloads.size());
 		assertEquals(0, g2_a.payloads.size());
@@ -141,8 +141,8 @@ public abstract class TransporterTest extends TestCase {
 
 		// Broadcast to group2
 		br1.broadcast("test.a", new Tree(), Groups.of("group2"));
-		g2_a.waitFor();
-		g2_b.waitFor();
+		g2_a.waitFor(20000);
+		g2_b.waitFor(20000);
 		assertEquals(0, g1_a.payloads.size());
 		assertEquals(0, g1_b.payloads.size());
 		assertEquals(1, g2_a.payloads.size());
@@ -152,10 +152,10 @@ public abstract class TransporterTest extends TestCase {
 
 		// Broadcast to group1 and group2
 		br1.broadcast("test.a", new Tree(), Groups.of("group1", "group2"));
-		g1_a.waitFor();
-		g1_b.waitFor();
-		g2_a.waitFor();
-		g2_b.waitFor();
+		g1_a.waitFor(20000);
+		g1_b.waitFor(20000);
+		g2_a.waitFor(20000);
+		g2_b.waitFor(20000);
 		g1_a.payloads.clear();
 		g1_b.payloads.clear();
 		g2_a.payloads.clear();
@@ -230,12 +230,12 @@ public abstract class TransporterTest extends TestCase {
 		// Test null service
 		br1.createService(new NullService());
 		br2.waitForServices("nullService").waitFor(3000);
-		Tree rsp = br2.call("nullService.nullAction", (Tree) null).waitFor();
+		Tree rsp = br2.call("nullService.nullAction", (Tree) null).waitFor(20000);
 		assertNull(rsp);
 	}
 
 	private void checkPing(ServiceBroker broker, String nodeID) throws Exception {
-		Tree rsp = broker.ping(nodeID).waitFor();
+		Tree rsp = broker.ping(nodeID).waitFor(20000);
 		assertTrue(rsp.get("time", 0L) > 0);
 		assertTrue(rsp.get("arrived", 0L) > 0);
 	}
@@ -264,10 +264,10 @@ public abstract class TransporterTest extends TestCase {
 			}
 		};
 
-		public void waitFor() throws Exception {
+		public void waitFor(long timeout) throws Exception {
 			synchronized (payloads) {
 				if (payloads.isEmpty()) {
-					payloads.wait(10000);
+					payloads.wait(timeout);
 				}
 			}
 			assertTrue(!payloads.isEmpty());
@@ -288,10 +288,10 @@ public abstract class TransporterTest extends TestCase {
 			}
 		};
 
-		public void waitFor() throws Exception {
+		public void waitFor(long timeout) throws Exception {
 			synchronized (payloads) {
 				if (payloads.isEmpty()) {
-					payloads.wait(10000);
+					payloads.wait(timeout);
 				}
 			}
 			assertTrue(!payloads.isEmpty());
@@ -333,7 +333,7 @@ public abstract class TransporterTest extends TestCase {
 		br2.start();
 
 		// Wait for connecting nodes
-		br2.waitForServices(15000, "marker").waitFor();
+		br2.waitForServices(15000, "marker").waitFor(20000);
 	}
 
 	@Override

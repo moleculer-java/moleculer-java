@@ -61,12 +61,12 @@ public class ServiceTest extends TestCase {
 
 		// Normal internal call
 		br.createService("test", new TestService());
-		Tree rsp = br.call("test.add", "a", 3, "b", 6).waitFor();
+		Tree rsp = br.call("test.add", "a", 3, "b", 6).waitFor(20000);
 		assertEquals(9, (int) rsp.asInteger());
 
 		// Invalid call
 		try {
-			br.call("test.invalid", "a", 3, "b", 6).waitFor();
+			br.call("test.invalid", "a", 3, "b", 6).waitFor(20000);
 			fail();
 		} catch (Exception e) {
 
@@ -75,7 +75,7 @@ public class ServiceTest extends TestCase {
 
 		// Using filter
 		br.use(new TestFilter());
-		rsp = br.call("test.add", "a", 3, "b", 6).waitFor();
+		rsp = br.call("test.add", "a", 3, "b", 6).waitFor(20000);
 		assertEquals(123, (int) rsp.asInteger());
 
 		// Incoming call
@@ -90,7 +90,7 @@ public class ServiceTest extends TestCase {
 		assertEquals("MOL.RES.node5", rsp.get("channel", ""));
 
 		br.createService(new NullService());
-		rsp = br.call("nullService.nullAction", (Tree) null).waitFor();
+		rsp = br.call("nullService.nullAction", (Tree) null).waitFor(20000);
 		assertNull(rsp);
 	}
 

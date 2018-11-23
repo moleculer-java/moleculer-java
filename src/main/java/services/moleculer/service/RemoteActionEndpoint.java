@@ -75,7 +75,7 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 						if (promise.isRejected()) {
 							try {
 
-								// Throws an error
+								// Throws the error
 								promise.waitFor();
 
 							} catch (MoleculerError moleculerError) {

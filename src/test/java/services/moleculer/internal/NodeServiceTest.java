@@ -54,7 +54,7 @@ public class NodeServiceTest extends TestCase {
 		params.put("onlyLocal", false);
 		params.put("skipInternal", false);
 		params.put("withEndpoints", true);
-		rsp = br.call("$node.actions", params).waitFor();
+		rsp = br.call("$node.actions", params).waitFor(20000);
 
 		assertEquals(5, rsp.size());
 		assertEquals(6, rsp.get("[0]").size());
@@ -117,7 +117,7 @@ public class NodeServiceTest extends TestCase {
 		params.put("onlyLocal", true);
 		params.put("skipInternal", false);
 		params.put("withEndpoints", false);
-		rsp = br.call("$node.actions", params).waitFor();
+		rsp = br.call("$node.actions", params).waitFor(20000);
 
 		assertEquals(5, rsp.size());
 		assertEquals(5, rsp.get("[0]").size());
@@ -161,12 +161,12 @@ public class NodeServiceTest extends TestCase {
 		params.put("onlyLocal", false);
 		params.put("skipInternal", false);
 		params.put("withEndpoints", true);
-		rsp = br.call("$node.events", params).waitFor();
+		rsp = br.call("$node.events", params).waitFor(20000);
 
 		assertTrue(rsp.isEmpty());
 
 		// Health
-		rsp = br.call("$node.health").waitFor();
+		rsp = br.call("$node.health").waitFor(20000);
 
 		assertEquals(6, rsp.size());
 		assertEquals(2, rsp.get("cpu").size());
@@ -210,7 +210,7 @@ public class NodeServiceTest extends TestCase {
 		params.put("onlyLocal", false);
 		params.put("skipInternal", false);
 		params.put("withActions", true);
-		rsp = br.call("$node.list", params).waitFor();
+		rsp = br.call("$node.list", params).waitFor(20000);
 
 		assertEquals(1, rsp.size());
 		assertEquals(8, rsp.get("[0]").size());
@@ -237,7 +237,7 @@ public class NodeServiceTest extends TestCase {
 		params.put("onlyLocal", false);
 		params.put("skipInternal", false);
 		params.put("withEndpoints", true);
-		rsp = br.call("$node.actions", params).waitFor();
+		rsp = br.call("$node.actions", params).waitFor(20000);
 
 		assertEquals(6, rsp.size());
 		assertEquals(6, rsp.get("[0]").size());
@@ -311,7 +311,7 @@ public class NodeServiceTest extends TestCase {
 		params.put("onlyLocal", false);
 		params.put("skipInternal", true);
 		params.put("withEndpoints", false);
-		rsp = br.call("$node.actions", params).waitFor();
+		rsp = br.call("$node.actions", params).waitFor(20000);
 
 		assertEquals(1, rsp.size());
 		assertEquals(5, rsp.get("[0]").size());
@@ -326,7 +326,7 @@ public class NodeServiceTest extends TestCase {
 		params.put("onlyLocal", false);
 		params.put("skipInternal", true);
 		params.put("withEndpoints", true);
-		rsp = br.call("$node.actions", params).waitFor();
+		rsp = br.call("$node.actions", params).waitFor(20000);
 
 		assertEquals(1, rsp.size());
 		assertEquals(6, rsp.get("[0]").size());
@@ -346,7 +346,7 @@ public class NodeServiceTest extends TestCase {
 		params.put("onlyLocal", false);
 		params.put("skipInternal", false);
 		params.put("withEndpoints", true);
-		rsp = br.call("$node.events", params).waitFor();
+		rsp = br.call("$node.events", params).waitFor(20000);
 
 		assertEquals(1, rsp.size());
 		assertEquals(7, rsp.get("[0]").size());
@@ -367,7 +367,7 @@ public class NodeServiceTest extends TestCase {
 		params.put("onlyLocal", true);
 		params.put("skipInternal", false);
 		params.put("withEndpoints", false);
-		rsp = br.call("$node.events", params).waitFor();
+		rsp = br.call("$node.events", params).waitFor(20000);
 
 		assertEquals(1, rsp.size());
 		assertEquals(6, rsp.get("[0]").size());

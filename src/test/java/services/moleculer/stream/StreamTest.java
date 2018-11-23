@@ -130,7 +130,7 @@ public abstract class StreamTest extends TestCase {
 
 		listener.reset();
 		stream = br1.createStream();
-		rsp = br1.call("stream-receiver.receive", stream).waitFor();
+		rsp = br1.call("stream-receiver.receive", stream).waitFor(20000);
 		assertEquals(123, (int) rsp.asInteger());
 
 		listener.assertOpened();
@@ -165,7 +165,7 @@ public abstract class StreamTest extends TestCase {
 
 		listener.reset();
 		stream = br1.createStream();
-		rsp = br1.call("stream-receiver.receive", stream).waitFor();
+		rsp = br1.call("stream-receiver.receive", stream).waitFor(20000);
 		assertEquals(123, (int) rsp.asInteger());
 
 		OutputStream out = stream.asOutputStream();
@@ -193,7 +193,7 @@ public abstract class StreamTest extends TestCase {
 
 		listener.reset();
 		stream = br1.createStream();
-		rsp = br1.call("stream-receiver.receive", stream).waitFor();
+		rsp = br1.call("stream-receiver.receive", stream).waitFor(20000);
 		assertEquals(123, (int) rsp.asInteger());
 
 		WritableByteChannel channel = stream.asWritableByteChannel();
@@ -221,7 +221,7 @@ public abstract class StreamTest extends TestCase {
 
 		listener.reset();
 		stream = br1.createStream();
-		rsp = br1.call("stream-receiver.receive", stream).waitFor();
+		rsp = br1.call("stream-receiver.receive", stream).waitFor(20000);
 		assertEquals(123, (int) rsp.asInteger());
 		stream.setPacketSize(0);
 
@@ -255,7 +255,7 @@ public abstract class StreamTest extends TestCase {
 
 		listener.reset();
 		stream = br1.createStream();
-		rsp = br1.call("stream-receiver.receive", stream).waitFor();
+		rsp = br1.call("stream-receiver.receive", stream).waitFor(20000);
 		assertEquals(123, (int) rsp.asInteger());
 		stream.setPacketSize(0);
 
@@ -289,7 +289,7 @@ public abstract class StreamTest extends TestCase {
 
 		listener.reset();
 		stream = br1.createStream();
-		rsp = br1.call("stream-receiver.receive", stream).waitFor();
+		rsp = br1.call("stream-receiver.receive", stream).waitFor(20000);
 		assertEquals(123, (int) rsp.asInteger());
 		stream.setPacketSize(10);
 
@@ -311,7 +311,7 @@ public abstract class StreamTest extends TestCase {
 
 		listener.reset();
 		stream = br1.createStream();
-		rsp = br1.call("stream-receiver.receive", stream).waitFor();
+		rsp = br1.call("stream-receiver.receive", stream).waitFor(20000);
 		assertEquals(123, (int) rsp.asInteger());
 		listener.assertEmpty();
 

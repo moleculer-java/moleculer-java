@@ -56,33 +56,33 @@ public abstract class CacherTest extends TestCase {
 
 		// 1.) simple set / get
 		cr.set("a.b", val, 0);
-		rsp = cr.get("a.b").waitFor();
+		rsp = cr.get("a.b").waitFor(20000);
 		assertEquals(3, rsp.get("rsp", 0));
 
 		// 2.) simple set / get
 		val.put("rsp", 4);
 		cr.set("a.c", val, 0);
 
-		rsp = cr.get("a.b").waitFor();
+		rsp = cr.get("a.b").waitFor(20000);
 		assertEquals(3, rsp.get("rsp", 0));
 
-		rsp = cr.get("a.c").waitFor();
+		rsp = cr.get("a.c").waitFor(20000);
 		assertEquals(4, rsp.get("rsp", 0));
 
 		// 3.) simple set / get
 		val.put("rsp", 5);
 		cr.set("a.b", val, 0);
 
-		rsp = cr.get("a.b").waitFor();
+		rsp = cr.get("a.b").waitFor(20000);
 		assertEquals(5, rsp.get("rsp", 0));
 
 		// 4.) Simple delete
-		cr.del("a.b").waitFor();
+		cr.del("a.b").waitFor(20000);
 
-		rsp = cr.get("a.b").waitFor();
+		rsp = cr.get("a.b").waitFor(20000);
 		assertNull(rsp);
 
-		rsp = cr.get("a.c").waitFor();
+		rsp = cr.get("a.c").waitFor(20000);
 		assertEquals(4, rsp.get("rsp", 0));
 
 		// 5.) Prefixed delete
@@ -92,29 +92,29 @@ public abstract class CacherTest extends TestCase {
 		val.put("rsp", 7);
 		cr.set("b.d", val, 0);
 
-		rsp = cr.get("a.b").waitFor();
+		rsp = cr.get("a.b").waitFor(20000);
 		assertEquals(6, rsp.get("rsp", 0));
 
-		rsp = cr.get("a.c").waitFor();
+		rsp = cr.get("a.c").waitFor(20000);
 		assertEquals(4, rsp.get("rsp", 0));
 
-		rsp = cr.get("b.d").waitFor();
+		rsp = cr.get("b.d").waitFor(20000);
 		assertEquals(7, rsp.get("rsp", 0));
 
-		cr.clean("a.*").waitFor();
+		cr.clean("a.*").waitFor(20000);
 
-		rsp = cr.get("a.b").waitFor();
+		rsp = cr.get("a.b").waitFor(20000);
 		assertNull(rsp);// ERR
 
-		rsp = cr.get("a.c").waitFor();
+		rsp = cr.get("a.c").waitFor(20000);
 		assertNull(rsp);
 
-		rsp = cr.get("b.d").waitFor();
+		rsp = cr.get("b.d").waitFor(20000);
 		assertEquals(7, rsp.get("rsp", 0));
 
-		cr.clean("**").waitFor();
+		cr.clean("**").waitFor(20000);
 
-		rsp = cr.get("b.d").waitFor();
+		rsp = cr.get("b.d").waitFor(20000);
 		assertNull(rsp);
 
 		// 6.) Multi-level + prefixed delete
@@ -128,57 +128,57 @@ public abstract class CacherTest extends TestCase {
 		val.put("rsp", 3);
 		cr.set("a.b.c.d", val, 0);
 
-		rsp = cr.get("a.b").waitFor();
+		rsp = cr.get("a.b").waitFor(20000);
 		assertEquals(1, rsp.get("rsp", 0));
 
-		rsp = cr.get("a.b.c").waitFor();
+		rsp = cr.get("a.b.c").waitFor(20000);
 		assertEquals(2, rsp.get("rsp", 0));
 
-		rsp = cr.get("a.b.c.d").waitFor();
+		rsp = cr.get("a.b.c.d").waitFor(20000);
 		assertEquals(3, rsp.get("rsp", 0));
 
-		cr.clean("b.*").waitFor(); // --------
+		cr.clean("b.*").waitFor(20000); // --------
 
-		rsp = cr.get("a.b").waitFor();
+		rsp = cr.get("a.b").waitFor(20000);
 		assertEquals(1, rsp.get("rsp", 0));
 
-		rsp = cr.get("a.b.c").waitFor();
+		rsp = cr.get("a.b.c").waitFor(20000);
 		assertEquals(2, rsp.get("rsp", 0));
 
-		rsp = cr.get("a.b.c.d").waitFor();
+		rsp = cr.get("a.b.c.d").waitFor(20000);
 		assertEquals(3, rsp.get("rsp", 0));
 
-		cr.clean("a.*").waitFor(); // --------
+		cr.clean("a.*").waitFor(20000); // --------
 
-		rsp = cr.get("a.b").waitFor();
+		rsp = cr.get("a.b").waitFor(20000);
 		assertNull(rsp);
 
-		rsp = cr.get("a.b.c").waitFor();
+		rsp = cr.get("a.b.c").waitFor(20000);
 		assertEquals(2, rsp.get("rsp", 0));
 
-		rsp = cr.get("a.b.c.d").waitFor();
+		rsp = cr.get("a.b.c.d").waitFor(20000);
 		assertEquals(3, rsp.get("rsp", 0));
 
-		cr.clean("a.b.*").waitFor(); // --------
+		cr.clean("a.b.*").waitFor(20000); // --------
 
-		rsp = cr.get("a.b").waitFor();
+		rsp = cr.get("a.b").waitFor(20000);
 		assertNull(rsp);
 
-		rsp = cr.get("a.b.c").waitFor();
+		rsp = cr.get("a.b.c").waitFor(20000);
 		assertNull(rsp);
 
-		rsp = cr.get("a.b.c.d").waitFor();
+		rsp = cr.get("a.b.c.d").waitFor(20000);
 		assertEquals(3, rsp.get("rsp", 0));
 
-		cr.clean("a.b.c.*").waitFor(); // --------
+		cr.clean("a.b.c.*").waitFor(20000); // --------
 
-		rsp = cr.get("a.b").waitFor();
+		rsp = cr.get("a.b").waitFor(20000);
 		assertNull(rsp);
 
-		rsp = cr.get("a.b.c").waitFor();
+		rsp = cr.get("a.b.c").waitFor(20000);
 		assertNull(rsp);
 
-		rsp = cr.get("a.b.c.d").waitFor();
+		rsp = cr.get("a.b.c.d").waitFor(20000);
 		assertNull(rsp);
 
 		// 7.) Multi-level + prefixed delete 2.
@@ -192,15 +192,15 @@ public abstract class CacherTest extends TestCase {
 		val.put("rsp", 3);
 		cr.set("a.b.c.d", val, 0);
 
-		cr.clean("a.b.**").waitFor(); // --------
+		cr.clean("a.b.**").waitFor(20000); // --------
 
-		rsp = cr.get("a.b").waitFor();
+		rsp = cr.get("a.b").waitFor(20000);
 		assertEquals(1, rsp.get("rsp", 0));
 
-		rsp = cr.get("a.b.c").waitFor();
+		rsp = cr.get("a.b.c").waitFor(20000);
 		assertNull(rsp);
 
-		rsp = cr.get("a.b.c.d").waitFor();
+		rsp = cr.get("a.b.c.d").waitFor(20000);
 		assertNull(rsp);
 
 		// 8.) Large key get / set
@@ -214,12 +214,12 @@ public abstract class CacherTest extends TestCase {
 		val.put("rsp", 4);
 		cr.set(key, val, 0);
 
-		rsp = cr.get(key).waitFor();
+		rsp = cr.get(key).waitFor(20000);
 		assertEquals(4, rsp.get("rsp", 0));
 
-		cr.del(key).waitFor();
+		cr.del(key).waitFor(20000);
 
-		rsp = cr.get(key).waitFor();
+		rsp = cr.get(key).waitFor(20000);
 		assertNull(rsp);
 
 		// 9.) Large value get / set
@@ -233,15 +233,15 @@ public abstract class CacherTest extends TestCase {
 			}
 		}
 
-		cr.set("large.value", large, 0).waitFor();
-		rsp = cr.get("large.value").waitFor();
+		cr.set("large.value", large, 0).waitFor(20000);
+		rsp = cr.get("large.value").waitFor(20000);
 		String s1 = large.toString(false).replaceAll(".0", "").replaceAll(" ", "");
 		String s2 = rsp.toString(false).replaceAll(".0", "").replaceAll(" ", "");
 		assertEquals(s1, s2);
 
-		cr.del("large.value").waitFor();
+		cr.del("large.value").waitFor(20000);
 
-		rsp = cr.get("large.value").waitFor();
+		rsp = cr.get("large.value").waitFor(20000);
 		assertNull(rsp);
 
 		// 10.) Remove entire partition
@@ -252,18 +252,18 @@ public abstract class CacherTest extends TestCase {
 		val.put("r", false);
 		cr.set("xxx.y2", val, 10000);
 
-		assertTrue(cr.get("xxx.y1").waitFor().get("e", false));
-		assertFalse(cr.get("xxx.y2").waitFor().get("r", true));
+		assertTrue(cr.get("xxx.y1").waitFor(20000).get("e", false));
+		assertFalse(cr.get("xxx.y2").waitFor(20000).get("r", true));
 
-		cr.clean("y*").waitFor();
+		cr.clean("y*").waitFor(20000);
 
-		assertTrue(cr.get("xxx.y1").waitFor().get("e", false));
-		assertFalse(cr.get("xxx.y2").waitFor().get("r", true));
+		assertTrue(cr.get("xxx.y1").waitFor(20000).get("e", false));
+		assertFalse(cr.get("xxx.y2").waitFor(20000).get("r", true));
 
-		cr.clean("x*").waitFor();
+		cr.clean("x*").waitFor(20000);
 
-		assertNull(cr.get("xxx.y1").waitFor());
-		assertNull(cr.get("xxx.y2").waitFor());
+		assertNull(cr.get("xxx.y1").waitFor(20000));
+		assertNull(cr.get("xxx.y2").waitFor(20000));
 	}
 
 	@Test
@@ -273,41 +273,41 @@ public abstract class CacherTest extends TestCase {
 
 		Tree params = new Tree();
 		params.put("a", 4);
-		Tree rsp = br.call("test.test", params).waitFor();
+		Tree rsp = br.call("test.test", params).waitFor(20000);
 		assertEquals(8, (int) rsp.asInteger());
 
-		Tree rsp2 = cr.get("test.test:4").waitFor();
+		Tree rsp2 = cr.get("test.test:4").waitFor(20000);
 		assertEquals(8, (int) rsp2.asInteger());
 
-		cr.clean("test.*").waitFor(); // --------
+		cr.clean("test.*").waitFor(20000); // --------
 
-		rsp2 = cr.get("test.test:4").waitFor();
+		rsp2 = cr.get("test.test:4").waitFor(20000);
 		assertNull(rsp2);
 
 		params.put("b", "3");
-		rsp = br.call("test.test2", params).waitFor();
+		rsp = br.call("test.test2", params).waitFor(20000);
 		assertEquals(7, rsp.get("c", 0));
 
-		rsp2 = cr.get("test.test2:4|3").waitFor();
+		rsp2 = cr.get("test.test2:4|3").waitFor(20000);
 		assertEquals(7, rsp2.get("c", 0));
 
-		cr.del("test.test2:4|3").waitFor(); // --------
+		cr.del("test.test2:4|3").waitFor(20000); // --------
 		testService.counter.set(0);
 
-		rsp2 = cr.get("test.test2:4|3").waitFor();
+		rsp2 = cr.get("test.test2:4|3").waitFor(20000);
 		assertNull(rsp2);
 
 		params.put("a", 6);
 		for (int i = 0; i < 10; i++) {
-			rsp = br.call("test.test", params).waitFor();
+			rsp = br.call("test.test", params).waitFor(20000);
 			assertEquals(12, (int) rsp.asInteger());
 		}
 		assertEquals(1, testService.counter.get());
 
-		cr.del("test.test:6").waitFor(); // --------
+		cr.del("test.test:6").waitFor(20000); // --------
 
 		for (int i = 0; i < 10; i++) {
-			rsp = br.call("test.test", params).waitFor();
+			rsp = br.call("test.test", params).waitFor(20000);
 			assertEquals(12, (int) rsp.asInteger());
 		}
 		assertEquals(2, testService.counter.get());
@@ -340,7 +340,7 @@ public abstract class CacherTest extends TestCase {
 		cr = createCacher();
 		br = ServiceBroker.builder().cacher(cr).build();
 		br.start();
-		cr.clean("**").waitFor();
+		cr.clean("**").waitFor(20000);
 	}
 
 	// --- STOP BROKER ---

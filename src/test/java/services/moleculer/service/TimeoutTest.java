@@ -82,7 +82,7 @@ public class TimeoutTest extends TestCase {
 
 	protected boolean invokeSlowService(long timeout) {
 		try {
-			br.call("timeout.slow", CallOptions.timeout(timeout)).waitFor();
+			br.call("timeout.slow", CallOptions.timeout(timeout)).waitFor(20000);
 			return true;
 		} catch (Exception e) {
 			return false;
@@ -110,7 +110,7 @@ public class TimeoutTest extends TestCase {
 			long b = Math.abs(timeout * System.currentTimeMillis() % 10);
 			req.put("b", b);
 			req.put("sleep", sleep);
-			Tree rsp = br.call("level1Service.action", req, CallOptions.timeout(timeout)).waitFor();
+			Tree rsp = br.call("level1Service.action", req, CallOptions.timeout(timeout)).waitFor(20000);
 
 			return rsp.asLong() == a * b;
 

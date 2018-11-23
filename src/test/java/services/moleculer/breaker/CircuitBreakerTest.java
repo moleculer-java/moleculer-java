@@ -85,7 +85,7 @@ public class CircuitBreakerTest extends TestCase {
 			createResponse(true);
 			boolean ok = false;
 			try {
-				p.waitFor();
+				p.waitFor(20000);
 				ok = true;
 			} catch (Exception e) {
 			}
@@ -97,7 +97,7 @@ public class CircuitBreakerTest extends TestCase {
 		String nodeID = createResponse(false);
 		boolean ok = true;
 		try {
-			p.waitFor();
+			p.waitFor(20000);
 		} catch (Exception e) {
 			ok = e.toString().contains("unknown error");
 		}
@@ -112,7 +112,7 @@ public class CircuitBreakerTest extends TestCase {
 		p = br.call("test.test", (Tree) null);
 		nodeID = createResponse(false);
 		try {
-			p.waitFor();
+			p.waitFor(20000);
 			ok = true;
 		} catch (Exception e) {
 			ok = e.toString().contains("unknown error");
@@ -129,7 +129,7 @@ public class CircuitBreakerTest extends TestCase {
 			nodeID = createResponse(false);
 			now = System.currentTimeMillis();
 			try {
-				p.waitFor();
+				p.waitFor(20000);
 				ok = true;
 			} catch (Exception e) {
 				ok = e.toString().contains("unknown error");
@@ -214,7 +214,7 @@ public class CircuitBreakerTest extends TestCase {
 			createResponse(success);
 			boolean ok = false;
 			try {
-				p.waitFor();
+				p.waitFor(20000);
 				ok = true;
 			} catch (Exception e) {
 				ok = false;
@@ -234,7 +234,7 @@ public class CircuitBreakerTest extends TestCase {
 			assertFalse("node0".equals(nodeID));
 			boolean ok = false;
 			try {
-				p.waitFor();
+				p.waitFor(20000);
 				ok = true;
 			} catch (Exception e) {
 				ok = false;
@@ -247,7 +247,7 @@ public class CircuitBreakerTest extends TestCase {
 		createResponse(true);
 		boolean ok = false;
 		try {
-			p.waitFor();
+			p.waitFor(20000);
 			ok = true;
 		} catch (Exception e) {
 			ok = false;
@@ -259,7 +259,7 @@ public class CircuitBreakerTest extends TestCase {
 		p = br.call("test.test", (Tree) null, CallOptions.nodeID("node0"));
 		createResponse(true);
 		try {
-			p.waitFor();
+			p.waitFor(20000);
 			ok = true;
 		} catch (Exception e) {
 			ok = false;
@@ -277,7 +277,7 @@ public class CircuitBreakerTest extends TestCase {
 			assertFalse(n1.equals(n2));
 			boolean ok = false;
 			try {
-				p.waitFor();
+				p.waitFor(20000);
 				ok = true;
 			} catch (Exception e) {
 				ok = false;
@@ -295,7 +295,7 @@ public class CircuitBreakerTest extends TestCase {
 			assertFalse(n1.equals(n2));
 			boolean ok = false;
 			try {
-				p.waitFor();
+				p.waitFor(20000);
 				ok = true;
 			} catch (Exception e) {
 				ok = false;
@@ -319,7 +319,7 @@ public class CircuitBreakerTest extends TestCase {
 		// cb.setEnabled(true);
 		long start = System.currentTimeMillis();
 		for (int i = 0; i < 50; i++) {
-			int rsp = br.call("math.add", "a", i, "b", 1).waitFor().asInteger();
+			int rsp = br.call("math.add", "a", i, "b", 1).waitFor(20000).asInteger();
 			assertEquals(i + 1, rsp);
 		}
 		assertTrue(System.currentTimeMillis() - start < 100);
