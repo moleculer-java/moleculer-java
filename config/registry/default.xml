@@ -21,8 +21,8 @@
 		<!-- Write invocation exceptions into the log file -->
 		<property name="writeErrorsToLog"     value="true" />
 
-		<!-- Time between the packets (in MILLISECONDS) when streaming -->
-		<property name="packetDelay"          value="5" />
+		<!-- Stream inactivity/read timeout in MILLISECONDS (0 = no timeout) -->
+		<property name="streamTimeout"        value="0" />
 			
 	</bean>
 
