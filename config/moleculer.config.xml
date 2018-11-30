@@ -10,11 +10,13 @@
 
 	<context:annotation-config />
 
-	<!-- LOADER OF MOLECULER SERVICES -->
+	<!-- PACKAGE OF THE MOLECULER SERVICES -->
+	
+	<context:component-scan base-package="my.services" />
 
-	<bean id="registrator" class="services.moleculer.config.SpringRegistrator" depends-on="broker">
-		<property name="packagesToScan" value="my.service.package" />
-	</bean>
+	<!-- SPRING REGISTRATOR FOR MOLECULER SERVICES -->
+
+	<bean id="registrator" class="services.moleculer.config.SpringRegistrator" depends-on="broker" />
 
 	<!-- SERVICE BROKER INSTANCE -->
 

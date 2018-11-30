@@ -973,7 +973,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				}
 
 				// Write log about this action
-				logger.info("Action \"" + actionName + "\" registered.");
+				logger.info("Local action \"" + actionName + "\" registered.");
 				actionCounter++;
 			}
 			services.put(serviceName, service);
@@ -1000,7 +1000,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Write log about this service
 		StringBuilder msg = new StringBuilder(64);
-		msg.append("Service \"");
+		msg.append("Local service \"");
 		msg.append(serviceName);
 		msg.append("\" started ");
 		if (actionCounter == 0) {
@@ -1029,6 +1029,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	public void addActions(String nodeID, Tree config) {
 		Tree actions = config.get("actions");
 		String serviceName = config.get("name", "");
+		int actionCounter = 0;
+		
 		final long stamp = lock.writeLock();
 		try {
 			if (actions != null && actions.isMap()) {
@@ -1045,15 +1047,43 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 						strategies.put(actionName, actionStrategy);
 					}
 					actionStrategy.addEndpoint(endpoint);
+					
+					// Apply middlewares
+					for (Middleware middleware : middlewares) {
+						endpoint.use(middleware);
+					}
+
+					// Write log about this action
+					logger.info("Action \"" + actionName + "\" on node \"" + nodeID + "\" registered.");
+					actionCounter++;
 				}
 			}
 			names.add(serviceName);
 		} finally {
 			lock.unlockWrite(stamp);
 		}
-
+		
+		// Write log about this service
+		StringBuilder msg = new StringBuilder(64);
+		msg.append("Remote service \"");
+		msg.append(serviceName);
+		msg.append("\" registered ");
+		if (actionCounter == 0) {
+			msg.append("without any actions");
+		} else if (actionCounter == 1) {
+			msg.append("with 1 action");
+		} else {
+			msg.append("with ");
+			msg.append(actionCounter);
+			msg.append(" actions");
+		}
+		msg.append(" on node \"");
+		msg.append(nodeID);
+		msg.append("\".");
+		logger.info(msg.toString());
+		
 		// Notify local listeners about the new REMOTE service
-		broadcastServicesChanged(false);
+		broadcastServicesChanged(false);		
 	}
 
 	// --- REMOVE ALL REMOTE SERVICES/ACTIONS OF A NODE ---

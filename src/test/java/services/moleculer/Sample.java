@@ -28,12 +28,10 @@ package services.moleculer;
 import services.moleculer.cacher.Cache;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
-import services.moleculer.serializer.MsgPackSerializer;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
-import services.moleculer.transporter.RedisTransporter;
-import services.moleculer.transporter.Transporter;
+import services.moleculer.transporter.TcpTransporter;
 
 public class Sample {
 
@@ -42,36 +40,53 @@ public class Sample {
 		try {
 			
 			// Create Message Broker
-			Transporter t = new RedisTransporter("192.168.51.100");
-			t.setSerializer(new MsgPackSerializer());
-			t.setDebug(false);
-			ServiceBroker broker = ServiceBroker.builder().transporter(t).nodeID("node2").build();
+			// Transporter t = new RedisTransporter("192.168.51.100");
+			TcpTransporter t = new TcpTransporter();
+			t.setDebug(true);
+			t.setUseHostname(false);
+			// t.setSerializer(new MsgPackSerializer());
+			
+			ServiceBroker broker = ServiceBroker.builder().transporter(t).nodeID("node3").build();
 
+			// Install sample service
+			broker.createService(new Service("math") {
+
+				@Name("add")
+				@Cache(keys = { "a", "b" }, ttl = 30)
+				public Action add = ctx -> {
+
+					// broker.getLogger().info("Call " + ctx.params);
+					return ctx.params.get("a", 0) + ctx.params.get("b", 0);
+
+				};
+
+				@Name("test")
+				public Action test = ctx -> {
+
+					if (ctx.params.get("a", 0) == 1) {
+						throw new Exception("X");
+					}
+					return ctx.params.get("a", 0) + ctx.params.get("b", 0);
+
+				};
+
+				@Subscribe("foo.*")
+				public Listener listener = payload -> {
+					System.out.println("Received: " + payload);
+				};
+
+			});
+			
 			// Start Message Broker
 			broker.start();
-			
-			// Stop Message Broker
-			broker.repl();
+						
+			Thread.sleep(3000);
+			System.out.println("NODE1 - MATH - LOCAL - NO CONSOLE");
 
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		System.out.println("STOP");
 	}
-
-	@Name("java.math")
-	public static class MathService extends Service {
-
-		@Cache(keys = { "a", "b" }, ttl = 5000)
-		public Action add = ctx -> {
-			return ctx.params.get("a", 0) + ctx.params.get("b", 0);
-		};
-
-		@Subscribe("foo.*")
-		public Listener listener = payload -> {
-			logger.info("Event received: " + payload);
-		};
-
-	};
 
 }

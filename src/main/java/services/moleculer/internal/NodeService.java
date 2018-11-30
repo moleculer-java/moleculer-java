@@ -39,6 +39,7 @@ import java.util.TimeZone;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
+import services.moleculer.context.Context;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
@@ -73,9 +74,9 @@ public class NodeService extends Service {
 	public Action actions = (ctx) -> {
 
 		// Parse input parameters
-		boolean onlyLocal = ctx.params.get("onlyLocal", false);
-		boolean skipInternal = ctx.params.get("skipInternal", false);
-		boolean withEndpoints = ctx.params.get("withEndpoints", false);
+		boolean onlyLocal = getParameter(ctx, "onlyLocal", false);
+		boolean skipInternal = getParameter(ctx, "skipInternal", false);
+		boolean withEndpoints = getParameter(ctx, "withEndpoints", false);
 
 		// Create response structure
 		Tree root = new Tree();
@@ -176,9 +177,9 @@ public class NodeService extends Service {
 	public Action events = (ctx) -> {
 
 		// Parse input parameters
-		boolean onlyLocal = ctx.params.get("onlyLocal", false);
-		boolean skipInternal = ctx.params.get("skipInternal", false);
-		boolean withEndpoints = ctx.params.get("withEndpoints", false);
+		boolean onlyLocal = getParameter(ctx, "onlyLocal", false);
+		boolean skipInternal = getParameter(ctx, "skipInternal", false);
+		boolean withEndpoints = getParameter(ctx, "withEndpoints", false);
 
 		// Create response structure
 		Tree root = new Tree();
@@ -379,9 +380,9 @@ public class NodeService extends Service {
 	public Action services = (ctx) -> {
 
 		// Parse input parameters
-		boolean onlyLocal = ctx.params.get("onlyLocal", false);
-		boolean skipInternal = ctx.params.get("skipInternal", false);
-		boolean withActions = ctx.params.get("withActions", false);
+		boolean onlyLocal = getParameter(ctx, "onlyLocal", false);
+		boolean skipInternal = getParameter(ctx, "skipInternal", false);
+		boolean withActions = getParameter(ctx, "withActions", false);
 
 		// Create response structure
 		Tree root = new Tree();
@@ -442,6 +443,15 @@ public class NodeService extends Service {
 		return list;
 	};
 
+	// --- UTILS ---
+	
+	protected boolean getParameter(Context ctx, String name, boolean defaultValue) {
+		if (ctx == null || ctx.params == null) {
+			return defaultValue;
+		}
+		return ctx.params.get(name, defaultValue);
+	}
+	
 	// --- START SERVICE ---
 
 	@Override

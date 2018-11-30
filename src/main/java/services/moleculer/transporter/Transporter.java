@@ -362,7 +362,7 @@ public abstract class Transporter extends MoleculerComponent {
 		msg.putUnsafe("action", ctx.name);
 
 		// Add params and meta
-		if (ctx.params != null && !ctx.params.isEmpty()) {
+		if (ctx.params != null) {
 			msg.putUnsafe("params", ctx.params.asObject());
 			Tree meta = ctx.params.getMeta(false);
 			if (meta != null && !meta.isEmpty()) {

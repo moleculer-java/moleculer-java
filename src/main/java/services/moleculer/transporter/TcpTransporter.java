@@ -823,6 +823,20 @@ public class TcpTransporter extends Transporter {
 
 				// Host or port number changed
 				if (!node.host.equalsIgnoreCase(host) || node.port != port) {
+
+					// Compare by IP (wont work in mixed IPV4-IPV6 environment)
+					if (node.port == port) {
+						try {
+							String ip1 = InetAddress.getByName(node.host).getHostAddress();
+							String ip2 = InetAddress.getByName(host).getHostAddress();
+							if (ip1.equals(ip2)) {
+								return;
+							}
+						} catch (Exception ignored) {
+						}
+					}
+
+					// Ok, host is changed!
 					node.host = host;
 					node.port = port;
 					if (node.info != null) {

@@ -216,9 +216,9 @@ public class OHCacher extends Cacher {
 		if (hashTableSize > 0) {
 			builder.hashTableSize(hashTableSize);
 		}
+		builder.timeouts(true);
 		if (ttl > 0) {
 			builder.defaultTTLmillis(ttl * 1000L);
-			builder.timeouts(true);
 			logger.info("Entries in cache expire after " + ttl + " seconds.");
 		}
 		logger.info("Maximum size of the cache is " + capacity + " Mbytes.");

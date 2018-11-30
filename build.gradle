@@ -298,7 +298,7 @@ test {
     exclude '**/JmsStreamTest.class'
     exclude '**/GoogleStreamTest.class'
     
-    // Temporarily disabled (Stream handling is not finished)
+    // Temporarily disabled (Stream testing isn't finished)
     // exclude '**/stream/**'
     
     // Temporarily disabled (Mosquito Server does not start)
