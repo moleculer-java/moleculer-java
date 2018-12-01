@@ -24,7 +24,7 @@ The Java-based Moleculer is completely compatible with the NodeJS-based Molecule
 	<dependency>
 		<groupId>com.github.berkesa</groupId>
 		<artifactId>moleculer-java</artifactId>
-		<version>1.0.5</version>
+		<version>1.0.6</version>
 		<scope>runtime</scope>
 	</dependency>
 </dependencies>
@@ -34,7 +34,7 @@ The Java-based Moleculer is completely compatible with the NodeJS-based Molecule
 
 ```gradle
 dependencies {
-	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.0.5' 
+	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.0.6' 
 }
 ```
 
@@ -112,11 +112,13 @@ public class Sample {
 
 	<context:annotation-config />
 
-	<!-- LOADER OF MOLECULER SERVICES -->
+	<!-- PACKAGE OF THE MOLECULER SERVICES -->
+	
+	<context:component-scan base-package="my.services" />
 
-	<bean id="registrator" class="services.moleculer.config.SpringRegistrator" depends-on="broker">
-		<property name="packagesToScan" value="my.service.package" />
-	</bean>
+	<!-- SPRING REGISTRATOR FOR MOLECULER SERVICES -->
+
+	<bean id="registrator" class="services.moleculer.config.SpringRegistrator" depends-on="broker" />
 
 	<!-- SERVICE BROKER INSTANCE -->
 
