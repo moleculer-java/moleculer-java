@@ -40,9 +40,7 @@ public class Sample {
 		try {
 			
 			// Create Message Broker
-			// Transporter t = new RedisTransporter("192.168.51.100");
 			TcpTransporter t = new TcpTransporter();
-			t.setDebug(true);
 			t.setUseHostname(false);
 			// t.setSerializer(new MsgPackSerializer());
 			
@@ -80,9 +78,6 @@ public class Sample {
 			// Start Message Broker
 			broker.start();
 						
-			Thread.sleep(3000);
-			System.out.println("NODE1 - MATH - LOCAL - NO CONSOLE");
-
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
