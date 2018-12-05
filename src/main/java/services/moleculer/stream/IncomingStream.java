@@ -179,7 +179,9 @@ public class IncomingStream {
 							bytes[idx++] = (byte) item.asInteger().intValue();
 						}
 					} else if (data.isStructure()) {
-						bytes = data.toBinary();						
+						if (!data.isEmpty()) {
+							bytes = data.toBinary();
+						}
 					} else {
 						String value = data.asString();
 						if (value != null && !value.isEmpty()) {

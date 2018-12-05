@@ -40,6 +40,7 @@ import org.junit.Test;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
+import io.datatree.dom.BASE64;
 import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 import services.moleculer.error.MoleculerError;
@@ -72,9 +73,11 @@ public abstract class StreamTest extends TestCase {
 
 		// --- TEST 1 ---
 
-		byte[] bytes1 = randomBytes(300);
+		// byte[] bytes1 = randomBytes(300);
+		byte[] bytes1 = "HELLO".getBytes();
+		
 		PacketStream stream = br1.createStream();
-		Tree rsp = br1.call("stream-receiver.receive", stream).waitFor(10000);
+		Tree rsp = br1.call("stream-receiver.receive", stream).waitFor(1000000);
 		assertEquals(123, (int) rsp.asInteger());
 		assertTrue(stream.sendData(bytes1));
 
@@ -83,6 +86,10 @@ public abstract class StreamTest extends TestCase {
 
 		listener.assertOpened();
 		listener.assertNotFaulty();
+		
+		System.out.println(BASE64.encode(bytes1) + " " + new String(bytes1));
+		System.out.println(BASE64.encode(listener.getBytes()) + " " + new String(listener.getBytes()));
+		
 		listener.assertDataEquals(bytes1);
 		assertEquals(bytes1.length, stream.getTransferedBytes());
 

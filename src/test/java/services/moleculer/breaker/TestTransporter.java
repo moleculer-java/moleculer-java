@@ -110,4 +110,9 @@ public class TestTransporter extends Transporter {
 		cpu.clear();
 	}
 
+	public void broadcastInfoPacket() {
+		
+		// Do not send INFO packet
+	}
+	
 }

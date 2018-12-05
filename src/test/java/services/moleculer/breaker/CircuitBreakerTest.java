@@ -45,6 +45,7 @@ import io.datatree.Tree;
 import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallOptions;
+import services.moleculer.error.MoleculerRetryableError;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.service.Action;
 import services.moleculer.service.DefaultServiceRegistry;
@@ -197,6 +198,11 @@ public class CircuitBreakerTest extends TestCase {
 		rsp.put("id", id);
 		rsp.put("success", success);
 		rsp.put("data", (String) null);
+		if (!success) {
+			Tree errorMap = rsp.putMap("error");
+			MoleculerRetryableError moleculerError = new MoleculerRetryableError("Test error message!", nodeID);
+			moleculerError.toTree(errorMap);
+		}
 		tr.clearMessages();
 		tr.received("MOL.RES.local", rsp);
 		return nodeID;
