@@ -25,63 +25,61 @@
  */
 package services.moleculer;
 
-import services.moleculer.cacher.Cache;
-import services.moleculer.eventbus.Listener;
-import services.moleculer.eventbus.Subscribe;
+import services.moleculer.config.ServiceBrokerConfig;
+import services.moleculer.error.MoleculerError;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
-import services.moleculer.transporter.TcpTransporter;
+import services.moleculer.transporter.RedisTransporter;
+import services.moleculer.transporter.Transporter;
 
 public class Sample {
 
 	public static void main(String[] args) throws Exception {
-		System.out.println("START");
 		try {
-			
-			// Create Message Broker
-			TcpTransporter t = new TcpTransporter();
-			t.setUseHostname(false);
-			// t.setSerializer(new MsgPackSerializer());
-			
-			ServiceBroker broker = ServiceBroker.builder().transporter(t).nodeID("node3").build();
 
-			// Install sample service
-			broker.createService(new Service("math") {
+			for (int i = 0; i < 10; i++) {
 
-				@Name("add")
-				@Cache(keys = { "a", "b" }, ttl = 30)
-				public Action add = ctx -> {
+				// Create Service Broker config
+				ServiceBrokerConfig cfg = new ServiceBrokerConfig();
 
-					// broker.getLogger().info("Call " + ctx.params);
-					return ctx.params.get("a", 0) + ctx.params.get("b", 0);
+				// Unique nodeID
+				cfg.setNodeID("node" + (i + 10));
 
-				};
+				Transporter t = new RedisTransporter("192.168.51.100");
+				cfg.setTransporter(t);
 
-				@Name("test")
-				public Action test = ctx -> {
+				// Create Service Broker (by config)
+				ServiceBroker broker = new ServiceBroker(cfg);
 
-					if (ctx.params.get("a", 0) == 1) {
-						throw new Exception("X");
-					}
-					return ctx.params.get("a", 0) + ctx.params.get("b", 0);
+				broker.createService(new ErrorService(i < 1));
 
-				};
+				// Start Service Broker
+				broker.start();
 
-				@Subscribe("foo.*")
-				public Listener listener = payload -> {
-					System.out.println("Received: " + payload);
-				};
-
-			});
-			
-			// Start Message Broker
-			broker.start();
-						
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		System.out.println("STOP");
+	}
+
+	public static class ErrorService extends Service {
+
+		private boolean faulty;
+
+		public ErrorService(boolean faulty) {
+			this.faulty = faulty;
+		}
+
+		@Name("test")
+		public Action error = ctx -> {
+			if (faulty) {
+				Thread.sleep(200);
+				throw new MoleculerError("Timed error!", broker.getNodeID(), true);
+			}
+			return ctx.params;
+		};
+
 	}
 
 }

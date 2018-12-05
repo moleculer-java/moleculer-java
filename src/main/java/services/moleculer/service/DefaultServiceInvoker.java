@@ -25,6 +25,10 @@
  */
 package services.moleculer.service;
 
+import java.util.Objects;
+import java.util.concurrent.CompletionException;
+import java.util.function.Predicate;
+
 import io.datatree.Promise;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
@@ -33,6 +37,7 @@ import services.moleculer.context.CallOptions;
 import services.moleculer.context.CallOptions.Options;
 import services.moleculer.context.Context;
 import services.moleculer.context.ContextFactory;
+import services.moleculer.error.MoleculerError;
 import services.moleculer.stream.PacketStream;
 
 /**
@@ -53,6 +58,24 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 	protected ServiceRegistry serviceRegistry;
 	protected ContextFactory contextFactory;
 
+	// --- RETRY LOGIC (BY ERROR) ---
+	
+	protected Predicate<Throwable> retryLogic = cause -> {
+		if (cause == null) {
+			return false;
+		}
+		Throwable test;
+		if (cause instanceof CompletionException) {
+			test = cause.getCause();
+		} else {
+			test = cause;
+		}
+		if (!(test instanceof MoleculerError)) {
+			return false;
+		}
+		return ((MoleculerError) test).isRetryable();
+	};
+	
 	// --- START INVOKER ---
 
 	@Override
@@ -86,28 +109,13 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 		try {
 			Action action = serviceRegistry.getAction(name, targetID);
 			Context ctx = contextFactory.create(name, params, opts, stream, parent);
-			if (remaining < 1) {
+			if (remaining < 1 && !writeErrorsToLog) {
 				return Promise.resolve(action.handler(ctx));
 			}
 			return Promise.resolve(action.handler(ctx)).catchError(cause -> {
-
-				// Write error to log file
-				if (writeErrorsToLog) {
-					logger.error("Unexpected error occurred while invoking \"" + name + "\" action!", cause);
-				}
-
 				return retry(cause, name, params, opts, stream, parent, targetID, remaining);
 			});
 		} catch (Throwable cause) {
-
-			// Write error to log file
-			if (writeErrorsToLog) {
-				logger.error("Unexpected error occurred while invoking \"" + name + "\" action!", cause);
-			}
-
-			if (remaining < 1) {
-				return Promise.reject(cause);
-			}
 			return retry(cause, name, params, opts, stream, parent, targetID, remaining);
 		}
 	}
@@ -116,11 +124,25 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 
 	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, PacketStream stream,
 			Context parent, String targetID, int remaining) {
+
+		// Write error to log file
+		if (writeErrorsToLog) {
+			logger.error("Unexpected error occurred while invoking \"" + name + "\" action!", cause);
+		}
+
+		// Check error type and error counter
+		if (remaining < 1 || !retryLogic.test(cause)) {
+			return Promise.reject(cause);
+		}
+
+		// Call again...
 		int newRemaining = remaining - 1;
-		logger.warn("Retrying request (" + newRemaining + " attempts left)...", cause);
+		if (writeErrorsToLog) {
+			logger.warn("Retrying request (" + newRemaining + " attempts left)...");
+		}
 		return call(name, params, opts, stream, parent, targetID, newRemaining);
 	}
-
+	
 	// --- GETTERS / SETTERS ---
 
 	public boolean isWriteErrorsToLog() {
@@ -129,6 +151,14 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 
 	public void setWriteErrorsToLog(boolean writeErrorsToLog) {
 		this.writeErrorsToLog = writeErrorsToLog;
+	}
+
+	public Predicate<Throwable> getRetryLogic() {
+		return retryLogic;
+	}
+
+	public void setRetryLogic(Predicate<Throwable> retryLogic) {
+		this.retryLogic = Objects.requireNonNull(retryLogic);
 	}
 
 }

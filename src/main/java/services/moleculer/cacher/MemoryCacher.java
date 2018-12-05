@@ -98,7 +98,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 	protected final HashMap<String, MemoryPartition> partitions = new HashMap<>();
 
-	// --- TIMERS ---
+	// --- CLEANUP TIMER ---
 
 	/**
 	 * Cancelable timer

@@ -25,11 +25,15 @@
  */
 package services.moleculer.breaker;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.StampedLock;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
@@ -48,7 +52,7 @@ import services.moleculer.stream.PacketStream;
  * Special service invoker with retry logic + circuit breaker.
  */
 @Name("Circuit Breaker")
-public class CircuitBreaker extends DefaultServiceInvoker {
+public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 
 	// --- PROPERTIES ---
 
@@ -66,7 +70,7 @@ public class CircuitBreaker extends DefaultServiceInvoker {
 	/**
 	 * Cleanup period time, in SECONDS (0 = disable cleanup process)
 	 */
-	protected int cleanup = 60;
+	protected int cleanup = 600;
 
 	/**
 	 * Length of time-window in MILLISECONDS
@@ -91,10 +95,21 @@ public class CircuitBreaker extends DefaultServiceInvoker {
 	// --- IGNORABLE ERRORS / EXCEPTIONS ---
 
 	protected Set<Class<? extends Throwable>> ignoredTypes = new HashSet<>();
-
+	
 	// --- ERROR COUNTERS ---
 
-	protected ConcurrentHashMap<EndpointKey, ErrorCounter> errorCounters = new ConcurrentHashMap<>(1024);
+	protected HashMap<EndpointKey, ErrorCounter> errorCounters = new HashMap<>(1024);
+
+	// --- READ/WRITE LOCK OF COUNTERS ---
+
+	protected final StampedLock lock = new StampedLock();
+	
+	// --- CLEANUP TIMER ---
+
+	/**
+	 * Cancelable timer
+	 */
+	protected volatile ScheduledFuture<?> timer;
 
 	// --- START BREAKER ---
 
@@ -106,16 +121,51 @@ public class CircuitBreaker extends DefaultServiceInvoker {
 		ServiceBrokerConfig cfg = broker.getConfig();
 		serviceRegistry = cfg.getServiceRegistry();
 		contextFactory = cfg.getContextFactory();
+		
+		// Start timer
+		if (cleanup > 0) {
+			timer = broker.getConfig().getScheduler().scheduleWithFixedDelay(this, cleanup, cleanup, TimeUnit.SECONDS);
+		}
 	}
 
 	// --- STOP BREAKER ---
 
 	@Override
 	public void stopped() {
-		errorCounters.clear();
+		
+		// Stop timer
+		if (timer != null) {
+			timer.cancel(false);
+			timer = null;
+		}
+		
+		// Remove counters and types
+		final long stamp = lock.writeLock();
+		try {
+			errorCounters.clear();
+		} finally {
+			lock.unlockWrite(stamp);
+		}
 		ignoredTypes.clear();
 	}
 
+	// --- CLEANUP COUNTERS ---
+	
+	@Override
+	public void run() {
+		final long stamp = lock.writeLock();
+		try {
+			Iterator<ErrorCounter> i = errorCounters.values().iterator();
+			while (i.hasNext()) {
+				if (i.next().isEmpty()) {
+					i.remove();
+				}
+			}
+		} finally {
+			lock.unlockWrite(stamp);
+		}		
+	}
+	
 	// --- CALL SERVICE ---
 
 	@Override
@@ -129,7 +179,7 @@ public class CircuitBreaker extends DefaultServiceInvoker {
 			ActionEndpoint action = (ActionEndpoint) serviceRegistry.getAction(name, targetID);
 			String nodeID = action.getNodeID();
 			endpointKey = new EndpointKey(nodeID, name);
-			errorCounter = errorCounters.get(endpointKey);
+			errorCounter = getErrorCounter(endpointKey);
 
 			// Check availability of the Endpoint (if endpoint isn't targetted)
 			if (targetID == null) {
@@ -147,7 +197,7 @@ public class CircuitBreaker extends DefaultServiceInvoker {
 						// Endpoint is available
 						break;
 					}
-
+					
 					// Store nodeID
 					if (!nodeIDs.add(nodeID)) {
 						sameNodeCounter++;
@@ -159,10 +209,10 @@ public class CircuitBreaker extends DefaultServiceInvoker {
 					}
 
 					// Try to choose another endpoint
-					action = (ActionEndpoint) serviceRegistry.getAction(name, targetID);
+					action = (ActionEndpoint) serviceRegistry.getAction(name, null);
 					nodeID = action.getNodeID();
 					endpointKey = new EndpointKey(nodeID, name);
-					errorCounter = errorCounters.get(endpointKey);
+					errorCounter = getErrorCounter(endpointKey);
 				}
 			}
 
@@ -184,18 +234,8 @@ public class CircuitBreaker extends DefaultServiceInvoker {
 
 			}).catchError(cause -> {
 
-				// Write error to log file
-				if (writeErrorsToLog) {
-					logger.error("Unexpected error occurred while invoking \"" + name + "\" action!", cause);
-				}
-
 				// Increment error counter
 				increment(currentCounter, currentKey, cause, System.currentTimeMillis());
-
-				// Return with error
-				if (remaining < 1) {
-					return cause;
-				}
 
 				// Retry
 				return retry(cause, name, params, opts, stream, parent, targetID, remaining);
@@ -203,24 +243,35 @@ public class CircuitBreaker extends DefaultServiceInvoker {
 
 		} catch (Throwable cause) {
 
-			// Write error to log file
-			if (writeErrorsToLog) {
-				logger.error("Unexpected error occurred while invoking \"" + name + "\" action!", cause);
-			}
-
 			// Increment error counter
 			increment(errorCounter, endpointKey, cause, System.currentTimeMillis());
-
-			// Reject
-			if (remaining < 1) {
-				return Promise.reject(cause);
-			}
 
 			// Retry
 			return retry(cause, name, params, opts, stream, parent, targetID, remaining);
 		}
 	}
 
+	protected ErrorCounter getErrorCounter(EndpointKey endpointKey) {
+		ErrorCounter counter = null;
+		long stamp = lock.tryOptimisticRead();
+		if (stamp != 0) {
+			try {
+				counter = errorCounters.get(endpointKey);
+			} catch (Exception modified) {
+				stamp = 0;
+			}
+		}
+		if (!lock.validate(stamp) || stamp == 0) {
+			stamp = lock.readLock();
+			try {
+				counter = errorCounters.get(endpointKey);
+			} finally {
+				lock.unlockRead(stamp);
+			}
+		}
+		return counter;		
+	}
+	
 	protected void increment(ErrorCounter errorCounter, EndpointKey endpointKey, Throwable cause, long now) {
 		if (endpointKey != null) {
 
@@ -239,11 +290,18 @@ public class CircuitBreaker extends DefaultServiceInvoker {
 			// Create new Error Counter
 			if (errorCounter == null) {
 				ErrorCounter counter = new ErrorCounter(windowLength, lockTimeout, maxErrors);
-				ErrorCounter prev = errorCounters.put(endpointKey, counter);
-				if (prev != null) {
-					counter = prev;
+				ErrorCounter prev;
+				final long stamp = lock.writeLock();
+				try {
+					prev = errorCounters.putIfAbsent(endpointKey, counter);
+				} finally {
+					lock.unlockWrite(stamp);
 				}
-				counter.increment(now);
+				if (prev == null) {
+					counter.increment(now);					
+				} else {
+					prev.increment(now);
+				}
 			} else {
 				errorCounter.increment(now);
 			}
@@ -308,6 +366,14 @@ public class CircuitBreaker extends DefaultServiceInvoker {
 
 	public void setMaxErrors(int maxErrors) {
 		this.maxErrors = maxErrors;
+	}
+
+	public long getLockTimeout() {
+		return lockTimeout;
+	}
+
+	public void setLockTimeout(long lockTimeout) {
+		this.lockTimeout = lockTimeout;
 	}
 
 }

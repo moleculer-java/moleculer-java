@@ -206,8 +206,8 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-// version = '1.0.6-SNAPSHOT'
-version = '1.0.6'
+// version = '1.0.7-SNAPSHOT'
+version = '1.0.7'
 
 modifyPom {
     project {
@@ -282,7 +282,7 @@ compileJava {
 
 jar {
     baseName = 'moleculer'
-    version =  '1.0.6'
+    version =  '1.0.7'
 }
 
 // --- TESTING ---

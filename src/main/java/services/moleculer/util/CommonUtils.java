@@ -95,6 +95,8 @@ public final class CommonUtils {
 			if (error instanceof MoleculerError) {
 				moleculerError = (MoleculerError) error;
 			} else {
+
+				// Unknown (DB? Heap?) issue, maybe its an retryable error
 				String message = String.valueOf(error.getMessage());
 				message = message.replace('\r', ' ').replace('\n', ' ').trim();
 				moleculerError = new MoleculerError(message, error, "MoleculerError", nodeID, false, 500,

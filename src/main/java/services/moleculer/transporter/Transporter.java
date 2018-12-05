@@ -585,11 +585,18 @@ public abstract class Transporter extends MoleculerComponent {
 				int cpu = data.get("cpu", 0);
 
 				// Update CPU info
+				boolean offline;
 				node.writeLock.lock();
 				try {
 					node.updateCpu(cpu);
+					offline = node.offlineSince > 0;
 				} finally {
 					node.writeLock.unlock();
+				}
+				if (offline) {
+
+					// Offline node -> send discover packet
+					sendDiscoverPacket(channel(PACKET_DISCOVER, sender));
 				}
 				return;
 			}

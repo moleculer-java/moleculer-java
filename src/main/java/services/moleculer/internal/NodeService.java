@@ -66,6 +66,21 @@ public class NodeService extends Service {
 	protected Transporter transporter;
 	protected Monitor monitor;
 
+	// --- START SERVICE ---
+
+	@Override
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
+
+		// Set components
+		ServiceBrokerConfig cfg = broker.getConfig();
+		this.transporter = cfg.getTransporter();
+		this.monitor = cfg.getMonitor();
+		
+		// Set local nodeID
+		this.localNodeID = broker.getNodeID();
+	}
+
 	// --- ACTIONS ---
 
 	/**
@@ -444,25 +459,12 @@ public class NodeService extends Service {
 	};
 
 	// --- UTILS ---
-	
+
 	protected boolean getParameter(Context ctx, String name, boolean defaultValue) {
 		if (ctx == null || ctx.params == null) {
 			return defaultValue;
 		}
 		return ctx.params.get(name, defaultValue);
-	}
-	
-	// --- START SERVICE ---
-
-	@Override
-	public void started(ServiceBroker broker) throws Exception {
-		super.started(broker);
-
-		// Set components
-		ServiceBrokerConfig cfg = broker.getConfig();
-		this.transporter = cfg.getTransporter();
-		this.monitor = cfg.getMonitor();
-		this.localNodeID = broker.getNodeID();
 	}
 
 }

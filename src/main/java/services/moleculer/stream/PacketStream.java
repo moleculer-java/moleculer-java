@@ -142,7 +142,7 @@ public class PacketStream {
 	 * Time between each packet sent. This may be necessary because the other
 	 * Threads will get some CPU-time.
 	 */
-	protected long packetDelay = 10;
+	protected long packetDelay = 100;
 
 	// --- CONSTRUCTOR ---
 

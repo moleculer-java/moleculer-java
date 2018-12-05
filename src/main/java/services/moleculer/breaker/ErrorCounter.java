@@ -25,9 +25,6 @@
  */
 package services.moleculer.breaker;
 
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 public class ErrorCounter {
 
 	// --- PROPERTIES ---
@@ -47,96 +44,73 @@ public class ErrorCounter {
 
 	protected volatile boolean locked;
 
-	// --- LOCKS ---
-
-	protected final Lock readLock;
-	protected final Lock writeLock;
-
 	// --- CONSTRUCTOR ---
 
-	public ErrorCounter(long windowLength, long lockTimeout, int maxErrors) {
+	protected ErrorCounter(long windowLength, long lockTimeout, int maxErrors) {
 		this.windowLength = windowLength;
 		this.lockTimeout = lockTimeout;
 		this.timestamps = new long[maxErrors];
-
-		// Init locks
-		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);
-		readLock = lock.readLock();
-		writeLock = lock.writeLock();
 	}
 
 	// --- INCREMENT ERROR COUNTER ---
 
-	public void increment(long now) {
-		writeLock.lock();
-		try {
-			pointer++;
-			if (pointer >= timestamps.length) {
-				pointer = 0;
-			}
-			timestamps[pointer] = now;
-			max = now;
-
-			int next = pointer + 1;
-			if (next >= timestamps.length) {
-				next = 0;
-			}
-			min = timestamps[next];
-		} finally {
-			writeLock.unlock();
+	protected synchronized void increment(long now) {
+		pointer++;
+		if (pointer >= timestamps.length) {
+			pointer = 0;
 		}
+		timestamps[pointer] = now;
+		max = now;
+
+		int next = pointer + 1;
+		if (next >= timestamps.length) {
+			next = 0;
+		}
+		min = timestamps[next];
 	}
 
+	// --- FOR CLEANUP ---
+	
+	protected synchronized boolean isEmpty() {
+		return (max == 0 || min == 0);
+	}
+	
 	// --- CHECK ENDPOINT STATUS ---
 
-	public boolean isAvailable(long now) {
-		readLock.lock();
-		try {
-			if (max == 0 || min == 0) {
-				return true;
-			}
-			if (now - max > lockTimeout) {
-				if (now - tested > lockTimeout) {
-					tested = now;
-					return true;
-				}
-				return false;
-			}
-			if (locked) {
-				return false;
-			}
-			if (now - min > windowLength) {
-				return true;
-			}
-			locked = true;
-		} finally {
-			readLock.unlock();
+	protected synchronized boolean isAvailable(long now) {
+		if (max == 0 || min == 0) {
+			return true;
 		}
+		if (now - max > lockTimeout) {
+			if (now - tested > lockTimeout) {
+				tested = now;
+				return true;
+			}
+			return false;
+		}
+		if (locked) {
+			return false;
+		}
+		if (now - min > windowLength) {
+			return true;
+		}
+		locked = true;
 		return false;
 	}
 
 	// --- RESET VARIABLES ---
 
-	public void reset() {
-		readLock.lock();
-		try {
-			if (max == 0) {
-				return;
-			}
-		} finally {
-			readLock.unlock();
+	protected synchronized void reset() {
+		if (max == 0) {
+			return;
 		}
-		writeLock.lock();
-		try {
-			for (int i = 0; i < timestamps.length; i++) {
-				timestamps[i] = 0;
-			}
-			min = 0;
-			max = 0;
-			locked = false;
-		} finally {
-			writeLock.unlock();
+		for (int i = 0; i < timestamps.length; i++) {
+			timestamps[i] = 0;
 		}
+		min = 0;
+		max = 0;
+		tested = 0;
+		locked = false;
 	}
 
 }

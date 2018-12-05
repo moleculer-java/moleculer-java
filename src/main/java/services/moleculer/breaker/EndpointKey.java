@@ -27,16 +27,22 @@ package services.moleculer.breaker;
 
 public class EndpointKey {
 
+	// --- VARIABLES ---
+	
 	protected final String nodeID;
 	protected final String name;
 	protected final int hashCode;
 
-	public EndpointKey(String nodeID, String name) {
+	// --- CONSTRUCTOR ---
+	
+	protected EndpointKey(String nodeID, String name) {
 		this.nodeID = nodeID;
 		this.name = name;
 		this.hashCode = 31 * nodeID.hashCode() + name.hashCode();
 	}
 
+	// --- COLLECTION HELPERS ---
+	
 	@Override
 	public int hashCode() {
 		return hashCode;
@@ -44,28 +50,16 @@ public class EndpointKey {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj) {
-			return true;
-		}
-		if (obj == null) {
-			return false;
-		}
-		if (getClass() != obj.getClass()) {
-			return false;
-		}
+
+		// Simplified comparation
 		EndpointKey other = (EndpointKey) obj;
-		if (name == null) {
-			if (other.name != null) {
-				return false;
-			}
-		} else if (!name.equals(other.name)) {
+		if (this.hashCode != other.hashCode) {
 			return false;
 		}
-		if (nodeID == null) {
-			if (other.nodeID != null) {
-				return false;
-			}
-		} else if (!nodeID.equals(other.nodeID)) {
+		if (!name.equals(other.name)) {
+			return false;
+		}
+		if (!nodeID.equals(other.nodeID)) {
 			return false;
 		}
 		return true;
