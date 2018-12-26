@@ -3,6 +3,7 @@
 [![Build Status](https://travis-ci.org/moleculer-java/moleculer-java.svg?branch=master)](https://travis-ci.org/moleculer-java/moleculer-java)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/b26c4ff30c6b4cb4a5536b5c1de0c317)](https://www.codacy.com/app/berkesa/moleculer-java?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=moleculer-java/moleculer-java&amp;utm_campaign=Badge_Grade)
 [![codecov](https://codecov.io/gh/moleculer-java/moleculer-java/branch/master/graph/badge.svg)](https://codecov.io/gh/moleculer-java/moleculer-java)
+[![Javadocs](https://www.javadoc.io/badge/com.github.berkesa/moleculer-java.svg)](https://www.javadoc.io/doc/com.github.berkesa/moleculer-java)
 
 Java implementation of the [Moleculer microservices framework](http://moleculer.services/).
 The Java-based Moleculer is completely compatible with the NodeJS-based Moleculer.
