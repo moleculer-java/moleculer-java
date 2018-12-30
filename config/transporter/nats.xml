@@ -63,6 +63,9 @@
 		<!-- Set the SSL context to one that accepts any server certificate and has no client certificate -->
 		<property name="opentls" value="false" />
 
+		<!-- Turn on the old request style that uses a new inbox and subscriber for each request -->
+		<property name="oldRequestStyle" value="false" />
+
 	</bean>
 
 </beans>

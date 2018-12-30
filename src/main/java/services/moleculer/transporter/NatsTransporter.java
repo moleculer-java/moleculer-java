@@ -155,6 +155,12 @@ public class NatsTransporter extends Transporter implements MessageHandler, Conn
 	 */
 	protected boolean opentls;
 
+	/**
+	 * Turn on the old request style that uses a new inbox and subscriber for
+	 * each request.
+	 */
+	protected boolean oldRequestStyle;
+
 	// --- NATS CONNECTION ---
 
 	protected Connection client;
@@ -225,6 +231,9 @@ public class NatsTransporter extends Transporter implements MessageHandler, Conn
 			}
 			if (utf8Support) {
 				builder.supportUTF8Subjects();
+			}
+			if (oldRequestStyle) {
+				builder.oldRequestStyle();
 			}
 			builder.connectionListener(this);
 			builder.noReconnect();
@@ -684,6 +693,20 @@ public class NatsTransporter extends Transporter implements MessageHandler, Conn
 	 */
 	public void setVerbose(boolean verbose) {
 		this.verbose = verbose;
+	}
+
+	/**
+	 * @return the oldRequestStyle
+	 */
+	public boolean isOldRequestStyle() {
+		return oldRequestStyle;
+	}
+
+	/**
+	 * @param oldRequestStyle the oldRequestStyle to set
+	 */
+	public void setOldRequestStyle(boolean oldRequestStyle) {
+		this.oldRequestStyle = oldRequestStyle;
 	}
 
 }
