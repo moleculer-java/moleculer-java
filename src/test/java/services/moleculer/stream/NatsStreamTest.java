@@ -32,9 +32,7 @@ public class NatsStreamTest extends StreamTest {
 
 	@Override
 	public Transporter createTransporter() {
-		NatsTransporter nats = new NatsTransporter();
-		nats.setOldRequestStyle(true);
-		return nats;
+		return new NatsTransporter();
 	}
 
 }
