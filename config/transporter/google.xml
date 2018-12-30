@@ -8,7 +8,7 @@
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
 	<!-- GOOGLE CLUOUD PUB/SUB TRANSPORTER -->
-	<!-- REQUIRED DEPENDENCY: group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '0.30.0-beta' -->
+	<!-- REQUIRED DEPENDENCY: group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.56.0' -->
 	<!-- URL: https://mvnrepository.com/artifact/com.google.cloud/google-cloud-pubsub -->
 	<!-- SOURCE CODE: services.moleculer.transporter.GoogleTransporter.java -->
 

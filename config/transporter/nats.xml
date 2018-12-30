@@ -1,18 +1,68 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
-	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	   xmlns:context="http://www.springframework.org/schema/context"
-	   xsi:schemaLocation="http://www.springframework.org/schema/beans
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
 	   http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
 	   http://www.springframework.org/schema/context
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
 	<!-- NATS PUB/SUB TRANSPORTER -->
-	<!-- REQUIRED DEPENDENCY: group: 'io.nats', name: 'jnats', version: '1.0' -->
+	<!-- REQUIRED DEPENDENCY: group: 'io.nats', name: 'jnats', version: '2.4.1' -->
 	<!-- URL: https://mvnrepository.com/artifact/io.nats/jnats -->
 
 	<bean id="transporter" class="services.moleculer.transporter.NatsTransporter">
+
+		<!-- NATS server URLs (comma-separated list) -->
+		<property name="urls" value="localhost" />
+
+		<!-- Username for basic authentication -->
+		<property name="username"><null/></property>
 		
+		<!-- Password for basic authentication -->
+		<property name="password"><null/></property>
+		
+		<!-- Use the default SSL Context, if it exists -->
+		<property name="secure" value="false" />
+
+		<!-- Optional SSL Context -->
+		<property name="sslContext"><null/></property>
+
+		<!-- Turn off server pool randomization -->
+		<property name="noRandomize" value="false" />
+
+		<!-- Set the maximum number of pings the client can have in flight -->
+		<property name="maxPingsOut" value="2" />
+
+		<!-- Set the interval between attempts to pings the server in MILLISECONDS -->
+		<property name="pingInterval" value="120000" />
+
+		<!-- Set the timeout for connection attempts in MILLISECONDS -->
+		<property name="connectionTimeout" value="2000" />
+
+		<!-- Turn on verbose mode with the server -->
+		<property name="verbose" value="false" />
+
+		<!-- Sets the initial size for buffers in the connection -->
+		<property name="bufferSize" value="65536" />
+
+		<!-- Optional AuthHandler -->
+		<property name="authHandler"><null/></property>
+
+		<!-- Turn off echo -->
+		<property name="noEcho" value="true" />
+
+		<!-- Enable UTF8 channels -->
+		<property name="utf8Support" value="false" />
+
+		<!-- Turn on pedantic mode for the server -->
+		<property name="pedantic" value="false" />
+
+		<!-- Turn on advanced stats, primarily for test/benchmarks -->
+		<property name="advancedStats" value="false" />
+
+		<!-- Set the SSL context to one that accepts any server certificate and has no client certificate -->
+		<property name="opentls" value="false" />
+
 	</bean>
 
 </beans>

@@ -37,6 +37,9 @@ import services.moleculer.service.Name;
  * <br>
  * https://mvnrepository.com/artifact/de.undercouch/bson4jackson<br>
  * compile group: 'de.undercouch', name: 'bson4jackson', version: '2.9.2'
+ * 
+ * @see JsonSerializer
+ * @see MsgPackSerializer
  */
 @Name("BSON Serializer")
 public class BsonSerializer extends Serializer {

@@ -39,7 +39,7 @@ import services.moleculer.service.Name;
  * <b>Required dependency:</b><br>
  * <br>
  * https://mvnrepository.com/artifact/org.msgpack/msgpack<br>
- * compile group: 'org.msgpack', name: 'msgpack', version: '0.8.16'
+ * compile group: 'org.msgpack', name: 'msgpack', version: '0.6.12'
  *
  * @see JsonSerializer
  */

@@ -201,6 +201,7 @@ public class OHCacher extends Cacher {
 	@Override
 	public void started(ServiceBroker broker) throws Exception {
 		super.started(broker);
+		serializer.started(broker);
 		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
 
 		// Create cache

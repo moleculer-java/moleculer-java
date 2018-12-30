@@ -25,6 +25,7 @@
  */
 package services.moleculer.transporter;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -32,13 +33,15 @@ import javax.net.ssl.SSLContext;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
+import io.nats.client.AuthHandler;
 import io.nats.client.Connection;
-import io.nats.client.ConnectionEvent;
-import io.nats.client.DisconnectedCallback;
+import io.nats.client.ConnectionListener;
+import io.nats.client.Dispatcher;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.Nats;
 import io.nats.client.Options;
+import io.nats.client.Statistics;
 import services.moleculer.service.Name;
 
 /**
@@ -49,7 +52,7 @@ import services.moleculer.service.Name;
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/io.nats/jnats<br>
- * compile group: 'io.nats', name: 'jnats', version: '1.0'
+ * compile group: 'io.nats', name: 'jnats', version: '2.4.1'
  *
  * @see TcpTransporter
  * @see RedisTransporter
@@ -60,28 +63,105 @@ import services.moleculer.service.Name;
  * @see AmqpTransporter
  */
 @Name("NATS Transporter")
-public class NatsTransporter extends Transporter implements MessageHandler, DisconnectedCallback {
+public class NatsTransporter extends Transporter implements MessageHandler, ConnectionListener {
 
 	// --- PROPERTIES ---
 
+	/**
+	 * Username for basic authentication.
+	 */
 	protected String username;
+
+	/**
+	 * Password for basic authentication.
+	 */
 	protected String password;
+
+	/**
+	 * Use the default SSL Context, if it exists.
+	 */
 	protected boolean secure;
+
+	/**
+	 * Nats server url(s).
+	 */
 	protected String[] urls = { "localhost" };
 
 	// --- OTHER NATS PROPERTIES ---
 
+	/**
+	 * Optional SSL Context.
+	 */
 	protected SSLContext sslContext;
-	protected boolean dontRandomize;
-	protected int maxPingsOut = Nats.DEFAULT_MAX_PINGS_OUT;
-	protected long pingInterval = Nats.DEFAULT_PING_INTERVAL;
-	protected int timeout = Nats.DEFAULT_TIMEOUT;
-	protected boolean tlsDebug;
+
+	/**
+	 * Turn off server pool randomization.
+	 */
+	protected boolean noRandomize;
+
+	/**
+	 * Set the maximum number of pings the client can have in flight.
+	 */
+	protected int maxPingsOut = Options.DEFAULT_MAX_PINGS_OUT;
+
+	/**
+	 * Set the interval between attempts to pings the server in MILLISECONDS.
+	 */
+	protected long pingInterval = Options.DEFAULT_PING_INTERVAL.toMillis();
+
+	/**
+	 * Set the timeout for connection attempts in MILLISECONDS.
+	 */
+	protected long connectionTimeout = Options.DEFAULT_CONNECTION_TIMEOUT.toMillis();
+
+	/**
+	 * Turn on verbose mode with the server.
+	 */
 	protected boolean verbose;
+
+	/**
+	 * Sets the initial size for buffers in the connection.
+	 */
+	protected int bufferSize = Options.DEFAULT_BUFFER_SIZE;
+
+	/**
+	 * Optional AuthHandler.
+	 */
+	protected AuthHandler authHandler;
+
+	/**
+	 * Turn off echo.
+	 */
+	protected boolean noEcho = true;
+
+	/**
+	 * Enable UTF8 channels.
+	 */
+	protected boolean utf8Support;
+
+	/**
+	 * Turn on pedantic mode for the server.
+	 */
+	protected boolean pedantic;
+
+	/**
+	 * Turn on advanced stats, primarily for test/benchmarks.
+	 */
+	protected boolean advancedStats;
+
+	/**
+	 * Set the SSL context to one that accepts any server certificate and has no
+	 * client certificate.
+	 */
+	protected boolean opentls;
 
 	// --- NATS CONNECTION ---
 
 	protected Connection client;
+
+	// --- MESSAGE DISPATCHER ---
+
+	protected Dispatcher dispatcher;
 
 	// --- STARTED FLAG ---
 
@@ -120,39 +200,52 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 			if (sslContext != null) {
 				builder.sslContext(sslContext);
 			}
-			if (dontRandomize) {
-				builder.dontRandomize();
+			if (noRandomize) {
+				builder.noRandomize();
 			}
 			builder.maxPingsOut(maxPingsOut);
-			builder.pingInterval(pingInterval);
-			builder.timeout(timeout);
-			if (tlsDebug) {
-				builder.tlsDebug();
-			}
+			builder.pingInterval(Duration.ofMillis(pingInterval));
+			builder.connectionTimeout(Duration.ofMillis(connectionTimeout));
 			if (verbose) {
 				builder.verbose();
 			}
-			builder.disconnectedCb(this);
+			builder.bufferSize(bufferSize);
+			builder.authHandler(authHandler);
+			if (noEcho) {
+				builder.noEcho();
+			}
+			if (opentls) {
+				builder.opentls();
+			}
+			if (pedantic) {
+				builder.pedantic();
+			}
+			if (advancedStats) {
+				builder.turnOnAdvancedStats();
+			}
+			if (utf8Support) {
+				builder.supportUTF8Subjects();
+			}
+			builder.connectionListener(this);
 			builder.noReconnect();
-			Options options = builder.build();
 
-			// Connect to NATS server
-			disconnect();
-			StringBuilder urlList = new StringBuilder(128);
+			// Set server URLs
 			for (String url : urls) {
-				if (urlList.length() > 0) {
-					urlList.append(',');
-				}
 				if (url.indexOf(':') == -1) {
 					url = url + ":4222";
 				}
 				if (url.indexOf("://") == -1) {
 					url = "nats://" + url;
 				}
-				urlList.append(url);
+				builder.server(url);
 			}
+
+			// Connect to NATS server
+			disconnect();
 			started.set(true);
-			client = Nats.connect(urlList.toString(), options);
+			Options options = builder.build();
+			client = Nats.connect(options);
+			dispatcher = client.createDispatcher(this);
 			logger.info("NATS pub-sub connection estabilished.");
 			connected();
 		} catch (Exception cause) {
@@ -163,21 +256,83 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 				msg += "!";
 			}
 			logger.warn(msg);
-			reconnect();
 		}
 	}
 
 	// --- DISCONNECT ---
 
 	@Override
-	public void onDisconnect(ConnectionEvent event) {
-		logger.info("NATS pub-sub connection disconnected.");
-		if (started.get()) {
-			reconnect();
+	public void connectionEvent(Connection conn, Events type) {
+		switch (type) {
+		case CONNECTED:
+
+			// The connection is permanently closed, either by manual action or
+			// failed reconnects
+			if (debug) {
+				logger.info("NATS connection opened.");
+			}
+			break;
+
+		case CLOSED:
+
+			// The connection lost its connection, but may try to reconnect if
+			// configured to
+			logger.info("NATS connection closed.");
+			if (started.get()) {
+				reconnect();
+			}
+			break;
+
+		case DISCONNECTED:
+
+			// The connection was connected, lost its connection and
+			// successfully reconnected
+			if (debug) {
+				logger.info("NATS pub-sub connection disconnected.");
+			}
+			break;
+
+		case RECONNECTED:
+
+			// The connection was reconnected and the server has been notified
+			// of all subscriptions
+			if (debug) {
+				logger.info("NATS connection reconnected.");
+			}
+			break;
+
+		case RESUBSCRIBED:
+
+			// The connection was told about new servers from, from the current
+			// server
+			if (debug) {
+				logger.info("NATS subscriptions re-established.");
+			}
+			break;
+
+		case DISCOVERED_SERVERS:
+
+			// Servers discovered
+			if (debug) {
+				logger.info("NATS servers discovered.");
+			}
+			break;
+
+		default:
+			break;
 		}
 	}
 
 	protected void disconnect() {
+		if (dispatcher != null && client != null) {
+			try {
+				client.closeDispatcher(dispatcher);
+			} catch (Throwable cause) {
+
+				// Do nothing
+			}
+			dispatcher = null;
+		}
 		if (client != null) {
 			try {
 				client.close();
@@ -231,9 +386,9 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 
 	@Override
 	public Promise subscribe(String channel) {
-		if (client != null) {
+		if (dispatcher != null) {
 			try {
-				client.subscribe(channel, this);
+				dispatcher.subscribe(channel);
 			} catch (Exception cause) {
 				return Promise.reject(cause);
 			}
@@ -269,90 +424,264 @@ public class NatsTransporter extends Transporter implements MessageHandler, Disc
 
 	// --- GETTERS / SETTERS ---
 
-	public String[] getUrls() {
-		return urls;
+	/**
+	 * @return Statistics
+	 */
+	public Statistics getStatistics() {
+		return client.getStatistics();
 	}
 
-	public void setUrls(String[] urls) {
-		this.urls = urls;
+	/**
+	 * @return the connectionTimeout
+	 */
+	public long getConnectionTimeout() {
+		return connectionTimeout;
 	}
 
+	/**
+	 * @param connectionTimeout
+	 *            the connectionTimeout to set
+	 */
+	public void setConnectionTimeout(long connectionTimeout) {
+		this.connectionTimeout = connectionTimeout;
+	}
+
+	/**
+	 * @return the bufferSize
+	 */
+	public int getBufferSize() {
+		return bufferSize;
+	}
+
+	/**
+	 * @param bufferSize
+	 *            the bufferSize to set
+	 */
+	public void setBufferSize(int bufferSize) {
+		this.bufferSize = bufferSize;
+	}
+
+	/**
+	 * @return the authHandler
+	 */
+	public AuthHandler getAuthHandler() {
+		return authHandler;
+	}
+
+	/**
+	 * @param authHandler
+	 *            the authHandler to set
+	 */
+	public void setAuthHandler(AuthHandler authHandler) {
+		this.authHandler = authHandler;
+	}
+
+	/**
+	 * @return the noEcho
+	 */
+	public boolean isNoEcho() {
+		return noEcho;
+	}
+
+	/**
+	 * @param noEcho
+	 *            the noEcho to set
+	 */
+	public void setNoEcho(boolean noEcho) {
+		this.noEcho = noEcho;
+	}
+
+	/**
+	 * @return the utf8Support
+	 */
+	public boolean isUtf8Support() {
+		return utf8Support;
+	}
+
+	/**
+	 * @param utf8Support
+	 *            the utf8Support to set
+	 */
+	public void setUtf8Support(boolean utf8Support) {
+		this.utf8Support = utf8Support;
+	}
+
+	/**
+	 * @return the pedantic
+	 */
+	public boolean isPedantic() {
+		return pedantic;
+	}
+
+	/**
+	 * @param pedantic
+	 *            the pedantic to set
+	 */
+	public void setPedantic(boolean pedantic) {
+		this.pedantic = pedantic;
+	}
+
+	/**
+	 * @return the advancedStats
+	 */
+	public boolean isAdvancedStats() {
+		return advancedStats;
+	}
+
+	/**
+	 * @param advancedStats
+	 *            the advancedStats to set
+	 */
+	public void setAdvancedStats(boolean advancedStats) {
+		this.advancedStats = advancedStats;
+	}
+
+	/**
+	 * @return the opentls
+	 */
+	public boolean isOpentls() {
+		return opentls;
+	}
+
+	/**
+	 * @param opentls
+	 *            the opentls to set
+	 */
+	public void setOpentls(boolean opentls) {
+		this.opentls = opentls;
+	}
+
+	/**
+	 * @return the username
+	 */
 	public String getUsername() {
 		return username;
 	}
 
+	/**
+	 * @param username
+	 *            the username to set
+	 */
 	public void setUsername(String username) {
 		this.username = username;
 	}
 
+	/**
+	 * @return the password
+	 */
 	public String getPassword() {
 		return password;
 	}
 
+	/**
+	 * @param password
+	 *            the password to set
+	 */
 	public void setPassword(String password) {
 		this.password = password;
 	}
 
-	public SSLContext getSslContext() {
-		return sslContext;
-	}
-
-	public void setSslContext(SSLContext sslContext) {
-		this.sslContext = sslContext;
-	}
-
+	/**
+	 * @return the secure
+	 */
 	public boolean isSecure() {
 		return secure;
 	}
 
+	/**
+	 * @param secure
+	 *            the secure to set
+	 */
 	public void setSecure(boolean secure) {
 		this.secure = secure;
 	}
 
-	public boolean isDontRandomize() {
-		return dontRandomize;
+	/**
+	 * @return the urls
+	 */
+	public String[] getUrls() {
+		return urls;
 	}
 
-	public void setDontRandomize(boolean dontRandomize) {
-		this.dontRandomize = dontRandomize;
+	/**
+	 * @param urls
+	 *            the urls to set
+	 */
+	public void setUrls(String[] urls) {
+		this.urls = urls;
 	}
 
+	/**
+	 * @return the sslContext
+	 */
+	public SSLContext getSslContext() {
+		return sslContext;
+	}
+
+	/**
+	 * @param sslContext
+	 *            the sslContext to set
+	 */
+	public void setSslContext(SSLContext sslContext) {
+		this.sslContext = sslContext;
+	}
+
+	/**
+	 * @return the noRandomize
+	 */
+	public boolean isNoRandomize() {
+		return noRandomize;
+	}
+
+	/**
+	 * @param noRandomize
+	 *            the noRandomize to set
+	 */
+	public void setNoRandomize(boolean noRandomize) {
+		this.noRandomize = noRandomize;
+	}
+
+	/**
+	 * @return the maxPingsOut
+	 */
 	public int getMaxPingsOut() {
 		return maxPingsOut;
 	}
 
+	/**
+	 * @param maxPingsOut
+	 *            the maxPingsOut to set
+	 */
 	public void setMaxPingsOut(int maxPingsOut) {
 		this.maxPingsOut = maxPingsOut;
 	}
 
+	/**
+	 * @return the pingInterval
+	 */
 	public long getPingInterval() {
 		return pingInterval;
 	}
 
+	/**
+	 * @param pingInterval
+	 *            the pingInterval to set
+	 */
 	public void setPingInterval(long pingInterval) {
 		this.pingInterval = pingInterval;
 	}
 
-	public int getTimeout() {
-		return timeout;
-	}
-
-	public void setTimeout(int timeout) {
-		this.timeout = timeout;
-	}
-
-	public boolean isTlsDebug() {
-		return tlsDebug;
-	}
-
-	public void setTlsDebug(boolean tlsDebug) {
-		this.tlsDebug = tlsDebug;
-	}
-
+	/**
+	 * @return the verbose
+	 */
 	public boolean isVerbose() {
 		return verbose;
 	}
 
+	/**
+	 * @param verbose
+	 *            the verbose to set
+	 */
 	public void setVerbose(boolean verbose) {
 		this.verbose = verbose;
 	}

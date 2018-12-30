@@ -30,6 +30,8 @@ import io.datatree.dom.TreeReader;
 import io.datatree.dom.TreeReaderRegistry;
 import io.datatree.dom.TreeWriter;
 import io.datatree.dom.TreeWriterRegistry;
+import services.moleculer.ServiceBroker;
+import services.moleculer.service.MoleculerComponent;
 import services.moleculer.util.CheckedTree;
 
 /**
@@ -38,19 +40,37 @@ import services.moleculer.util.CheckedTree;
  * @see JsonSerializer
  * @see MsgPackSerializer
  */
-public abstract class Serializer {
+public abstract class Serializer extends MoleculerComponent {
 
 	// --- PROPERTIES ---
 
+	/**
+	 * Name of the format (eg. "json").
+	 */
 	protected final String format;
 
-	protected final TreeWriter writer;
-	protected final TreeReader reader;
+	/**
+	 * Data serializer (eg. Tree -> JSON, comes from the "datatree-adapters"
+	 * pack).
+	 */
+	protected TreeWriter writer;
+
+	/**
+	 * Data deserializer (eg. JSON -> Tree, comes from the "datatree-adapters"
+	 * pack).
+	 */
+	protected TreeReader reader;
 
 	// --- CONSTRUCTOR ---
 
 	protected Serializer(String format) {
 		this.format = format;
+	}
+
+	// --- INSTANCE STARTED ---
+
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
 		this.writer = TreeWriterRegistry.getWriter(format);
 		this.reader = TreeReaderRegistry.getReader(format);
 	}

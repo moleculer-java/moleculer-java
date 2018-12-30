@@ -49,7 +49,7 @@ import services.moleculer.util.redis.RedisPubSubClient;
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/biz.paluch.redis/lettuce<br>
- * compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.4.1.Final'
+ * compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.5.0.Final'
  *
  * @see TcpTransporter
  * @see NatsTransporter

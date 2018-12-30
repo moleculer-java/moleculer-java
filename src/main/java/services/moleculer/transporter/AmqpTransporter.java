@@ -54,7 +54,7 @@ import services.moleculer.service.Name;
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/com.rabbitmq/amqp-client<br>
- * compile group: 'com.rabbitmq', name: 'amqp-client', version: '5.0.0'
+ * compile group: 'com.rabbitmq', name: 'amqp-client', version: '5.5.1'
  *
  * @see TcpTransporter
  * @see RedisTransporter

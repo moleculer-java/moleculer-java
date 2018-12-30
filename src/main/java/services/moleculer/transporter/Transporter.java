@@ -210,6 +210,7 @@ public abstract class Transporter extends MoleculerComponent {
 		nodeID = broker.getNodeID();
 
 		// Log serializer info
+		serializer.started(broker);
 		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
 
 		// Get components

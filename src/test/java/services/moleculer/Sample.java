@@ -30,15 +30,14 @@ import services.moleculer.error.MoleculerError;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
-import services.moleculer.transporter.RedisTransporter;
-import services.moleculer.transporter.Transporter;
+import services.moleculer.transporter.NatsTransporter;
 
 public class Sample {
 
 	public static void main(String[] args) throws Exception {
 		try {
 
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < 1; i++) {
 
 				// Create Service Broker config
 				ServiceBrokerConfig cfg = new ServiceBrokerConfig();
@@ -46,7 +45,10 @@ public class Sample {
 				// Unique nodeID
 				cfg.setNodeID("node" + (i + 10));
 
-				Transporter t = new RedisTransporter("192.168.51.100");
+				NatsTransporter t = new NatsTransporter();
+				t.setVerbose(true);
+				t.setDebug(true);
+				t.setNoEcho(true);
 				cfg.setTransporter(t);
 
 				// Create Service Broker (by config)

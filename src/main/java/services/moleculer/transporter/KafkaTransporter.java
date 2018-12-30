@@ -25,6 +25,7 @@
  */
 package services.moleculer.transporter;
 
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
@@ -63,7 +64,7 @@ import services.moleculer.service.Name;
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients<br>
- * compile group: 'org.apache.kafka', name: 'kafka-clients', version: '1.0.0'
+ * compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.1.0'
  * <br>
  *
  * @see TcpTransporter
@@ -236,7 +237,7 @@ public class KafkaTransporter extends Transporter {
 						Thread.sleep(1000);
 						continue;
 					}
-					ConsumerRecords<byte[], byte[]> records = consumer.poll(5000);
+					ConsumerRecords<byte[], byte[]> records = consumer.poll(Duration.ofSeconds(5));
 					if (records == null || records.isEmpty()) {
 						continue;
 					}

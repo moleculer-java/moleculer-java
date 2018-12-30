@@ -59,7 +59,7 @@ import services.moleculer.util.redis.RedisGetSetClient;
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/biz.paluch.redis/lettuce<br>
- * compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.4.1.Final'
+ * compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.5.0.Final'
  *
  * @see MemoryCacher
  * @see OHCacher
@@ -130,6 +130,7 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 	@Override
 	public void started(ServiceBroker broker) throws Exception {
 		super.started(broker);
+		serializer.started(broker);
 		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
 
 		// Get components

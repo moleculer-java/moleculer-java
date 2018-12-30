@@ -71,7 +71,7 @@ import services.moleculer.util.CheckedTree;
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/javax.cache/cache-api<br>
- * compile group: 'javax.cache', name: 'cache-api', version: '1.0.0' <br>
+ * compile group: 'javax.cache', name: 'cache-api', version: '1.1.0' <br>
  * <br>
  *
  * @see MemoryCacher
@@ -161,6 +161,7 @@ public class JCacheCacher extends DistributedCacher {
 	@Override
 	public void started(ServiceBroker broker) throws Exception {
 		super.started(broker);
+		serializer.started(broker);
 		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
 	}
 
