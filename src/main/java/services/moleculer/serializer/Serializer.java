@@ -65,12 +65,18 @@ public abstract class Serializer extends MoleculerComponent {
 
 	protected Serializer(String format) {
 		this.format = format;
+
+		// Init implementations
+		this.writer = TreeWriterRegistry.getWriter(format);
+		this.reader = TreeReaderRegistry.getReader(format);
 	}
 
 	// --- INSTANCE STARTED ---
 
 	public void started(ServiceBroker broker) throws Exception {
 		super.started(broker);
+		
+		// Upgrade implementations (maybe changed)
 		this.writer = TreeWriterRegistry.getWriter(format);
 		this.reader = TreeReaderRegistry.getReader(format);
 	}
