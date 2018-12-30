@@ -229,7 +229,7 @@ public abstract class TransporterTest extends TestCase {
 
 		// Test null service
 		br1.createService(new NullService());
-		br2.waitForServices("nullService").waitFor(3000);
+		br2.waitForServices("nullService").waitFor(20000);
 		Tree rsp = br2.call("nullService.nullAction", (Tree) null).waitFor(20000);
 		assertNull(rsp);
 	}

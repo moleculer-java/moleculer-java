@@ -77,7 +77,7 @@ public abstract class StreamTest extends TestCase {
 		byte[] bytes1 = "HELLO".getBytes();
 		
 		PacketStream stream = br1.createStream();
-		Tree rsp = br1.call("stream-receiver.receive", stream).waitFor(1000000);
+		Tree rsp = br1.call("stream-receiver.receive", stream).waitFor(20000);
 		assertEquals(123, (int) rsp.asInteger());
 		assertTrue(stream.sendData(bytes1));
 
@@ -325,7 +325,7 @@ public abstract class StreamTest extends TestCase {
 		File f1 = File.createTempFile("MoleculerStreamTest", ".tmp");
 		save(f1, all);
 
-		stream.transferFrom(f1).waitFor(7000);
+		stream.transferFrom(f1).waitFor(20000);
 		f1.delete();
 		for (int i = 0; i < 30; i++) {
 			Thread.sleep(100);
@@ -341,7 +341,7 @@ public abstract class StreamTest extends TestCase {
 		// --- TEST 9 (SERVICE RETURNS WITH A PROMISE) ---
 
 		br1.createService(new PromiseProducerService());
-		br2.waitForServices("promise-producer").waitFor(5000);
+		br2.waitForServices("promise-producer").waitFor(20000);
 
 		int sum = 0;
 		for (byte b : all) {
@@ -356,13 +356,13 @@ public abstract class StreamTest extends TestCase {
 		stream.sendData(bytes3);
 		stream.sendClose();
 
-		Tree prsp = promise.waitFor(6000);
+		Tree prsp = promise.waitFor(20000);
 		assertEquals(sum, (int) prsp.asInteger());
 
 		// --- TEST 10 (FAULTY SERVICE) ---
 
 		br2.createService(new FaultyService());
-		br1.waitForServices("faulty-receiver").waitFor(5000);
+		br1.waitForServices("faulty-receiver").waitFor(20000);
 
 		stream = br1.createStream();
 		promise = br1.call("faulty-receiver.receive", stream);
@@ -381,7 +381,7 @@ public abstract class StreamTest extends TestCase {
 
 		// Check fault
 		try {
-			promise.waitFor(5000);
+			promise.waitFor(20000);
 			throw new Exception("Invalid position!");
 		} catch (MoleculerError e) {
 
@@ -406,7 +406,7 @@ public abstract class StreamTest extends TestCase {
 		// --- TEST 11 (SEND ERROR) ---
 
 		br2.createService(new ErrorReceiver());
-		br1.waitForServices("error-receiver").waitFor(5000);
+		br1.waitForServices("error-receiver").waitFor(20000);
 
 		stream = br1.createStream();
 		promise = br1.call("error-receiver.receive", stream);
@@ -415,7 +415,7 @@ public abstract class StreamTest extends TestCase {
 
 		stream.sendError(new Exception("abc"));
 
-		String msg = promise.waitFor(5000).asString();
+		String msg = promise.waitFor(20000).asString();
 		assertEquals("abc", msg);
 	}
 
@@ -524,7 +524,7 @@ public abstract class StreamTest extends TestCase {
 					if (packetCounter == numberOfPackets) {
 						return this;
 					}
-					waitLock.wait(1000);
+					waitLock.wait(2000);
 				}
 				assertEquals(numberOfPackets, packetCounter);
 			}

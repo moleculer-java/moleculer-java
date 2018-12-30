@@ -302,8 +302,8 @@ test {
     // exclude '**/stream/**'
     
     // Temporarily disabled (Mosquito Server does not start)
-    exclude '**/MqttTransporterTest.class'
-    exclude '**/MqttStreamTest.class'
+    // exclude '**/MqttTransporterTest.class'
+    // exclude '**/MqttStreamTest.class'
 }
 
 // task copyRuntimeLibs(type: Copy) {

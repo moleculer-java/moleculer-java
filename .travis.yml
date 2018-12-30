@@ -28,8 +28,8 @@ before_install:
   - sudo apt-get update -y
   - sudo apt-get install mosquitto -y
   
-# script: ./gradlew -i check
-script: ./gradlew check
+script: ./gradlew -i check
+# script: ./gradlew check
 
 after_success:
   - if [ -e ./gradlew ]; then ./gradlew jacocoTestReport;else gradle jacocoTestReport;fi
