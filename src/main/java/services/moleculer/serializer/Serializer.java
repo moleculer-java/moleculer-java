@@ -50,13 +50,13 @@ public abstract class Serializer extends MoleculerComponent {
 	protected final String format;
 
 	/**
-	 * Data serializer (eg. Tree -> JSON, comes from the "datatree-adapters"
+	 * Data serializer (eg. Tree -&gt; JSON, comes from the "datatree-adapters"
 	 * pack).
 	 */
 	protected TreeWriter writer;
 
 	/**
-	 * Data deserializer (eg. JSON -> Tree, comes from the "datatree-adapters"
+	 * Data deserializer (eg. JSON -&gt; Tree, comes from the "datatree-adapters"
 	 * pack).
 	 */
 	protected TreeReader reader;
