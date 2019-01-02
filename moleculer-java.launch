@@ -16,5 +16,5 @@
 </listAttribute>
 <stringAttribute key="org.eclipse.jdt.launching.MAIN_TYPE" value="services.moleculer.Sample"/>
 <stringAttribute key="org.eclipse.jdt.launching.PROJECT_ATTR" value="moleculer-java"/>
-<stringAttribute key="org.eclipse.jdt.launching.VM_ARGUMENTS" value="-Djava.util.logging.config.file=./config/logger/with-console.properties -Djava.library.path=&quot;native&quot;"/>
+<stringAttribute key="org.eclipse.jdt.launching.VM_ARGUMENTS" value="-Djava.util.logging.config.file=./cfg/logger/with-console.properties -Djava.library.path=&quot;native&quot;"/>
 </launchConfiguration>
