@@ -8,7 +8,7 @@
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
 	<!-- LOCAL DEVELOPER CONSOLE -->
-	<!-- REQUIRED DEPENDENCY: group: 'com.github.berkesa', name: 'moleculer-java-repl', version: '1.0.1' -->
+	<!-- REQUIRED DEPENDENCY: group: 'com.github.berkesa', name: 'moleculer-java-repl', version: '1.0.4' -->
 	<!-- URL: https://mvnrepository.com/artifact/com.github.berkesa/moleculer-java-repl -->
 	
 	<bean id="$repl" class="services.moleculer.repl.LocalRepl">
