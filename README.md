@@ -11,7 +11,7 @@ The Java-based Moleculer is completely compatible with the NodeJS-based Molecule
 ## Features
 
 * Fast - High-performance and non-blocking API
-* Polyglot - Moleculer is implemented under Node.js and Java
+* Polyglot - Moleculer is implemented under NodeJS and Java
 * Extensible - All built-in modules (caching, serializer, transporter) are pluggable
 * Open source - Moleculer is 100% open source and free of charge
 * Fault tolerant - With built-in load balancer &amp; circuit breaker
@@ -204,6 +204,7 @@ Developer documentation is in progress. At present, only JavaDoc and test cases 
 # Subprojects
 
 * [Interactive Developer Console for Moleculer](https://moleculer-java.github.io/moleculer-java-repl/)
+* [JMX Service for Moleculer](https://moleculer-java.github.io/moleculer-java-jmx/)
 
 # License
 Moleculer-java is available under the [MIT license](https://tldrlegal.com/license/mit-license).

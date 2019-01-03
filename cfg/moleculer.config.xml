@@ -52,7 +52,12 @@
 
 	</bean>
 
-	<!-- REPL DEVELOPER CONSOLE -->
+	<!-- JMX SERVICE (OPTIONAL) -->
+	
+	<!-- import resource="jmx/local.xml" / -->
+	<!-- import resource="jmx/remote.xml" / -->
+
+	<!-- REPL DEVELOPER CONSOLE (OPTIONAL) -->
 		
 	<!-- import resource="repl/local.xml" / -->
 	<!-- import resource="repl/remote.xml" / -->
