@@ -6,12 +6,12 @@
 [![Javadocs](https://www.javadoc.io/badge/com.github.berkesa/moleculer-java.svg)](https://www.javadoc.io/doc/com.github.berkesa/moleculer-java)
 
 Java implementation of the [Moleculer microservices framework](http://moleculer.services/).
-The Java-based Moleculer is completely compatible with the NodeJS-based Moleculer.
+The Java-based Moleculer is completely compatible with the Node.js-based Moleculer.
 
 ## Features
 
 * Fast - High-performance and non-blocking API
-* Polyglot - Moleculer is implemented under NodeJS and Java
+* Polyglot - Moleculer is implemented under Node.js and Java
 * Extensible - All built-in modules (caching, serializer, transporter) are pluggable
 * Open source - Moleculer is 100% open source and free of charge
 * Fault tolerant - With built-in load balancer &amp; circuit breaker
