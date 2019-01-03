@@ -201,6 +201,10 @@ public class MathService extends Service {
 # Documentation
 Developer documentation is in progress. At present, only JavaDoc and test cases are available.
 
+# Sample project
+
+* [Moleculer Java demo project with Gradle](https://github.com/moleculer-java/moleculer-java-gradle-demo/)
+
 # Subprojects
 
 * [Interactive Developer Console for Moleculer](https://moleculer-java.github.io/moleculer-java-repl/)
