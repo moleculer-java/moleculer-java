@@ -932,7 +932,7 @@ public class ServiceBroker extends EventEmitter {
 			return true;
 		} catch (ClassNotFoundException notFound) {
 			logger.error("Unable to start REPL console!");
-			suggestDependency("com.github.berkesa", "moleculer-java-repl", "1.0.1");
+			suggestDependency("com.github.berkesa", "moleculer-java-repl", "1.0.5");
 		} catch (Exception cause) {
 			logger.error("Unable to start REPL console!", cause);
 		}
