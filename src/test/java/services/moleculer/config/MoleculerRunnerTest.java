@@ -30,7 +30,7 @@ import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 
 import org.junit.Test;
-import org.springframework.context.support.AbstractXmlApplicationContext;
+import org.springframework.context.support.AbstractApplicationContext;
 
 import io.datatree.Tree;
 import junit.framework.TestCase;
@@ -40,7 +40,7 @@ public class MoleculerRunnerTest extends TestCase {
 
 	// --- SPRING CONTEXT ---
 	
-	private AbstractXmlApplicationContext ctx;
+	private AbstractApplicationContext ctx;
 	
 	// --- TEST METHOD ---
 

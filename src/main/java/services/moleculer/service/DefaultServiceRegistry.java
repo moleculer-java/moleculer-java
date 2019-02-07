@@ -856,21 +856,9 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					newMiddlewares.add(middleware);
 				}
 			}
+
+			// Apply new middlewares
 			if (!newMiddlewares.isEmpty()) {
-
-				// Start new middlewares
-				for (Middleware middleware : newMiddlewares) {
-					try {
-						middleware.started(broker);
-					} catch (MoleculerError moleculerError) {
-						throw moleculerError;
-					} catch (Exception cause) {
-						throw new MoleculerError("Unable to start middleware!", cause, "MoleculerError", nodeID, false,
-								500, "MIDDLEWARE_ERROR");
-					}
-				}
-
-				// Apply new middlewares
 				for (Strategy<ActionEndpoint> strategy : strategies.values()) {
 					List<ActionEndpoint> endpoints = strategy.getAllEndpoints();
 					for (ActionEndpoint endpoint : endpoints) {
@@ -879,10 +867,24 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 						}
 					}
 				}
-
 			}
+
 		} finally {
 			lock.unlockWrite(stamp);
+		}
+
+		// Start new middlewares
+		if (!newMiddlewares.isEmpty()) {
+			for (Middleware middleware : newMiddlewares) {
+				try {
+					middleware.started(broker);
+				} catch (MoleculerError moleculerError) {
+					throw moleculerError;
+				} catch (Exception cause) {
+					throw new MoleculerError("Unable to start middleware!", cause, "MoleculerError", nodeID, false, 500,
+							"MIDDLEWARE_ERROR");
+				}
+			}
 		}
 	}
 
@@ -978,7 +980,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			}
 			services.put(serviceName, service);
 			names.add(serviceName);
-			service.started(broker);
 
 			// Delete cached node descriptor
 			clearDescriptorCache();
@@ -988,6 +989,13 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			return;
 		} finally {
 			lock.unlockWrite(stamp);
+		}
+
+		// Start service
+		try {
+			service.started(broker);
+		} catch (Exception cause) {
+			logger.error("Unable to start local service!", cause);
 		}
 
 		// Notify local listeners about the new LOCAL service
@@ -1030,7 +1038,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		Tree actions = config.get("actions");
 		String serviceName = config.get("name", "");
 		int actionCounter = 0;
-		
+
 		final long stamp = lock.writeLock();
 		try {
 			if (actions != null && actions.isMap()) {
@@ -1047,7 +1055,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 						strategies.put(actionName, actionStrategy);
 					}
 					actionStrategy.addEndpoint(endpoint);
-					
+
 					// Apply middlewares
 					for (Middleware middleware : middlewares) {
 						endpoint.use(middleware);
@@ -1062,7 +1070,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		} finally {
 			lock.unlockWrite(stamp);
 		}
-		
+
 		// Write log about this service
 		StringBuilder msg = new StringBuilder(64);
 		msg.append("Remote service \"");
@@ -1081,9 +1089,9 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		msg.append(nodeID);
 		msg.append("\".");
 		logger.info(msg.toString());
-		
+
 		// Notify local listeners about the new REMOTE service
-		broadcastServicesChanged(false);		
+		broadcastServicesChanged(false);
 	}
 
 	// --- REMOVE ALL REMOTE SERVICES/ACTIONS OF A NODE ---

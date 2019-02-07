@@ -47,7 +47,8 @@ import services.moleculer.service.Name;
 /**
  * NATS Transporter. NATS Server is a simple, high performance open source
  * messaging system for cloud native applications, IoT messaging, and
- * microservices architectures (website: https://nats.io).<br>
+ * microservices architectures (website: https://nats.io). Tested with NATS
+ * server version 1.3.0.<br>
  * <br>
  * <b>Required dependency:</b><br>
  * <br>
@@ -703,7 +704,8 @@ public class NatsTransporter extends Transporter implements MessageHandler, Conn
 	}
 
 	/**
-	 * @param oldRequestStyle the oldRequestStyle to set
+	 * @param oldRequestStyle
+	 *            the oldRequestStyle to set
 	 */
 	public void setOldRequestStyle(boolean oldRequestStyle) {
 		this.oldRequestStyle = oldRequestStyle;

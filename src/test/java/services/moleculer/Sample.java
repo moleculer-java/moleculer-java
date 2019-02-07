@@ -25,63 +25,67 @@
  */
 package services.moleculer;
 
+import io.datatree.Tree;
 import services.moleculer.config.ServiceBrokerConfig;
-import services.moleculer.error.MoleculerError;
 import services.moleculer.service.Action;
-import services.moleculer.service.Name;
 import services.moleculer.service.Service;
-import services.moleculer.transporter.NatsTransporter;
 
 public class Sample {
 
 	public static void main(String[] args) throws Exception {
 		try {
 
-			for (int i = 0; i < 1; i++) {
+			// Create Service Broker config
+			ServiceBrokerConfig cfg = new ServiceBrokerConfig();
 
-				// Create Service Broker config
-				ServiceBrokerConfig cfg = new ServiceBrokerConfig();
+			// Unique nodeID
+			cfg.setNodeID("node1");
 
-				// Unique nodeID
-				cfg.setNodeID("node" + (i + 10));
+			// NatsTransporter t = new NatsTransporter();
+			// t.setVerbose(true);
+			// t.setDebug(true);
+			// t.setNoEcho(true);
+			// cfg.setTransporter(t);
 
-				NatsTransporter t = new NatsTransporter();
-				t.setVerbose(true);
-				t.setDebug(true);
-				t.setNoEcho(true);
-				cfg.setTransporter(t);
+			// Create Service Broker (by config)
+			ServiceBroker broker = new ServiceBroker(cfg);
 
-				// Create Service Broker (by config)
-				ServiceBroker broker = new ServiceBroker(cfg);
+			broker.createService(new MyService());
+			
+			// Start Service Broker
+			broker.start();
 
-				broker.createService(new ErrorService(i < 1));
-
-				// Start Service Broker
-				broker.start();
-
-			}
+			System.out.println(broker.call("myService.action2").waitFor());
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
-	public static class ErrorService extends Service {
-
-		private boolean faulty;
-
-		public ErrorService(boolean faulty) {
-			this.faulty = faulty;
-		}
-
-		@Name("test")
-		public Action error = ctx -> {
-			if (faulty) {
-				Thread.sleep(200);
-				throw new MoleculerError("Timed error!", broker.getNodeID(), true);
-			}
-			return ctx.params;
+	public static class MyService extends Service {
+		
+		// "Salve" action (what we'll call)
+		public Action action1 = ctx -> {
+			return ctx.params.get("a", 0) + ctx.params.get("c.d", 0);
 		};
 
-	}
+		// "Master" action (which calls the "slave" action)
+		public Action action2 = ctx -> {
+			
+			// Create input JSON structure
+			Tree params = new Tree();
+			params.put("a", 2);
+			params.put("b", "text");
+			params.put("c.d", 3);
+			
+			// Invoke local action via EventBus
+			return ctx.call("myService.action1", params).then(in -> {
 
+				// The result will be 10
+				return in.asLong() * 2;
+			});
+		};
+		
+	}
+	
 }

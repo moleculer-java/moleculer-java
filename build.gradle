@@ -134,7 +134,7 @@ dependencies {
 	
     // --- SPRING DEPENDENCY INJECTION FRAMEWORK ---
 
-	// https://mvnrepository.com/artifact/org.springframework/spring-core
+	// https://mvnrepository.com/artifact/org.springframework/spring-context
 	compile group: 'org.springframework', name: 'spring-context', version: '5.1.3.RELEASE'
 
 		
@@ -206,8 +206,8 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-// version = '1.0.8-SNAPSHOT'
-version = '1.0.8'
+version = '1.0.9-SNAPSHOT'
+// version = '1.0.9'
 
 modifyPom {
     project {
@@ -282,7 +282,7 @@ compileJava {
 
 jar {
     baseName = 'moleculer'
-    version =  '1.0.8'
+    version =  '1.0.9'
 }
 
 // --- TESTING ---

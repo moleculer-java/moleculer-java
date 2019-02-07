@@ -31,7 +31,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.springframework.context.support.AbstractXmlApplicationContext;
+import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -49,9 +49,9 @@ public final class MoleculerRunner {
 
 	private static String stopMessage = "c8j3H9eV";
 
-	// --- SERVICE BROKER INSTANCE ---
+	// --- SERVICE BROKER'S SPRING CONTEXT ---
 
-	protected static final AtomicReference<AbstractXmlApplicationContext> context = new AtomicReference<>();
+	protected static final AtomicReference<AbstractApplicationContext> context = new AtomicReference<>();
 
 	// --- MAIN ENTRY POINT (START / STOP SERVICE BROKER) ---
 
@@ -172,7 +172,7 @@ public final class MoleculerRunner {
 			if (args != null && args.length > 0) {
 				configPath = args[0];
 			}
-			AbstractXmlApplicationContext ctx = null;
+			AbstractApplicationContext ctx = null;
 			File file = new File(configPath);
 			if (file.isFile()) {
 				ctx = new FileSystemXmlApplicationContext(configPath);
@@ -193,7 +193,7 @@ public final class MoleculerRunner {
 	// --- STOP SERVICE BROKER ---
 
 	private static final void stopBroker() {
-		AbstractXmlApplicationContext instance = context.getAndSet(null);
+		AbstractApplicationContext instance = context.getAndSet(null);
 		if (instance != null) {
 			Thread safetyTimer = new Thread() {
 
