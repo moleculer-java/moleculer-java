@@ -1119,8 +1119,10 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			}
 			
 			// Delete cached node descriptor
-			clearDescriptorCache();
-
+			if (this.nodeID.equals(nodeID)) {
+				clearDescriptorCache();
+			}
+			
 		} finally {
 			lock.unlockWrite(stamp);
 		}
