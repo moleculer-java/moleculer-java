@@ -265,12 +265,21 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			pending.promise.complete(error);
 		}
 
-		// Stop all services
+		// Stop middlewares
+		for (Middleware middleware : middlewares) {
+			try {
+				middleware.stopped();
+			} catch (Throwable cause) {
+				logger.warn("Unable to stop middleware!", cause);
+			}
+		}
+
+		// Stop registered services
+		stopAllLocalServices();
+
+		// Clear registries
 		final long stamp = lock.writeLock();
 		try {
-
-			// Stop registered services
-			stopAllLocalServices();
 
 			// Delete strategies (and registered actions)
 			strategies.clear();
@@ -278,14 +287,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			// Delete all service names
 			names.clear();
 
-			// Stop middlewares
-			for (Middleware middleware : middlewares) {
-				try {
-					middleware.stopped();
-				} catch (Throwable cause) {
-					logger.warn("Unable to stop middleware!", cause);
-				}
-			}
+			// Delete middlewares
 			middlewares.clear();
 
 			// Delete cached node descriptor
@@ -1098,6 +1100,13 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	@Override
 	public void removeActions(String nodeID) {
+
+		// Stop local services
+		if (this.nodeID.equals(nodeID)) {
+			stopAllLocalServices();			
+		}
+		
+		// Remove actions
 		final long stamp = lock.writeLock();
 		try {
 			Iterator<Strategy<ActionEndpoint>> endpoints = strategies.values().iterator();
@@ -1108,28 +1117,29 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					endpoints.remove();
 				}
 			}
-			if (this.nodeID.equals(nodeID)) {
+			
+			// Delete cached node descriptor
+			clearDescriptorCache();
 
-				// Stop local services
-				stopAllLocalServices();
-
-				// Delete cached node descriptor
-				clearDescriptorCache();
-
-				// Notify local listeners (LOCAL services changed)
-				broadcastServicesChanged(true);
-
-			} else {
-
-				// Notify local listeners (REMOTE services changed)
-				broadcastServicesChanged(false);
-			}
 		} finally {
 			lock.unlockWrite(stamp);
+		}
+		
+		// Notify listeners
+		if (this.nodeID.equals(nodeID)) {
+
+			// Notify local listeners (LOCAL services changed)
+			broadcastServicesChanged(true);			
+		} else {
+
+			// Notify local listeners (REMOTE services changed)
+			broadcastServicesChanged(false);
 		}
 	}
 
 	protected void stopAllLocalServices() {
+		
+		// Stop services
 		for (Map.Entry<String, Service> serviceEntry : services.entrySet()) {
 			String name = serviceEntry.getKey();
 			try {
@@ -1139,7 +1149,14 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				logger.warn("Unable to stop \"" + name + "\" service!", cause);
 			}
 		}
-		services.clear();
+
+		// Delete services
+		final long stamp = lock.writeLock();
+		try {
+			services.clear();
+		} finally {
+			lock.unlockWrite(stamp);
+		}
 	}
 
 	// --- GET LOCAL SERVICE ---
