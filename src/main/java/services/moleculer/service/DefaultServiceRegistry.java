@@ -57,8 +57,9 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 import java.util.concurrent.locks.StampedLock;
 
 import io.datatree.Promise;
@@ -72,6 +73,7 @@ import services.moleculer.error.InvalidPacketDataError;
 import services.moleculer.error.MoleculerError;
 import services.moleculer.error.MoleculerErrorUtils;
 import services.moleculer.error.ProtocolVersionMismatchError;
+import services.moleculer.error.RequestRejectedError;
 import services.moleculer.error.RequestTimeoutError;
 import services.moleculer.error.ServiceNotAvailableError;
 import services.moleculer.error.ServiceNotFoundError;
@@ -118,11 +120,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	// --- STREAM LOCKS ---
 
-	protected final Lock requestStreamReadLock;
-	protected final Lock requestStreamWriteLock;
+	protected final ReadLock requestStreamReadLock;
+	protected final WriteLock requestStreamWriteLock;
 
-	protected final Lock responseStreamReadLock;
-	protected final Lock responseStreamWriteLock;
+	protected final ReadLock responseStreamReadLock;
+	protected final WriteLock responseStreamWriteLock;
 
 	// --- PROPERTIES ---
 
@@ -260,9 +262,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		}
 
 		// Stop pending invocations
-		InterruptedException error = new InterruptedException("Registry is shutting down.");
 		for (PendingPromise pending : promises.values()) {
-			pending.promise.complete(error);
+			pending.promise.complete(new RequestRejectedError(nodeID, pending.action));
 		}
 
 		// Stop middlewares
@@ -312,7 +313,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			if (pending.timeoutAt > 0 && now >= pending.timeoutAt) {
 
 				// Action is unknown at this location
-				pending.promise.complete(new RequestTimeoutError(nodeID, "unknown"));
+				pending.promise.complete(new RequestTimeoutError(this.nodeID, pending.action));
 				i.remove();
 				removed = true;
 			}
@@ -326,7 +327,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			stream = j.next();
 			timeoutAt = stream.getTimeoutAt();
 			if (timeoutAt > 0 && now >= timeoutAt) {
-				stream.error(new RequestTimeoutError(nodeID, "unknown"));
+				stream.error(new RequestTimeoutError(this.nodeID, "unknown"));
 				requestStreamWriteLock.lock();
 				try {
 					j.remove();
@@ -438,8 +439,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	// --- REGISTER PROMISE ---
 
-	protected void register(String id, Promise promise, long timeoutAt) {
-		promises.put(id, new PendingPromise(promise, timeoutAt));
+	protected void register(String id, Promise promise, long timeoutAt, String nodeID, String action) {
+		promises.put(id, new PendingPromise(promise, timeoutAt, nodeID, action));
 
 		long nextTimeoutAt = prevTimeoutAt.get();
 		if (nextTimeoutAt == 0 || (timeoutAt / 100 * 100) + 100 < nextTimeoutAt || promises.size() < 3) {
@@ -828,8 +829,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				Tree error = message.get("error");
 				MoleculerError moleculerError;
 				if (error == null) {
-					moleculerError = new MoleculerError("Remote invocation failed!", null, "MoleculerError", nodeID,
-							false, 500, "UNKNOWN_ERROR", message);
+					moleculerError = new MoleculerError("Remote invocation failed!", null, "MoleculerError",
+							pending.nodeID, false, 500, "UNKNOWN_ERROR", message);
 				} else {
 					moleculerError = MoleculerErrorUtils.create(error);
 				}
@@ -961,7 +962,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				convertAnnotations(actionConfig, annotations);
 
 				// Register action
-				LocalActionEndpoint endpoint = new LocalActionEndpoint(this, executor, nodeID, actionConfig, action);
+				LocalActionEndpoint endpoint = new LocalActionEndpoint(this, executor, nodeID, actionConfig, action,
+						actionName);
 				Strategy<ActionEndpoint> actionStrategy = strategies.get(actionName);
 				if (actionStrategy == null) {
 
@@ -1050,7 +1052,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					String actionName = actionConfig.get("name", "");
 
 					// Register remote action
-					RemoteActionEndpoint endpoint = new RemoteActionEndpoint(this, transporter, nodeID, actionConfig);
+					RemoteActionEndpoint endpoint = new RemoteActionEndpoint(this, transporter, nodeID, actionConfig,
+							actionName);
 					Strategy<ActionEndpoint> actionStrategy = strategies.get(actionName);
 					if (actionStrategy == null) {
 						actionStrategy = strategyFactory.create();
@@ -1103,9 +1106,9 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Stop local services
 		if (this.nodeID.equals(nodeID)) {
-			stopAllLocalServices();			
+			stopAllLocalServices();
 		}
-		
+
 		// Remove actions
 		final long stamp = lock.writeLock();
 		try {
@@ -1117,7 +1120,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					endpoints.remove();
 				}
 			}
-			
+
+			// Update service names
+			names.clear();
+			names.addAll(strategies.keySet());
+
 			// Delete cached node descriptor
 			if (this.nodeID.equals(nodeID)) {
 				clearDescriptorCache();
@@ -1126,12 +1133,34 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		} finally {
 			lock.unlockWrite(stamp);
 		}
-		
+
+		// Reject promises
+		PendingPromise pending;
+		Iterator<PendingPromise> i = promises.values().iterator();
+		boolean removed = false;
+		while (i.hasNext()) {
+			pending = i.next();
+			if (pending.nodeID.equals(nodeID)) {
+
+				// Action is unknown at this location
+				pending.promise.complete(new RequestRejectedError(this.nodeID, pending.action));
+				i.remove();
+				removed = true;
+			}
+		}
+
+		// Reschedule timeout checker
+		if (removed) {
+			scheduler.execute(() -> {
+				reschedule(Long.MAX_VALUE);
+			});
+		}
+
 		// Notify listeners
 		if (this.nodeID.equals(nodeID)) {
 
 			// Notify local listeners (LOCAL services changed)
-			broadcastServicesChanged(true);			
+			broadcastServicesChanged(true);
 		} else {
 
 			// Notify local listeners (REMOTE services changed)
@@ -1140,7 +1169,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	}
 
 	protected void stopAllLocalServices() {
-		
+
 		// Stop services
 		for (Map.Entry<String, Service> serviceEntry : services.entrySet()) {
 			String name = serviceEntry.getKey();
@@ -1365,7 +1394,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Register promise (timeout and response handling)
 		String id = uid.nextUID();
-		register(id, promise, timeoutAt);
+		register(id, promise, timeoutAt, nodeID, "ping");
 
 		// Send request via transporter
 		Tree message = transporter.createPingPacket(id);

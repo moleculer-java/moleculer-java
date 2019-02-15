@@ -127,7 +127,7 @@ public abstract class StrategyTest extends TestCase {
 						return null;
 					}
 
-				});
+				}, name);
 		return e;
 	}
 

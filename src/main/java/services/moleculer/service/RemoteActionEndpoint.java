@@ -40,7 +40,8 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 
 	// --- CONSTRUCTOR ---
 
-	public RemoteActionEndpoint(DefaultServiceRegistry registry, Transporter transporter, String nodeID, Tree config) {
+	public RemoteActionEndpoint(DefaultServiceRegistry registry, Transporter transporter, String nodeID, Tree config,
+			String actionName) {
 		super(nodeID, config);
 
 		// Handle remote timeout with a handler
@@ -58,7 +59,7 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 			}
 
 			// Register promise (timeout and response handling)
-			registry.register(ctx.id, promise, timeoutAt);
+			registry.register(ctx.id, promise, timeoutAt, nodeID, actionName);
 
 			// Send request via transporter
 			transporter.sendRequestPacket(nodeID, ctx);

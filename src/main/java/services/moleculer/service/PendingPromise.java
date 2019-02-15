@@ -36,12 +36,16 @@ public class PendingPromise {
 
 	protected final Promise promise;
 	protected final long timeoutAt;
+	protected final String nodeID;
+	protected final String action;
 
 	// --- CONSTRUCTOR ---
 
-	PendingPromise(Promise promise, long timeoutAt) {
+	PendingPromise(Promise promise, long timeoutAt, String nodeID, String action) {
 		this.promise = promise;
 		this.timeoutAt = timeoutAt;
+		this.nodeID = nodeID;
+		this.action = action;
 	}
 
 }

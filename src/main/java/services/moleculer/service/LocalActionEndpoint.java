@@ -35,9 +35,9 @@ public class LocalActionEndpoint extends ActionEndpoint {
 	// --- CONSTRUCTOR ---
 
 	public LocalActionEndpoint(DefaultServiceRegistry registry, ExecutorService executor, String nodeID, Tree config,
-			Action action) {
+			Action action, String actionName) {
 		super(nodeID, config);
-
+		
 		// Handle local timeout with a handler
 		current = ctx -> {
 			if (ctx.opts != null && ctx.opts.timeout > 0) {
@@ -52,7 +52,7 @@ public class LocalActionEndpoint extends ActionEndpoint {
 					long timeoutAt = System.currentTimeMillis() + ctx.opts.timeout;
 
 					// Register promise
-					registry.register(ctx.id, promise, timeoutAt);
+					registry.register(ctx.id, promise, timeoutAt, nodeID, actionName);
 
 					// Invoke async method
 					try {
