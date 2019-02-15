@@ -29,6 +29,7 @@ import java.util.LinkedList;
 
 import org.junit.Test;
 
+import io.datatree.Promise;
 import io.datatree.Tree;
 import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
@@ -232,6 +233,20 @@ public abstract class TransporterTest extends TestCase {
 		br2.waitForServices("nullService").waitFor(20000);
 		Tree rsp = br2.call("nullService.nullAction", (Tree) null).waitFor(20000);
 		assertNull(rsp);
+		
+		// LAST test: reject on disconnect
+		br1.createService(new SlowService());
+		br2.waitForServices("slowService").waitFor(20000);
+		try {
+			Promise p = br2.call("slowService.slowAction", (Tree) null);
+			br2.stop();
+			p.waitFor(20000);
+			fail();
+		} catch (Exception e) {
+			String msg = e.getMessage();
+			assertEquals("Request is rejected when call 'slowService.slowAction' action on 'node2' node.", msg);
+		}
+		br2 = null;
 	}
 
 	private void checkPing(ServiceBroker broker, String nodeID) throws Exception {
@@ -251,6 +266,18 @@ public abstract class TransporterTest extends TestCase {
 
 	}
 
+	protected static final class SlowService extends Service {
+
+		public Action slowAction = ctx -> {
+			try {
+				Thread.sleep(5000);
+			} catch (Exception e) {
+			}
+			return "slow";
+		};
+
+	}
+	
 	protected static final class Group1Listener extends Service {
 
 		protected LinkedList<Tree> payloads = new LinkedList<>();

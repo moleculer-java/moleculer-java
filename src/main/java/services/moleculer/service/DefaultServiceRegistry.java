@@ -262,8 +262,15 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		}
 
 		// Stop pending invocations
-		for (PendingPromise pending : promises.values()) {
-			pending.promise.complete(new RequestRejectedError(nodeID, pending.action));
+		Iterator<PendingPromise> pendingPromises = promises.values().iterator();
+		while (pendingPromises.hasNext()) {
+			PendingPromise pending = pendingPromises.next();
+			pendingPromises.remove();
+			try {
+				pending.promise.complete(new RequestRejectedError(nodeID, pending.action));
+			} catch (Throwable cause) {
+				logger.warn("Unable to reject action \"" + pending.action + "\"!", cause);
+			}
 		}
 
 		// Stop middlewares
@@ -271,7 +278,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			try {
 				middleware.stopped();
 			} catch (Throwable cause) {
-				logger.warn("Unable to stop middleware!", cause);
+				logger.warn("Unable to stop middleware \"" + middleware.name + "\"!", cause);
 			}
 		}
 
@@ -1129,23 +1136,26 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			if (this.nodeID.equals(nodeID)) {
 				clearDescriptorCache();
 			}
-			
+
 		} finally {
 			lock.unlockWrite(stamp);
 		}
 
 		// Reject promises
-		PendingPromise pending;
-		Iterator<PendingPromise> i = promises.values().iterator();
+		Iterator<PendingPromise> pendingPromises = promises.values().iterator();
 		boolean removed = false;
-		while (i.hasNext()) {
-			pending = i.next();
+		while (pendingPromises.hasNext()) {
+			PendingPromise pending = pendingPromises.next();
 			if (pending.nodeID.equals(nodeID)) {
-
-				// Action is unknown at this location
-				pending.promise.complete(new RequestRejectedError(this.nodeID, pending.action));
-				i.remove();
 				removed = true;
+				pendingPromises.remove();
+				executor.execute(() -> {
+					try {
+						pending.promise.complete(new RequestRejectedError(nodeID, pending.action));
+					} catch (Throwable cause) {
+						logger.warn("Unable to reject action \"" + pending.action + "\"!", cause);
+					}
+				});
 			}
 		}
 
