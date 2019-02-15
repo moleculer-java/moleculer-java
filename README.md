@@ -25,7 +25,7 @@ The Java-based Moleculer is completely compatible with the Node.js-based Molecul
 	<dependency>
 		<groupId>com.github.berkesa</groupId>
 		<artifactId>moleculer-java</artifactId>
-		<version>1.0.8</version>
+		<version>1.0.9</version>
 		<scope>runtime</scope>
 	</dependency>
 </dependencies>
@@ -35,7 +35,7 @@ The Java-based Moleculer is completely compatible with the Node.js-based Molecul
 
 ```gradle
 dependencies {
-	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.0.8' 
+	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.0.9' 
 }
 ```
 
