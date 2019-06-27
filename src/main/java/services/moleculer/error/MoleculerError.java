@@ -167,7 +167,12 @@ public class MoleculerError extends RuntimeException {
 			if (stack == null) {
 				StringWriter sw = new StringWriter(512);
 				PrintWriter pw = new PrintWriter(sw, true);
-				super.printStackTrace(pw);
+				Throwable cause = getCause();
+				if (cause == null) {
+					super.printStackTrace(pw);
+				} else {
+					cause.printStackTrace(pw);
+				}
 				stackTrace = sw.toString().trim();
 			} else {
 				stackTrace = stack.trim();

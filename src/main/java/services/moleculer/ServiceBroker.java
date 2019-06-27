@@ -129,12 +129,12 @@ public class ServiceBroker extends EventEmitter {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final String SOFTWARE_VERSION = "1.0.9";
+	public static final String SOFTWARE_VERSION = "1.1.0";
 
 	/**
 	 * Version of the implemented Moleculer Protocol.
 	 */
-	public static final String PROTOCOL_VERSION = "3";
+	public static final String PROTOCOL_VERSION = "4";
 
 	// --- LOGGER ---
 

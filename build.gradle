@@ -57,37 +57,34 @@ repositories {
 
 dependencies {
 
+    // ============= COMPILATION =============
+
     testCompile 'junit:junit:4.12'
 	ecj 'org.eclipse.jdt.core.compiler:ecj:4.4.2'
 
 	// =============== TESTING ===============
 
-
 	// https://mvnrepository.com/artifact/com.openpojo/openpojo
 	testCompile group: 'com.openpojo', name: 'openpojo', version: '0.8.10'	
-
 		
 	// =============== LOGGING ===============
 	
-	
 	// http://mvnrepository.com/artifact/org.slf4j/slf4j-api
-	compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+	compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.26'
        
 	// http://mvnrepository.com/artifact/org.slf4j/slf4j-jdk14
-	compile group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.7.25'
+	compile group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.7.26'
 
 	// https://mvnrepository.com/artifact/org.slf4j/log4j-over-slf4j
-	compile group: 'org.slf4j', name: 'log4j-over-slf4j', version: '1.7.25'
+	compile group: 'org.slf4j', name: 'log4j-over-slf4j', version: '1.7.26'
 
 	// https://mvnrepository.com/artifact/org.slf4j/jcl-over-slf4j
-	compile group: 'org.slf4j', name: 'jcl-over-slf4j', version: '1.7.25'
+	compile group: 'org.slf4j', name: 'jcl-over-slf4j', version: '1.7.26'
 
 	// https://mvnrepository.com/artifact/com.diogonunes/JCDP
 	compile group: 'com.diogonunes', name: 'JCDP', version: '2.0.3.1'
 
-
 	// =============== SERIALIZATION ===============
-
 
     // --- DATATREE API ---
     	    
@@ -117,9 +114,7 @@ dependencies {
 	// https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/jackson-dataformat-smile
 	compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-smile', version: '2.9.8'
  
- 
 	// =============== MONITORING ===============
-	
 	
 	// --- SIGAR API TO QUERY THE CPU USAGE ---
 	
@@ -128,18 +123,21 @@ dependencies {
 		exclude group: 'log4j', module: 'log4j'
 	}
 	
-	
 	// =============== CDI FRAMEWORKS ===============
-	 
 	
-    // --- SPRING DEPENDENCY INJECTION FRAMEWORK ---
+    // --- SPRING FRAMEWORK (REQUIRED FOR MOLECULER RUNNER) ---
 
 	// https://mvnrepository.com/artifact/org.springframework/spring-context
-	compile group: 'org.springframework', name: 'spring-context', version: '5.1.3.RELEASE'
+	compile group: 'org.springframework', name: 'spring-context', version: '5.1.8.RELEASE'
 
-		
+    // --- SPRING BOOT (OPTIONAL!) ---
+    
+	// https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter
+	compile (group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.1.6.RELEASE') {
+		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+	}
+
 	// =============== CACHES ===============
-	
 	
 	// --- OHC OFF-HEAP CACHE ---
 	
@@ -149,14 +147,12 @@ dependencies {
 	// --- JCACHE API + IMPLEMENTATION ---
 		
 	// https://mvnrepository.com/artifact/org.jsr107.ri/cache-ri-impl
-	compile group: 'org.jsr107.ri', name: 'cache-ri-impl', version: '1.1.0'
+	compile group: 'org.jsr107.ri', name: 'cache-ri-impl', version: '1.1.1'
 		
 	// https://mvnrepository.com/artifact/javax.cache/cache-api
-	compile group: 'javax.cache', name: 'cache-api', version: '1.1.0'
-
+	compile group: 'javax.cache', name: 'cache-api', version: '1.1.1'
 
 	// =============== TRANSPORTERS ===============
-	
 	
 	// --- DEPENDENCY OF THE REDIS TRANSPORTER ---
 	
@@ -166,7 +162,7 @@ dependencies {
 	// --- DEPENDENCY OF THE NATS TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/io.nats/jnats
-	compile group: 'io.nats', name: 'jnats', version: '2.4.1'
+	compile group: 'io.nats', name: 'jnats', version: '2.5.2'
 
 	// --- DEPENDENCY OF THE MQTT TRANSPORTER ---
 	
@@ -181,22 +177,22 @@ dependencies {
 	// --- ACTIVE QM CLIENT API FOR JMS TESTING ---
 
 	// https://mvnrepository.com/artifact/org.apache.activemq/activemq-client
-	compile group: 'org.apache.activemq', name: 'activemq-client', version: '5.15.8'
+	compile group: 'org.apache.activemq', name: 'activemq-client', version: '5.15.9'
 
 	// --- DEPENDENCY OF THE AMQP/RABBITMQ TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/com.rabbitmq/amqp-client
-	compile group: 'com.rabbitmq', name: 'amqp-client', version: '5.5.1'
+	compile group: 'com.rabbitmq', name: 'amqp-client', version: '5.7.1'
 
 	// --- DEPENDENCY OF THE GOOGLE CLOUD PUB/SUB TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/com.google.cloud/google-cloud-pubsub
-	compile group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.56.0'
+	compile group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.79.0'
 
 	// --- DEPENDENCY OF THE KAFKA TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients
-	compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.1.0'
+	compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.3.0'
 
 }
 
@@ -206,8 +202,8 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-// version = '1.0.9.3-SNAPSHOT'
-version = '1.0.9'
+// version = '1.1.0-SNAPSHOT'
+version = '1.1.0'
 
 modifyPom {
     project {
@@ -247,7 +243,7 @@ modifyPom {
             dependency {
                 groupId 'org.slf4j'
                 artifactId 'slf4j-api'
-                version '1.7.25'
+                version '1.7.26'
                 scope 'runtime'
             }            
         }
@@ -282,7 +278,7 @@ compileJava {
 
 jar {
     baseName = 'moleculer'
-    version =  '1.0.9'
+    version =  '1.1.0'
 }
 
 // --- TESTING ---

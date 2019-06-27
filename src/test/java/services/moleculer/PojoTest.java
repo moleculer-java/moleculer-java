@@ -26,7 +26,7 @@
 package services.moleculer;
 
 import java.util.Collection;
-import java.util.Collections;
+import java.util.LinkedList;
 
 import javax.net.ssl.SSLContext;
 
@@ -43,6 +43,8 @@ import com.openpojo.validation.test.impl.GetterTester;
 import com.openpojo.validation.test.impl.SetterTester;
 
 import junit.framework.TestCase;
+import services.moleculer.serializer.JsonSerializer;
+import services.moleculer.serializer.Serializer;
 
 public class PojoTest extends TestCase {
 
@@ -57,16 +59,25 @@ public class PojoTest extends TestCase {
 
 			@Override
 			public Collection<Class<?>> getTypes() {
-				return Collections.singleton(SSLContext.class);
+				LinkedList<Class<?>> list = new LinkedList<>();
+				list.add(SSLContext.class);
+				list.add(Serializer.class);
+				return list;
 			}
 
 			@Override
 			public Object doGenerate(Class<?> type) {
 				try {
-					return SSLContext.getDefault();
+					if (type == SSLContext.class) {
+						return SSLContext.getDefault();
+					}
+					if (type == Serializer.class) {
+						return new JsonSerializer();
+					}
 				} catch (Exception e) {
 					throw new RuntimeException(e);
 				}
+				return null;
 			}
 		});
 	}

@@ -1,7 +1,7 @@
 /**
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
- * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Copyright 2019 Andras Berkes [andras.berkes@programmer.net]<br>
  * Based on Moleculer Framework for NodeJS [https://moleculer.services].
  * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -25,21 +25,42 @@
  */
 package services.moleculer.config;
 
-import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 
-import io.datatree.Tree;
-import services.moleculer.service.Action;
-import services.moleculer.service.Service;
+import services.moleculer.ServiceBroker;
 
-@Component
-public class StructService extends Service {
+/**
+ * Skeleton of a simple, distributed Moleculer application.
+ */
+@SpringBootApplication(scanBasePackages = { "services.moleculer.config" })
+public class SpringBootSample {
 
-	public Action action = ctx -> {
-		Tree json = new Tree();
-		json.put("a", 1);
-		json.put("b", 2);
-		json.putList("c").add(3).add(4).add(5);
-		return json;
-	};
+	@Autowired
+	protected ServiceBroker broker;
+
+	public static void main(String[] args) {
+		SpringApplication.run(SpringBootSample.class, args);
+	}
+
+	@Bean(initMethod = "start", destroyMethod = "stop")
+	public ServiceBroker getServiceBroker() {
+		ServiceBrokerConfig cfg = new ServiceBrokerConfig();
+
+		// Configure ServiceBroker:
+		// cfg.setTransporter(new NatsTransporter("nats://localhost:4222"));
+		// cfg.setCacher(new MemoryCacher(4096, 0));
+		// cfg.setJsonReaders("boon,jackson");
+		// cfg.setJsonWriters("jackson");
+
+		return new ServiceBroker(cfg);
+	}
+
+	@Bean
+	public SpringRegistrator getSpringRegistrator() {
+		return new SpringRegistrator();
+	}
 
 }

@@ -26,12 +26,13 @@
 package services.moleculer.config;
 
 import java.io.File;
+import java.lang.reflect.Method;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.springframework.context.support.AbstractApplicationContext;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -49,9 +50,9 @@ public final class MoleculerRunner {
 
 	private static String stopMessage = "c8j3H9eV";
 
-	// --- SERVICE BROKER'S SPRING CONTEXT ---
+	// --- SERVICE BROKER'S SPRING CONTEXT (XML-BASED OR SPRING BOOT) ---
 
-	protected static final AtomicReference<AbstractApplicationContext> context = new AtomicReference<>();
+	protected static final AtomicReference<ConfigurableApplicationContext> context = new AtomicReference<>();
 
 	// --- MAIN ENTRY POINT (START / STOP SERVICE BROKER) ---
 
@@ -60,7 +61,7 @@ public final class MoleculerRunner {
 	 * service. Optional start parameters:
 	 * <ul>
 	 * <li>First: Relative or absolute config path (eg.
-	 * "/conf/moleculer.config.xml")
+	 * "/conf/moleculer.config.xml") or Spring Boot main class
 	 * <li>Second: port number (eg. "6788")
 	 * <li>Third: command to stop service (eg. "secret432")
 	 * </ul>
@@ -167,20 +168,47 @@ public final class MoleculerRunner {
 			udp.setDaemon(true);
 			udp.start();
 
-			// Start ServiceBroker
+			// Load config
 			String configPath = "/moleculer.config.xml";
 			if (args != null && args.length > 0) {
 				configPath = args[0];
 			}
-			AbstractApplicationContext ctx = null;
-			File file = new File(configPath);
-			if (file.isFile()) {
-				ctx = new FileSystemXmlApplicationContext(configPath);
+			ConfigurableApplicationContext ctx = null;
+			if (configPath.toLowerCase().endsWith(".xml")) {
+				
+				// XML-based "classic" Spring config
+				File file = new File(configPath);
+				if (file.isFile()) {
+					ctx = new FileSystemXmlApplicationContext(configPath);
+				} else {
+					ctx = new ClassPathXmlApplicationContext(configPath);
+				}
+				context.set(ctx);
+				ctx.start();
+
 			} else {
-				ctx = new ClassPathXmlApplicationContext(configPath);
+
+				// Spring Boot config
+				String springAppName = "org.springframework.boot.SpringApplication";
+				Class<?> springAppClass = Class.forName(springAppName);
+
+				// Input types of "run" method
+				Class<?>[] types = new Class[2];
+				types[0] = Class.class;
+				types[1] = new String[0].getClass();
+				Method m = springAppClass.getDeclaredMethod("run", types);
+
+				// Input objects of "run" method
+				Object[] in = new Object[2];
+				
+				// "configPath" = Name of main class
+				in[0] = Class.forName(configPath);
+				in[1] = args;
+
+				// Load app with Spring Boot
+				ctx = (ConfigurableApplicationContext) m.invoke(null, in);
+				context.set(ctx);
 			}
-			context.set(ctx);
-			ctx.start();
 
 		} catch (Exception cause) {
 
@@ -193,8 +221,8 @@ public final class MoleculerRunner {
 	// --- STOP SERVICE BROKER ---
 
 	private static final void stopBroker() {
-		AbstractApplicationContext instance = context.getAndSet(null);
-		if (instance != null) {
+		ConfigurableApplicationContext ctx = context.getAndSet(null);
+		if (ctx != null) {
 			Thread safetyTimer = new Thread() {
 
 				public void run() {
@@ -209,7 +237,7 @@ public final class MoleculerRunner {
 			safetyTimer.setDaemon(true);
 			safetyTimer.start();
 			try {
-				instance.stop();
+				ctx.stop();
 			} catch (Throwable ignored) {
 			}
 			try {

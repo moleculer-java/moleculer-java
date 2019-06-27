@@ -84,7 +84,7 @@ public class ServiceTest extends TestCase {
 		rsp = tr.getMessages().removeFirst();
 		assertEquals("local", rsp.get("sender", ""));
 		assertEquals("123", rsp.get("id", ""));
-		assertEquals("3", rsp.get("ver", ""));
+		assertEquals("4", rsp.get("ver", ""));
 		assertEquals(true, rsp.get("success", false));
 		assertEquals(123, rsp.get("data", -1));
 		assertEquals("MOL.RES.node5", rsp.get("channel", ""));
