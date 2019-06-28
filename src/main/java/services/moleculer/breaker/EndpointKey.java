@@ -28,13 +28,13 @@ package services.moleculer.breaker;
 public class EndpointKey {
 
 	// --- VARIABLES ---
-	
+
 	protected final String nodeID;
 	protected final String name;
 	protected final int hashCode;
 
 	// --- CONSTRUCTOR ---
-	
+
 	protected EndpointKey(String nodeID, String name) {
 		this.nodeID = nodeID;
 		this.name = name;
@@ -42,7 +42,7 @@ public class EndpointKey {
 	}
 
 	// --- COLLECTION HELPERS ---
-	
+
 	@Override
 	public int hashCode() {
 		return hashCode;

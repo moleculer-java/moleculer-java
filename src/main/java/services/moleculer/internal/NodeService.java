@@ -76,7 +76,7 @@ public class NodeService extends Service {
 		ServiceBrokerConfig cfg = broker.getConfig();
 		this.transporter = cfg.getTransporter();
 		this.monitor = cfg.getMonitor();
-		
+
 		// Set local nodeID
 		this.localNodeID = broker.getNodeID();
 	}

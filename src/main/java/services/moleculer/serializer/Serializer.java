@@ -56,8 +56,8 @@ public abstract class Serializer extends MoleculerComponent {
 	protected TreeWriter writer;
 
 	/**
-	 * Data deserializer (eg. JSON -&gt; Tree, comes from the "datatree-adapters"
-	 * pack).
+	 * Data deserializer (eg. JSON -&gt; Tree, comes from the
+	 * "datatree-adapters" pack).
 	 */
 	protected TreeReader reader;
 
@@ -75,7 +75,7 @@ public abstract class Serializer extends MoleculerComponent {
 
 	public void started(ServiceBroker broker) throws Exception {
 		super.started(broker);
-		
+
 		// Upgrade implementations (maybe changed)
 		this.writer = TreeWriterRegistry.getWriter(format);
 		this.reader = TreeReaderRegistry.getReader(format);

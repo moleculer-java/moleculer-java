@@ -95,7 +95,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 	// --- IGNORABLE ERRORS / EXCEPTIONS ---
 
 	protected Set<Class<? extends Throwable>> ignoredTypes = new HashSet<>();
-	
+
 	// --- ERROR COUNTERS ---
 
 	protected HashMap<EndpointKey, ErrorCounter> errorCounters = new HashMap<>(1024);
@@ -103,7 +103,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 	// --- READ/WRITE LOCK OF COUNTERS ---
 
 	protected final StampedLock lock = new StampedLock();
-	
+
 	// --- CLEANUP TIMER ---
 
 	/**
@@ -121,7 +121,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 		ServiceBrokerConfig cfg = broker.getConfig();
 		serviceRegistry = cfg.getServiceRegistry();
 		contextFactory = cfg.getContextFactory();
-		
+
 		// Start timer
 		if (cleanup > 0) {
 			timer = broker.getConfig().getScheduler().scheduleWithFixedDelay(this, cleanup, cleanup, TimeUnit.SECONDS);
@@ -132,13 +132,13 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 
 	@Override
 	public void stopped() {
-		
+
 		// Stop timer
 		if (timer != null) {
 			timer.cancel(false);
 			timer = null;
 		}
-		
+
 		// Remove counters and types
 		final long stamp = lock.writeLock();
 		try {
@@ -150,7 +150,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 	}
 
 	// --- CLEANUP COUNTERS ---
-	
+
 	@Override
 	public void run() {
 		final long stamp = lock.writeLock();
@@ -163,9 +163,9 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 			}
 		} finally {
 			lock.unlockWrite(stamp);
-		}		
+		}
 	}
-	
+
 	// --- CALL SERVICE ---
 
 	@Override
@@ -197,7 +197,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 						// Endpoint is available
 						break;
 					}
-					
+
 					// Store nodeID
 					if (!nodeIDs.add(nodeID)) {
 						sameNodeCounter++;
@@ -269,9 +269,9 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 				lock.unlockRead(stamp);
 			}
 		}
-		return counter;		
+		return counter;
 	}
-	
+
 	protected void increment(ErrorCounter errorCounter, EndpointKey endpointKey, Throwable cause, long now) {
 		if (endpointKey != null) {
 
@@ -298,7 +298,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 					lock.unlockWrite(stamp);
 				}
 				if (prev == null) {
-					counter.increment(now);					
+					counter.increment(now);
 				} else {
 					prev.increment(now);
 				}

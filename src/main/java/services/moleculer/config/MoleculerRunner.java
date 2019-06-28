@@ -175,7 +175,7 @@ public final class MoleculerRunner {
 			}
 			ConfigurableApplicationContext ctx = null;
 			if (configPath.toLowerCase().endsWith(".xml")) {
-				
+
 				// XML-based "classic" Spring config
 				File file = new File(configPath);
 				if (file.isFile()) {
@@ -200,7 +200,7 @@ public final class MoleculerRunner {
 
 				// Input objects of "run" method
 				Object[] in = new Object[2];
-				
+
 				// "configPath" = Name of main class
 				in[0] = Class.forName(configPath);
 				in[1] = args;

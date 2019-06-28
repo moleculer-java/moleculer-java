@@ -171,7 +171,7 @@ public class IncomingStream {
 					Tree data = params.get("data");
 					if (data == null) {
 						data = params;
-					}					
+					}
 					if (data.isEnumeration()) {
 						bytes = new byte[data.size()];
 						int idx = 0;

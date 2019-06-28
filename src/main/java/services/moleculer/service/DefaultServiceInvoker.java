@@ -59,7 +59,7 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 	protected ContextFactory contextFactory;
 
 	// --- RETRY LOGIC (BY ERROR) ---
-	
+
 	protected Predicate<Throwable> retryLogic = cause -> {
 		if (cause == null) {
 			return false;
@@ -75,7 +75,7 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 		}
 		return ((MoleculerError) test).isRetryable();
 	};
-	
+
 	// --- START INVOKER ---
 
 	@Override
@@ -142,7 +142,7 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 		}
 		return call(name, params, opts, stream, parent, targetID, newRemaining);
 	}
-	
+
 	// --- GETTERS / SETTERS ---
 
 	public boolean isWriteErrorsToLog() {

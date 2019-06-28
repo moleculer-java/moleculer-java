@@ -176,7 +176,7 @@ public class KafkaTransporter extends Transporter {
 		}
 		if (producer != null) {
 			try {
-				producer.close(10, TimeUnit.SECONDS);
+				producer.close(Duration.ofSeconds(10));
 			} catch (Exception ignored) {
 			}
 			producer = null;

@@ -70,11 +70,11 @@ public class ErrorCounter {
 	}
 
 	// --- FOR CLEANUP ---
-	
+
 	protected synchronized boolean isEmpty() {
 		return (max == 0 || min == 0);
 	}
-	
+
 	// --- CHECK ENDPOINT STATUS ---
 
 	protected synchronized boolean isAvailable(long now) {

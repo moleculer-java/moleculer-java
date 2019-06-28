@@ -37,7 +37,7 @@ public class LocalActionEndpoint extends ActionEndpoint {
 	public LocalActionEndpoint(DefaultServiceRegistry registry, ExecutorService executor, String nodeID, Tree config,
 			Action action, String actionName) {
 		super(nodeID, config);
-		
+
 		// Handle local timeout with a handler
 		current = ctx -> {
 			if (ctx.opts != null && ctx.opts.timeout > 0) {

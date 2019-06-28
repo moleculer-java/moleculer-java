@@ -233,7 +233,7 @@ public abstract class TransporterTest extends TestCase {
 		br2.waitForServices("nullService").waitFor(20000);
 		Tree rsp = br2.call("nullService.nullAction", (Tree) null).waitFor(20000);
 		assertNull(rsp);
-		
+
 		// LAST test: reject on disconnect
 		br1.createService(new SlowService());
 		br2.waitForServices("slowService").waitFor(20000);
@@ -277,7 +277,7 @@ public abstract class TransporterTest extends TestCase {
 		};
 
 	}
-	
+
 	protected static final class Group1Listener extends Service {
 
 		protected LinkedList<Tree> payloads = new LinkedList<>();

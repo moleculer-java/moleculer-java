@@ -472,7 +472,7 @@ public abstract class Transporter extends MoleculerComponent {
 		msg.putUnsafe("id", ctx.id);
 		msg.putUnsafe("success", true);
 		msg.putUnsafe("meta", Collections.EMPTY_MAP);
-		
+
 		// Stream packet counter (1...N)
 		msg.putUnsafe("seq", sequence);
 

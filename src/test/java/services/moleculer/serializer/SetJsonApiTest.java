@@ -66,7 +66,7 @@ public class SetJsonApiTest extends TestCase {
 			assertTrue(s.writer.getClass().toString().toLowerCase().contains("jackson"));
 			br.stop();
 			br = null;
-			
+
 		} finally {
 			if (br != null) {
 				br.stop();

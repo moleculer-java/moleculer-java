@@ -51,19 +51,19 @@ public class Sample {
 			ServiceBroker broker = new ServiceBroker(cfg);
 
 			broker.createService(new MyService());
-			
+
 			// Start Service Broker
 			broker.start();
 
 			System.out.println(broker.call("myService.action2").waitFor());
-			
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
 	public static class MyService extends Service {
-		
+
 		// "Salve" action (what we'll call)
 		public Action action1 = ctx -> {
 			return ctx.params.get("a", 0) + ctx.params.get("c.d", 0);
@@ -71,13 +71,13 @@ public class Sample {
 
 		// "Master" action (which calls the "slave" action)
 		public Action action2 = ctx -> {
-			
+
 			// Create input JSON structure
 			Tree params = new Tree();
 			params.put("a", 2);
 			params.put("b", "text");
 			params.put("c.d", 3);
-			
+
 			// Invoke local action via EventBus
 			return ctx.call("myService.action1", params).then(in -> {
 
@@ -85,7 +85,7 @@ public class Sample {
 				return in.asLong() * 2;
 			});
 		};
-		
+
 	}
-	
+
 }

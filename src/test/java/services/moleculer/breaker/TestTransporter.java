@@ -111,8 +111,8 @@ public class TestTransporter extends Transporter {
 	}
 
 	public void broadcastInfoPacket() {
-		
+
 		// Do not send INFO packet
 	}
-	
+
 }

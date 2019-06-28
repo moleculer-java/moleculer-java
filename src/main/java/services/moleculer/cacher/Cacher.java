@@ -61,7 +61,7 @@ public abstract class Cacher extends Middleware {
 		if (cacheNode.getType() == Boolean.class && !cacheNode.asBoolean()) {
 			return null;
 		}
-		
+
 		// Get cache keys
 		Tree keyNode = cacheNode.get("keys");
 		final String[] keys;

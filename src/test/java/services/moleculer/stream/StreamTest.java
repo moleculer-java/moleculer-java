@@ -75,7 +75,7 @@ public abstract class StreamTest extends TestCase {
 
 		// byte[] bytes1 = randomBytes(300);
 		byte[] bytes1 = "HELLO".getBytes();
-		
+
 		PacketStream stream = br1.createStream();
 		Tree rsp = br1.call("stream-receiver.receive", stream).waitFor(20000);
 		assertEquals(123, (int) rsp.asInteger());
@@ -86,10 +86,10 @@ public abstract class StreamTest extends TestCase {
 
 		listener.assertOpened();
 		listener.assertNotFaulty();
-		
+
 		System.out.println(BASE64.encode(bytes1) + " " + new String(bytes1));
 		System.out.println(BASE64.encode(listener.getBytes()) + " " + new String(listener.getBytes()));
-		
+
 		listener.assertDataEquals(bytes1);
 		assertEquals(bytes1.length, stream.getTransferedBytes());
 
