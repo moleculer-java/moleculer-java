@@ -109,18 +109,24 @@ public class ServiceBrokerConfig {
 	protected Transporter transporter;
 	protected Monitor monitor;
 
-	// --- INSTALL JS PARSER ---
+	// --- INSTALL CPU MONITOR (FOR CPU-BASED LOAD-BALANCING) ---
 
 	private static Monitor defaultMonitor;
 
 	static {
 		try {
-			Class<?> c = ServiceBrokerConfig.class.getClassLoader().loadClass("org.hyperic.sigar.Sigar");
-			Object o = c.newInstance();
-			Method m = c.getMethod("getCpuPerc", new Class[0]);
-			m.invoke(o, new Object[0]);
-			c = ServiceBrokerConfig.class.getClassLoader().loadClass("services.moleculer.monitor.SigarMonitor");
-			defaultMonitor = (Monitor) c.newInstance();
+			
+			// Try to load native library...
+			ClassLoader cl = ServiceBrokerConfig.class.getClassLoader();
+			Class<?> c = cl.loadClass("org.hyperic.sigar.SigarLoader");
+			Method m = c.getMethod("getNativeLibraryName", new Class[0]);
+			String testLib = (String) m.invoke(null, new Object[0]);
+			int i = testLib.lastIndexOf('.');
+			if (i > 1) {
+				testLib = testLib.substring(0, i);
+			}
+			System.loadLibrary(testLib);
+			defaultMonitor = (Monitor) cl.loadClass("services.moleculer.monitor.SigarMonitor").newInstance();
 		} catch (Throwable ignored) {
 		} finally {
 			if (defaultMonitor == null) {
