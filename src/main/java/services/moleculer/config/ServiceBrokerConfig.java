@@ -27,7 +27,6 @@ package services.moleculer.config;
 
 import static services.moleculer.util.CommonUtils.getHostName;
 
-import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -115,18 +114,22 @@ public class ServiceBrokerConfig {
 
 	static {
 		try {
-			
-			// Try to load native library...
-			ClassLoader cl = ServiceBrokerConfig.class.getClassLoader();
-			Class<?> c = cl.loadClass("org.hyperic.sigar.SigarLoader");
-			Method m = c.getMethod("getNativeLibraryName", new Class[0]);
-			String testLib = (String) m.invoke(null, new Object[0]);
-			int i = testLib.lastIndexOf('.');
-			if (i > 1) {
-				testLib = testLib.substring(0, i);
+
+			// Try to load native library (for Windows and Linux)
+			String[] libs = { "sigar-x86-winnt", "sigar-amd64-winnt", "libsigar-x86-linux", "libsigar-amd64-linux" };
+			for (String lib : libs) {
+				try {
+					System.loadLibrary(lib);
+
+					// Found!
+					ClassLoader cl = ServiceBrokerConfig.class.getClassLoader();
+					defaultMonitor = (Monitor) cl.loadClass("services.moleculer.monitor.SigarMonitor").newInstance();					
+					break;
+				} catch (Throwable notFound) {
+
+					// Not found
+				}
 			}
-			System.loadLibrary(testLib);
-			defaultMonitor = (Monitor) cl.loadClass("services.moleculer.monitor.SigarMonitor").newInstance();
 		} catch (Throwable ignored) {
 		} finally {
 			if (defaultMonitor == null) {

@@ -24,7 +24,7 @@ Java implementation of the [Moleculer microservices framework](http://moleculer.
 	<dependency>
 		<groupId>com.github.berkesa</groupId>
 		<artifactId>moleculer-java</artifactId>
-		<version>1.1.0</version>
+		<version>1.1.1</version>
 		<scope>runtime</scope>
 	</dependency>
 </dependencies>
@@ -34,7 +34,7 @@ Java implementation of the [Moleculer microservices framework](http://moleculer.
 
 ```gradle
 dependencies {
-	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.1.0' 
+	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.1.1' 
 }
 ```
 
