@@ -57,6 +57,22 @@ public class ServiceTest extends TestCase {
 	// --- TEST METHODS ---
 
 	@Test
+	public void testMeta() throws Exception {
+		br.createService(new MetaEchoService());
+		
+		Tree params = new Tree();
+		params.getMeta().put("test", 456);
+		Tree rsp = br.call("metaEchoService.action", params).waitFor(2000);
+		
+		// Echoed reqest meta
+		assertEquals(456, rsp.get("meta-req.test", 0));
+		
+		// Meta of the reply
+		assertEquals(123, rsp.getMeta().get("reply", 0));
+		assertEquals(123, rsp.get("_meta.reply", 0));
+	}
+	
+	@Test
 	public void testCall() throws Exception {
 
 		// Normal internal call
@@ -123,6 +139,20 @@ public class ServiceTest extends TestCase {
 
 	}
 
+	protected static final class MetaEchoService extends Service {
+
+		public Action action = ctx -> {
+			Tree reqMeta = ctx.params.getMeta();
+			
+			Tree rsp = new Tree();
+			rsp.putMap("meta-req").assign(reqMeta);
+			rsp.getMeta().put("reply", 123);
+			
+			return rsp;
+		};
+
+	}
+	
 	public class TestFilter extends Middleware {
 
 		public Action install(Action action, Tree config) {

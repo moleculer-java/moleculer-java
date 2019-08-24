@@ -183,7 +183,15 @@ public class DefaultEventbus extends Eventbus {
 		}
 
 		// Get data
-		Tree payload = message.get("data");
+		Tree data = message.get("data");
+		Tree meta = message.get("meta");
+		if (meta != null && !meta.isEmpty()) {
+			if (data == null || data.isNull()) {
+				data = new CheckedTree(new LinkedHashMap<String, Object>(), meta.asObject());
+			} else {
+				data = new CheckedTree(data.asObject(), meta.asObject());
+			}
+		}
 
 		// Process events in Moleculer V2 style
 		Tree groupArray = message.get("groups");
@@ -204,12 +212,12 @@ public class DefaultEventbus extends Eventbus {
 		if (message.get("broadcast", true)) {
 
 			// Broadcast
-			broadcast(name, payload, groups, true);
+			broadcast(name, data, groups, true);
 
 		} else {
 
 			// Emit
-			emit(name, payload, groups, true);
+			emit(name, data, groups, true);
 		}
 	}
 

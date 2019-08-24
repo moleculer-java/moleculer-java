@@ -85,6 +85,7 @@ import services.moleculer.stream.PacketListener;
 import services.moleculer.stream.PacketStream;
 import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.UidGenerator;
+import services.moleculer.util.CheckedTree;
 import services.moleculer.util.FastBuildTree;
 
 /**
@@ -604,10 +605,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		Tree params = message.get("params");
 		Tree meta = message.get("meta");
 		if (meta != null && !meta.isEmpty()) {
-			if (params == null) {
-				params = new Tree();
+			if (params == null || params.isNull()) {
+				params = new CheckedTree(new LinkedHashMap<String, Object>(), meta.asObject());
+			} else {
+				params = new CheckedTree(params.asObject(), meta.asObject());
 			}
-			params.getMeta().setObject(params);
 		}
 
 		// Get timeout
@@ -828,7 +830,16 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			if (success) {
 
 				// Ok -> resolve
-				pending.promise.complete(message.get("data"));
+				Tree data = message.get("data");
+				Tree meta = message.get("meta");
+				if (meta != null && !meta.isEmpty()) {
+					if (data == null || data.isNull()) {
+						data = new CheckedTree(new LinkedHashMap<String, Object>(), meta.asObject());
+					} else {
+						data = new CheckedTree(data.asObject(), meta.asObject());
+					}
+				}
+				pending.promise.complete(data);
 
 			} else {
 

@@ -59,7 +59,7 @@ public class RemoteListenerEndpoint extends ListenerEndpoint {
 
 	@Override
 	public void on(String name, Tree payload, Groups groups, boolean broadcast) throws Exception {
-		FastBuildTree msg = new FastBuildTree(6);
+		FastBuildTree msg = new FastBuildTree(7);
 		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
 		msg.putUnsafe("sender", currentNodeID);
 		msg.putUnsafe("event", name);
@@ -70,9 +70,16 @@ public class RemoteListenerEndpoint extends ListenerEndpoint {
 				msg.putUnsafe("groups", array);
 			}
 		}
+		
+		// Add params and meta
 		if (payload != null) {
 			msg.putUnsafe("data", payload);
+			Tree meta = payload.getMeta(false);
+			if (meta != null && !meta.isEmpty()) {
+				msg.putUnsafe("meta", meta.asObject());
+			}
 		}
+
 		transporter.publish(PACKET_EVENT, nodeID, msg);
 	}
 

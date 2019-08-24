@@ -38,4 +38,8 @@ public final class CheckedTree extends Tree {
 		super(null, null, checkedValue);
 	}
 
+	public CheckedTree(Object checkedValue, Object checkedMeta) {
+		super(checkedValue, checkedMeta);
+	}
+	
 }

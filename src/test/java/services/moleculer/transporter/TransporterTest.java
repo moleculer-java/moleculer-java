@@ -130,29 +130,41 @@ public abstract class TransporterTest extends TestCase {
 		g2_b.payloads.clear();
 
 		// Broadcast to group1
-		br1.broadcast("test.a", new Tree(), Groups.of("group1"));
+		Tree t = new Tree();
+		t.getMeta().put("val", 34567);
+		br1.broadcast("test.a", t, Groups.of("group1"));
 		g1_a.waitFor(20000);
 		g1_b.waitFor(20000);
+			
 		assertEquals(1, g1_a.payloads.size());
 		assertEquals(1, g1_b.payloads.size());
 		assertEquals(0, g2_a.payloads.size());
 		assertEquals(0, g2_b.payloads.size());
+		
+		assertEquals(34567, g1_a.payloads.get(0).getMeta().get("val", 0));
+		assertEquals(34567, g1_b.payloads.get(0).getMeta().get("val", 0));
+
 		g1_a.payloads.clear();
 		g1_b.payloads.clear();
 
 		// Broadcast to group2
-		br1.broadcast("test.a", new Tree(), Groups.of("group2"));
+		br1.broadcast("test.a", t, Groups.of("group2"));
 		g2_a.waitFor(20000);
 		g2_b.waitFor(20000);
+		
 		assertEquals(0, g1_a.payloads.size());
 		assertEquals(0, g1_b.payloads.size());
 		assertEquals(1, g2_a.payloads.size());
 		assertEquals(1, g2_b.payloads.size());
+		
+		assertEquals(34567, g2_a.payloads.get(0).getMeta().get("val", 0));
+		assertEquals(34567, g2_b.payloads.get(0).getMeta().get("val", 0));
+		
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
 
 		// Broadcast to group1 and group2
-		br1.broadcast("test.a", new Tree(), Groups.of("group1", "group2"));
+		br1.broadcast("test.a", t, Groups.of("group1", "group2"));
 		g1_a.waitFor(20000);
 		g1_b.waitFor(20000);
 		g2_a.waitFor(20000);
@@ -163,7 +175,7 @@ public abstract class TransporterTest extends TestCase {
 		g2_b.payloads.clear();
 
 		// Emit
-		br1.emit("test.a", new Tree());
+		br1.emit("test.a", t);
 		Thread.sleep(sleep);
 		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
 		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
@@ -175,6 +187,9 @@ public abstract class TransporterTest extends TestCase {
 		}
 		assertTrue(v.isEmpty());
 		assertTrue(!v.isNull());
+		
+		assertEquals(34567, v.getMeta().get("val", 0));
+
 		g1_a.payloads.clear();
 		g1_b.payloads.clear();
 		g2_a.payloads.clear();
@@ -198,7 +213,7 @@ public abstract class TransporterTest extends TestCase {
 		g2_b.payloads.clear();
 
 		// Emit to group1
-		br1.emit("test.a", new Tree(), Groups.of("group1"));
+		br1.emit("test.a", t, Groups.of("group1"));
 		Thread.sleep(sleep);
 		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
 		assertEquals(0, g2_a.payloads.size() + g2_b.payloads.size());
@@ -221,10 +236,19 @@ public abstract class TransporterTest extends TestCase {
 		g1_b.payloads.clear();
 
 		// Emit to group2
-		br1.emit("test.a", new Tree(), Groups.of("group2"));
+		br1.emit("test.a", t, Groups.of("group2"));
 		Thread.sleep(sleep);
 		assertEquals(0, g1_a.payloads.size() + g1_b.payloads.size());
 		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
+		v = null;
+		if (g2_a.payloads.isEmpty()) {
+			v = g2_b.payloads.peek();
+		} else {
+			v = g2_a.payloads.peek();
+		}
+		
+		assertEquals(34567, v.getMeta().get("val", 0));
+		
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
 
@@ -234,6 +258,18 @@ public abstract class TransporterTest extends TestCase {
 		Tree rsp = br2.call("nullService.nullAction", (Tree) null).waitFor(20000);
 		assertNull(rsp);
 
+		br1.createService(new MetaEchoService());
+		
+		// Meta test
+		br1.createService(new MetaEchoService());
+		br2.waitForServices("metaEchoService").waitFor(20000);
+		Tree params = new Tree();
+		params.getMeta().put("test", 456);
+		rsp = br2.call("metaEchoService.action", params).waitFor(2000);
+		assertEquals(456, rsp.get("meta-req.test", 0));
+		assertEquals(123, rsp.getMeta().get("reply", 0));
+		assertEquals(123, rsp.get("_meta.reply", 0));
+		
 		// LAST test: reject on disconnect
 		br1.createService(new SlowService());
 		br2.waitForServices("slowService").waitFor(20000);
@@ -278,6 +314,20 @@ public abstract class TransporterTest extends TestCase {
 
 	}
 
+	protected static final class MetaEchoService extends Service {
+
+		public Action action = ctx -> {
+			Tree reqMeta = ctx.params.getMeta();
+			
+			Tree rsp = new Tree();
+			rsp.putMap("meta-req").assign(reqMeta);
+			rsp.getMeta().put("reply", 123);
+			
+			return rsp;
+		};
+
+	}
+	
 	protected static final class Group1Listener extends Service {
 
 		protected LinkedList<Tree> payloads = new LinkedList<>();
