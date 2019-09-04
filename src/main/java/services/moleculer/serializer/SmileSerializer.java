@@ -44,7 +44,7 @@ import services.moleculer.service.Name;
  * https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/
  * jackson-dataformat-smile<br>
  * compile group: 'com.fasterxml.jackson.dataformat', name:
- * 'jackson-dataformat-smile', version: '2.9.8'
+ * 'jackson-dataformat-smile', version: '2.9.9'
  *
  * @see JsonSerializer
  * @see MsgPackSerializer

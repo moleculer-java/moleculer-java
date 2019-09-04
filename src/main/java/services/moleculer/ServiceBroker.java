@@ -129,7 +129,7 @@ public class ServiceBroker extends EventEmitter {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final String SOFTWARE_VERSION = "1.1.2";
+	public static final String SOFTWARE_VERSION = "1.1.3";
 
 	/**
 	 * Version of the implemented Moleculer Protocol.
@@ -932,7 +932,7 @@ public class ServiceBroker extends EventEmitter {
 			return true;
 		} catch (ClassNotFoundException notFound) {
 			logger.error("Unable to start REPL console!");
-			suggestDependency("com.github.berkesa", "moleculer-java-repl", "1.0.5");
+			suggestDependency("com.github.berkesa", "moleculer-java-repl", "1.0.6");
 		} catch (Exception cause) {
 			logger.error("Unable to start REPL console!", cause);
 		}

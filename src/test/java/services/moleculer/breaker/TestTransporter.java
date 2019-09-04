@@ -44,6 +44,8 @@ public class TestTransporter extends Transporter {
 
 	@Override
 	public void connect() {
+		
+		// Do nothing
 	}
 
 	public void received(String channel, Tree message) throws Exception {
@@ -53,9 +55,9 @@ public class TestTransporter extends Transporter {
 
 	@Override
 	public void publish(String channel, Tree message) {
-		message = message.clone();
-		message.put("channel", channel);
-		list.addObject(message);
+		Tree msg = message.clone();
+		msg.put("channel", channel);
+		list.addObject(msg);
 	}
 
 	@Override

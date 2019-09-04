@@ -50,19 +50,10 @@ public class EndpointKey {
 
 	@Override
 	public boolean equals(Object obj) {
-
-		// Simplified comparation
 		EndpointKey other = (EndpointKey) obj;
-		if (this.hashCode != other.hashCode) {
-			return false;
-		}
-		if (!name.equals(other.name)) {
-			return false;
-		}
-		if (!nodeID.equals(other.nodeID)) {
-			return false;
-		}
-		return true;
+		
+		// Simplified comparation
+		return this.hashCode == other.hashCode && name.equals(other.name) && nodeID.equals(other.nodeID);
 	}
 
 }

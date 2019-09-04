@@ -71,7 +71,7 @@ import services.moleculer.util.CheckedTree;
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/javax.cache/cache-api<br>
- * compile group: 'javax.cache', name: 'cache-api', version: '1.1.0' <br>
+ * compile group: 'javax.cache', name: 'cache-api', version: '1.1.1' <br>
  * <br>
  *
  * @see MemoryCacher

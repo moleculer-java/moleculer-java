@@ -32,6 +32,7 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.StampedLock;
 
 import io.datatree.Promise;
@@ -79,7 +80,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 	/**
 	 * Cleanup period time, in SECONDS (0 = disable cleanup process)
 	 */
-	protected int cleanup = 5;
+	protected int cleanup;
 
 	/**
 	 * Do you need to make a copy of the returned values? Cloning the values is
@@ -105,6 +106,10 @@ public class MemoryCacher extends Cacher implements Runnable {
 	 */
 	protected volatile ScheduledFuture<?> timer;
 
+	protected AtomicBoolean timerStarted = new AtomicBoolean();
+	
+	protected AtomicBoolean timerStopped = new AtomicBoolean();
+	
 	// --- CONSTUCTORS ---
 
 	public MemoryCacher() {
@@ -142,17 +147,29 @@ public class MemoryCacher extends Cacher implements Runnable {
 		super.started(broker);
 
 		// Start timer
-		if (cleanup > 0) {
-			timer = broker.getConfig().getScheduler().scheduleWithFixedDelay(this, cleanup, cleanup, TimeUnit.SECONDS);
-		}
-		if (ttl > 0) {
-			logger.info("Entries in cache expire after " + ttl + " seconds.");
-		}
+		startTimer(0);
+		
+		// Log capacity
 		logger.info("Maximum number of cached entries is " + capacity + " per partition.");
 	}
-
+	
 	// --- REMOVE OLD ENTRIES ---
 
+	protected void startTimer(int entryTTL) {
+		int delay = cleanup > 0 ? cleanup : entryTTL;			
+		if (delay < 1) {
+			return;
+		}
+		if (timerStarted.compareAndSet(false, true) && !timerStopped.get()) {
+			timer = broker.getConfig().getScheduler().scheduleWithFixedDelay(this, delay, delay, TimeUnit.SECONDS);
+		} else {
+			return;
+		}
+		if (ttl > 0) {
+			logger.info("Entries in cache expire after " + delay + " seconds.");
+		}
+	}
+	
 	@Override
 	public void run() {
 		long now = System.currentTimeMillis();
@@ -172,6 +189,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 	public void stopped() {
 
 		// Stop timer
+		timerStopped.set(true);
 		if (timer != null) {
 			timer.cancel(false);
 			timer = null;
@@ -255,7 +273,12 @@ public class MemoryCacher extends Cacher implements Runnable {
 				// Use the default TTL
 				entryTTL = this.ttl;
 			}
-
+			
+			// Start cleanup process
+			if (entryTTL > 0 && !timerStarted.get()) {
+				startTimer(entryTTL);
+			}
+			
 			// Create another, cloned instance
 			Tree v = useCloning ? value.clone() : value;
 

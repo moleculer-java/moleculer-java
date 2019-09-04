@@ -55,14 +55,12 @@ public final class Matcher {
 			// Eg. "prefix**"
 			final int len = pattern.length();
 			if (len > 2 && pattern.endsWith("**") && firstStarPosition > len - 3) {
-				pattern = pattern.substring(0, len - 2);
-				return text.startsWith(pattern);
+				return text.startsWith(pattern.substring(0, len - 2));
 			}
 
 			// Eg. "prefix*"
 			if (len > 1 && pattern.endsWith("*") && firstStarPosition > len - 2) {
-				pattern = pattern.substring(0, len - 1);
-				if (text.startsWith(pattern)) {
+				if (text.startsWith(pattern.substring(0, len - 1))) {
 					return text.indexOf('.', len) == -1;
 				}
 				return false;

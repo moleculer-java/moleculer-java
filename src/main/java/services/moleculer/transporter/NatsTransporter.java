@@ -53,7 +53,7 @@ import services.moleculer.service.Name;
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/io.nats/jnats<br>
- * compile group: 'io.nats', name: 'jnats', version: '2.4.1'
+ * compile group: 'io.nats', name: 'jnats', version: '2.6.4'
  *
  * @see TcpTransporter
  * @see RedisTransporter
@@ -202,7 +202,7 @@ public class NatsTransporter extends Transporter implements MessageHandler, Conn
 				builder.secure();
 			}
 			if (username != null && password != null && !username.isEmpty() && !password.isEmpty()) {
-				builder.userInfo(username, password);
+				builder.userInfo(username.toCharArray(), password.toCharArray());
 			}
 			if (sslContext != null) {
 				builder.sslContext(sslContext);

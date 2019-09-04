@@ -70,16 +70,16 @@ dependencies {
 	// =============== LOGGING ===============
 	
 	// http://mvnrepository.com/artifact/org.slf4j/slf4j-api
-	compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.26'
+	compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.28'
        
 	// http://mvnrepository.com/artifact/org.slf4j/slf4j-jdk14
-	compile group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.7.26'
+	compile group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.7.28'
 
 	// https://mvnrepository.com/artifact/org.slf4j/log4j-over-slf4j
-	compile group: 'org.slf4j', name: 'log4j-over-slf4j', version: '1.7.26'
+	compile group: 'org.slf4j', name: 'log4j-over-slf4j', version: '1.7.28'
 
 	// https://mvnrepository.com/artifact/org.slf4j/jcl-over-slf4j
-	compile group: 'org.slf4j', name: 'jcl-over-slf4j', version: '1.7.26'
+	compile group: 'org.slf4j', name: 'jcl-over-slf4j', version: '1.7.28'
 
 	// https://mvnrepository.com/artifact/com.diogonunes/JCDP
 	compile group: 'com.diogonunes', name: 'JCDP', version: '2.0.3.1'
@@ -106,7 +106,7 @@ dependencies {
 	compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: '2.9.9'
  
 	// https://mvnrepository.com/artifact/software.amazon.ion/ion-java
-	compile group: 'software.amazon.ion', name: 'ion-java', version: '1.4.0'
+	compile group: 'software.amazon.ion', name: 'ion-java', version: '1.5.0'
  
 	// https://mvnrepository.com/artifact/org.msgpack/msgpack
 	compile group: 'org.msgpack', name: 'msgpack', version: '0.6.12'
@@ -128,12 +128,12 @@ dependencies {
     // --- SPRING FRAMEWORK (REQUIRED FOR MOLECULER RUNNER) ---
 
 	// https://mvnrepository.com/artifact/org.springframework/spring-context
-	compile group: 'org.springframework', name: 'spring-context', version: '5.1.8.RELEASE'
+	compile group: 'org.springframework', name: 'spring-context', version: '5.1.9.RELEASE'
 
     // --- SPRING BOOT (OPTIONAL!) ---
     
 	// https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter
-	compile (group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.1.6.RELEASE') {
+	compile (group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.1.7.RELEASE') {
 		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
 	}
 
@@ -162,7 +162,7 @@ dependencies {
 	// --- DEPENDENCY OF THE NATS TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/io.nats/jnats
-	compile group: 'io.nats', name: 'jnats', version: '2.5.2'
+	compile group: 'io.nats', name: 'jnats', version: '2.6.4'
 
 	// --- DEPENDENCY OF THE MQTT TRANSPORTER ---
 	
@@ -182,12 +182,12 @@ dependencies {
 	// --- DEPENDENCY OF THE AMQP/RABBITMQ TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/com.rabbitmq/amqp-client
-	compile group: 'com.rabbitmq', name: 'amqp-client', version: '5.7.1'
+	compile group: 'com.rabbitmq', name: 'amqp-client', version: '5.7.3'
 
 	// --- DEPENDENCY OF THE GOOGLE CLOUD PUB/SUB TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/com.google.cloud/google-cloud-pubsub
-	compile group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.80.0'
+	compile group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.89.0'
 
 	// --- DEPENDENCY OF THE KAFKA TRANSPORTER ---
 	
@@ -202,8 +202,8 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-// version = '1.1.2-SNAPSHOT'
-version = '1.1.2'
+// version = '1.1.3-SNAPSHOT'
+version = '1.1.3'
 
 modifyPom {
     project {
@@ -243,7 +243,7 @@ modifyPom {
             dependency {
                 groupId 'org.slf4j'
                 artifactId 'slf4j-api'
-                version '1.7.26'
+                version '1.7.28'
                 scope 'runtime'
             }            
         }
@@ -278,7 +278,7 @@ compileJava {
 
 jar {
     baseName = 'moleculer'
-    version =  '1.1.2'
+    version =  '1.1.3'
 }
 
 // --- TESTING ---
