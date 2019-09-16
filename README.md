@@ -202,7 +202,7 @@ Developer documentation is in progress. At present, only JavaDoc and test cases 
 
 # Sample project
 
-* [Moleculer Java demo project with Gradle](https://moleculer-java.github.io/moleculer-java-gradle-demo/)
+* [Moleculer Java demo project with Gradle](https://moleculer-java.github.io/moleculer-spring-boot-demo/)
 
 # Subprojects
 
