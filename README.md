@@ -206,8 +206,10 @@ Developer documentation is in progress. At present, only JavaDoc and test cases 
 
 # Subprojects
 
-* [Interactive Developer Console for Moleculer](https://moleculer-java.github.io/moleculer-java-repl/)
+* [High-performance Web API for Moleculer Apps](https://moleculer-java.github.io/moleculer-java-web/)
+* [Interactive Developer Console](https://moleculer-java.github.io/moleculer-java-repl/)
 * [JMX Service for Moleculer](https://moleculer-java.github.io/moleculer-java-jmx/)
+* [MongoDB API for Moleculer](https://moleculer-java.github.io/moleculer-java-mongo/)
 
 # License
 Moleculer-java is available under the [MIT license](https://tldrlegal.com/license/mit-license).
