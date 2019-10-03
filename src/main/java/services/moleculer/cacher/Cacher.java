@@ -32,6 +32,7 @@ import java.util.Map;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
+import io.datatree.dom.Config;
 import io.datatree.dom.converters.DataConverterRegistry;
 import services.moleculer.context.Context;
 import services.moleculer.service.Action;
@@ -74,6 +75,11 @@ public abstract class Cacher extends Middleware {
 			} else {
 				keys = new String[list.size()];
 				list.toArray(keys);
+				for (int i = 0; i < keys.length; i++) {
+					if (keys[i].startsWith("#")) {
+						keys[i] = Config.META + '.' + keys[i].substring(1);
+					}
+				}
 			}
 		}
 
