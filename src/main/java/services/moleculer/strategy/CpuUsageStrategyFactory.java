@@ -48,9 +48,9 @@ public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {
 	// --- PROPERTIES ---
 
 	/**
-	 * This strategy compares number of 'maxTries' random node.
+	 * This strategy compares number of 'sampleCount' random node.
 	 */
-	protected int maxTries = 3;
+	protected int sampleCount = 10;
 
 	/**
 	 * lowCpuUsage ~= zero CPU usage
@@ -71,9 +71,9 @@ public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {
 		super(preferLocal);
 	}
 
-	public CpuUsageStrategyFactory(boolean preferLocal, int maxTries, int lowCpuUsage) {
+	public CpuUsageStrategyFactory(boolean preferLocal, int sampleCount, int lowCpuUsage) {
 		super(preferLocal);
-		this.maxTries = maxTries;
+		this.sampleCount = sampleCount;
 		this.lowCpuUsage = lowCpuUsage;
 	}
 
@@ -104,17 +104,17 @@ public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {
 		if (transporter == null) {
 			return new RoundRobinStrategy<T>(broker, preferLocal);
 		}
-		return new CpuUsageStrategy<T>(broker, preferLocal, maxTries, lowCpuUsage, transporter);
+		return new CpuUsageStrategy<T>(broker, preferLocal, sampleCount, lowCpuUsage, transporter);
 	}
 
 	// --- GETTERS / SETTERS ---
 
-	public int getMaxTries() {
-		return maxTries;
+	public int getSampleCount() {
+		return sampleCount;
 	}
 
-	public void setMaxTries(int maxTries) {
-		this.maxTries = maxTries;
+	public void setSampleCount(int sampleCount) {
+		this.sampleCount = sampleCount;
 	}
 
 	public int getLowCpuUsage() {

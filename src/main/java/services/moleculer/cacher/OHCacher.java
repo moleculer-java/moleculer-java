@@ -136,6 +136,11 @@ public class OHCacher extends Cacher {
 	 */
 	protected int compressionLevel = Deflater.BEST_SPEED;
 
+	/**
+	 * Unused parameter (is only interpreted by distributed cachers, like Redis).
+	 */
+	protected int maxParamsLength;
+
 	// --- SERIALIZER / DESERIALIZER ---
 
 	protected Serializer serializer = new JsonSerializer();
@@ -497,4 +502,12 @@ public class OHCacher extends Cacher {
 		this.compressionLevel = compressionLevel;
 	}
 
+	public int getMaxParamsLength() {
+		return maxParamsLength;
+	}
+
+	public void setMaxParamsLength(int maxParamsLength) {
+		this.maxParamsLength = maxParamsLength;
+	}
+	
 }

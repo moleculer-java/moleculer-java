@@ -15,17 +15,17 @@
 		<!-- Invoke local actions if possible -->	
 		<property name="preferLocal" value="true" />
 
-		<!-- This strategy compares number of 'maxTries' random node -->
-		<property name="maxTries" value="5" />
+		<!-- This strategy compares number of 'sampleCount' random node -->
+		<property name="sampleCount" value="5" />
 
 		<!-- Ping period time, in SECONDS -->
-		<property name="pingPeriod" value="3" />
+		<property name="pingInterval" value="3" />
 
 		<!-- Ping period time, in MILLISECONDS -->
 		<property name="pingTimeout" value="5000" />
 
 		<!-- Number of samples used for average calculation -->
-		<property name="averageSamples" value="5" />
+		<property name="collectCount" value="5" />
 			
 	</bean>
 

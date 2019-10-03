@@ -58,24 +58,24 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 	// --- PROPERTIES ---
 
 	/**
-	 * This strategy compares number of 'maxTries' random node.
+	 * This strategy compares number of 'sampleCount' random node.
 	 */
-	protected int maxTries = 5;
+	protected int sampleCount = 5;
 
 	/**
 	 * Ping period time, in SECONDS.
 	 */
-	protected int pingPeriod = 3;
+	protected int pingInterval = 10;
 
 	/**
-	 * Ping period time, in MILLISECONDS.
+	 * Ping timeout time, in MILLISECONDS.
 	 */
 	protected long pingTimeout = 5000L;
 
 	/**
 	 * Number of samples used for average calculation.
 	 */
-	protected int averageSamples = 5;
+	protected int collectCount = 5;
 
 	// --- COMPONENTS ---
 
@@ -136,7 +136,7 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 		}
 
 		// Start loop
-		pingTimer = scheduler.scheduleWithFixedDelay(this::sendNextPing, pingPeriod, pingPeriod, TimeUnit.SECONDS);
+		pingTimer = scheduler.scheduleWithFixedDelay(this::sendNextPing, pingInterval, pingInterval, TimeUnit.SECONDS);
 	}
 
 	// --- STOP INVOCATION STRATEGY ---
@@ -241,7 +241,7 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 			long duration = System.currentTimeMillis() - start;
 			Samples samples = responseTimes.get(nextNodeID);
 			if (samples == null) {
-				samples = new Samples(averageSamples);
+				samples = new Samples(collectCount);
 				responseTimes.put(nextNodeID, samples);
 			}
 			samples.addValue(duration);
@@ -271,7 +271,7 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 		if (transporter == null) {
 			return new RoundRobinStrategy<T>(broker, preferLocal);
 		}
-		return new NetworkLatencyStrategy<T>(broker, preferLocal, maxTries, this);
+		return new NetworkLatencyStrategy<T>(broker, preferLocal, sampleCount, this);
 	}
 
 	// --- SAMPLES ---
@@ -315,20 +315,20 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- GETTERS / SETTERS ---
 
-	public int getMaxTries() {
-		return maxTries;
+	public int getSampleCount() {
+		return sampleCount;
 	}
 
-	public void setMaxTries(int maxTries) {
-		this.maxTries = maxTries;
+	public void setSampleCount(int sampleCount) {
+		this.sampleCount = sampleCount;
 	}
 
-	public int getPingPeriod() {
-		return pingPeriod;
+	public int getPingInterval() {
+		return pingInterval;
 	}
 
-	public void setPingPeriod(int pingPeriod) {
-		this.pingPeriod = pingPeriod;
+	public void setPingInterval(int pingInterval) {
+		this.pingInterval = pingInterval;
 	}
 
 	public long getPingTimeout() {
@@ -339,12 +339,12 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 		this.pingTimeout = pingTimeout;
 	}
 
-	public int getAverageSamples() {
-		return averageSamples;
+	public int getCollectCount() {
+		return collectCount;
 	}
 
-	public void setAverageSamples(int averageSamples) {
-		this.averageSamples = averageSamples;
+	public void setCollectCount(int collectCount) {
+		this.collectCount = collectCount;
 	}
 
 }

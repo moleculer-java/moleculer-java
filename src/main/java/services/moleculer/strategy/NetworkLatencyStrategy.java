@@ -46,9 +46,9 @@ public class NetworkLatencyStrategy<T extends Endpoint> extends XorShiftRandomSt
 	// --- PROPERTIES ---
 
 	/**
-	 * This strategy compares number of 'maxTries' random node.
+	 * This strategy compares number of 'sampleCount' random node.
 	 */
-	protected final int maxTries;
+	protected final int sampleCount;
 
 	// --- COMPONENTS ---
 
@@ -56,10 +56,10 @@ public class NetworkLatencyStrategy<T extends Endpoint> extends XorShiftRandomSt
 
 	// --- CONSTRUCTOR ---
 
-	public NetworkLatencyStrategy(ServiceBroker broker, boolean preferLocal, int maxTries,
+	public NetworkLatencyStrategy(ServiceBroker broker, boolean preferLocal, int sampleCount,
 			NetworkLatencyStrategyFactory factory) {
 		super(broker, preferLocal);
-		this.maxTries = maxTries;
+		this.sampleCount = sampleCount;
 		this.factory = factory;
 	}
 
@@ -77,7 +77,7 @@ public class NetworkLatencyStrategy<T extends Endpoint> extends XorShiftRandomSt
 		long responseTime;
 
 		// Find the lower response time
-		for (int i = 0; i < maxTries; i++) {
+		for (int i = 0; i < sampleCount; i++) {
 
 			// Get random endpoint
 			endpoint = super.next(array);

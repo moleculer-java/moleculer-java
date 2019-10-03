@@ -129,12 +129,12 @@ public abstract class DistributedCacher extends Cacher {
 		return maxParamsLength;
 	}
 
-	public void setMaxParamsLength(int maxKeyLength) {
-		if (maxKeyLength > 0 && maxKeyLength < 44) {
+	public void setMaxParamsLength(int maxParamsLength) {
+		if (maxParamsLength > 0 && maxParamsLength < 44) {
 			logger.warn("The minimum value of \"maxParamsLength\" parameter is 44!");
 			this.maxParamsLength = 44;
 		} else {
-			this.maxParamsLength = maxKeyLength;
+			this.maxParamsLength = maxParamsLength;
 		}
 	}
 

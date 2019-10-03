@@ -91,6 +91,11 @@ public class MemoryCacher extends Cacher implements Runnable {
 	 */
 	protected boolean useCloning = true;
 
+	/**
+	 * Unused parameter (is only interpreted by distributed cachers, like Redis).
+	 */
+	protected int maxParamsLength;
+	
 	// --- READ/WRITE LOCK ---
 
 	protected final StampedLock lock = new StampedLock();
@@ -575,4 +580,11 @@ public class MemoryCacher extends Cacher implements Runnable {
 		this.useCloning = useCloning;
 	}
 
+	public int getMaxParamsLength() {
+		return maxParamsLength;
+	}
+
+	public void setMaxParamsLength(int maxParamsLength) {
+		this.maxParamsLength = maxParamsLength;
+	}
 }

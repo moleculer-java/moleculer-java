@@ -47,9 +47,9 @@ public class CpuUsageStrategy<T extends Endpoint> extends XorShiftRandomStrategy
 	// --- PROPERTIES ---
 
 	/**
-	 * This strategy compares number of 'maxTries' random node.
+	 * This strategy compares number of 'sampleCount' random node.
 	 */
-	protected final int maxTries;
+	protected final int sampleCount;
 
 	/**
 	 * lowCpuUsage ~= zero CPU usage
@@ -62,11 +62,11 @@ public class CpuUsageStrategy<T extends Endpoint> extends XorShiftRandomStrategy
 
 	// --- CONSTRUCTOR ---
 
-	public CpuUsageStrategy(ServiceBroker broker, boolean preferLocal, int maxTries, int lowCpuUsage,
+	public CpuUsageStrategy(ServiceBroker broker, boolean preferLocal, int sampleCount, int lowCpuUsage,
 			Transporter transporter) {
 		super(broker, preferLocal);
 		this.transporter = transporter;
-		this.maxTries = maxTries;
+		this.sampleCount = sampleCount;
 		this.lowCpuUsage = lowCpuUsage;
 	}
 
@@ -84,7 +84,7 @@ public class CpuUsageStrategy<T extends Endpoint> extends XorShiftRandomStrategy
 		int cpu;
 
 		// Find the lower CPU usage in sample
-		for (int i = 0; i < maxTries; i++) {
+		for (int i = 0; i < sampleCount; i++) {
 
 			// Get random endpoint
 			endpoint = super.next(array);

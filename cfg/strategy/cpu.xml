@@ -15,7 +15,10 @@
 	
 		<!-- Invoke local actions if possible -->	
 		<property name="preferLocal" value="true" />
-		
+
+		<!-- This strategy compares number of 'sampleCount' random node -->
+		<property name="sampleCount" value="10" />
+				
 	</bean>
 
 </beans>
