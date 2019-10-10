@@ -48,11 +48,13 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.Context;
 import services.moleculer.eventbus.Eventbus;
+import services.moleculer.eventbus.Groups;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
 import services.moleculer.service.MoleculerComponent;
 import services.moleculer.service.Name;
+import services.moleculer.service.ServiceInvoker;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.transporter.tcp.NodeDescriptor;
 import services.moleculer.transporter.tcp.RemoteAddress;
@@ -156,9 +158,10 @@ public abstract class Transporter extends MoleculerComponent {
 	protected ExecutorService executor;
 	protected ScheduledExecutorService scheduler;
 	protected ServiceRegistry registry;
+	protected ServiceInvoker serviceInvoker;
 	protected Eventbus eventbus;
 	protected Monitor monitor;
-	protected UidGenerator uid;
+	protected UidGenerator uidGenerator;
 
 	// --- TIMER ---
 
@@ -219,7 +222,8 @@ public abstract class Transporter extends MoleculerComponent {
 		registry = cfg.getServiceRegistry();
 		monitor = cfg.getMonitor();
 		eventbus = cfg.getEventbus();
-		uid = cfg.getUidGenerator();
+		uidGenerator = cfg.getUidGenerator();
+		serviceInvoker = cfg.getServiceInvoker();
 
 		// Set channel names
 		eventChannel = channel(PACKET_EVENT, nodeID);
@@ -340,10 +344,48 @@ public abstract class Transporter extends MoleculerComponent {
 		nodes.clear();
 	}
 
+	// --- GENERIC MOLECULER PACKETS ---
+
+	protected void sendInfoPacket(String channel) {
+		Tree msg = registry.getDescriptor();
+		msg.put("ver", PROTOCOL_VERSION);
+		msg.put("sender", nodeID);
+		msg.put("seq", registry.getTimestamp());
+		publish(channel, msg);
+	}
+
+	protected void sendDiscoverPacket(String channel) {
+		FastBuildTree msg = new FastBuildTree(3);
+		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("sender", nodeID);
+		publish(channel, msg);
+	}
+
+	protected void sendHeartbeatPacket() {
+		FastBuildTree msg = new FastBuildTree(4);
+		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("sender", nodeID);
+		msg.putUnsafe("cpu", monitor.getTotalCpuPercent());
+		publish(heartbeatChannel, msg);
+	}
+
+	protected void sendDisconnectPacket() {
+		FastBuildTree msg = new FastBuildTree(3);
+		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("sender", nodeID);
+		publish(disconnectChannel, msg);
+	}
+
+	protected void sendPongPacket(String channel, Tree data) {
+		data.put("sender", this.nodeID);
+		data.put("arrived", System.currentTimeMillis());
+		publish(channel, data);
+	}
+
 	// --- PING PACKET ---
 
 	public Tree createPingPacket(String id) {
-		FastBuildTree msg = new FastBuildTree(4);
+		FastBuildTree msg = new FastBuildTree(5);
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
 		msg.putUnsafe("sender", nodeID);
 		msg.putUnsafe("id", id);
@@ -351,25 +393,69 @@ public abstract class Transporter extends MoleculerComponent {
 		return msg;
 	}
 
+	// --- EVENT PACKET ---
+
+	public void sendEventPacket(String nodeID, Context ctx, Groups groups, boolean broadcast) {
+		FastBuildTree msg = new FastBuildTree(13);
+
+		// Add basic properties (version, sender's nodeID, etc.)
+		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+		msg.putUnsafe("sender", this.nodeID);
+		msg.putUnsafe("id", ctx.id);
+		msg.putUnsafe("event", ctx.name);
+
+		// Call level
+		msg.putUnsafe("level", ctx.level);
+
+		// Broadcast or emit?
+		msg.putUnsafe("broadcast", broadcast);
+
+		// Add groups
+		if (groups != null) {
+			String[] array = groups.groups();
+			if (array != null && array.length > 0) {
+				msg.putUnsafe("groups", array);
+			}
+		}
+
+		// Request ID
+		if (ctx.requestID != null) {
+			msg.putUnsafe("requestID", ctx.requestID);
+		}
+
+		// Add params and meta
+		if (ctx.params != null) {
+			msg.putUnsafe("data", ctx.params.asObject());
+			Tree meta = ctx.params.getMeta(false);
+			if (meta != null) {
+				msg.putUnsafe("meta", meta.asObject());
+			}
+		}
+
+		// Streaming content
+		if (ctx.stream != null) {
+
+			// Streaming in progress
+			msg.putUnsafe("stream", true);
+
+			// First sequence
+			msg.putUnsafe("seq", 0);
+		}
+
+		// Send message
+		publish(PACKET_EVENT, nodeID, msg);
+	}
+
 	// --- REQUEST PACKET ---
 
 	public void sendRequestPacket(String nodeID, Context ctx) {
-		FastBuildTree msg = new FastBuildTree(11);
+		FastBuildTree msg = new FastBuildTree(13);
 
 		// Add basic properties (version, sender's nodeID, etc.)
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
 		msg.putUnsafe("sender", this.nodeID);
 		msg.putUnsafe("id", ctx.id);
 		msg.putUnsafe("action", ctx.name);
-
-		// Add params and meta
-		if (ctx.params != null) {
-			msg.putUnsafe("params", ctx.params.asObject());
-			Tree meta = ctx.params.getMeta(false);
-			if (meta != null && !meta.isEmpty()) {
-				msg.putUnsafe("meta", meta.asObject());
-			}
-		}
 
 		// Timeout
 		if (ctx.opts != null && ctx.opts.timeout > 0) {
@@ -385,9 +471,20 @@ public abstract class Transporter extends MoleculerComponent {
 		}
 
 		// Request ID
-		msg.putUnsafe("requestID", ctx.requestID);
+		if (ctx.requestID != null) {
+			msg.putUnsafe("requestID", ctx.requestID);
+		}
 
-		// Stream packet counter (default is "0" = packet isn't streamed)
+		// Add params and meta
+		if (ctx.params != null) {
+			msg.putUnsafe("params", ctx.params.asObject());
+			Tree meta = ctx.params.getMeta(false);
+			if (meta != null) {
+				msg.putUnsafe("meta", meta.asObject());
+			}
+		}
+
+		// Streaming content
 		if (ctx.stream != null) {
 
 			// Streaming in progress
@@ -404,7 +501,7 @@ public abstract class Transporter extends MoleculerComponent {
 	// --- DATA PACKET (STREAMING) ---
 
 	public void sendDataPacket(String cmd, String nodeID, Context ctx, byte[] bytes, long sequence) {
-		FastBuildTree msg = new FastBuildTree(7);
+		FastBuildTree msg = new FastBuildTree(8);
 
 		// Add required properties (version, sender's nodeID, request ID)
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
@@ -418,7 +515,7 @@ public abstract class Transporter extends MoleculerComponent {
 		msg.putUnsafe("seq", sequence);
 
 		// Add "params" block
-		FastBuildTree params = new FastBuildTree(2);
+		FastBuildTree params = new FastBuildTree(3);
 		if (PACKET_RESPONSE.equals(cmd)) {
 			msg.putUnsafe("success", true);
 			msg.putUnsafe("data", params);
@@ -464,7 +561,7 @@ public abstract class Transporter extends MoleculerComponent {
 	// --- CLOSE PACKET (STREAMING) ---
 
 	public void sendClosePacket(String cmd, String nodeID, Context ctx, long sequence) {
-		FastBuildTree msg = new FastBuildTree(7);
+		FastBuildTree msg = new FastBuildTree(8);
 
 		// Add required properties (version, sender's nodeID, request ID)
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
@@ -772,7 +869,8 @@ public abstract class Transporter extends MoleculerComponent {
 			Tree msg = new Tree();
 			msg.putObject("node", info);
 			msg.put("reconnected", reconnected);
-			eventbus.broadcast("$node.connected", msg, null, true);
+			eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
+					"$node.connected", msg, 1, null, null, null, null), null, true);
 		}
 	}
 
@@ -780,7 +878,8 @@ public abstract class Transporter extends MoleculerComponent {
 		if (info != null) {
 			Tree msg = new Tree();
 			msg.putObject("node", info);
-			eventbus.broadcast("$node.updated", msg, null, true);
+			eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
+					"$node.updated", msg, 1, null, null, null, null), null, true);
 		}
 	}
 
@@ -789,7 +888,8 @@ public abstract class Transporter extends MoleculerComponent {
 			Tree msg = new Tree();
 			msg.putObject("node", info);
 			msg.put("unexpected", unexpected);
-			eventbus.broadcast("$node.disconnected", msg, null, true);
+			eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
+					"$node.disconnected", msg, 1, null, null, null, null), null, true);
 		}
 	}
 
@@ -802,44 +902,6 @@ public abstract class Transporter extends MoleculerComponent {
 				sendInfoPacket(infoBroadcastChannel);
 			}, 1, TimeUnit.SECONDS);
 		}
-	}
-
-	// --- GENERIC MOLECULER PACKETS ---
-
-	protected void sendInfoPacket(String channel) {
-		Tree msg = registry.getDescriptor();
-		msg.put("ver", PROTOCOL_VERSION);
-		msg.put("sender", nodeID);
-		msg.put("seq", registry.getTimestamp());
-		publish(channel, msg);
-	}
-
-	protected void sendDiscoverPacket(String channel) {
-		FastBuildTree msg = new FastBuildTree(2);
-		msg.putUnsafe("ver", PROTOCOL_VERSION);
-		msg.putUnsafe("sender", nodeID);
-		publish(channel, msg);
-	}
-
-	protected void sendHeartbeatPacket() {
-		FastBuildTree msg = new FastBuildTree(3);
-		msg.putUnsafe("ver", PROTOCOL_VERSION);
-		msg.putUnsafe("sender", nodeID);
-		msg.putUnsafe("cpu", monitor.getTotalCpuPercent());
-		publish(heartbeatChannel, msg);
-	}
-
-	protected void sendDisconnectPacket() {
-		FastBuildTree msg = new FastBuildTree(2);
-		msg.putUnsafe("ver", PROTOCOL_VERSION);
-		msg.putUnsafe("sender", nodeID);
-		publish(disconnectChannel, msg);
-	}
-
-	protected void sendPongPacket(String channel, Tree data) {
-		data.put("sender", this.nodeID);
-		data.put("arrived", System.currentTimeMillis());
-		publish(channel, data);
 	}
 
 	// --- TIMEOUT PROCESS ---

@@ -30,6 +30,7 @@ import java.util.AbstractSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -115,9 +116,11 @@ public class FastBuildMap extends AbstractMap<String, Object> {
 
 	@Override
 	public Object remove(Object key) {
-
-		// Ignored
-		return null;
+		LinkedHashMap<String, Object> map = new LinkedHashMap<>(this);
+		Object ret = map.remove(key);
+		size = 0; 
+		putAll(map);
+		return ret;
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })

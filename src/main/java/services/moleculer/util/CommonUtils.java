@@ -79,7 +79,7 @@ public final class CommonUtils {
 	// --- CONVERT THROWABLE TO RESPONSE MESSAGE ---
 
 	public static final FastBuildTree throwableToTree(String id, String nodeID, Throwable error) {
-		FastBuildTree msg = new FastBuildTree(7);
+		FastBuildTree msg = new FastBuildTree(8);
 
 		msg.putUnsafe("id", id);
 		msg.putUnsafe("ver", PROTOCOL_VERSION);
@@ -104,7 +104,7 @@ public final class CommonUtils {
 			}
 
 			// Convert MoleculerError to JSON
-			FastBuildTree errorMap = new FastBuildTree(8);
+			FastBuildTree errorMap = new FastBuildTree(9);
 			msg.putUnsafe("error", errorMap);
 			moleculerError.toTree(errorMap);
 		}
@@ -362,6 +362,18 @@ public final class CommonUtils {
 
 	// --- PARSE CALL / BROADCAST PARAMS ---
 
+	public static final ParseResult extractStream(Tree data) {
+		if (data != null) {
+			Object o = data.asObject();
+			if (o != null && o instanceof PacketStream) {
+				Tree meta = data.getMeta(false);
+				return new ParseResult(new CheckedTree(new LinkedHashMap<>(), meta == null ? null : meta.asObject()),
+						null, null, (PacketStream) o);
+			}
+		}
+		return new ParseResult(data, null, null, null);
+	}
+
 	public static final ParseResult parseParams(Object[] params) {
 		Tree data = null;
 		CallOptions.Options opts = null;
@@ -369,17 +381,18 @@ public final class CommonUtils {
 		PacketStream stream = null;
 		if (params != null) {
 			if (params.length == 1) {
-				if (params[0] instanceof Tree) {
-					data = (Tree) params[0];
-				} else if (params[0] instanceof CallOptions.Options) {
-					opts = (CallOptions.Options) params[0];
-				} else if (params[0] instanceof Groups) {
-					groups = (Groups) params[0];
-				} else if (params[0] instanceof PacketStream) {
+				Object value = params[0];
+				if (value instanceof Tree) {
+					data = (Tree) value;
+				} else if (value instanceof CallOptions.Options) {
+					opts = (CallOptions.Options) value;
+				} else if (value instanceof Groups) {
+					groups = (Groups) value;
+				} else if (value instanceof PacketStream) {
 					data = new Tree();
-					stream = (PacketStream) params[0];
+					stream = (PacketStream) value;
 				} else {
-					data = new CheckedTree(params[0]);
+					data = new CheckedTree(value);
 				}
 			} else {
 				LinkedHashMap<String, Object> map = new LinkedHashMap<>();

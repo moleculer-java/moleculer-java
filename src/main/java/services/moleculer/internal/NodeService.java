@@ -457,7 +457,7 @@ public class NodeService extends Service {
 		// Set local nodeID
 		this.localNodeID = broker.getNodeID();
 	}
-	
+
 	// --- UTILS ---
 
 	protected boolean getParameter(Context ctx, String name, boolean defaultValue) {

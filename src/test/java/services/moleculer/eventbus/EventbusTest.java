@@ -25,6 +25,7 @@
  */
 package services.moleculer.eventbus;
 
+import java.io.ByteArrayOutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -46,6 +47,7 @@ import services.moleculer.breaker.TestTransporter;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Service;
+import services.moleculer.stream.PacketStream;
 import services.moleculer.util.FastBuildTree;
 
 public class EventbusTest extends TestCase {
@@ -64,11 +66,15 @@ public class EventbusTest extends TestCase {
 		br.createService("test", new TestListener());
 		TestListener s = (TestListener) br.getLocalService("test");
 
-		br.broadcast("test.a1", new Tree().put("a", 15));
+		Tree r =  new Tree().put("a", 15);
+		r.getMeta().put("x", 123);
+		
+		br.broadcast("test.a", r);
 		assertEquals(1, s.payloads.size());
 		Tree t = s.payloads.removeFirst();
 		assertEquals(15, t.get("a", -1));
-
+		assertEquals(123, t.getMeta().get("x", 0));
+		
 		br.emit("test.b", new Tree().put("b", "abc").put("c", true));
 		assertEquals(1, s.payloads.size());
 		t = s.payloads.removeFirst();
@@ -97,15 +103,46 @@ public class EventbusTest extends TestCase {
 
 		br.broadcastLocal("d", new Tree().put("d", "x"));
 		assertEquals(0, s.payloads.size());
+		
+		// Internal stream test
+		PacketStream ps = br.createStream();
+		br.broadcast("test.a", ps);
+		ps.sendData("abc".getBytes());
+		assertEquals("abc", new String(s.buffer.toByteArray()));
+		assertFalse(s.streamClosed);
+		ps.sendData("123".getBytes());
+		assertEquals("abc123", new String(s.buffer.toByteArray()));
+		assertFalse(s.streamClosed);
+		ps.sendClose();
+		assertTrue(s.streamClosed);
 	}
 
 	protected static final class TestListener extends Service {
 
 		protected LinkedList<Tree> payloads = new LinkedList<>();
 
+		protected ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+		
+		protected boolean streamClosed;
+		
 		@Subscribe("test.*")
-		public Listener evt = payload -> {
-			payloads.addLast(payload);
+		public Listener evt = ctx -> {
+			payloads.addLast(ctx.params);
+			assertEquals(1, ctx.level);
+			assertTrue(ctx.name.equals("test.a") || ctx.name.equals("test.b") || ctx.name.equals("test.c") || ctx.name.equals("test.test"));
+			if (ctx.stream != null) {
+				ctx.stream.onPacket((data, err, closed) -> {
+					if (data != null) {
+						buffer.write(data);
+					}
+					if (err != null) {
+						buffer.write(err.toString().getBytes());
+					}
+					if (closed) {
+						streamClosed = true;
+					}
+				});
+			}
 		};
 
 	}
@@ -289,7 +326,7 @@ public class EventbusTest extends TestCase {
 	}
 
 	protected void putIncomingMessage(String name, boolean broadcast, Groups groups, Tree payload) throws Exception {
-		FastBuildTree msg = new FastBuildTree(6);
+		FastBuildTree msg = new FastBuildTree(7);
 		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
 		msg.putUnsafe("sender", "node5");
 		msg.putUnsafe("event", name);
@@ -463,8 +500,8 @@ public class EventbusTest extends TestCase {
 
 		@Group("group1")
 		@Subscribe("test.*")
-		public Listener evt = payload -> {
-			payloads.addLast(payload);
+		public Listener evt = ctx -> {
+			payloads.addLast(ctx.params);
 		};
 
 	}
@@ -475,8 +512,8 @@ public class EventbusTest extends TestCase {
 
 		@Group("group2")
 		@Subscribe("test.*")
-		public Listener evt = payload -> {
-			payloads.addLast(payload);
+		public Listener evt = ctx -> {
+			payloads.addLast(ctx.params);
 		};
 
 	}

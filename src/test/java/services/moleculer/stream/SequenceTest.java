@@ -92,9 +92,9 @@ public class SequenceTest extends TestCase {
 		tmp.write(b3);
 		byte[] all = tmp.toByteArray();
 
-		IncrementalUidGenerator uid = new IncrementalUidGenerator();
-		uid.setPrefix("test");
-		String id = uid.nextUID();
+		IncrementalUidGenerator uidGenerator = new IncrementalUidGenerator();
+		uidGenerator.setPrefix("test");
+		String id = uidGenerator.nextUID();
 		boolean shouldClose;
 
 		// --- NORMAL SEQUENCE ---
@@ -125,7 +125,7 @@ public class SequenceTest extends TestCase {
 
 		// --- SCRAMBLED SEQUENCE 1 ---
 
-		id = uid.nextUID();
+		id = uidGenerator.nextUID();
 		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 1, b1));
 		assertFalse(shouldClose);
 		shouldClose = incomingStream.receive(createStartStreamingPacket(id));
@@ -143,7 +143,7 @@ public class SequenceTest extends TestCase {
 
 		// --- SCRAMBLED SEQUENCE 2 ---
 
-		id = uid.nextUID();
+		id = uidGenerator.nextUID();
 		shouldClose = incomingStream.receive(createCloseStreamingPacket(id, 2));
 		assertFalse(shouldClose);
 		listener.assertOpened();
@@ -160,7 +160,7 @@ public class SequenceTest extends TestCase {
 
 		// --- SCRAMBLED SEQUENCE 3 ---
 
-		id = uid.nextUID();
+		id = uidGenerator.nextUID();
 		shouldClose = incomingStream.receive(createCloseStreamingPacket(id, 4));
 		assertFalse(shouldClose);
 		listener.assertOpened();
@@ -181,7 +181,7 @@ public class SequenceTest extends TestCase {
 
 		// --- SCRAMBLED SEQUENCE 4 ---
 
-		id = uid.nextUID();
+		id = uidGenerator.nextUID();
 		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 1, b1));
 		assertFalse(shouldClose);
 		shouldClose = incomingStream.receive(createDataStreamingPacket(id, 2, b2));
@@ -202,7 +202,7 @@ public class SequenceTest extends TestCase {
 
 		TestServiceRegistry serviceRegistry = (TestServiceRegistry) br.getConfig().getServiceRegistry();
 
-		id = uid.nextUID();
+		id = uidGenerator.nextUID();
 		TestTransporter t = (TestTransporter) br.getConfig().getTransporter();
 		t.receive(createStartStreamingPacket(id));
 		assertEquals(1, serviceRegistry.getRequestStreams().size());
@@ -225,7 +225,7 @@ public class SequenceTest extends TestCase {
 
 		// --- INVOKE VIA BROKER 2 ---
 
-		id = uid.nextUID();
+		id = uidGenerator.nextUID();
 
 		t.receive(createDataStreamingPacket(id, 1, b1));
 		assertEquals(1, serviceRegistry.getRequestStreams().size());

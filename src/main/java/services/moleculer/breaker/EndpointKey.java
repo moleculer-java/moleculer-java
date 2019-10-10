@@ -51,7 +51,7 @@ public class EndpointKey {
 	@Override
 	public boolean equals(Object obj) {
 		EndpointKey other = (EndpointKey) obj;
-		
+
 		// Simplified comparation
 		return this.hashCode == other.hashCode && name.equals(other.name) && nodeID.equals(other.nodeID);
 	}

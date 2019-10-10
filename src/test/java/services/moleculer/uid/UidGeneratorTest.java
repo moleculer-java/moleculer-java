@@ -30,6 +30,7 @@ import java.util.HashSet;
 import org.junit.Test;
 
 import junit.framework.TestCase;
+import services.moleculer.ServiceBroker;
 
 public class UidGeneratorTest extends TestCase {
 
@@ -37,9 +38,11 @@ public class UidGeneratorTest extends TestCase {
 	public void testUidGenerators() throws Exception {
 		testGenerator(new IncrementalUidGenerator());
 		testGenerator(new StandardUidGenerator());
+		testGenerator(new XorShiftRandomUidGenerator());
 	}
 
 	protected void testGenerator(UidGenerator gen) throws Exception {
+		gen.started(new ServiceBroker());
 		HashSet<String> set = new HashSet<>();
 		for (int i = 0; i < 500; i++) {
 			set.add(gen.nextUID());

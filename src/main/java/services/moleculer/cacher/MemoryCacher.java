@@ -91,11 +91,6 @@ public class MemoryCacher extends Cacher implements Runnable {
 	 */
 	protected boolean useCloning = true;
 
-	/**
-	 * Unused parameter (is only interpreted by distributed cachers, like Redis).
-	 */
-	protected int maxParamsLength;
-	
 	// --- READ/WRITE LOCK ---
 
 	protected final StampedLock lock = new StampedLock();
@@ -112,9 +107,9 @@ public class MemoryCacher extends Cacher implements Runnable {
 	protected volatile ScheduledFuture<?> timer;
 
 	protected AtomicBoolean timerStarted = new AtomicBoolean();
-	
+
 	protected AtomicBoolean timerStopped = new AtomicBoolean();
-	
+
 	// --- CONSTUCTORS ---
 
 	public MemoryCacher() {
@@ -153,15 +148,15 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 		// Start timer
 		startTimer(0);
-		
+
 		// Log capacity
 		logger.info("Maximum number of cached entries is " + capacity + " per partition.");
 	}
-	
+
 	// --- REMOVE OLD ENTRIES ---
 
 	protected void startTimer(int entryTTL) {
-		int delay = cleanup > 0 ? cleanup : entryTTL;			
+		int delay = cleanup > 0 ? cleanup : entryTTL;
 		if (delay < 1) {
 			return;
 		}
@@ -174,7 +169,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 			logger.info("Entries in cache expire after " + delay + " seconds.");
 		}
 	}
-	
+
 	@Override
 	public void run() {
 		long now = System.currentTimeMillis();
@@ -278,12 +273,12 @@ public class MemoryCacher extends Cacher implements Runnable {
 				// Use the default TTL
 				entryTTL = this.ttl;
 			}
-			
+
 			// Start cleanup process
 			if (entryTTL > 0 && !timerStarted.get()) {
 				startTimer(entryTTL);
 			}
-			
+
 			// Create another, cloned instance
 			Tree v = useCloning ? value.clone() : value;
 
@@ -580,11 +575,4 @@ public class MemoryCacher extends Cacher implements Runnable {
 		this.useCloning = useCloning;
 	}
 
-	public int getMaxParamsLength() {
-		return maxParamsLength;
-	}
-
-	public void setMaxParamsLength(int maxParamsLength) {
-		this.maxParamsLength = maxParamsLength;
-	}
 }

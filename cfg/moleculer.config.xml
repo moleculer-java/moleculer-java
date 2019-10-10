@@ -40,7 +40,6 @@
 
 		<property name="uidGenerator"        ref="uidGenerator" />
 		<property name="strategyFactory"     ref="strategyFactory" />
-		<property name="contextFactory"      ref="contextFactory" />
 		<property name="serviceRegistry"     ref="serviceRegistry" />
 		<property name="eventbus"            ref="eventbus" />
 
@@ -113,10 +112,6 @@
 		factory-method="newScheduledThreadPool">
 		<constructor-arg index="0" value="3" />
 	</bean>
-
-	<!-- CONTEXT FACTORY -->
-
-	<import resource="context/default.xml" />
 
 	<!-- SERVICE REGISTRY -->
 

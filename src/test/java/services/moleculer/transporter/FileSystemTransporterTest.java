@@ -1,7 +1,7 @@
 /**
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
- * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Copyright 2019 Andras Berkes [andras.berkes@programmer.net]<br>
  * Based on Moleculer Framework for NodeJS [https://moleculer.services].
  * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -23,27 +23,22 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.context;
+package services.moleculer.transporter;
 
-import io.datatree.Tree;
-import services.moleculer.service.MoleculerComponent;
-import services.moleculer.service.Name;
-import services.moleculer.stream.PacketStream;
+public class FileSystemTransporterTest extends TransporterTest {
 
-/**
- * Base superclass of all Context Factory implementations.
- *
- * @see DefaultContextFactory
- */
-@Name("Context Factory")
-public abstract class ContextFactory extends MoleculerComponent {
+	public FileSystemTransporterTest() {
+		sleep = 2000;
+	}
 
-	// --- CREATE CONTEXT ---
-
-	public abstract Context create(String name, Tree params, CallOptions.Options opts, PacketStream stream,
-			Context parent);
-
-	public abstract Context create(String name, Tree params, CallOptions.Options opts, PacketStream stream, String id,
-			int level, String requestID, String parentID);
-
+	@Override
+	public Transporter createTransporter() {
+		try {
+			return new FileSystemTransporter();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
 }

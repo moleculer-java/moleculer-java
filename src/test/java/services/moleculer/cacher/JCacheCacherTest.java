@@ -25,11 +25,20 @@
  */
 package services.moleculer.cacher;
 
+import javax.cache.CacheManager;
+import javax.cache.spi.CachingProvider;
+
+import org.jsr107.ri.spi.RICachingProvider;
+
 public class JCacheCacherTest extends CacherTest {
 
 	@Override
 	protected Cacher createCacher() throws Exception {
-		JCacheCacher cacher = new JCacheCacher();
+
+		CachingProvider provider = new RICachingProvider();
+		CacheManager manager = provider.getCacheManager();
+
+		JCacheCacher cacher = new JCacheCacher(manager);
 		return cacher;
 	}
 

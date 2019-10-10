@@ -67,7 +67,6 @@ import services.moleculer.util.CheckedTree;
  * number-of-cores * 2
  * <li>hashTableSize: hash table size (must be a power of 2), defaults to 8192
  * <li>compressAbove: compress key and/or value above this size (BYTES)
- * <li>format: serializator type ("json", "smile", etc.)
  * </ul>
  * Performance (per thread / core):<br>
  * <br>
@@ -135,11 +134,6 @@ public class OHCacher extends Cacher {
 	 * Compression level (best speed = 1, best compression = 9)
 	 */
 	protected int compressionLevel = Deflater.BEST_SPEED;
-
-	/**
-	 * Unused parameter (is only interpreted by distributed cachers, like Redis).
-	 */
-	protected int maxParamsLength;
 
 	// --- SERIALIZER / DESERIALIZER ---
 
@@ -502,12 +496,4 @@ public class OHCacher extends Cacher {
 		this.compressionLevel = compressionLevel;
 	}
 
-	public int getMaxParamsLength() {
-		return maxParamsLength;
-	}
-
-	public void setMaxParamsLength(int maxParamsLength) {
-		this.maxParamsLength = maxParamsLength;
-	}
-	
 }

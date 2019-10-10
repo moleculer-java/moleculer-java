@@ -27,16 +27,13 @@ package services.moleculer.eventbus;
 
 import static services.moleculer.transporter.Transporter.PACKET_EVENT;
 
-import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
+import java.util.concurrent.atomic.AtomicLong;
+
+import services.moleculer.context.Context;
+import services.moleculer.stream.PacketListener;
 import services.moleculer.transporter.Transporter;
-import services.moleculer.util.FastBuildTree;
 
 public class RemoteListenerEndpoint extends ListenerEndpoint {
-
-	// --- PROPERTIES ---
-
-	protected final String currentNodeID;
 
 	// --- COMPONENTS ---
 
@@ -48,9 +45,6 @@ public class RemoteListenerEndpoint extends ListenerEndpoint {
 			String subscribe) {
 		super(nodeID, service, group, subscribe);
 
-		// Set properties
-		currentNodeID = transporter.getBroker().getNodeID();
-
 		// Set components
 		this.transporter = transporter;
 	}
@@ -58,29 +52,32 @@ public class RemoteListenerEndpoint extends ListenerEndpoint {
 	// --- INVOKE REMOTE LISTENER ---
 
 	@Override
-	public void on(String name, Tree payload, Groups groups, boolean broadcast) throws Exception {
-		FastBuildTree msg = new FastBuildTree(7);
-		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
-		msg.putUnsafe("sender", currentNodeID);
-		msg.putUnsafe("event", name);
-		msg.putUnsafe("broadcast", broadcast);
-		if (groups != null) {
-			String[] array = groups.groups();
-			if (array != null && array.length > 0) {
-				msg.putUnsafe("groups", array);
-			}
-		}
-		
-		// Add params and meta
-		if (payload != null) {
-			msg.putUnsafe("data", payload);
-			Tree meta = payload.getMeta(false);
-			if (meta != null && !meta.isEmpty()) {
-				msg.putUnsafe("meta", meta.asObject());
-			}
-		}
+	public void on(Context ctx, Groups groups, boolean broadcast) throws Exception {
 
-		transporter.publish(PACKET_EVENT, nodeID, msg);
+		// Send event via transporter
+		transporter.sendEventPacket(nodeID, ctx, groups, broadcast);
+		
+		// Streamed content
+		if (ctx.stream != null) {
+			ctx.stream.onPacket(new PacketListener() {
+
+				// Create sequence counter
+				private final AtomicLong sequence = new AtomicLong();
+
+				@Override
+				public final void onPacket(byte[] bytes, Throwable cause, boolean close) {
+					if (bytes != null && bytes.length > 0) {
+						transporter.sendDataPacket(PACKET_EVENT, nodeID, ctx, bytes, sequence.incrementAndGet());
+					} else if (cause != null) {
+						transporter.sendErrorPacket(PACKET_EVENT, nodeID, ctx, cause, sequence.incrementAndGet());
+					}
+					if (close) {
+						transporter.sendClosePacket(PACKET_EVENT, nodeID, ctx, sequence.incrementAndGet());
+					}
+				}
+
+			});
+		}
 	}
 
 	// --- IS A LOCAL EVENT LISTENER? ---

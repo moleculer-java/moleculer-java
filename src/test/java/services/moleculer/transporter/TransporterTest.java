@@ -25,6 +25,7 @@
  */
 package services.moleculer.transporter;
 
+import java.io.ByteArrayOutputStream;
 import java.util.LinkedList;
 
 import org.junit.Test;
@@ -33,6 +34,7 @@ import io.datatree.Promise;
 import io.datatree.Tree;
 import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
+import services.moleculer.context.Context;
 import services.moleculer.eventbus.Group;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.eventbus.Listener;
@@ -42,6 +44,8 @@ import services.moleculer.service.Action;
 import services.moleculer.service.LocalActionEndpoint;
 import services.moleculer.service.RemoteActionEndpoint;
 import services.moleculer.service.Service;
+import services.moleculer.stream.PacketStream;
+import services.moleculer.util.CheckedTree;
 
 public abstract class TransporterTest extends TestCase {
 
@@ -135,12 +139,12 @@ public abstract class TransporterTest extends TestCase {
 		br1.broadcast("test.a", t, Groups.of("group1"));
 		g1_a.waitFor(20000);
 		g1_b.waitFor(20000);
-			
+
 		assertEquals(1, g1_a.payloads.size());
 		assertEquals(1, g1_b.payloads.size());
 		assertEquals(0, g2_a.payloads.size());
 		assertEquals(0, g2_b.payloads.size());
-		
+
 		assertEquals(34567, g1_a.payloads.get(0).getMeta().get("val", 0));
 		assertEquals(34567, g1_b.payloads.get(0).getMeta().get("val", 0));
 
@@ -151,15 +155,15 @@ public abstract class TransporterTest extends TestCase {
 		br1.broadcast("test.a", t, Groups.of("group2"));
 		g2_a.waitFor(20000);
 		g2_b.waitFor(20000);
-		
+
 		assertEquals(0, g1_a.payloads.size());
 		assertEquals(0, g1_b.payloads.size());
 		assertEquals(1, g2_a.payloads.size());
 		assertEquals(1, g2_b.payloads.size());
-		
+
 		assertEquals(34567, g2_a.payloads.get(0).getMeta().get("val", 0));
 		assertEquals(34567, g2_b.payloads.get(0).getMeta().get("val", 0));
-		
+
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
 
@@ -187,7 +191,7 @@ public abstract class TransporterTest extends TestCase {
 		}
 		assertTrue(v.isEmpty());
 		assertTrue(!v.isNull());
-		
+
 		assertEquals(34567, v.getMeta().get("val", 0));
 
 		g1_a.payloads.clear();
@@ -246,9 +250,9 @@ public abstract class TransporterTest extends TestCase {
 		} else {
 			v = g2_a.payloads.peek();
 		}
-		
+
 		assertEquals(34567, v.getMeta().get("val", 0));
-		
+
 		g2_a.payloads.clear();
 		g2_b.payloads.clear();
 
@@ -259,16 +263,83 @@ public abstract class TransporterTest extends TestCase {
 		assertNull(rsp);
 
 		br1.createService(new MetaEchoService());
-		
+
 		// Meta test
 		br1.createService(new MetaEchoService());
 		br2.waitForServices("metaEchoService").waitFor(20000);
 		Tree params = new Tree();
 		params.getMeta().put("test", 456);
-		rsp = br2.call("metaEchoService.action", params).waitFor(2000);
+		rsp = br2.call("metaEchoService.action", params).waitFor(5000);
 		assertEquals(456, rsp.get("meta-req.test", 0));
 		assertEquals(123, rsp.getMeta().get("reply", 0));
 		assertEquals(123, rsp.get("_meta.reply", 0));
+
+		// Stream test
+		StreamListener sl = new StreamListener();
+		br1.createService(sl);
+		br2.waitForServices("streamListener").waitFor(20000);
+
+		PacketStream ps = br2.createStream();
+		br2.broadcast("stream.receive", ps);
+		Thread.sleep(sleep);
+		assertNotNull(sl.ctx);
+		assertEquals(1, sl.ctx.level);
+		assertEquals("stream.receive", sl.ctx.name);
+		assertEquals(0, sl.buffer.toByteArray().length);
+
+		ps.sendData("12345".getBytes());
+		ps.sendData("67890".getBytes());
+		assertFalse(sl.streamClosed);
+		ps.sendClose();
+		Thread.sleep(sleep * 3);
+		assertEquals("1234567890", new String(sl.buffer.toByteArray()));
+		assertTrue(sl.streamClosed);
+
+		sl.buffer.reset();
+		sl.ctx = null;
+		sl.streamClosed = false;
+
+		ps = br2.createStream();
+		t = new CheckedTree(ps);
+		t.getMeta().put("x", "y");
+		br2.emit("stream.receive", t);
+		ps.sendData("abcdefg".getBytes());
+		ps.sendClose();
+		Thread.sleep(sleep * 3);
+		assertEquals("abcdefg", new String(sl.buffer.toByteArray()));
+		assertEquals("y", sl.ctx.params.getMeta().get("x", ""));
+		assertTrue(sl.streamClosed);
+
+		// Meta & event
+		Level1EventService l1e = new Level1EventService();
+		Level2EventService l2e = new Level2EventService();
+		Level3EventService l3e = new Level3EventService();
+
+		br1.createService(l1e).createService(l3e);
+		br2.createService(l2e);
+
+		br1.waitForServices("level2EventService").waitFor(20000);
+		br2.waitForServices("level1EventService", "level3EventService").waitFor(20000);
+		
+		br2.createService(new Service("metasender") {
+			@SuppressWarnings("unused")
+			public Action action = ctx -> {
+				assertTrue(ctx.params.isEmpty());
+				assertEquals(1, ctx.level);
+				
+				Tree params = new Tree();
+				params.put("b", true);
+				params.getMeta().put("a", 123);
+				ctx.broadcast("level1.a", params);
+				return 12345;
+			};
+		});		
+		br2.call("metasender.action");
+		
+		Thread.sleep(sleep * 3);
+		assertNotNull(l3e.ctx);
+		assertEquals(4, l3e.ctx.level);	
+		assertEquals(123, l3e.ctx.params.getMeta().get("a", 0));
 		
 		// LAST test: reject on disconnect
 		br1.createService(new SlowService());
@@ -318,25 +389,25 @@ public abstract class TransporterTest extends TestCase {
 
 		public Action action = ctx -> {
 			Tree reqMeta = ctx.params.getMeta();
-			
+
 			Tree rsp = new Tree();
 			rsp.putMap("meta-req").assign(reqMeta);
 			rsp.getMeta().put("reply", 123);
-			
+
 			return rsp;
 		};
 
 	}
-	
+
 	protected static final class Group1Listener extends Service {
 
 		protected LinkedList<Tree> payloads = new LinkedList<>();
 
 		@Group("group1")
 		@Subscribe("test.*")
-		public Listener evt = payload -> {
+		public Listener evt = ctx -> {
 			synchronized (payloads) {
-				payloads.addLast(payload);
+				payloads.addLast(ctx.params);
 				payloads.notifyAll();
 			}
 		};
@@ -358,9 +429,9 @@ public abstract class TransporterTest extends TestCase {
 
 		@Group("group2")
 		@Subscribe("test.*")
-		public Listener evt = payload -> {
+		public Listener evt = ctx -> {
 			synchronized (payloads) {
-				payloads.addLast(payload);
+				payloads.addLast(ctx.params);
 				payloads.notifyAll();
 			}
 		};
@@ -376,10 +447,67 @@ public abstract class TransporterTest extends TestCase {
 
 	}
 
+	protected static final class StreamListener extends Service {
+
+		protected ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+		protected boolean streamClosed;
+
+		protected Context ctx;
+
+		@Subscribe("stream.*")
+		public Listener evt = ctx -> {
+			this.ctx = ctx;
+			ctx.stream.onPacket((bytes, err, closed) -> {
+				if (bytes != null) {
+					buffer.write(bytes);
+				}
+				if (closed) {
+					streamClosed = true;
+				}
+			});
+		};
+
+	}
+
 	protected static final class TestService extends Service {
 
 		public Action add = ctx -> {
 			return ctx.params.get("a", 0) + ctx.params.get("b", 0);
+		};
+
+	}
+
+	protected static final class Level1EventService extends Service {
+
+		@Subscribe("level1.*")
+		public Listener evt = ctx -> {
+			logger.info("Level1EventService invoked.");
+			assertEquals(2, ctx.level);			
+			ctx.broadcast("level2.xyz", "a", 4);
+		};
+
+	}
+
+	protected static final class Level2EventService extends Service {
+
+		@Subscribe("level2.xyz")
+		public Listener evt = ctx -> {
+			logger.info("Level2EventService invoked.");
+			assertEquals(3, ctx.level);			
+			ctx.broadcast("level3.xyz", "a", 5);
+		};
+		
+	}
+
+	protected static final class Level3EventService extends Service {
+
+		protected Context ctx;
+
+		@Subscribe("level3.*")
+		public Listener evt = ctx -> {
+			logger.info("Level3EventService invoked.");
+			this.ctx = ctx;
 		};
 
 	}

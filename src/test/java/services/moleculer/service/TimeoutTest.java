@@ -33,6 +33,7 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallOptions;
 import services.moleculer.error.RequestRejectedError;
 import services.moleculer.monitor.ConstantMonitor;
+import services.moleculer.uid.XorShiftRandomUidGenerator;
 
 public class TimeoutTest extends TestCase {
 
@@ -130,7 +131,7 @@ public class TimeoutTest extends TestCase {
 			return ctx.call("level2Service.action", ctx.params).catchError(err -> {
 				if (err instanceof RequestRejectedError) {
 
-					// Rejected
+					// Rejected		
 					timeouted = true;
 				}
 			});
@@ -153,7 +154,8 @@ public class TimeoutTest extends TestCase {
 	@Override
 	protected void setUp() throws Exception {
 		sr = new DefaultServiceRegistry();
-		br = ServiceBroker.builder().monitor(new ConstantMonitor()).registry(sr).nodeID("local").build();
+		br = ServiceBroker.builder().uid(new XorShiftRandomUidGenerator()).monitor(new ConstantMonitor()).registry(sr)
+				.nodeID("local").build();
 		br.start();
 	}
 

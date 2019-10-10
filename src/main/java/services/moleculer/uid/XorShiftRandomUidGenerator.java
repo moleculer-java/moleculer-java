@@ -1,7 +1,7 @@
 /**
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
- * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Copyright 2019 Andras Berkes [andras.berkes@programmer.net]<br>
  * Based on Moleculer Framework for NodeJS [https://moleculer.services].
  * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -31,26 +31,26 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
- * Fast {@link UidGenerator}, based on nodeID and an atomic sequence number.
- * It's faster than the {@link StandardUidGenerator}.
+ * XORSHIFT-based pseudorandom UID generator.
  *
+ * @see IncrementalUidGenerator
  * @see StandardUidGenerator
- * @see XorShiftRandomUidGenerator
  */
-@Name("Incremental UID Generator")
-public class IncrementalUidGenerator extends UidGenerator {
+@Name("XORSHIFT Pseudorandom UID Generator")
+public class XorShiftRandomUidGenerator extends UidGenerator {
 
 	// --- HOST/NODE PREFIX ---
 
 	/**
 	 * UID prefix (null = nodeID)
 	 */
-	protected char[] prefix;
+	protected char[] prefix = new char[0];
+	
+	// --- PROPERTIES ---
 
-	// --- SEQUENCE ---
-
+	protected final AtomicLong rnd = new AtomicLong(System.nanoTime());
 	protected final AtomicLong counter = new AtomicLong();
-
+	
 	// --- START GENERATOR ---
 
 	/**
@@ -62,18 +62,38 @@ public class IncrementalUidGenerator extends UidGenerator {
 	@Override
 	public void started(ServiceBroker broker) throws Exception {
 		super.started(broker);
-		if (prefix == null) {
+		if (prefix == null || prefix.length ==  0) {
 			prefix = (broker.getNodeID() + ':').toCharArray();
 		}
 	}
-
+	
 	// --- GENERATE UID ---
 
 	@Override
 	public String nextUID() {
-		StringBuilder tmp = new StringBuilder(prefix.length + 16);
+		StringBuilder tmp = new StringBuilder(prefix.length + 32);
+		
+		// Add prefix
 		tmp.append(prefix);
+		
+		// Add sequence
 		tmp.append(counter.incrementAndGet());
+		tmp.append(':');
+		
+		// Generate pseudo random long (XORShift is the fastest random method)
+		long start;
+		long next;
+		do {
+			start = rnd.get();
+			next = start + 1;
+			next ^= (next << 21);
+			next ^= (next >>> 35);
+			next ^= (next << 4);
+		} while (!rnd.compareAndSet(start, next));
+		
+		// Add random number
+		tmp.append(Math.abs(next));
+		
 		return tmp.toString();
 	}
 
@@ -88,5 +108,5 @@ public class IncrementalUidGenerator extends UidGenerator {
 			this.prefix = prefix.toCharArray();
 		}
 	}
-
+	
 }

@@ -30,7 +30,6 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import services.moleculer.ServiceBroker;
 import services.moleculer.cacher.Cacher;
-import services.moleculer.context.ContextFactory;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.service.ServiceInvoker;
@@ -82,11 +81,6 @@ public class ServiceBrokerBuilder {
 
 	public ServiceBrokerBuilder executor(ExecutorService executor) {
 		config.setExecutor(executor);
-		return this;
-	}
-
-	public ServiceBrokerBuilder context(ContextFactory contextFactory) {
-		config.setContextFactory(contextFactory);
 		return this;
 	}
 

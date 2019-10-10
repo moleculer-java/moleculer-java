@@ -568,7 +568,7 @@ public class TcpTransporter extends Transporter {
 						}
 
 						// Convert MoleculerError to JSON
-						errorMap = new FastBuildTree(8);
+						errorMap = new FastBuildTree(9);
 						moleculerError.toTree(errorMap);
 					}
 					for (byte[] packet : packets) {
@@ -591,7 +591,7 @@ public class TcpTransporter extends Transporter {
 								}
 
 								// Create response message
-								FastBuildTree response = new FastBuildTree(6);
+								FastBuildTree response = new FastBuildTree(7);
 								response.putUnsafe("id", id);
 								response.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
 								response.putUnsafe("sender", nodeID);
@@ -947,7 +947,7 @@ public class TcpTransporter extends Transporter {
 			}
 
 			// Create gossip request
-			FastBuildTree root = new FastBuildTree(4);
+			FastBuildTree root = new FastBuildTree(5);
 			root.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
 			root.putUnsafe("sender", nodeID);
 			root.putUnsafe("online", online.asObject());
@@ -1152,7 +1152,7 @@ public class TcpTransporter extends Transporter {
 		}
 
 		// Create gossip response
-		FastBuildTree root = new FastBuildTree(4);
+		FastBuildTree root = new FastBuildTree(5);
 		root.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
 		root.putUnsafe("sender", nodeID);
 
@@ -1334,7 +1334,7 @@ public class TcpTransporter extends Transporter {
 			return cachedHelloMessage;
 		}
 		try {
-			FastBuildTree root = new FastBuildTree(4);
+			FastBuildTree root = new FastBuildTree(5);
 			root.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
 			root.putUnsafe("sender", nodeID);
 			if (useHostname) {

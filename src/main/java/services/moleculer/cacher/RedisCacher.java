@@ -331,7 +331,7 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 		return urls;
 	}
 
-	public void setUrls(String[] urls) {
+	public void setUrls(String... urls) {
 		this.urls = urls;
 	}
 

@@ -30,15 +30,13 @@ import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
 
 import io.datatree.Promise;
-import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
-import services.moleculer.context.CallOptions;
-import services.moleculer.context.CallOptions.Options;
 import services.moleculer.context.Context;
-import services.moleculer.context.ContextFactory;
+import services.moleculer.error.MaxCallLevelError;
 import services.moleculer.error.MoleculerError;
-import services.moleculer.stream.PacketStream;
+import services.moleculer.eventbus.Eventbus;
+import services.moleculer.uid.UidGenerator;
 
 /**
  * Default service invoker with retry logic.
@@ -53,10 +51,16 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 	 */
 	protected boolean writeErrorsToLog = true;
 
+	/**
+	 * Max call level (for nested calls)
+	 */
+	protected int maxCallLevel = 100;
+
 	// --- COMPONENTS ---
 
 	protected ServiceRegistry serviceRegistry;
-	protected ContextFactory contextFactory;
+	protected Eventbus eventbus;
+	protected UidGenerator uidGenerator;
 
 	// --- RETRY LOGIC (BY ERROR) ---
 
@@ -85,49 +89,54 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 		// Set components
 		ServiceBrokerConfig cfg = broker.getConfig();
 		this.serviceRegistry = cfg.getServiceRegistry();
-		this.contextFactory = cfg.getContextFactory();
+		this.eventbus = cfg.getEventbus();
+		this.uidGenerator = cfg.getUidGenerator();
 	}
 
 	// --- CALL SERVICE ---
 
 	@Override
-	public Promise call(String name, Tree params, Options opts, PacketStream stream, Context parent) {
+	public Promise call(Context ctx) {
+
+		// Verify call level
+		if (maxCallLevel > 0 && ctx.level >= maxCallLevel) {
+			throw new MaxCallLevelError(broker.getNodeID(), maxCallLevel);
+		}
+
+		// Calling...
 		String targetID;
 		int remaining;
-		if (opts == null) {
+		if (ctx.opts == null) {
 			targetID = null;
 			remaining = 0;
 		} else {
-			targetID = opts.nodeID;
-			remaining = opts.retryCount;
+			targetID = ctx.opts.nodeID;
+			remaining = ctx.opts.retryCount;
 		}
-		return call(name, params, opts, stream, parent, targetID, remaining);
+		return call(ctx, targetID, remaining);
 	}
 
-	protected Promise call(String name, Tree params, Options opts, PacketStream stream, Context parent, String targetID,
-			int remaining) {
+	protected Promise call(Context ctx, String targetID, int remaining) {
 		try {
-			Action action = serviceRegistry.getAction(name, targetID);
-			Context ctx = contextFactory.create(name, params, opts, stream, parent);
+			Action action = serviceRegistry.getAction(ctx.name, targetID);
 			if (remaining < 1 && !writeErrorsToLog) {
 				return Promise.resolve(action.handler(ctx));
 			}
 			return Promise.resolve(action.handler(ctx)).catchError(cause -> {
-				return retry(cause, name, params, opts, stream, parent, targetID, remaining);
+				return retry(ctx, targetID, remaining, cause);
 			});
 		} catch (Throwable cause) {
-			return retry(cause, name, params, opts, stream, parent, targetID, remaining);
+			return retry(ctx, targetID, remaining, cause);
 		}
 	}
 
 	// --- RETRY CALL ---
 
-	protected Promise retry(Throwable cause, String name, Tree params, CallOptions.Options opts, PacketStream stream,
-			Context parent, String targetID, int remaining) {
+	protected Promise retry(Context ctx, String targetID, int remaining, Throwable cause) {
 
 		// Write error to log file
 		if (writeErrorsToLog) {
-			logger.error("Unexpected error occurred while invoking \"" + name + "\" action!", cause);
+			logger.error("Unexpected error occurred while invoking \"" + ctx.name + "\" action!", cause);
 		}
 
 		// Check error type and error counter
@@ -140,7 +149,10 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 		if (writeErrorsToLog) {
 			logger.warn("Retrying request (" + newRemaining + " attempts left)...");
 		}
-		return call(name, params, opts, stream, parent, targetID, newRemaining);
+
+		// Create new Context (with new id)
+		return call(new Context(this, eventbus, uidGenerator, uidGenerator.nextUID(), ctx.name, ctx.params, ctx.level,
+				ctx.parentID, ctx.requestID, ctx.stream, ctx.opts), targetID, newRemaining);
 	}
 
 	// --- GETTERS / SETTERS ---
@@ -159,6 +171,14 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 
 	public void setRetryLogic(Predicate<Throwable> retryLogic) {
 		this.retryLogic = Objects.requireNonNull(retryLogic);
+	}
+
+	public int getMaxCallLevel() {
+		return maxCallLevel;
+	}
+
+	public void setMaxCallLevel(int maxCallLevel) {
+		this.maxCallLevel = maxCallLevel;
 	}
 
 }

@@ -26,7 +26,6 @@
 package services.moleculer;
 
 import static services.moleculer.util.CommonUtils.nameOf;
-import static services.moleculer.util.CommonUtils.parseParams;
 import static services.moleculer.util.CommonUtils.suggestDependency;
 
 import java.util.Arrays;
@@ -43,28 +42,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.datatree.Promise;
-import io.datatree.Tree;
 import io.datatree.dom.TreeReader;
 import io.datatree.dom.TreeReaderRegistry;
 import io.datatree.dom.TreeWriter;
 import io.datatree.dom.TreeWriterRegistry;
-import services.moleculer.breaker.CircuitBreaker;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.config.ServiceBrokerBuilder;
 import services.moleculer.config.ServiceBrokerConfig;
-import services.moleculer.context.CallOptions;
-import services.moleculer.context.ContextFactory;
-import services.moleculer.context.DefaultContextFactory;
+import services.moleculer.context.ContextSource;
 import services.moleculer.error.MoleculerServerError;
-import services.moleculer.eventbus.EventEmitter;
 import services.moleculer.internal.NodeService;
 import services.moleculer.service.Action;
-import services.moleculer.service.DefaultServiceInvoker;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.MoleculerComponent;
 import services.moleculer.service.Service;
-import services.moleculer.service.ServiceInvoker;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.CpuUsageStrategyFactory;
 import services.moleculer.strategy.NanoSecRandomStrategyFactory;
@@ -73,7 +65,6 @@ import services.moleculer.strategy.RoundRobinStrategyFactory;
 import services.moleculer.strategy.SecureRandomStrategyFactory;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.strategy.XorShiftRandomStrategyFactory;
-import services.moleculer.stream.PacketStream;
 import services.moleculer.transporter.AmqpTransporter;
 import services.moleculer.transporter.GoogleTransporter;
 import services.moleculer.transporter.JmsTransporter;
@@ -83,10 +74,6 @@ import services.moleculer.transporter.NatsTransporter;
 import services.moleculer.transporter.RedisTransporter;
 import services.moleculer.transporter.TcpTransporter;
 import services.moleculer.transporter.Transporter;
-import services.moleculer.uid.IncrementalUidGenerator;
-import services.moleculer.uid.StandardUidGenerator;
-import services.moleculer.uid.UidGenerator;
-import services.moleculer.util.ParseResult;
 
 /**
  * The ServiceBroker is the main component of Moleculer. It handles services
@@ -122,7 +109,7 @@ import services.moleculer.util.ParseResult;
  * Node.js (https://moleculer.services). Special thanks to the Moleculer's
  * project owner (https://github.com/icebob) for the consultations.
  */
-public class ServiceBroker extends EventEmitter {
+public class ServiceBroker extends ContextSource {
 
 	// --- VERSIONS ---
 
@@ -132,9 +119,10 @@ public class ServiceBroker extends EventEmitter {
 	public static final String SOFTWARE_VERSION = "1.1.3";
 
 	/**
-	 * Version of the implemented Moleculer Protocol.
+	 * Version of the implemented Moleculer Protocol. Can be configured with the
+	 * "molecular.protocol.version" system property.
 	 */
-	public static final String PROTOCOL_VERSION = "4";
+	public static final String PROTOCOL_VERSION = System.getProperty("moleculer.protocol.version", "4");
 
 	// --- LOGGER ---
 
@@ -177,16 +165,6 @@ public class ServiceBroker extends EventEmitter {
 	// --- INTERNAL COMPONENTS ---
 
 	/**
-	 * UID generator (each {@link services.moleculer.context.Context Context}
-	 * instance has its own identifier). Use
-	 * <code>getConfig().getUidGenerator()</code> to access this instance.
-	 * 
-	 * @see IncrementalUidGenerator
-	 * @see StandardUidGenerator
-	 */
-	protected UidGenerator uidGenerator;
-
-	/**
 	 * Default (round-robin) service invocation factory. Use
 	 * <code>getConfig().getStrategyFactory()</code> to access this instance.
 	 * 
@@ -198,23 +176,6 @@ public class ServiceBroker extends EventEmitter {
 	 * @see NetworkLatencyStrategyFactory
 	 */
 	protected StrategyFactory strategyFactory;
-
-	/**
-	 * Context generator / factory. Use
-	 * <code>getConfig().getContextFactory()</code> to access this instance.
-	 * 
-	 * @see DefaultContextFactory
-	 */
-	protected ContextFactory contextFactory;
-
-	/**
-	 * Service invoker. Use <code>getConfig().getServiceInvoker()</code> to
-	 * access this instance.
-	 * 
-	 * @see DefaultServiceInvoker
-	 * @see CircuitBreaker
-	 */
-	protected ServiceInvoker serviceInvoker;
 
 	/**
 	 * Implementation of the service registry of the current node. Use
@@ -264,7 +225,7 @@ public class ServiceBroker extends EventEmitter {
 	 *            configuration of the Broker
 	 */
 	public ServiceBroker(ServiceBrokerConfig config) {
-		super(config.getEventbus());
+		super(config.getServiceInvoker(), config.getEventbus(), config.getUidGenerator());
 		this.config = config;
 		this.nodeID = config.getNodeID();
 	}
@@ -355,11 +316,10 @@ public class ServiceBroker extends EventEmitter {
 			initJsonWriter();
 
 			// Set internal components
-			uidGenerator = start(config.getUidGenerator());
+			start(uidGenerator);
 			strategyFactory = start(config.getStrategyFactory());
-			contextFactory = start(config.getContextFactory());
-			serviceInvoker = start(config.getServiceInvoker());
-			start(config.getEventbus());
+			start(serviceInvoker);
+			start(eventbus);
 			serviceRegistry = start(config.getServiceRegistry());
 			transporter = start(config.getTransporter());
 
@@ -504,7 +464,6 @@ public class ServiceBroker extends EventEmitter {
 		stop(serviceRegistry);
 		stop(eventbus);
 		stop(serviceInvoker);
-		stop(contextFactory);
 		stop(strategyFactory);
 		stop(uidGenerator);
 
@@ -703,71 +662,6 @@ public class ServiceBroker extends EventEmitter {
 		return serviceRegistry.getAction(actionName, nodeID);
 	}
 
-	// --- INVOKE LOCAL OR REMOTE ACTION ---
-
-	/**
-	 * Calls an action (local or remote). Sample code:<br>
-	 * <br>
-	 * Promise promise = broker.call("math.add", "a", 1, "b", 2);<br>
-	 * <br>
-	 * ...or with CallOptions:<br>
-	 * <br>
-	 * broker.call("math.add", "a", 1, "b", 2, CallOptions.nodeID("node2"));
-	 * 
-	 * @param name
-	 *            action name (eg. "math.add" in "service.action" syntax)
-	 * @param params
-	 *            list of parameter name-value pairs and an optional CallOptions
-	 * 
-	 * @return response Promise
-	 */
-	public Promise call(String name, Object... params) {
-		ParseResult res = parseParams(params);
-		return serviceInvoker.call(name, res.data, res.opts, res.stream, null);
-	}
-
-	/**
-	 * Calls an action (local or remote). Sample code:<br>
-	 * <br>
-	 * Tree params = new Tree();<br>
-	 * params.put("a", true);<br>
-	 * params.putList("b").add(1).add(2).add(3);<br>
-	 * Promise promise = broker.call("math.add", params);
-	 * 
-	 * @param name
-	 *            action name (eg. "math.add" in "service.action" syntax)
-	 * @param params
-	 *            {@link Tree} structure (input parameters of the method call)
-	 * 
-	 * @return response Promise
-	 */
-	public Promise call(String name, Tree params) {
-		return serviceInvoker.call(name, params, null, null, null);
-	}
-
-	/**
-	 * Calls an action (local or remote). Sample code:<br>
-	 * <br>
-	 * Tree params = new Tree();<br>
-	 * params.put("a", true);<br>
-	 * params.putList("b").add(1).add(2).add(3);<br>
-	 * Promise promise = broker.call("math.add", params,
-	 * CallOptions.nodeID("node2"));
-	 * 
-	 * @param name
-	 *            action name (eg. "math.add" in "service.action" syntax)
-	 * @param params
-	 *            {@link Tree} structure (input parameters of the method call)
-	 * @param opts
-	 *            calling options (target nodeID, call timeout, number of
-	 *            retries)
-	 * 
-	 * @return response Promise
-	 */
-	public Promise call(String name, Tree params, CallOptions.Options opts) {
-		return serviceInvoker.call(name, params, opts, null, null);
-	}
-
 	// --- WAIT FOR SERVICE(S) ---
 
 	/**
@@ -866,34 +760,6 @@ public class ServiceBroker extends EventEmitter {
 	 */
 	public Promise ping(long timeoutMillis, String nodeID) {
 		return serviceRegistry.ping(timeoutMillis, nodeID);
-	}
-
-	// --- STREAMED REQUEST OR RESPONSE ---
-
-	/**
-	 * Creates a stream what is suitable for transferring large files (or other
-	 * "unlimited" media content) between Moleculer Nodes. Sample:<br>
-	 * 
-	 * <pre>
-	 * public Action send = ctx -&gt; {
-	 *   PacketStream reqStream = broker.createStream();
-	 *   
-	 *   ctx.call("service.action", reqStream).then(rsp -&gt; {
-	 *   
-	 *     // Receive bytes into file
-	 *     PacketStream rspStream = (PacketStream) rsp.asObject();
-	 *     rspStream.transferTo(new File("out"));
-	 *   }
-	 *   
-	 *   // Send bytes from file
-	 *   reqStream.transferFrom(new File("in"));
-	 * }
-	 * </pre>
-	 * 
-	 * @return new stream
-	 */
-	public PacketStream createStream() {
-		return new PacketStream(nodeID, config.getScheduler());
 	}
 
 	// --- START DEVELOPER CONSOLE ---

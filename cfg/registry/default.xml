@@ -23,6 +23,9 @@
 
 		<!-- Stream inactivity/read timeout in MILLISECONDS (0 = no timeout) -->
 		<property name="streamTimeout"        value="0" />
+		
+		<!-- Max call level (for nested calls) -->
+		<property name="maxCallLevel"         value="100" />
 			
 	</bean>
 

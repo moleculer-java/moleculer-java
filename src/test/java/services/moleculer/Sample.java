@@ -55,7 +55,7 @@ public class Sample {
 			// Start Service Broker
 			broker.start();
 
-			System.out.println(broker.call("myService.action2").waitFor());
+			System.out.println(broker.call("myService.action2").waitFor(5000));
 
 		} catch (Exception e) {
 			e.printStackTrace();

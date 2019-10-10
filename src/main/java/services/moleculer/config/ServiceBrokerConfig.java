@@ -36,8 +36,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import services.moleculer.cacher.Cacher;
 import services.moleculer.cacher.MemoryCacher;
-import services.moleculer.context.ContextFactory;
-import services.moleculer.context.DefaultContextFactory;
 import services.moleculer.eventbus.DefaultEventbus;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.monitor.ConstantMonitor;
@@ -99,7 +97,6 @@ public class ServiceBrokerConfig {
 
 	protected UidGenerator uidGenerator = new IncrementalUidGenerator();
 	protected StrategyFactory strategyFactory = new RoundRobinStrategyFactory();
-	protected ContextFactory contextFactory = new DefaultContextFactory();
 	protected Eventbus eventbus = new DefaultEventbus();
 	protected ServiceRegistry serviceRegistry = new DefaultServiceRegistry();
 	protected Cacher cacher = new MemoryCacher();
@@ -123,7 +120,7 @@ public class ServiceBrokerConfig {
 
 					// Found!
 					ClassLoader cl = ServiceBrokerConfig.class.getClassLoader();
-					defaultMonitor = (Monitor) cl.loadClass("services.moleculer.monitor.SigarMonitor").newInstance();					
+					defaultMonitor = (Monitor) cl.loadClass("services.moleculer.monitor.SigarMonitor").newInstance();
 					break;
 				} catch (Throwable notFound) {
 
@@ -269,14 +266,6 @@ public class ServiceBrokerConfig {
 
 	public void setEventbus(Eventbus eventbus) {
 		this.eventbus = Objects.requireNonNull(eventbus);
-	}
-
-	public ContextFactory getContextFactory() {
-		return contextFactory;
-	}
-
-	public void setContextFactory(ContextFactory contextFactory) {
-		this.contextFactory = Objects.requireNonNull(contextFactory);
 	}
 
 	public Cacher getCacher() {

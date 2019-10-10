@@ -355,8 +355,8 @@ public class GossiperTest extends TestCase {
 
 	protected Tree createGossipOfflineMessage(String nodeID, int seq) {
 		Tree rsp = new Tree();
-		rsp.put("sender", nodeID);
 		rsp.put("ver", ServiceBroker.PROTOCOL_VERSION);
+		rsp.put("sender", nodeID);
 		Tree offline = rsp.putList("offline");
 		offline.put(nodeID, seq);
 		return rsp;
@@ -364,8 +364,8 @@ public class GossiperTest extends TestCase {
 
 	protected Tree createGossipOnlineResponse(String nodeID, Tree info, int cpuSeq, int cpu) {
 		Tree rsp = new Tree();
-		rsp.put("sender", nodeID);
 		rsp.put("ver", ServiceBroker.PROTOCOL_VERSION);
+		rsp.put("sender", nodeID);
 		Tree online = rsp.putList("online");
 		Tree list = online.putList(nodeID);
 		list.addObject(info);
@@ -375,8 +375,8 @@ public class GossiperTest extends TestCase {
 
 	protected Tree createGossipRequest(String nodeID, int seq, int cpuSeq, int cpu) {
 		Tree req = new Tree();
-		req.put("sender", nodeID);
 		req.put("ver", ServiceBroker.PROTOCOL_VERSION);
+		req.put("sender", nodeID);
 		Tree online = req.putList("online");
 		if (nodeID != null) {
 			online.putList(nodeID).add(seq).add(cpuSeq).add(cpu);

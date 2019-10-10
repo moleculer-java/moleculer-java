@@ -33,6 +33,7 @@ import services.moleculer.service.Name;
  *
  * @see IncrementalUidGenerator
  * @see StandardUidGenerator
+ * @see XorShiftRandomUidGenerator
  */
 @Name("UID Generator")
 public abstract class UidGenerator extends MoleculerComponent {

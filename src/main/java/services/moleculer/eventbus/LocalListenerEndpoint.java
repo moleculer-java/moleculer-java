@@ -27,7 +27,7 @@ package services.moleculer.eventbus;
 
 import java.util.concurrent.ExecutorService;
 
-import io.datatree.Tree;
+import services.moleculer.context.Context;
 
 public class LocalListenerEndpoint extends ListenerEndpoint {
 
@@ -60,13 +60,13 @@ public class LocalListenerEndpoint extends ListenerEndpoint {
 	// --- INVOKE LOCAL LISTENER ---
 
 	@Override
-	public void on(String name, Tree payload, Groups groups, boolean broadcast) throws Exception {
+	public void on(Context ctx, Groups groups, boolean broadcast) throws Exception {
 
 		// A.) Async invocation
 		if (asyncLocalInvocation) {
 			executor.execute(() -> {
 				try {
-					listener.on(payload);
+					listener.on(ctx);
 				} catch (Exception cause) {
 					logger.warn("Unable to invoke local listener!", cause);
 				}
@@ -75,10 +75,10 @@ public class LocalListenerEndpoint extends ListenerEndpoint {
 		}
 
 		// B.) Faster in-process (direct) invocation
-		listener.on(payload);
+		listener.on(ctx);
 	}
 
-	// --- IS A LOCAL EVENT LISTENER? ---
+	// --- IS IT A LOCAL EVENT LISTENER? ---
 
 	public boolean isLocal() {
 		return true;

@@ -36,19 +36,31 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 import io.datatree.Tree;
 import io.datatree.dom.Cache;
 import io.datatree.dom.Config;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
+import services.moleculer.context.Context;
+import services.moleculer.error.MaxCallLevelError;
+import services.moleculer.error.RequestTimeoutError;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
+import services.moleculer.service.ServiceInvoker;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
+import services.moleculer.stream.IncomingStream;
+import services.moleculer.stream.PacketStream;
 import services.moleculer.transporter.Transporter;
+import services.moleculer.uid.UidGenerator;
 import services.moleculer.util.CheckedTree;
 
 /**
@@ -84,23 +96,56 @@ public class DefaultEventbus extends Eventbus {
 	 */
 	protected String nodeID;
 
-	// --- LOCKS ---
+	/**
+	 * Write exceptions into the log file
+	 */
+	protected boolean writeErrorsToLog = true;
+
+	/**
+	 * Stream inactivity/read timeout in MILLISECONDS (0 = no timeout). It may
+	 * be useful if you want to remove the wrong packages from the memory.
+	 */
+	protected long streamTimeout;
+
+	/**
+	 * Max call level (for nested events)
+	 */
+	protected int maxCallLevel = 100;
+
+	// --- REGISTRY LOCKS ---
 
 	/**
 	 * Reader lock of the Event Bus
 	 */
-	protected final Lock readLock;
+	protected final Lock registryReadLock;
 
 	/**
 	 * Writer lock of the Event Bus
 	 */
-	protected final Lock writeLock;
+	protected final Lock registryWriteLock;
+
+	/**
+	 * Cancelable timer for request streams
+	 */
+	protected ScheduledFuture<?> streamTimeoutTimer;
 
 	// --- COMPONENTS ---
 
 	protected StrategyFactory strategy;
 	protected Transporter transporter;
 	protected ExecutorService executor;
+	protected ServiceInvoker serviceInvoker;
+	protected ScheduledExecutorService scheduler;
+	protected UidGenerator uidGenerator;
+
+	// --- REGISTERED STREAMS ---
+
+	protected final HashMap<String, IncomingStream> requestStreams = new HashMap<>(1024);
+
+	// --- STREAM LOCKS ---
+
+	protected final ReadLock requestStreamReadLock;
+	protected final WriteLock requestStreamWriteLock;
 
 	// --- CONSTRUCTORS ---
 
@@ -113,10 +158,14 @@ public class DefaultEventbus extends Eventbus {
 		// Async or direct local invocation
 		this.asyncLocalInvocation = asyncLocalInvocation;
 
-		// Create locks
-		ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
-		readLock = lock.readLock();
-		writeLock = lock.writeLock();
+		// Init locks
+		ReentrantReadWriteLock registryLock = new ReentrantReadWriteLock(true);
+		registryReadLock = registryLock.readLock();
+		registryWriteLock = registryLock.writeLock();
+
+		ReentrantReadWriteLock requestStreamLock = new ReentrantReadWriteLock(false);
+		requestStreamReadLock = requestStreamLock.readLock();
+		requestStreamWriteLock = requestStreamLock.writeLock();
 	}
 
 	// --- START EVENT BUS ---
@@ -139,6 +188,16 @@ public class DefaultEventbus extends Eventbus {
 		this.strategy = cfg.getStrategyFactory();
 		this.transporter = cfg.getTransporter();
 		this.executor = cfg.getExecutor();
+		this.serviceInvoker = cfg.getServiceInvoker();
+		this.scheduler = cfg.getScheduler();
+		this.uidGenerator = cfg.getUidGenerator();
+
+		// Start timer
+		if (streamTimeout > 0) {
+			long period = Math.max(5000, streamTimeout / 3);
+			streamTimeoutTimer = scheduler.scheduleWithFixedDelay(this::checkTimeouts, period, period,
+					TimeUnit.MILLISECONDS);
+		}
 	}
 
 	// --- STOP EVENT BUS ---
@@ -146,8 +205,14 @@ public class DefaultEventbus extends Eventbus {
 	@Override
 	public void stopped() {
 
+		// Stop timer
+		if (streamTimeoutTimer != null) {
+			streamTimeoutTimer.cancel(false);
+			streamTimeoutTimer = null;
+		}
+
 		// Clear endpoints
-		writeLock.lock();
+		registryWriteLock.lock();
 		try {
 			listeners.clear();
 		} finally {
@@ -157,7 +222,31 @@ public class DefaultEventbus extends Eventbus {
 			broadcasterCache.clear();
 			localBroadcasterCache.clear();
 
-			writeLock.unlock();
+			registryWriteLock.unlock();
+		}
+	}
+
+	// --- CALL TIMEOUT CHECKER TASK ---
+
+	protected void checkTimeouts() {
+		long now = System.currentTimeMillis();
+
+		// Check timeouted request streams
+		IncomingStream stream;
+		long timeoutAt;
+		requestStreamWriteLock.lock();
+		try {
+			Iterator<IncomingStream> j = requestStreams.values().iterator();
+			while (j.hasNext()) {
+				stream = j.next();
+				timeoutAt = stream.getTimeoutAt();
+				if (timeoutAt > 0 && now >= timeoutAt) {
+					stream.error(new RequestTimeoutError(this.nodeID, "unknown"));
+					j.remove();
+				}
+			}
+		} finally {
+			requestStreamWriteLock.unlock();
 		}
 	}
 
@@ -175,10 +264,83 @@ public class DefaultEventbus extends Eventbus {
 			}
 		}
 
+		// Get request's unique ID
+		String id = message.get("id", "0");
+
+		// Get sender's nodeID
+		String sender = message.get("sender", (String) null);
+		if (sender == null || sender.isEmpty()) {
+			logger.warn("Missing \"sender\" property!");
+			return;
+		}
+
+		// Incoming stream handling
+		IncomingStream requestStream;
+		if (id == null || "0".equals(id)) {
+			requestStream = null;
+		} else {
+			requestStreamReadLock.lock();
+			try {
+				requestStream = requestStreams.get(id);
+			} finally {
+				requestStreamReadLock.unlock();
+			}
+			if (requestStream != null) {
+				boolean remove = false;
+				try {
+					if (requestStream.receive(message)) {
+						remove = true;
+					}
+				} catch (Throwable error) {
+					remove = true;
+
+					// Write error to log file
+					if (writeErrorsToLog) {
+						logger.error("Unexpected error occurred while streaming!", error);
+					}
+
+				}
+				if (remove) {
+					requestStreamWriteLock.lock();
+					try {
+						requestStreams.remove(id);
+					} finally {
+						requestStreamWriteLock.unlock();
+					}
+				}
+			} else if (message.get("stream", false)) {
+				requestStreamWriteLock.lock();
+				try {
+					requestStream = requestStreams.get(id);
+					if (requestStream == null) {
+						requestStream = new IncomingStream(nodeID, scheduler, streamTimeout);
+						requestStreams.put(id, requestStream);
+					}
+				} finally {
+					requestStreamWriteLock.unlock();
+				}
+				if (requestStream.receive(message)) {
+					requestStreamWriteLock.lock();
+					try {
+						requestStreams.remove(id);
+					} finally {
+						requestStreamWriteLock.unlock();
+					}
+				}
+			}
+		}
+
 		// Get event property
 		String name = message.get("event", (String) null);
 		if (name == null || name.isEmpty()) {
-			logger.warn("Missing \"event\" property!");
+			if (requestStream == null) {
+				logger.warn("Missing \"event\" property!");
+			}
+			return;
+		}
+		if (requestStream != null && requestStream.inited()) {
+
+			// Event method invoked (do not invoke twice)
 			return;
 		}
 
@@ -186,14 +348,14 @@ public class DefaultEventbus extends Eventbus {
 		Tree data = message.get("data");
 		Tree meta = message.get("meta");
 		if (meta != null && !meta.isEmpty()) {
-			if (data == null || data.isNull()) {
-				data = new CheckedTree(new LinkedHashMap<String, Object>(), meta.asObject());
+			if (data == null) {
+				data = new CheckedTree(null, meta.asObject());
 			} else {
 				data = new CheckedTree(data.asObject(), meta.asObject());
 			}
 		}
 
-		// Process events in Moleculer V2 style
+		// Process groups
 		Tree groupArray = message.get("groups");
 		Groups groups = null;
 		if (groupArray != null) {
@@ -208,16 +370,26 @@ public class DefaultEventbus extends Eventbus {
 			}
 		}
 
+		// Get other properties
+		int level = message.get("level", 1);
+		String parentID = message.get("parentID", (String) null);
+		String requestID = message.get("requestID", id);
+
+		// Create Context
+		PacketStream stream = requestStream == null ? null : requestStream.getPacketStream();
+		Context ctx = new Context(serviceInvoker, this, uidGenerator, id, name, data, level, parentID, requestID,
+				stream, null);
+
 		// Emit or broadcast?
 		if (message.get("broadcast", true)) {
 
 			// Broadcast
-			broadcast(name, data, groups, true);
+			broadcast(ctx, groups, true);
 
 		} else {
 
 			// Emit
-			emit(name, data, groups, true);
+			emit(ctx, groups, true);
 		}
 	}
 
@@ -232,7 +404,7 @@ public class DefaultEventbus extends Eventbus {
 		Field[] fields = clazz.getFields();
 
 		boolean hasListener = false;
-		writeLock.lock();
+		registryWriteLock.lock();
 		try {
 
 			// Initialize listeners in service
@@ -300,7 +472,7 @@ public class DefaultEventbus extends Eventbus {
 			}
 
 			// Unlock reader threads
-			writeLock.unlock();
+			registryWriteLock.unlock();
 		}
 	}
 
@@ -311,7 +483,7 @@ public class DefaultEventbus extends Eventbus {
 		Tree events = config.get("events");
 		if (events != null && events.isMap()) {
 			String serviceName = Objects.requireNonNull(config.get("name", (String) null));
-			writeLock.lock();
+			registryWriteLock.lock();
 			try {
 				for (Tree listenerConfig : events) {
 					String subscribe = listenerConfig.get("name", "");
@@ -344,7 +516,7 @@ public class DefaultEventbus extends Eventbus {
 				localBroadcasterCache.clear();
 
 				// Unlock reader threads
-				writeLock.unlock();
+				registryWriteLock.unlock();
 			}
 		}
 	}
@@ -354,7 +526,7 @@ public class DefaultEventbus extends Eventbus {
 	@Override
 	public void removeListeners(String nodeID) {
 		boolean found = false;
-		writeLock.lock();
+		registryWriteLock.lock();
 		try {
 			Iterator<HashMap<String, Strategy<ListenerEndpoint>>> groupIterator = listeners.values().iterator();
 			while (groupIterator.hasNext()) {
@@ -382,7 +554,7 @@ public class DefaultEventbus extends Eventbus {
 				localBroadcasterCache.clear();
 			}
 
-			writeLock.unlock();
+			registryWriteLock.unlock();
 		}
 	}
 
@@ -390,15 +562,21 @@ public class DefaultEventbus extends Eventbus {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public void emit(String name, Tree payload, Groups groups, boolean local) {
-		String key = getCacheKey(name, groups);
+	public void emit(Context ctx, Groups groups, boolean local) {
+
+		// Verify call level
+		if (maxCallLevel > 0 && ctx.level >= maxCallLevel) {
+			throw new MaxCallLevelError(broker.getNodeID(), maxCallLevel);
+		}
+
+		String key = getCacheKey(ctx.name, groups);
 		Strategy<ListenerEndpoint>[] strategies = emitterCache.get(key);
 		if (strategies == null) {
 			LinkedList<Strategy<ListenerEndpoint>> list = new LinkedList<>();
-			readLock.lock();
+			registryReadLock.lock();
 			try {
 				for (Map.Entry<String, HashMap<String, Strategy<ListenerEndpoint>>> entry : listeners.entrySet()) {
-					if (Matcher.matches(name, entry.getKey())) {
+					if (Matcher.matches(ctx.name, entry.getKey())) {
 						if (groups != null) {
 							for (Map.Entry<String, Strategy<ListenerEndpoint>> test : entry.getValue().entrySet()) {
 								final String testGroup = test.getKey();
@@ -414,7 +592,7 @@ public class DefaultEventbus extends Eventbus {
 					}
 				}
 			} finally {
-				readLock.unlock();
+				registryReadLock.unlock();
 			}
 			strategies = new Strategy[list.size()];
 			list.toArray(strategies);
@@ -423,79 +601,78 @@ public class DefaultEventbus extends Eventbus {
 		if (strategies.length == 0) {
 			return;
 		}
+
+		// Single listener
 		if (strategies.length == 1) {
 			try {
 
 				// Invoke local or remote listener
 				ListenerEndpoint endpoint = strategies[0].getEndpoint(local ? nodeID : null);
 				if (endpoint != null) {
-					endpoint.on(name, payload, groups, false);
+					endpoint.on(ctx, groups, false);
 				}
 			} catch (Exception cause) {
 				logger.error("Unable to invoke event listener!", cause);
 			}
 			return;
 		}
-		if (strategies.length > 0) {
-			if (local) {
 
-				// Invoke local listeners
-				for (int i = 0; i < strategies.length; i++) {
+		// Invoke local listeners
+		if (local) {
+			for (int i = 0; i < strategies.length; i++) {
+				try {
+					ListenerEndpoint endpoint = strategies[i].getEndpoint(nodeID);
+					if (endpoint != null) {
+						endpoint.on(ctx, groups, false);
+					}
+				} catch (Exception cause) {
+					logger.error("Unable to invoke event listener!", cause);
+				}
+			}
+			return;
+		}
+
+		// Invoke local and/or remote listeners
+		// nodeID -> group set
+		int size = strategies.length * 2;
+		HashMap<String, HashSet<String>> groupsByNodeID = new HashMap<>(size);
+		ListenerEndpoint[] endpoints = new ListenerEndpoint[strategies.length];
+
+		// Group targets
+		for (int i = 0; i < strategies.length; i++) {
+			ListenerEndpoint endpoint = strategies[i].getEndpoint(null);
+			if (endpoint != null) {
+				if (endpoint.isLocal()) {
 					try {
-						ListenerEndpoint endpoint = strategies[i].getEndpoint(nodeID);
-						if (endpoint != null) {
-							endpoint.on(name, payload, groups, false);
-						}
+						endpoint.on(ctx, groups, false);
 					} catch (Exception cause) {
 						logger.error("Unable to invoke event listener!", cause);
 					}
+					continue;
 				}
-				return;
-
+				HashSet<String> groupSet = groupsByNodeID.get(endpoint.getNodeID());
+				if (groupSet == null) {
+					groupSet = new HashSet<>(size);
+					groupsByNodeID.put(endpoint.getNodeID(), groupSet);
+				}
+				groupSet.add(endpoint.group);
+				endpoints[i] = endpoint;
 			}
+		}
 
-			// Invoke local and/or remote listeners
-			// nodeID -> group set
-			int size = strategies.length * 2;
-			HashMap<String, HashSet<String>> groupsByNodeID = new HashMap<>(size);
-			ListenerEndpoint[] endpoints = new ListenerEndpoint[strategies.length];
-
-			// Group targets
-			for (int i = 0; i < strategies.length; i++) {
-				ListenerEndpoint endpoint = strategies[i].getEndpoint(null);
+		// Invoke endpoints
+		if (!groupsByNodeID.isEmpty()) {
+			for (ListenerEndpoint endpoint : endpoints) {
 				if (endpoint != null) {
-					if (endpoint.isLocal()) {
-						try {
-							endpoint.on(name, payload, groups, false);
-						} catch (Exception cause) {
-							logger.error("Unable to invoke event listener!", cause);
+					try {
+						HashSet<String> groupSet = groupsByNodeID.remove(endpoint.getNodeID());
+						if (groupSet != null) {
+							String[] array = new String[groupSet.size()];
+							groupSet.toArray(array);
+							endpoint.on(ctx, Groups.of(array), false);
 						}
-						continue;
-					}
-					HashSet<String> groupSet = groupsByNodeID.get(endpoint.getNodeID());
-					if (groupSet == null) {
-						groupSet = new HashSet<>(size);
-						groupsByNodeID.put(endpoint.getNodeID(), groupSet);
-					}
-					groupSet.add(endpoint.group);
-					endpoints[i] = endpoint;
-				}
-			}
-
-			// Invoke endpoints
-			if (!groupsByNodeID.isEmpty()) {
-				for (ListenerEndpoint endpoint : endpoints) {
-					if (endpoint != null) {
-						try {
-							HashSet<String> groupSet = groupsByNodeID.remove(endpoint.getNodeID());
-							if (groupSet != null) {
-								String[] array = new String[groupSet.size()];
-								groupSet.toArray(array);
-								endpoint.on(name, payload, Groups.of(array), false);
-							}
-						} catch (Exception cause) {
-							logger.error("Unable to invoke event listener!", cause);
-						}
+					} catch (Exception cause) {
+						logger.error("Unable to invoke event listener!", cause);
 					}
 				}
 			}
@@ -505,8 +682,14 @@ public class DefaultEventbus extends Eventbus {
 	// --- SEND EVENT TO ALL LISTENERS IN THE SPECIFIED GROUP ---
 
 	@Override
-	public void broadcast(String name, Tree payload, Groups groups, boolean local) {
-		String key = getCacheKey(name, groups);
+	public void broadcast(Context ctx, Groups groups, boolean local) {
+
+		// Verify call level
+		if (maxCallLevel > 0 && ctx.level >= maxCallLevel) {
+			throw new MaxCallLevelError(broker.getNodeID(), maxCallLevel);
+		}
+
+		String key = getCacheKey(ctx.name, groups);
 		ListenerEndpoint[] endpoints;
 		if (local) {
 			endpoints = localBroadcasterCache.get(key);
@@ -515,10 +698,10 @@ public class DefaultEventbus extends Eventbus {
 		}
 		if (endpoints == null) {
 			HashSet<ListenerEndpoint> list = new HashSet<>();
-			readLock.lock();
+			registryReadLock.lock();
 			try {
 				for (Map.Entry<String, HashMap<String, Strategy<ListenerEndpoint>>> entry : listeners.entrySet()) {
-					if (Matcher.matches(name, entry.getKey())) {
+					if (Matcher.matches(ctx.name, entry.getKey())) {
 						for (Map.Entry<String, Strategy<ListenerEndpoint>> test : entry.getValue().entrySet()) {
 							if (groups != null) {
 								final String testGroup = test.getKey();
@@ -550,7 +733,7 @@ public class DefaultEventbus extends Eventbus {
 					}
 				}
 			} finally {
-				readLock.unlock();
+				registryReadLock.unlock();
 			}
 			endpoints = new ListenerEndpoint[list.size()];
 			list.toArray(endpoints);
@@ -563,19 +746,23 @@ public class DefaultEventbus extends Eventbus {
 		if (endpoints.length == 0) {
 			return;
 		}
+
+		// Single listener
 		if (endpoints.length == 1) {
 			try {
-				endpoints[0].on(name, payload, groups, true);
+				endpoints[0].on(ctx, groups, true);
 			} catch (Exception cause) {
 				logger.error("Unable to invoke event listener!", cause);
 			}
 			return;
 		}
+
+		// Group of listeners
 		HashSet<String> nodeSet = new HashSet<>(endpoints.length * 2);
 		for (ListenerEndpoint endpoint : endpoints) {
 			if (endpoint.isLocal() || nodeSet.add(endpoint.getNodeID())) {
 				try {
-					endpoint.on(name, payload, groups, true);
+					endpoint.on(ctx, groups, true);
 				} catch (Exception cause) {
 					logger.error("Unable to invoke event listener!", cause);
 				}
@@ -603,7 +790,7 @@ public class DefaultEventbus extends Eventbus {
 	@Override
 	public Tree generateListenerDescriptor(String service) {
 		LinkedHashMap<String, Object> descriptor = new LinkedHashMap<>();
-		readLock.lock();
+		registryReadLock.lock();
 		try {
 			for (HashMap<String, Strategy<ListenerEndpoint>> groups : listeners.values()) {
 				for (Strategy<ListenerEndpoint> strategy : groups.values()) {
@@ -618,7 +805,7 @@ public class DefaultEventbus extends Eventbus {
 				}
 			}
 		} finally {
-			readLock.unlock();
+			registryReadLock.unlock();
 		}
 		return new CheckedTree(descriptor);
 	}
@@ -639,6 +826,30 @@ public class DefaultEventbus extends Eventbus {
 
 	public void setAsyncLocalInvocation(boolean asyncLocalInvocation) {
 		this.asyncLocalInvocation = asyncLocalInvocation;
+	}
+
+	public boolean isWriteErrorsToLog() {
+		return writeErrorsToLog;
+	}
+
+	public void setWriteErrorsToLog(boolean writeErrorsToLog) {
+		this.writeErrorsToLog = writeErrorsToLog;
+	}
+
+	public long getStreamTimeout() {
+		return streamTimeout;
+	}
+
+	public void setStreamTimeout(long streamTimeout) {
+		this.streamTimeout = streamTimeout;
+	}
+
+	public int getMaxCallLevel() {
+		return maxCallLevel;
+	}
+
+	public void setMaxCallLevel(int maxCallLevel) {
+		this.maxCallLevel = maxCallLevel;
 	}
 
 }

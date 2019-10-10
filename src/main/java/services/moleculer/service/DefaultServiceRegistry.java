@@ -68,7 +68,6 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallOptions;
 import services.moleculer.context.Context;
-import services.moleculer.context.ContextFactory;
 import services.moleculer.error.InvalidPacketDataError;
 import services.moleculer.error.MoleculerError;
 import services.moleculer.error.MoleculerErrorUtils;
@@ -163,10 +162,10 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected ExecutorService executor;
 	protected ScheduledExecutorService scheduler;
 	protected StrategyFactory strategyFactory;
-	protected ContextFactory contextFactory;
 	protected Transporter transporter;
 	protected Eventbus eventbus;
-	protected UidGenerator uid;
+	protected UidGenerator uidGenerator;
+	protected ServiceInvoker serviceInvoker;
 
 	// --- VARIABLES OF THE TIMEOUT HANDLER ---
 
@@ -245,10 +244,10 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		this.executor = cfg.getExecutor();
 		this.scheduler = cfg.getScheduler();
 		this.strategyFactory = cfg.getStrategyFactory();
-		this.contextFactory = cfg.getContextFactory();
 		this.transporter = cfg.getTransporter();
 		this.eventbus = cfg.getEventbus();
-		this.uid = cfg.getUidGenerator();
+		this.uidGenerator = cfg.getUidGenerator();
+		this.serviceInvoker = cfg.getServiceInvoker();
 	}
 
 	// --- STOP SERVICE REGISTRY ---
@@ -330,37 +329,36 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		// Check timeouted request streams
 		IncomingStream stream;
 		long timeoutAt;
-		Iterator<IncomingStream> j = requestStreams.values().iterator();
-		while (j.hasNext()) {
-			stream = j.next();
-			timeoutAt = stream.getTimeoutAt();
-			if (timeoutAt > 0 && now >= timeoutAt) {
-				stream.error(new RequestTimeoutError(this.nodeID, "unknown"));
-				requestStreamWriteLock.lock();
-				try {
+		requestStreamWriteLock.lock();
+		try {
+			Iterator<IncomingStream> j = requestStreams.values().iterator();
+			while (j.hasNext()) {
+				stream = j.next();
+				timeoutAt = stream.getTimeoutAt();
+				if (timeoutAt > 0 && now >= timeoutAt) {
+					stream.error(new RequestTimeoutError(this.nodeID, "unknown"));
 					j.remove();
-				} finally {
-					requestStreamWriteLock.unlock();
+					removed = true;
 				}
-				removed = true;
 			}
+		} finally {
+			requestStreamWriteLock.unlock();
 		}
 
 		// Check timeouted response streams
-		j = responseStreams.values().iterator();
-		while (j.hasNext()) {
-			stream = j.next();
-			timeoutAt = stream.getTimeoutAt();
-			if (timeoutAt > 0 && now >= timeoutAt) {
-				stream.error(new RequestTimeoutError(nodeID, "unknown"));
-				responseStreamWriteLock.lock();
-				try {
+		try {
+			Iterator<IncomingStream> j = responseStreams.values().iterator();
+			while (j.hasNext()) {
+				stream = j.next();
+				timeoutAt = stream.getTimeoutAt();
+				if (timeoutAt > 0 && now >= timeoutAt) {
+					stream.error(new RequestTimeoutError(nodeID, "unknown"));
 					j.remove();
-				} finally {
-					responseStreamWriteLock.unlock();
+					removed = true;
 				}
-				removed = true;
 			}
+		} finally {
+			responseStreamWriteLock.unlock();
 		}
 
 		// Reschedule
@@ -627,18 +625,19 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		String requestID = message.get("requestID", id);
 
 		// Create context
-		Context ctx = contextFactory.create(action, params, opts,
-				requestStream == null ? null : requestStream.getPacketStream(), id, level, requestID, parentID);
+		PacketStream stream = requestStream == null ? null : requestStream.getPacketStream();
+		Context ctx = new Context(serviceInvoker, eventbus, uidGenerator, id, name, params, level, parentID, requestID,
+				stream, opts);
 
 		// Invoke action
 		try {
 			new Promise(endpoint.handler(ctx)).then(data -> {
 
 				// Send response
-				FastBuildTree msg = new FastBuildTree(7);
+				FastBuildTree msg = new FastBuildTree(8);
+				msg.putUnsafe("ver", PROTOCOL_VERSION);
 				msg.putUnsafe("sender", nodeID);
 				msg.putUnsafe("id", id);
-				msg.putUnsafe("ver", PROTOCOL_VERSION);
 				msg.putUnsafe("success", true);
 
 				PacketStream responseStream = null;
@@ -651,9 +650,22 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					} else {
 						msg.putUnsafe("data", d);
 					}
-					Tree m = data.getMeta(false);
-					if (m != null && !m.isEmpty()) {
-						msg.putUnsafe("meta", m);
+					Tree rspMeta = data.getMeta(false);
+					if (meta == null || meta.isEmpty()) {
+
+						// Send back the new meta
+						if (rspMeta != null && !rspMeta.isEmpty()) {
+							msg.putUnsafe("meta", rspMeta);
+						}
+					} else {
+
+						// Send back request meta
+						if (rspMeta != null && !rspMeta.isEmpty()) {
+
+							// Merge new entries
+							meta.copyFrom(rspMeta);
+						}
+						msg.putUnsafe("meta", meta);
 					}
 				}
 				transporter.publish(PACKET_RESPONSE, sender, msg);
@@ -1048,9 +1060,10 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	// --- NOTIFY OTHER SERVICES ---
 
 	protected void broadcastServicesChanged(boolean local) {
-		Tree message = new Tree();
-		message.put("localService", true);
-		eventbus.broadcast("$services.changed", message, null, true);
+		Tree msg = new Tree();
+		msg.put("localService", true);
+		eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
+				"$services.changed", msg, 1, null, null, null, null), null, true);
 	}
 
 	// --- ADD A REMOTE SERVICE ---
@@ -1414,7 +1427,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		}
 
 		// Register promise (timeout and response handling)
-		String id = uid.nextUID();
+		String id = uidGenerator.nextUID();
 		register(id, promise, timeoutAt, nodeID, "ping");
 
 		// Send request via transporter
@@ -1452,7 +1465,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			if (descriptor == null) {
 
 				// Create new descriptor block
-				descriptor = new FastBuildTree(5);
+				descriptor = new FastBuildTree(6);
 
 				// Services array
 				int serviceCount = names.size();
@@ -1477,7 +1490,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					// Create service block
 					FastBuildTree actions = actionsMap.get(serviceName);
 					if (actions == null) {
-						FastBuildTree service = new FastBuildTree(3);
+						FastBuildTree service = new FastBuildTree(4);
 						service.putUnsafe("name", serviceName);
 						servicesMap.put(serviceName, service);
 
@@ -1500,11 +1513,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					if (!actionsMap.containsKey(serviceName)) {
 
 						// Create service block
-						FastBuildTree service = new FastBuildTree(2);
+						FastBuildTree service = new FastBuildTree(3);
 						service.putUnsafe("name", serviceName);
 						servicesMap.put(serviceName, service);
 
-						actionsMap.put(serviceName, new FastBuildTree(0));
+						actionsMap.put(serviceName, new FastBuildTree(1));
 
 						// Create event listener block
 						Tree listeners = eventbus.generateListenerDescriptor(serviceName);

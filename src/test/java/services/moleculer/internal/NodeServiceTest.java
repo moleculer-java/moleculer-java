@@ -389,7 +389,7 @@ public class NodeServiceTest extends TestCase {
 		};
 
 		@Subscribe("xyz.*")
-		public Listener evt = payload -> {
+		public Listener evt = ctx -> {
 		};
 
 	}

@@ -1,4 +1,5 @@
 /**
+
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
  * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
@@ -25,19 +26,17 @@
  */
 package services.moleculer.context;
 
-import static services.moleculer.util.CommonUtils.parseParams;
-
 import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.error.RequestRejectedError;
-import services.moleculer.eventbus.EventEmitter;
 import services.moleculer.eventbus.Eventbus;
+import services.moleculer.eventbus.Groups;
 import services.moleculer.service.ServiceInvoker;
 import services.moleculer.stream.PacketStream;
-import services.moleculer.util.ParseResult;
+import services.moleculer.uid.UidGenerator;
+import services.moleculer.util.CheckedTree;
 
-public class Context extends EventEmitter {
+public class Context extends ContextSource {
 
 	// --- PROPERTIES ---
 
@@ -72,87 +71,27 @@ public class Context extends EventEmitter {
 	public final String requestID;
 
 	/**
+	 * Streamed content
+	 */
+	public final PacketStream stream;
+
+	/**
 	 * Calling options
 	 */
 	public final CallOptions.Options opts;
 
-	/**
-	 * Context creation time
-	 */
-	public final long startTime;
-
-	// --- STREAM ---
+	// --- TIMESTAMP ---
 
 	/**
-	 * Streamed content
+	 * Timestamp
 	 */
-	public PacketStream stream;
-
-	// --- COMPONENTS ---
-
-	protected final ServiceInvoker serviceInvoker;
+	protected final long createdAt;
 
 	// --- CONSTRUCTORS ---
 
-	public Context(ServiceInvoker serviceInvoker, Eventbus eventbus, String id, String name, Tree params,
-			CallOptions.Options opts, PacketStream stream) {
-		super(eventbus);
-
-		// Set invoker (default or circuit breaker)
-		this.serviceInvoker = serviceInvoker;
-
-		// Set properties
-		this.id = id;
-		this.name = name;
-		this.params = params;
-		this.level = 1;
-		this.parentID = null;
-		this.opts = opts;
-		this.stream = stream;
-
-		// Set the first ID
-		this.requestID = id;
-
-		// Start time
-		if (opts != null && opts.timeout > 0) {
-			this.startTime = System.currentTimeMillis();
-		} else {
-			this.startTime = 0;
-		}
-	}
-
-	public Context(String id, String name, Tree params, CallOptions.Options opts, PacketStream stream, Context parent) {
-		super(parent.eventbus);
-
-		// Set invoker (default or circuit breaker)
-		this.serviceInvoker = parent.serviceInvoker;
-
-		// Set properties
-		this.id = id;
-		this.name = name;
-		this.params = params;
-		this.level = parent.level + 1;
-		this.parentID = parent.id;
-		this.opts = opts;
-		this.stream = stream;
-
-		// Get the request ID from parent
-		this.requestID = parent.requestID;
-
-		// Start time
-		if (opts != null && opts.timeout > 0) {
-			this.startTime = System.currentTimeMillis();
-		} else {
-			this.startTime = 0;
-		}
-	}
-
-	public Context(ServiceInvoker serviceInvoker, Eventbus eventbus, String id, String name, Tree params,
-			CallOptions.Options opts, PacketStream stream, int level, String requestID, String parentID) {
-		super(eventbus);
-
-		// Set invoker (default or circuit breaker)
-		this.serviceInvoker = serviceInvoker;
+	public Context(ServiceInvoker serviceInvoker, Eventbus eventbus, UidGenerator uidGenerator, String id, String name,
+			Tree params, int level, String parentID, String requestID, PacketStream stream, CallOptions.Options opts) {
+		super(serviceInvoker, eventbus, uidGenerator);
 
 		// Set properties
 		this.id = id;
@@ -160,96 +99,36 @@ public class Context extends EventEmitter {
 		this.params = params;
 		this.level = level;
 		this.parentID = parentID;
-		this.opts = opts;
+		this.requestID = requestID == null ? id : requestID;
 		this.stream = stream;
-		this.requestID = requestID;
+		this.opts = opts;
 
-		// Start time
+		// Store timestamp
 		if (opts != null && opts.timeout > 0) {
-			this.startTime = System.currentTimeMillis();
+			createdAt = System.currentTimeMillis();
 		} else {
-			this.startTime = 0;
+			createdAt = 0;
 		}
 	}
 
-	// --- INVOKE LOCAL OR REMOTE ACTION ---
+	// --- EMIT (WITH MERGED META) ---
 
-	/**
-	 * Calls an action (local or remote). Sample code:<br>
-	 * <br>
-	 * broker.call("service.action").then(ctx -&gt; {<br>
-	 * <br>
-	 * // Nested call:<br>
-	 * return ctx.call("math.add", "a", 1, "b", 2);<br>
-	 * <br>
-	 * });<br>
-	 * <br>
-	 * ...or with CallOptions:<br>
-	 * <br>
-	 * return ctx.call("math.add", "a", 1, "b", 2, CallOptions.nodeID("node2"));
-	 * 
-	 * @param name
-	 *            action name (eg. "math.add" in "service.action" syntax)
-	 * @param params
-	 *            list of parameter name-value pairs and an optional CallOptions
-	 * 
-	 * @return response Promise
-	 */
-	public Promise call(String name, Object... params) {
-		ParseResult res = parseParams(params);
-		return call(name, res.data, res.opts, res.stream);
+	@Override
+	protected void emit(String name, Tree payload, Groups groups, PacketStream stream, CallOptions.Options opts) {
+		eventbus.emit(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(), name,
+				mergeMeta(payload), level + 1, null, null, stream, opts), groups, false);
 	}
 
-	/**
-	 * Calls an action (local or remote). Sample code:<br>
-	 * <br>
-	 * broker.call("service.action").then(ctx -&gt; {<br>
-	 * <br>
-	 * // Nested call:<br>
-	 * Tree params = new Tree();<br>
-	 * params.put("a", true);<br>
-	 * params.putList("b").add(1).add(2).add(3);<br>
-	 * rerturn ctx.call("math.add", params);<br>
-	 * <br>
-	 * });
-	 * 
-	 * @param name
-	 *            action name (eg. "math.add" in "service.action" syntax)
-	 * @param params
-	 *            {@link Tree} structure (input parameters of the method call)
-	 * 
-	 * @return response Promise
-	 */
-	public Promise call(String name, Tree params) {
-		return call(name, params, null, null);
+	// --- BROADCAST (WITH MERGED META) ---
+
+	@Override
+	protected void broadcast(String name, Tree payload, Groups groups, PacketStream stream, CallOptions.Options opts,
+			boolean local) {
+		eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(), name,
+				mergeMeta(payload), level + 1, null, null, stream, opts), groups, local);
 	}
 
-	/**
-	 * Calls an action (local or remote). Sample code:<br>
-	 * <br>
-	 * broker.call("service.action").then(ctx -&gt; {<br>
-	 * <br>
-	 * // Nested call:<br>
-	 * Tree params = new Tree();<br>
-	 * params.put("a", true);<br>
-	 * params.putList("b").add(1).add(2).add(3);<br>
-	 * return ctx.call("math.add", params, CallOptions.nodeID("node2"));<br>
-	 * <br>
-	 * });
-	 * 
-	 * @param name
-	 *            action name (eg. "math.add" in "service.action" syntax)
-	 * @param params
-	 *            {@link Tree} structure (input parameters of the method call)
-	 * @param opts
-	 *            calling options (target nodeID, call timeout, number of
-	 *            retries)
-	 * 
-	 * @return response Promise
-	 */
-	protected Promise call(String name, Tree params, CallOptions.Options opts) {
-		return call(name, params, opts, null);
-	}
+	// --- CALL (WITH MERGED META AND DISTRIBUTED TIMEOUT) ---
 
 	/**
 	 * Calls an action (local or remote).
@@ -266,14 +145,15 @@ public class Context extends EventEmitter {
 	 * 
 	 * @return response Promise
 	 */
+	@Override
 	protected Promise call(String name, Tree params, CallOptions.Options opts, PacketStream stream) {
 
 		// Recalculate distributed timeout
-		if (startTime > 0) {
+		if (createdAt > 0) {
 
 			// Distributed timeout handling. Decrementing the timeout value with
 			// the elapsed time. If the timeout below 0, skip the call.
-			final long duration = System.currentTimeMillis() - startTime;
+			final long duration = System.currentTimeMillis() - createdAt;
 			final long distTimeout = this.opts.timeout - duration;
 
 			if (distTimeout <= 0) {
@@ -286,36 +166,21 @@ public class Context extends EventEmitter {
 				opts = opts.timeout(distTimeout);
 			}
 		}
-		return serviceInvoker.call(name, params, opts, stream, this);
+		return serviceInvoker.call(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(), name,
+				mergeMeta(params), level + 1, id, requestID, stream, opts));
 	}
 
-	// --- STREAMED REQUEST OR RESPONSE ---
-
-	/**
-	 * Creates a stream what is suitable for transferring large files (or other
-	 * "unlimited" media content) between Moleculer Nodes. Sample:<br>
-	 * 
-	 * <pre>
-	 * public Action send = ctx -&gt; {
-	 *   PacketStream reqStream = ctx.createStream();
-	 *   
-	 *   ctx.call("service.action", reqStream).then(rsp -&gt; {
-	 *   
-	 *     // Receive bytes into file
-	 *     PacketStream rspStream = (PacketStream) rsp.asObject();
-	 *     rspStream.transferTo(new File("out"));
-	 *   }
-	 *   
-	 *   // Send bytes from file
-	 *   reqStream.transferFrom(new File("in"));
-	 * }
-	 * </pre>
-	 * 
-	 * @return new stream
-	 */
-	public PacketStream createStream() {
-		ServiceBrokerConfig config = eventbus.getBroker().getConfig();
-		return new PacketStream(config.getNodeID(), config.getScheduler());
+	protected Tree mergeMeta(Tree newParams) {
+		if (params != null) {
+			Tree meta = params.getMeta(false);
+			if (meta != null && !meta.isEmpty()) {
+				if (newParams == null) {
+					return new CheckedTree(null, meta.asObject());
+				}
+				newParams.getMeta().copyFrom(meta, false);
+			}
+		}
+		return newParams;
 	}
 
 }

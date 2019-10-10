@@ -44,7 +44,7 @@ public class TestTransporter extends Transporter {
 
 	@Override
 	public void connect() {
-		
+
 		// Do nothing
 	}
 

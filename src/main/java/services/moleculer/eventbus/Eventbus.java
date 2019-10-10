@@ -28,6 +28,7 @@ package services.moleculer.eventbus;
 import com.lambdaworks.redis.event.DefaultEventBus;
 
 import io.datatree.Tree;
+import services.moleculer.context.Context;
 import services.moleculer.service.MoleculerComponent;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
@@ -58,11 +59,11 @@ public abstract class Eventbus extends MoleculerComponent {
 
 	// --- SEND EVENT TO ONE LISTENER IN THE SPECIFIED GROUP ---
 
-	public abstract void emit(String name, Tree payload, Groups groups, boolean local);
+	public abstract void emit(Context ctx, Groups groups, boolean local);
 
 	// --- SEND EVENT TO ALL LISTENERS IN THE SPECIFIED GROUP ---
 
-	public abstract void broadcast(String name, Tree payload, Groups groups, boolean local);
+	public abstract void broadcast(Context ctx, Groups groups, boolean local);
 
 	// --- GENERATE LISTENER DESCRIPTOR ---
 

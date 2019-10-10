@@ -25,7 +25,7 @@
  */
 package services.moleculer.eventbus;
 
-import io.datatree.Tree;
+import services.moleculer.context.Context;
 
 /**
  * Interface of all local event listeners.
@@ -33,6 +33,6 @@ import io.datatree.Tree;
 @FunctionalInterface
 public interface Listener {
 
-	void on(Tree payload) throws Exception;
+	void on(Context ctx) throws Exception;
 
 }

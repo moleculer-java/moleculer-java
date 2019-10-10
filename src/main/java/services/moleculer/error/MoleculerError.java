@@ -144,7 +144,7 @@ public class MoleculerError extends RuntimeException {
 	// --- CONVERT TO JSON ---
 
 	public Tree toTree() {
-		FastBuildTree tree = new FastBuildTree(8);
+		FastBuildTree tree = new FastBuildTree(9);
 		toTree(tree);
 		return tree;
 	}

@@ -36,17 +36,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.StampedLock;
 
 import io.datatree.Promise;
-import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
-import services.moleculer.context.CallOptions.Options;
 import services.moleculer.context.Context;
-import services.moleculer.context.ContextFactory;
 import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.DefaultServiceInvoker;
 import services.moleculer.service.Name;
 import services.moleculer.service.ServiceRegistry;
-import services.moleculer.stream.PacketStream;
 
 /**
  * Special service invoker with retry logic + circuit breaker.
@@ -90,7 +86,6 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 	// --- COMPONENTS ---
 
 	protected ServiceRegistry serviceRegistry;
-	protected ContextFactory contextFactory;
 
 	// --- IGNORABLE ERRORS / EXCEPTIONS ---
 
@@ -120,7 +115,6 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 		// Set components
 		ServiceBrokerConfig cfg = broker.getConfig();
 		serviceRegistry = cfg.getServiceRegistry();
-		contextFactory = cfg.getContextFactory();
 
 		// Start timer
 		if (cleanup > 0) {
@@ -169,16 +163,15 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 	// --- CALL SERVICE ---
 
 	@Override
-	protected Promise call(String name, Tree params, Options opts, PacketStream stream, Context parent, String targetID,
-			int remaining) {
+	protected Promise call(Context ctx, String targetID, int remaining) {
 		EndpointKey endpointKey = null;
 		ErrorCounter errorCounter = null;
 		try {
 
 			// Get the first recommended Endpoint and Error Counter
-			ActionEndpoint action = (ActionEndpoint) serviceRegistry.getAction(name, targetID);
+			ActionEndpoint action = (ActionEndpoint) serviceRegistry.getAction(ctx.name, targetID);
 			String nodeID = action.getNodeID();
-			endpointKey = new EndpointKey(nodeID, name);
+			endpointKey = new EndpointKey(nodeID, ctx.name);
 			errorCounter = getErrorCounter(endpointKey);
 
 			// Check availability of the Endpoint (if endpoint isn't targetted)
@@ -209,15 +202,12 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 					}
 
 					// Try to choose another endpoint
-					action = (ActionEndpoint) serviceRegistry.getAction(name, null);
+					action = (ActionEndpoint) serviceRegistry.getAction(ctx.name, null);
 					nodeID = action.getNodeID();
-					endpointKey = new EndpointKey(nodeID, name);
+					endpointKey = new EndpointKey(nodeID, ctx.name);
 					errorCounter = getErrorCounter(endpointKey);
 				}
 			}
-
-			// Create new Context
-			Context ctx = contextFactory.create(name, params, opts, stream, parent);
 
 			// Invoke Endpoint
 			final ErrorCounter currentCounter = errorCounter;
@@ -238,7 +228,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 				increment(currentCounter, currentKey, cause, System.currentTimeMillis());
 
 				// Retry
-				return retry(cause, name, params, opts, stream, parent, targetID, remaining);
+				return retry(ctx, targetID, remaining, cause);
 			});
 
 		} catch (Throwable cause) {
@@ -247,7 +237,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 			increment(errorCounter, endpointKey, cause, System.currentTimeMillis());
 
 			// Retry
-			return retry(cause, name, params, opts, stream, parent, targetID, remaining);
+			return retry(ctx, targetID, remaining, cause);
 		}
 	}
 

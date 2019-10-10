@@ -34,6 +34,7 @@ import services.moleculer.service.Name;
  * mode preferably use the faster {@link IncrementalUidGenerator}.
  *
  * @see IncrementalUidGenerator
+ * @see XorShiftRandomUidGenerator
  */
 @Name("Standard UUID Generator")
 public class StandardUidGenerator extends UidGenerator {

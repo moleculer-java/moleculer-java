@@ -26,23 +26,16 @@
 package services.moleculer.service;
 
 import io.datatree.Promise;
-import io.datatree.Tree;
-import services.moleculer.breaker.CircuitBreaker;
-import services.moleculer.context.CallOptions;
 import services.moleculer.context.Context;
-import services.moleculer.stream.PacketStream;
 
 /**
  * Base superclass of all Service Invoker implementations.
- *
- * @see CircuitBreaker
  */
 @Name("Service Invoker")
 public abstract class ServiceInvoker extends MoleculerComponent {
 
 	// --- CALL ACTION ---
 
-	public abstract Promise call(String name, Tree params, CallOptions.Options opts, PacketStream stream,
-			Context parent);
+	public abstract Promise call(Context ctx);
 
 }

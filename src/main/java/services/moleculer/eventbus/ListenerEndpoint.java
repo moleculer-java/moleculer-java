@@ -28,7 +28,7 @@ package services.moleculer.eventbus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.datatree.Tree;
+import services.moleculer.context.Context;
 import services.moleculer.service.Endpoint;
 
 public abstract class ListenerEndpoint extends Endpoint {
@@ -63,7 +63,7 @@ public abstract class ListenerEndpoint extends Endpoint {
 
 	// --- SEND EVENT TO ENDPOINT ---
 
-	public abstract void on(String name, Tree payload, Groups groups, boolean broadcast) throws Exception;
+	public abstract void on(Context ctx, Groups groups, boolean broadcast) throws Exception;
 
 	// --- LOCAL LISTENER? ---
 
@@ -113,20 +113,6 @@ public abstract class ListenerEndpoint extends Endpoint {
 			return false;
 		}
 		return true;
-	}
-
-	// --- PROPERTY GETTERS ---
-
-	public String getServiceName() {
-		return serviceName;
-	}
-
-	public String getGroup() {
-		return group;
-	}
-
-	public String getSubscribe() {
-		return subscribe;
 	}
 
 }
