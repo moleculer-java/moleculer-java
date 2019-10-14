@@ -308,6 +308,8 @@ public abstract class TransporterTest extends TestCase {
 		Thread.sleep(sleep * 3);
 		assertEquals("abcdefg", new String(sl.buffer.toByteArray()));
 		assertEquals("y", sl.ctx.params.getMeta().get("x", ""));
+		
+		// TODO test reversed order
 		assertTrue(sl.streamClosed);
 
 		// Meta & event

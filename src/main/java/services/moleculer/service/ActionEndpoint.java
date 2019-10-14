@@ -84,7 +84,7 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 		}
 		return false;
 	}
-
+	
 	// --- COLLECTION HELPERS ---
 
 	@Override

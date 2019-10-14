@@ -25,6 +25,8 @@
  */
 package services.moleculer.service;
 
+import static services.moleculer.util.CommonUtils.mergeMeta;
+
 import java.util.concurrent.ExecutorService;
 
 import io.datatree.Promise;
@@ -52,7 +54,7 @@ public class LocalActionEndpoint extends ActionEndpoint {
 					long timeoutAt = System.currentTimeMillis() + ctx.opts.timeout;
 
 					// Register promise
-					registry.register(ctx.id, promise, timeoutAt, nodeID, actionName);
+					registry.register(ctx.id, promise, timeoutAt, nodeID, actionName, ctx.params);
 
 					// Invoke async method
 					try {
@@ -60,6 +62,7 @@ public class LocalActionEndpoint extends ActionEndpoint {
 
 						// Deregister
 						Promise.resolve(rsp).then(in -> {
+							in = mergeMeta(in, ctx.params);
 							if (promise.complete(in)) {
 								registry.deregister(ctx.id);
 							}
@@ -81,7 +84,12 @@ public class LocalActionEndpoint extends ActionEndpoint {
 			} else {
 
 				// Invoke handler without timeout handling
-				return action.handler(ctx);
+				if (ctx.params == null || ctx.params.getMeta(false) == null) {
+					return action.handler(ctx);
+				}
+				return Promise.resolve(action.handler(ctx)).then(in -> {
+					return mergeMeta(in, ctx.params);
+				});
 			}
 
 		};

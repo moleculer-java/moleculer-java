@@ -76,6 +76,24 @@ public final class CommonUtils {
 
 	private static final NumberFormat numberFormatter = DecimalFormat.getInstance(Locale.US);
 
+	// --- MERGE META ---
+	
+	public static final Tree mergeMeta(Tree rsp, Tree req) {
+		if (req == null) {
+			return rsp;
+		}
+		Tree reqMeta = req.getMeta(false);
+		if (reqMeta == null) {
+			return rsp;
+		}
+		Tree rspMeta = rsp.getMeta(false);
+		if (rspMeta == null) {
+			return new CheckedTree(rsp.asObject(), reqMeta.asObject());
+		}
+		rspMeta.copyFrom(reqMeta, false);
+		return rsp;
+	}
+	
 	// --- CONVERT THROWABLE TO RESPONSE MESSAGE ---
 
 	public static final FastBuildTree throwableToTree(String id, String nodeID, Throwable error) {

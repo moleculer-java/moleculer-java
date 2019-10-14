@@ -59,7 +59,7 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 			}
 
 			// Register promise (timeout and response handling)
-			registry.register(ctx.id, promise, timeoutAt, nodeID, actionName);
+			registry.register(ctx.id, promise, timeoutAt, nodeID, actionName, ctx.params);
 
 			// Send request via transporter
 			transporter.sendRequestPacket(nodeID, ctx);

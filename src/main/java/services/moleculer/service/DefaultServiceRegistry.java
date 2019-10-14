@@ -30,6 +30,7 @@ import static services.moleculer.transporter.Transporter.PACKET_PING;
 import static services.moleculer.transporter.Transporter.PACKET_RESPONSE;
 import static services.moleculer.util.CommonUtils.convertAnnotations;
 import static services.moleculer.util.CommonUtils.getHostName;
+import static services.moleculer.util.CommonUtils.mergeMeta;
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.throwableToTree;
 
@@ -110,7 +111,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected final HashSet<String> names = new HashSet<>(64);
 
 	// --- PENDING REMOTE INVOCATIONS ---
-
 	protected final ConcurrentHashMap<String, PendingPromise> promises = new ConcurrentHashMap<>(1024);
 
 	// --- REGISTERED STREAMS ---
@@ -445,8 +445,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	// --- REGISTER PROMISE ---
 
-	protected void register(String id, Promise promise, long timeoutAt, String nodeID, String action) {
-		promises.put(id, new PendingPromise(promise, timeoutAt, nodeID, action));
+	protected void register(String id, Promise promise, long timeoutAt, String nodeID, String action, Tree req) {
+		promises.put(id, new PendingPromise(promise, timeoutAt, nodeID, action, req));
 
 		long nextTimeoutAt = prevTimeoutAt.get();
 		if (nextTimeoutAt == 0 || (timeoutAt / 100 * 100) + 100 < nextTimeoutAt || promises.size() < 3) {
@@ -842,16 +842,16 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			if (success) {
 
 				// Ok -> resolve
-				Tree data = message.get("data");
+				Tree rsp = message.get("data");
 				Tree meta = message.get("meta");
 				if (meta != null && !meta.isEmpty()) {
-					if (data == null || data.isNull()) {
-						data = new CheckedTree(new LinkedHashMap<String, Object>(), meta.asObject());
+					if (rsp == null || rsp.isNull()) {
+						rsp = new CheckedTree(new LinkedHashMap<String, Object>(), meta.asObject());
 					} else {
-						data = new CheckedTree(data.asObject(), meta.asObject());
+						rsp = new CheckedTree(rsp.asObject(), meta.asObject());
 					}
 				}
-				pending.promise.complete(data);
+				pending.promise.complete(mergeMeta(rsp, pending.req));
 
 			} else {
 
@@ -1428,7 +1428,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Register promise (timeout and response handling)
 		String id = uidGenerator.nextUID();
-		register(id, promise, timeoutAt, nodeID, "ping");
+		register(id, promise, timeoutAt, nodeID, "ping", null);
 
 		// Send request via transporter
 		Tree message = transporter.createPingPacket(id);

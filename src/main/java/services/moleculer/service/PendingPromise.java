@@ -26,6 +26,7 @@
 package services.moleculer.service;
 
 import io.datatree.Promise;
+import io.datatree.Tree;
 
 /**
  * Promise container of a pending action calls.
@@ -38,14 +39,16 @@ public class PendingPromise {
 	protected final long timeoutAt;
 	protected final String nodeID;
 	protected final String action;
-
+	protected final Tree req;
+	
 	// --- CONSTRUCTOR ---
 
-	PendingPromise(Promise promise, long timeoutAt, String nodeID, String action) {
+	PendingPromise(Promise promise, long timeoutAt, String nodeID, String action, Tree req) {
 		this.promise = promise;
 		this.timeoutAt = timeoutAt;
 		this.nodeID = nodeID;
 		this.action = action;
+		this.req = req;
 	}
 
 }
