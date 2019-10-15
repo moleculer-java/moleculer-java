@@ -41,21 +41,25 @@ public class Sample {
 			// Unique nodeID
 			cfg.setNodeID("node1");
 
-			// NatsTransporter t = new NatsTransporter();
-			// t.setVerbose(true);
+			// Create transporter (eg. NATS, Redis, Kafka, RabbitMQ):			
+			// NatsTransporter t = new NatsTransporter("localhost");
 			// t.setDebug(true);
-			// t.setNoEcho(true);
 			// cfg.setTransporter(t);
 
-			// Create Service Broker (by config)
+			// Create Service Broker by config
 			ServiceBroker broker = new ServiceBroker(cfg);
 
+			// Install "MyService" Service
 			broker.createService(new MyService());
 
 			// Start Service Broker
 			broker.start();
 
-			System.out.println(broker.call("myService.action2").waitFor(5000));
+			// Invoke service (blocking style)
+			Tree response = broker.call("myService.action2").waitFor(5000);
+			
+			// Print response
+			System.out.println("RESPONSE: " + response);
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -64,12 +68,7 @@ public class Sample {
 
 	public static class MyService extends Service {
 
-		// "Salve" action (what we'll call)
-		public Action action1 = ctx -> {
-			return ctx.params.get("a", 0) + ctx.params.get("c.d", 0);
-		};
-
-		// "Master" action (which calls the "slave" action)
+		// "Master" Action (which calls the "slave" Action)
 		public Action action2 = ctx -> {
 
 			// Create input JSON structure
@@ -78,12 +77,17 @@ public class Sample {
 			params.put("b", "text");
 			params.put("c.d", 3);
 
-			// Invoke local action via EventBus
+			// Invoke "action1" Action
 			return ctx.call("myService.action1", params).then(in -> {
 
 				// The result will be 10
 				return in.asLong() * 2;
 			});
+		};
+
+		// "Salve" Action
+		public Action action1 = ctx -> {
+			return ctx.params.get("a", 0) + ctx.params.get("c.d", 0);
 		};
 
 	}

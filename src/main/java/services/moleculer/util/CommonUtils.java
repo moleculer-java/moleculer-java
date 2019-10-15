@@ -414,6 +414,7 @@ public final class CommonUtils {
 				}
 			} else {
 				LinkedHashMap<String, Object> map = new LinkedHashMap<>();
+				data = new Tree(map);
 				String prev = null;
 				Object value;
 				for (int i = 0; i < params.length; i++) {
@@ -439,10 +440,13 @@ public final class CommonUtils {
 						prev = (String) value;
 						continue;
 					}
-					map.put(prev, value);
+					if (prev.indexOf('.') == -1) {
+						map.put(prev, value);
+					} else {
+						data.putObject(prev, value);
+					}
 					prev = null;
 				}
-				data = new Tree(map);
 			}
 		}
 		return new ParseResult(data, opts, groups, stream);

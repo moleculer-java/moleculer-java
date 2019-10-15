@@ -528,7 +528,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					requestStreamWriteLock.unlock();
 				}
 			}
-		} else if (message.get("stream", false)) {
+		} else if (message.get("stream", false) || message.get("seq", 0) > 0) {
 			requestStreamWriteLock.lock();
 			try {
 				requestStream = requestStreams.get(id);
@@ -553,7 +553,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		String action = message.get("action", (String) null);
 		if (action == null || action.isEmpty()) {
 			if (requestStream == null) {
-				logger.warn("Missing \"action\" property!");
+				logger.warn("Missing \"action\" property!\r\n" + message);
 				transporter.publish(PACKET_RESPONSE, sender,
 						throwableToTree(id, nodeID, new InvalidPacketDataError(nodeID)));
 			}

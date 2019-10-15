@@ -308,7 +308,7 @@ public class DefaultEventbus extends Eventbus {
 						requestStreamWriteLock.unlock();
 					}
 				}
-			} else if (message.get("stream", false)) {
+			} else if (message.get("stream", false) || message.get("seq", 0) > 0) {
 				requestStreamWriteLock.lock();
 				try {
 					requestStream = requestStreams.get(id);

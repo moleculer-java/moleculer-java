@@ -308,8 +308,6 @@ public abstract class TransporterTest extends TestCase {
 		Thread.sleep(sleep * 3);
 		assertEquals("abcdefg", new String(sl.buffer.toByteArray()));
 		assertEquals("y", sl.ctx.params.getMeta().get("x", ""));
-		
-		// TODO test reversed order
 		assertTrue(sl.streamClosed);
 
 		// Meta & event
@@ -342,6 +340,13 @@ public abstract class TransporterTest extends TestCase {
 		assertNotNull(l3e.ctx);
 		assertEquals(4, l3e.ctx.level);	
 		assertEquals(123, l3e.ctx.params.getMeta().get("a", 0));
+				
+		// Call chained meta
+		rsp = br2.call("level1EventService.level1Action", "_meta.l0", "v0").waitFor(20000);
+		assertEquals("v0", rsp.getMeta().get("l0", ""));
+		assertEquals("v1", rsp.getMeta().get("l1", ""));
+		assertEquals("v2", rsp.getMeta().get("l2", ""));
+		assertEquals("v3", rsp.getMeta().get("l3", ""));
 		
 		// LAST test: reject on disconnect
 		br1.createService(new SlowService());
@@ -489,6 +494,19 @@ public abstract class TransporterTest extends TestCase {
 			ctx.broadcast("level2.xyz", "a", 4);
 		};
 
+		public Action level1Action = ctx -> {
+			Tree req = new Tree();
+			req.getMeta().put("l1", "v1");
+			assertEquals("v0", ctx.params.getMeta().get("l0", ""));
+			return ctx.call("level2EventService.level2Action", req).then(rsp -> {
+				assertEquals("v0", rsp.getMeta().get("l0", ""));
+				assertEquals("v1", rsp.getMeta().get("l1", ""));
+				assertEquals("v2", rsp.getMeta().get("l2", ""));
+				assertEquals("v3", rsp.getMeta().get("l3", ""));
+				return rsp;
+			});
+		};
+		
 	}
 
 	protected static final class Level2EventService extends Service {
@@ -500,6 +518,18 @@ public abstract class TransporterTest extends TestCase {
 			ctx.broadcast("level3.xyz", "a", 5);
 		};
 		
+		public Action level2Action = ctx -> {
+			Tree req = new Tree();
+			req.getMeta().put("l2", "v2");
+			assertEquals("v0", ctx.params.getMeta().get("l0", ""));
+			return ctx.call("level3EventService.level3Action", req).then(rsp -> {
+				assertEquals("v0", rsp.getMeta().get("l0", ""));
+				assertEquals("v1", rsp.getMeta().get("l1", ""));
+				assertEquals("v2", rsp.getMeta().get("l2", ""));
+				assertEquals("v3", rsp.getMeta().get("l3", ""));
+				return rsp;
+			});
+		};
 	}
 
 	protected static final class Level3EventService extends Service {
@@ -512,6 +542,15 @@ public abstract class TransporterTest extends TestCase {
 			this.ctx = ctx;
 		};
 
+		public Action level3Action = ctx -> {
+			assertEquals("v0", ctx.params.getMeta().get("l0", ""));
+			assertEquals("v1", ctx.params.getMeta().get("l1", ""));
+			assertEquals("v2", ctx.params.getMeta().get("l2", ""));
+			Tree rsp = new Tree();
+			rsp.getMeta().put("l3", "v3");
+			return rsp;
+		};
+		
 	}
 
 	// --- UTILITIES ---

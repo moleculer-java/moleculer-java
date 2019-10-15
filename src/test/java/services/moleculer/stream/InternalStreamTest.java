@@ -372,7 +372,7 @@ public class InternalStreamTest extends TestCase {
 		} catch (IllegalArgumentException e) {
 			// Ok!
 		}
-
+		
 	}
 
 	// --- UTILITIES ---

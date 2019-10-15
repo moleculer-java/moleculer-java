@@ -619,7 +619,7 @@ public abstract class StreamTest extends TestCase {
 		br2.start();
 
 		// Wait for "stream-receiver" service
-		br1.waitForServices("stream-receiver").waitFor(10000);
+		br1.waitForServices("stream-receiver").waitFor(100000);
 	}
 
 	@Override

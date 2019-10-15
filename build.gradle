@@ -289,10 +289,12 @@ test {
     exclude '**/KafkaTransporterTest.class'
     exclude '**/JmsTransporterTest.class'
     exclude '**/GoogleTransporterTest.class'
+    exclude '**/UdpMulticastTransporterTest.class'
 
     exclude '**/KafkaStreamTest.class'
     exclude '**/JmsStreamTest.class'
     exclude '**/GoogleStreamTest.class'
+    exclude '**/UdpMulticastStreamTest.class'    
 }
 
 // task copyRuntimeLibs(type: Copy) {
