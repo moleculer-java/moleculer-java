@@ -24,7 +24,7 @@ Java implementation of the [Moleculer microservices framework](http://moleculer.
 	<dependency>
 		<groupId>com.github.berkesa</groupId>
 		<artifactId>moleculer-java</artifactId>
-		<version>1.1.3</version>
+		<version>1.2.0</version>
 		<scope>runtime</scope>
 	</dependency>
 </dependencies>
@@ -34,9 +34,33 @@ Java implementation of the [Moleculer microservices framework](http://moleculer.
 
 ```gradle
 dependencies {
-	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.1.3' 
+	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.2.0' 
 }
 ```
+
+## Major changes from Version 1.2.0:
+
+The Event Listener implementation of Moleculer-Java has become similar to the latest (V1.4) Node.js implementation.
+In the previous versions, Event Listeners received only the data block:
+
+```java
+@Subscribe("test.*")
+public Listener evt = payload -> {
+    logger.info("Received data: " + payload);
+};
+```
+From version 1.2 onwards, Event Listeners receive the same Context object as the Actions
+and the `ctx.params` contains data corresponding to the previous `payload`:
+
+```java
+@Subscribe("test.*")
+public Listener evt = ctx -> {
+    logger.info("Received data: " + ctx.params);
+};
+```
+
+The Context object contains information about the event source,
+and allows you to initiate chained calls where call depth is limited.
 
 ## Usage from code
 
@@ -182,10 +206,10 @@ public class MathService extends Service {
 
 	@Subscribe("user.created")
 	@Group("optionalEventGroup")
-	public Listener userCreated = payload -> {
+	public Listener userCreated = ctx -> {
 		
 		// Body of the distributed event listener method
-		System.out.println("Received: " + payload);
+		System.out.println("Received: " + ctx.params);
 	};
 	
 	@Override

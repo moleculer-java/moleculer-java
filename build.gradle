@@ -202,14 +202,14 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-version = '1.2.0-SNAPSHOT'
-// version = '1.2.0'
+// version = '1.2.0-SNAPSHOT'
+version = '1.2.0'
 
 modifyPom {
     project {
         artifactId 'moleculer-java'
         name 'Moleculer Microservices Framework'
-        description 'Fast & powerful microservices framework for Java.'
+        description 'Fast & powerful microservices framework for Java and Node.js.'
         url 'https://moleculer-java.github.io/moleculer-java/'
         inceptionYear '2018'
 
@@ -285,8 +285,6 @@ jar {
 
 test {
 	systemProperty 'java.util.logging.SimpleFormatter.format', '%4$-7s %5$s %n'
-
-    exclude '**/SpeedTest.class'
     
     exclude '**/KafkaTransporterTest.class'
     exclude '**/JmsTransporterTest.class'
@@ -300,8 +298,3 @@ test {
     exclude '**/UdpMulticastStreamTest.class'
     exclude '**/FileSystemStreamTest.class'
 }
-
-// task copyRuntimeLibs(type: Copy) {
-//      into "lib"
-//      from configurations.runtime
-// }
