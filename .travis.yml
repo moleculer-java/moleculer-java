@@ -27,8 +27,9 @@ before_install:
   - sudo apt-add-repository ppa:mosquitto-dev/mosquitto-ppa -y
   - sudo apt-get update -y
   - sudo apt-get install mosquitto -y
-  
-script: ./gradlew -i -s check
+
+script: ./gradlew -S check  
+// script: ./gradlew -i -s check
 // script: ./gradlew check
 
 after_success:

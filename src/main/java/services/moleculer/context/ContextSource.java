@@ -62,12 +62,18 @@ public abstract class ContextSource {
 	 */
 	protected final UidGenerator uidGenerator;
 
+	/**
+	 * Source nodeID
+	 */
+	protected final String nodeID;
+	
 	// --- CONSTRUCTOR ---
 
-	protected ContextSource(ServiceInvoker serviceInvoker, Eventbus eventbus, UidGenerator uidGenerator) {
+	protected ContextSource(ServiceInvoker serviceInvoker, Eventbus eventbus, UidGenerator uidGenerator, String nodeID) {
 		this.serviceInvoker = serviceInvoker;
 		this.eventbus = eventbus;
 		this.uidGenerator = uidGenerator;
+		this.nodeID = nodeID;
 	}
 
 	// --- EMIT EVENT TO EVENT GROUP ---
@@ -459,18 +465,18 @@ public abstract class ContextSource {
 
 	protected void emit(String name, Tree payload, Groups groups, PacketStream stream, CallOptions.Options opts) {
 		eventbus.emit(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(), name, payload, 1,
-				null, null, stream, opts), groups, false);
+				null, null, stream, opts, nodeID), groups, false);
 	}
 
 	protected void broadcast(String name, Tree payload, Groups groups, PacketStream stream, CallOptions.Options opts,
 			boolean local) {
 		eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(), name, payload, 1,
-				null, null, stream, opts), groups, local);
+				null, null, stream, opts, nodeID), groups, local);
 	}
 
 	protected Promise call(String name, Tree params, CallOptions.Options opts, PacketStream stream) {
 		return serviceInvoker.call(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(), name,
-				params, 1, null, null, stream, opts));
+				params, 1, null, null, stream, opts, nodeID));
 	}
 
 }

@@ -340,7 +340,11 @@ public abstract class TransporterTest extends TestCase {
 		assertNotNull(l3e.ctx);
 		assertEquals(4, l3e.ctx.level);	
 		assertEquals(123, l3e.ctx.params.getMeta().get("a", 0));
-				
+		
+		System.out.println(l3e.ctxB.params);
+		assertEquals(123, l3e.ctxB.params.getMeta().get("a", 0));
+		assertEquals("Y", l3e.ctxB.params.get("X", ""));
+		
 		// Call chained meta
 		rsp = br2.call("level1EventService.level1Action", "_meta.l0", "v0").waitFor(20000);
 		assertEquals("v0", rsp.getMeta().get("l0", ""));
@@ -490,13 +494,16 @@ public abstract class TransporterTest extends TestCase {
 		@Subscribe("level1.*")
 		public Listener evt = ctx -> {
 			logger.info("Level1EventService invoked.");
-			assertEquals(2, ctx.level);			
+			assertEquals(2, ctx.level);
+			assertEquals("node2", ctx.nodeID);
 			ctx.broadcast("level2.xyz", "a", 4);
 		};
 
 		public Action level1Action = ctx -> {
 			Tree req = new Tree();
 			req.getMeta().put("l1", "v1");
+			assertEquals(1, ctx.level);
+			assertEquals("node2", ctx.nodeID);
 			assertEquals("v0", ctx.params.getMeta().get("l0", ""));
 			return ctx.call("level2EventService.level2Action", req).then(rsp -> {
 				assertEquals("v0", rsp.getMeta().get("l0", ""));
@@ -516,12 +523,16 @@ public abstract class TransporterTest extends TestCase {
 			logger.info("Level2EventService invoked.");
 			assertEquals(3, ctx.level);			
 			ctx.broadcast("level3.xyz", "a", 5);
+			assertEquals("node1", ctx.nodeID);
+			ctx.call("level3EventService.level3ActionB", "X", "Y");
 		};
 		
 		public Action level2Action = ctx -> {
 			Tree req = new Tree();
+			assertEquals(2, ctx.level);
 			req.getMeta().put("l2", "v2");
 			assertEquals("v0", ctx.params.getMeta().get("l0", ""));
+			assertEquals("node1", ctx.nodeID);
 			return ctx.call("level3EventService.level3Action", req).then(rsp -> {
 				assertEquals("v0", rsp.getMeta().get("l0", ""));
 				assertEquals("v1", rsp.getMeta().get("l1", ""));
@@ -535,20 +546,31 @@ public abstract class TransporterTest extends TestCase {
 	protected static final class Level3EventService extends Service {
 
 		protected Context ctx;
+		protected Context ctxB;
 
 		@Subscribe("level3.*")
 		public Listener evt = ctx -> {
 			logger.info("Level3EventService invoked.");
+			assertEquals("node2", ctx.nodeID);
 			this.ctx = ctx;
 		};
 
 		public Action level3Action = ctx -> {
+			assertEquals("node2", ctx.nodeID);
+			assertEquals(3, ctx.level);
 			assertEquals("v0", ctx.params.getMeta().get("l0", ""));
 			assertEquals("v1", ctx.params.getMeta().get("l1", ""));
 			assertEquals("v2", ctx.params.getMeta().get("l2", ""));
 			Tree rsp = new Tree();
 			rsp.getMeta().put("l3", "v3");
 			return rsp;
+		};
+
+		public Action level3ActionB = ctx -> {
+			assertEquals("node2", ctx.nodeID);
+			assertEquals(4, ctx.level);
+			this.ctxB = ctx;
+			return null;
 		};
 		
 	}

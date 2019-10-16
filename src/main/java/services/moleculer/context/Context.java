@@ -35,6 +35,7 @@ import services.moleculer.service.ServiceInvoker;
 import services.moleculer.stream.PacketStream;
 import services.moleculer.uid.UidGenerator;
 import services.moleculer.util.CheckedTree;
+import services.moleculer.util.FastBuildTree;
 
 public class Context extends ContextSource {
 
@@ -80,6 +81,11 @@ public class Context extends ContextSource {
 	 */
 	public final CallOptions.Options opts;
 
+	/**
+	 * Source nodeID
+	 */
+	public final String nodeID;
+	
 	// --- TIMESTAMP ---
 
 	/**
@@ -90,8 +96,8 @@ public class Context extends ContextSource {
 	// --- CONSTRUCTORS ---
 
 	public Context(ServiceInvoker serviceInvoker, Eventbus eventbus, UidGenerator uidGenerator, String id, String name,
-			Tree params, int level, String parentID, String requestID, PacketStream stream, CallOptions.Options opts) {
-		super(serviceInvoker, eventbus, uidGenerator);
+			Tree params, int level, String parentID, String requestID, PacketStream stream, CallOptions.Options opts, String nodeID) {
+		super(serviceInvoker, eventbus, uidGenerator, nodeID);
 
 		// Set properties
 		this.id = id;
@@ -102,6 +108,7 @@ public class Context extends ContextSource {
 		this.requestID = requestID == null ? id : requestID;
 		this.stream = stream;
 		this.opts = opts;
+		this.nodeID = nodeID;
 
 		// Store timestamp
 		if (opts != null && opts.timeout > 0) {
@@ -116,7 +123,7 @@ public class Context extends ContextSource {
 	@Override
 	protected void emit(String name, Tree payload, Groups groups, PacketStream stream, CallOptions.Options opts) {
 		eventbus.emit(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(), name,
-				mergeMeta(payload), level + 1, null, null, stream, opts), groups, false);
+				mergeMeta(payload), level + 1, null, null, stream, opts, nodeID), groups, false);
 	}
 
 	// --- BROADCAST (WITH MERGED META) ---
@@ -125,7 +132,7 @@ public class Context extends ContextSource {
 	protected void broadcast(String name, Tree payload, Groups groups, PacketStream stream, CallOptions.Options opts,
 			boolean local) {
 		eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(), name,
-				mergeMeta(payload), level + 1, null, null, stream, opts), groups, local);
+				mergeMeta(payload), level + 1, null, null, stream, opts, nodeID), groups, local);
 	}
 
 	// --- CALL (WITH MERGED META AND DISTRIBUTED TIMEOUT) ---
@@ -167,7 +174,7 @@ public class Context extends ContextSource {
 			}
 		}
 		return serviceInvoker.call(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(), name,
-				mergeMeta(params), level + 1, id, requestID, stream, opts));
+				mergeMeta(params), level + 1, id, requestID, stream, opts, nodeID));
 	}
 
 	protected Tree mergeMeta(Tree newParams) {
@@ -183,4 +190,37 @@ public class Context extends ContextSource {
 		return newParams;
 	}
 
+	// --- HELPERS ---
+	
+	@Override
+	public String toString() {
+		FastBuildTree tree = new FastBuildTree(10);
+		tree.putUnsafe("id", id);
+		tree.putUnsafe("name", name);
+		tree.putUnsafe("nodeID", nodeID);
+		if (parentID != null) {
+			tree.putUnsafe("parentID", parentID);
+		}
+		tree.putUnsafe("requestID", requestID);
+		tree.putUnsafe("level", level);
+		if (params != null) {
+			tree.putUnsafe("params", params);
+		}
+		if (opts != null) {
+			FastBuildTree o = new FastBuildTree(4);
+			o.put("nodeID", opts.nodeID);
+			o.put("retryCount", opts.retryCount);
+			o.put("timeout", opts.timeout);
+			tree.putUnsafe("opts", o);			
+		}
+		if (stream != null) {
+			FastBuildTree s = new FastBuildTree(4);
+			s.put("packetDelay", stream.getPacketDelay());
+			s.put("packetSize", stream.getPacketSize());
+			s.put("transferedBytes", stream.getTransferedBytes());
+			tree.putUnsafe("stream", s);
+		}
+		return tree.toString();
+	}	
+	
 }

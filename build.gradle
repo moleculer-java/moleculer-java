@@ -103,16 +103,16 @@ dependencies {
 	compile group: 'de.undercouch', name: 'bson4jackson', version: '2.9.2'
  
 	// https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
-	compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: '2.9.9'
+	compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: '2.10.0'
  
 	// https://mvnrepository.com/artifact/software.amazon.ion/ion-java
-	compile group: 'software.amazon.ion', name: 'ion-java', version: '1.5.0'
+	compile group: 'software.amazon.ion', name: 'ion-java', version: '1.5.1'
  
 	// https://mvnrepository.com/artifact/org.msgpack/msgpack
 	compile group: 'org.msgpack', name: 'msgpack', version: '0.6.12'
  
 	// https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/jackson-dataformat-smile
-	compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-smile', version: '2.9.9'
+	compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-smile', version: '2.10.0'
  
 	// =============== MONITORING ===============
 	
@@ -128,12 +128,12 @@ dependencies {
     // --- SPRING FRAMEWORK (REQUIRED FOR MOLECULER RUNNER) ---
 
 	// https://mvnrepository.com/artifact/org.springframework/spring-context
-	compile group: 'org.springframework', name: 'spring-context', version: '5.1.9.RELEASE'
+	compile group: 'org.springframework', name: 'spring-context', version: '5.2.0.RELEASE'
 
     // --- SPRING BOOT (OPTIONAL!) ---
     
 	// https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter
-	compile (group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.1.7.RELEASE') {
+	compile (group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.1.9.RELEASE') {
 		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
 	}
 
@@ -162,7 +162,7 @@ dependencies {
 	// --- DEPENDENCY OF THE NATS TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/io.nats/jnats
-	compile group: 'io.nats', name: 'jnats', version: '2.6.4'
+	compile group: 'io.nats', name: 'jnats', version: '2.6.5'
 
 	// --- DEPENDENCY OF THE MQTT TRANSPORTER ---
 	
@@ -177,7 +177,7 @@ dependencies {
 	// --- ACTIVE QM CLIENT API FOR JMS TESTING ---
 
 	// https://mvnrepository.com/artifact/org.apache.activemq/activemq-client
-	compile group: 'org.apache.activemq', name: 'activemq-client', version: '5.15.9'
+	compile group: 'org.apache.activemq', name: 'activemq-client', version: '5.15.10'
 
 	// --- DEPENDENCY OF THE AMQP/RABBITMQ TRANSPORTER ---
 	
@@ -187,7 +187,7 @@ dependencies {
 	// --- DEPENDENCY OF THE GOOGLE CLOUD PUB/SUB TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/com.google.cloud/google-cloud-pubsub
-	compile group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.89.0'
+	compile group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.96.0'
 
 	// --- DEPENDENCY OF THE KAFKA TRANSPORTER ---
 	
@@ -202,8 +202,8 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-// version = '1.1.3-SNAPSHOT'
-version = '1.1.3'
+version = '1.2.0-SNAPSHOT'
+// version = '1.2.0'
 
 modifyPom {
     project {
@@ -278,7 +278,7 @@ compileJava {
 
 jar {
     baseName = 'moleculer'
-    version =  '1.1.3'
+    version =  '1.2.0'
 }
 
 // --- TESTING ---
@@ -286,15 +286,19 @@ jar {
 test {
 	systemProperty 'java.util.logging.SimpleFormatter.format', '%4$-7s %5$s %n'
 
+    exclude '**/SpeedTest.class'
+    
     exclude '**/KafkaTransporterTest.class'
     exclude '**/JmsTransporterTest.class'
     exclude '**/GoogleTransporterTest.class'
     exclude '**/UdpMulticastTransporterTest.class'
+	exclude '**/FileSystemTransporterTest.class'
 
     exclude '**/KafkaStreamTest.class'
     exclude '**/JmsStreamTest.class'
     exclude '**/GoogleStreamTest.class'
-    exclude '**/UdpMulticastStreamTest.class'    
+    exclude '**/UdpMulticastStreamTest.class'
+    exclude '**/FileSystemStreamTest.class'
 }
 
 // task copyRuntimeLibs(type: Copy) {

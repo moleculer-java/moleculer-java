@@ -55,7 +55,7 @@ import services.moleculer.service.Name;
  * UDP does not behave well in a lossy network by itself.<br>
  * <br>
  * If you need a RELIABLE data transport without central server (i.e. no loss of
- * data) then TCPTransporter is much better.
+ * data, forwarding large messages) then TCPTransporter is much better.
  *
  * @see TcpTransporter
  * @see AmqpTransporter

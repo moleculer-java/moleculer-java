@@ -116,7 +116,7 @@ public class ServiceBroker extends ContextSource {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final String SOFTWARE_VERSION = "1.1.3";
+	public static final String SOFTWARE_VERSION = "1.2.0";
 
 	/**
 	 * Version of the implemented Moleculer Protocol. Can be configured with the
@@ -130,13 +130,6 @@ public class ServiceBroker extends ContextSource {
 	 * SLF4J logger of this class.
 	 */
 	protected static final Logger logger = LoggerFactory.getLogger(ServiceBroker.class);
-
-	// --- CURRENT NODE ID ---
-
-	/**
-	 * Unique ID of this node (~= ServiceBroker instance).
-	 */
-	protected final String nodeID;
 
 	// --- CONFIGURATION ---
 
@@ -225,9 +218,8 @@ public class ServiceBroker extends ContextSource {
 	 *            configuration of the Broker
 	 */
 	public ServiceBroker(ServiceBrokerConfig config) {
-		super(config.getServiceInvoker(), config.getEventbus(), config.getUidGenerator());
+		super(config.getServiceInvoker(), config.getEventbus(), config.getUidGenerator(), config.getNodeID());
 		this.config = config;
-		this.nodeID = config.getNodeID();
 	}
 
 	/**

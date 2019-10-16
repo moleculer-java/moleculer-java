@@ -35,6 +35,7 @@ public class JCacheCacherTest extends CacherTest {
 	@Override
 	protected Cacher createCacher() throws Exception {
 
+		@SuppressWarnings("resource")
 		CachingProvider provider = new RICachingProvider();
 		CacheManager manager = provider.getCacheManager();
 

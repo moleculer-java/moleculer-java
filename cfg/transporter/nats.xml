@@ -7,7 +7,7 @@
 	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
 	<!-- NATS PUB/SUB TRANSPORTER -->
-	<!-- REQUIRED DEPENDENCY: group: 'io.nats', name: 'jnats', version: '2.4.1' -->
+	<!-- REQUIRED DEPENDENCY: group: 'io.nats', name: 'jnats', version: '2.6.5' -->
 	<!-- URL: https://mvnrepository.com/artifact/io.nats/jnats -->
 
 	<bean id="transporter" class="services.moleculer.transporter.NatsTransporter">

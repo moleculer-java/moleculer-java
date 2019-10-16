@@ -152,7 +152,7 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 
 		// Create new Context (with new id)
 		return call(new Context(this, eventbus, uidGenerator, uidGenerator.nextUID(), ctx.name, ctx.params, ctx.level,
-				ctx.parentID, ctx.requestID, ctx.stream, ctx.opts), targetID, newRemaining);
+				ctx.parentID, ctx.requestID, ctx.stream, ctx.opts, ctx.nodeID), targetID, newRemaining);
 	}
 
 	// --- GETTERS / SETTERS ---

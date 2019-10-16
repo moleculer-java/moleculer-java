@@ -45,7 +45,7 @@ import services.moleculer.service.Name;
  * https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/
  * jackson-dataformat-cbor<br>
  * compile group: 'com.fasterxml.jackson.dataformat', name:
- * 'jackson-dataformat-cbor', version: '2.9.9'
+ * 'jackson-dataformat-cbor', version: '2.10.0'
  * 
  * @see JsonSerializer
  * @see MsgPackSerializer

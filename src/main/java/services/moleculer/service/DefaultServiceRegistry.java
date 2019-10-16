@@ -627,7 +627,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		// Create context
 		PacketStream stream = requestStream == null ? null : requestStream.getPacketStream();
 		Context ctx = new Context(serviceInvoker, eventbus, uidGenerator, id, name, params, level, parentID, requestID,
-				stream, opts);
+				stream, opts, sender);
 
 		// Invoke action
 		try {
@@ -1063,7 +1063,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		Tree msg = new Tree();
 		msg.put("localService", true);
 		eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
-				"$services.changed", msg, 1, null, null, null, null), null, true);
+				"$services.changed", msg, 1, null, null, null, null, nodeID), null, true);
 	}
 
 	// --- ADD A REMOTE SERVICE ---

@@ -45,7 +45,7 @@ import services.moleculer.service.Name;
  * <b>Required dependency:</b><br>
  * <br>
  * https://mvnrepository.com/artifact/software.amazon.ion/ion-java<br>
- * compile group: 'software.amazon.ion', name: 'ion-java', version: '1.5.0'
+ * compile group: 'software.amazon.ion', name: 'ion-java', version: '1.5.1'
  * 
  * @see JsonSerializer
  * @see MsgPackSerializer

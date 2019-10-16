@@ -378,7 +378,7 @@ public class DefaultEventbus extends Eventbus {
 		// Create Context
 		PacketStream stream = requestStream == null ? null : requestStream.getPacketStream();
 		Context ctx = new Context(serviceInvoker, this, uidGenerator, id, name, data, level, parentID, requestID,
-				stream, null);
+				stream, null, sender);
 
 		// Emit or broadcast?
 		if (message.get("broadcast", true)) {

@@ -75,7 +75,7 @@ import services.moleculer.util.CommonUtils;
  * // https://mvnrepository.com/artifact/com.google.cloud/google-cloud-pubsub
  * <br>
  * compile group: 'com.google.cloud', name: 'google-cloud-pubsub', version:
- * '1.89.0'<br>
+ * '1.96.0'<br>
  *
  * @see TcpTransporter
  * @see RedisTransporter

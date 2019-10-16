@@ -870,7 +870,7 @@ public abstract class Transporter extends MoleculerComponent {
 			msg.putObject("node", info);
 			msg.put("reconnected", reconnected);
 			eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
-					"$node.connected", msg, 1, null, null, null, null), null, true);
+					"$node.connected", msg, 1, null, null, null, null, nodeID), null, true);
 		}
 	}
 
@@ -879,7 +879,7 @@ public abstract class Transporter extends MoleculerComponent {
 			Tree msg = new Tree();
 			msg.putObject("node", info);
 			eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
-					"$node.updated", msg, 1, null, null, null, null), null, true);
+					"$node.updated", msg, 1, null, null, null, null, nodeID), null, true);
 		}
 	}
 
@@ -889,7 +889,7 @@ public abstract class Transporter extends MoleculerComponent {
 			msg.putObject("node", info);
 			msg.put("unexpected", unexpected);
 			eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
-					"$node.disconnected", msg, 1, null, null, null, null), null, true);
+					"$node.disconnected", msg, 1, null, null, null, null, nodeID), null, true);
 		}
 	}
 
