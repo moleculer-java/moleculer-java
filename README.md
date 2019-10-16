@@ -50,7 +50,8 @@ public Listener evt = payload -> {
 };
 ```
 From version 1.2 onwards, Event Listeners receive the same Context object as the Actions
-and the `ctx.params` contains data corresponding to the previous `payload`:
+and the `ctx.params` contains data corresponding to the previous `payload`.
+Just change the "payload" variable to "ctx.params" to migrate:
 
 ```java
 @Subscribe("test.*")
