@@ -41,6 +41,7 @@ public class MoleculerErrorUtils {
 
 	public static final String SERVICE_NOT_FOUND_ERROR = "ServiceNotFoundError";
 	public static final String SERVICE_NOT_AVAILABLE_ERROR = "ServiceNotAvailableError";
+	public static final String LISTENER_NOT_AVAILABLE_ERROR = "ListenerNotAvailableError";
 
 	public static final String VALIDATION_ERROR = "ValidationError";
 	public static final String REQUEST_TIMEOUT_ERROR = "RequestTimeoutError";
@@ -89,8 +90,8 @@ public class MoleculerErrorUtils {
 
 			case SERVICE_NOT_FOUND_ERROR:
 				return new ServiceNotFoundError(payload);
-			case SERVICE_NOT_AVAILABLE_ERROR:
-				return new ServiceNotAvailableError(payload);
+			case LISTENER_NOT_AVAILABLE_ERROR:
+				return new ListenerNotAvailableError(payload);
 
 			case VALIDATION_ERROR:
 				return new ValidationError(payload);

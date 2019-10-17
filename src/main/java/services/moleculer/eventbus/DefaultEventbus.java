@@ -50,6 +50,7 @@ import io.datatree.dom.Config;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.Context;
+import services.moleculer.error.ListenerNotAvailableError;
 import services.moleculer.error.MaxCallLevelError;
 import services.moleculer.error.RequestTimeoutError;
 import services.moleculer.service.Name;
@@ -384,6 +385,7 @@ public class DefaultEventbus extends Eventbus {
 		if (message.get("broadcast", true)) {
 
 			// Broadcast
+			System.out.print(nodeID + " REMOTE EVENT RECEIVED: " + message);
 			broadcast(ctx, groups, true);
 
 		} else {
@@ -566,7 +568,11 @@ public class DefaultEventbus extends Eventbus {
 
 		// Verify call level
 		if (maxCallLevel > 0 && ctx.level >= maxCallLevel) {
-			throw new MaxCallLevelError(broker.getNodeID(), maxCallLevel);
+			MaxCallLevelError error = new MaxCallLevelError(nodeID, maxCallLevel);
+			if (ctx.stream != null) {
+				ctx.stream.sendError(error);
+			}
+			throw error;
 		}
 
 		String key = getCacheKey(ctx.name, groups);
@@ -599,6 +605,7 @@ public class DefaultEventbus extends Eventbus {
 			emitterCache.put(key, strategies);
 		}
 		if (strategies.length == 0) {
+			stopStreaming(ctx);
 			return;
 		}
 
@@ -612,6 +619,9 @@ public class DefaultEventbus extends Eventbus {
 					endpoint.on(ctx, groups, false);
 				}
 			} catch (Exception cause) {
+				if (ctx.stream != null) {
+					ctx.stream.sendError(cause);
+				}
 				logger.error("Unable to invoke event listener!", cause);
 			}
 			return;
@@ -622,7 +632,9 @@ public class DefaultEventbus extends Eventbus {
 			for (int i = 0; i < strategies.length; i++) {
 				try {
 					ListenerEndpoint endpoint = strategies[i].getEndpoint(nodeID);
-					if (endpoint != null) {
+					if (endpoint == null) {
+						stopStreaming(ctx);
+					} else {
 						endpoint.on(ctx, groups, false);
 					}
 				} catch (Exception cause) {
@@ -639,11 +651,13 @@ public class DefaultEventbus extends Eventbus {
 		ListenerEndpoint[] endpoints = new ListenerEndpoint[strategies.length];
 
 		// Group targets
+		boolean foundLocal = false;
 		for (int i = 0; i < strategies.length; i++) {
 			ListenerEndpoint endpoint = strategies[i].getEndpoint(null);
 			if (endpoint != null) {
 				if (endpoint.isLocal()) {
 					try {
+						foundLocal = true;
 						endpoint.on(ctx, groups, false);
 					} catch (Exception cause) {
 						logger.error("Unable to invoke event listener!", cause);
@@ -661,7 +675,11 @@ public class DefaultEventbus extends Eventbus {
 		}
 
 		// Invoke endpoints
-		if (!groupsByNodeID.isEmpty()) {
+		if (groupsByNodeID.isEmpty()) {
+			if (!foundLocal) {
+				stopStreaming(ctx);
+			}
+		} else {
 			for (ListenerEndpoint endpoint : endpoints) {
 				if (endpoint != null) {
 					try {
@@ -678,6 +696,12 @@ public class DefaultEventbus extends Eventbus {
 			}
 		}
 	}
+	
+	protected void stopStreaming(Context ctx) {
+		if (ctx.stream != null) {
+			ctx.stream.sendError(new ListenerNotAvailableError(nodeID, ctx.name));
+		}		
+	}
 
 	// --- SEND EVENT TO ALL LISTENERS IN THE SPECIFIED GROUP ---
 
@@ -686,7 +710,11 @@ public class DefaultEventbus extends Eventbus {
 
 		// Verify call level
 		if (maxCallLevel > 0 && ctx.level >= maxCallLevel) {
-			throw new MaxCallLevelError(broker.getNodeID(), maxCallLevel);
+			MaxCallLevelError error = new MaxCallLevelError(nodeID, maxCallLevel);
+			if (ctx.stream != null) {
+				ctx.stream.sendError(error);
+			}
+			throw error;
 		}
 
 		String key = getCacheKey(ctx.name, groups);
@@ -721,7 +749,7 @@ public class DefaultEventbus extends Eventbus {
 							} else {
 								if (local) {
 									for (ListenerEndpoint endpoint : test.getValue().getAllEndpoints()) {
-										if (local) {
+										if (endpoint.isLocal()) {
 											list.add(endpoint);
 										}
 									}
@@ -744,6 +772,7 @@ public class DefaultEventbus extends Eventbus {
 			}
 		}
 		if (endpoints.length == 0) {
+			stopStreaming(ctx);
 			return;
 		}
 
@@ -752,6 +781,9 @@ public class DefaultEventbus extends Eventbus {
 			try {
 				endpoints[0].on(ctx, groups, true);
 			} catch (Exception cause) {
+				if (ctx.stream != null) {
+					ctx.stream.sendError(cause);
+				}
 				logger.error("Unable to invoke event listener!", cause);
 			}
 			return;

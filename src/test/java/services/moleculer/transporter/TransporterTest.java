@@ -274,41 +274,75 @@ public abstract class TransporterTest extends TestCase {
 		assertEquals(123, rsp.getMeta().get("reply", 0));
 		assertEquals(123, rsp.get("_meta.reply", 0));
 
-		// Stream test
+		// Stream test with two listeners
 		StreamListener sl = new StreamListener();
 		br1.createService(sl);
 		br2.waitForServices("streamListener").waitFor(20000);
 
+		StreamListener s2 = new StreamListener();
+		br2.createService(s2);
+
 		PacketStream ps = br2.createStream();
 		br2.broadcast("stream.receive", ps);
 		Thread.sleep(sleep);
+
 		assertNotNull(sl.ctx);
 		assertEquals(1, sl.ctx.level);
 		assertEquals("stream.receive", sl.ctx.name);
 		assertEquals(0, sl.buffer.toByteArray().length);
 
+		assertNotNull(s2.ctx);
+		assertEquals(1, s2.ctx.level);
+		assertEquals("stream.receive", s2.ctx.name);
+		assertEquals(0, s2.buffer.toByteArray().length);
+
 		ps.sendData("12345".getBytes());
 		ps.sendData("67890".getBytes());
+
 		assertFalse(sl.streamClosed);
+		assertFalse(s2.streamClosed);
+
 		ps.sendClose();
 		Thread.sleep(sleep * 3);
+
 		assertEquals("1234567890", new String(sl.buffer.toByteArray()));
 		assertTrue(sl.streamClosed);
+
+		assertEquals("1234567890", new String(s2.buffer.toByteArray()));
+		assertTrue(s2.streamClosed);
 
 		sl.buffer.reset();
 		sl.ctx = null;
 		sl.streamClosed = false;
+
+		s2.buffer.reset();
+		s2.ctx = null;
+		s2.streamClosed = false;
 
 		ps = br2.createStream();
 		t = new CheckedTree(ps);
 		t.getMeta().put("x", "y");
 		br2.emit("stream.receive", t);
 		ps.sendData("abcdefg".getBytes());
+		ps.sendData("12345".getBytes());
+		ps.sendData("67".getBytes());
 		ps.sendClose();
 		Thread.sleep(sleep * 3);
-		assertEquals("abcdefg", new String(sl.buffer.toByteArray()));
-		assertEquals("y", sl.ctx.params.getMeta().get("x", ""));
-		assertTrue(sl.streamClosed);
+
+		StreamListener s, d;
+		if (sl.streamClosed) {
+			s = sl;
+			d = s2;
+		} else {
+			s = s2;
+			d = sl;
+		}
+		assertEquals("abcdefg1234567", new String(s.buffer.toByteArray()));
+		assertEquals("y", s.ctx.params.getMeta().get("x", ""));
+		assertTrue(s.streamClosed);
+
+		assertNull(d.ctx);
+		assertFalse(d.streamClosed);
 
 		// Meta & event
 		Level1EventService l1e = new Level1EventService();
@@ -320,38 +354,38 @@ public abstract class TransporterTest extends TestCase {
 
 		br1.waitForServices("level2EventService").waitFor(20000);
 		br2.waitForServices("level1EventService", "level3EventService").waitFor(20000);
-		
+
 		br2.createService(new Service("metasender") {
 			@SuppressWarnings("unused")
 			public Action action = ctx -> {
 				assertTrue(ctx.params.isEmpty());
 				assertEquals(1, ctx.level);
-				
+
 				Tree params = new Tree();
 				params.put("b", true);
 				params.getMeta().put("a", 123);
 				ctx.broadcast("level1.a", params);
 				return 12345;
 			};
-		});		
+		});
 		br2.call("metasender.action");
-		
+
 		Thread.sleep(sleep * 3);
 		assertNotNull(l3e.ctx);
-		assertEquals(4, l3e.ctx.level);	
+		assertEquals(4, l3e.ctx.level);
 		assertEquals(123, l3e.ctx.params.getMeta().get("a", 0));
-		
+
 		System.out.println(l3e.ctxB.params);
 		assertEquals(123, l3e.ctxB.params.getMeta().get("a", 0));
 		assertEquals("Y", l3e.ctxB.params.get("X", ""));
-		
+
 		// Call chained meta
 		rsp = br2.call("level1EventService.level1Action", "_meta.l0", "v0").waitFor(20000);
 		assertEquals("v0", rsp.getMeta().get("l0", ""));
 		assertEquals("v1", rsp.getMeta().get("l1", ""));
 		assertEquals("v2", rsp.getMeta().get("l2", ""));
 		assertEquals("v3", rsp.getMeta().get("l3", ""));
-		
+
 		// LAST test: reject on disconnect
 		br1.createService(new SlowService());
 		br2.waitForServices("slowService").waitFor(20000);
@@ -513,7 +547,7 @@ public abstract class TransporterTest extends TestCase {
 				return rsp;
 			});
 		};
-		
+
 	}
 
 	protected static final class Level2EventService extends Service {
@@ -521,12 +555,12 @@ public abstract class TransporterTest extends TestCase {
 		@Subscribe("level2.xyz")
 		public Listener evt = ctx -> {
 			logger.info("Level2EventService invoked.");
-			assertEquals(3, ctx.level);			
+			assertEquals(3, ctx.level);
 			ctx.broadcast("level3.xyz", "a", 5);
 			assertEquals("node1", ctx.nodeID);
 			ctx.call("level3EventService.level3ActionB", "X", "Y");
 		};
-		
+
 		public Action level2Action = ctx -> {
 			Tree req = new Tree();
 			assertEquals(2, ctx.level);
@@ -572,7 +606,7 @@ public abstract class TransporterTest extends TestCase {
 			this.ctxB = ctx;
 			return null;
 		};
-		
+
 	}
 
 	// --- UTILITIES ---

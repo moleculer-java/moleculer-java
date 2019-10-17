@@ -32,6 +32,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -165,7 +166,7 @@ public class PacketStream {
 					return false;
 				}
 			}
-			PacketListener[] copy = new PacketListener[listeners.length];
+			PacketListener[] copy = new PacketListener[listeners.length + 1];
 			System.arraycopy(listeners, 0, copy, 0, listeners.length);
 			copy[listeners.length] = listener;
 			listeners = copy;
@@ -272,17 +273,19 @@ public class PacketStream {
 		OutputStream out = new OutputStream() {
 
 			@Override
-			public final void write(int b) {
+			public final void write(int b) throws IOException {
+				checkError();
 				sendData(new byte[] { (byte) b });
 			}
 
 			@Override
-			public final void write(byte[] b) {
+			public final void write(byte[] b) throws IOException {
 				write(b, 0, b.length);
 			}
 
 			@Override
-			public final void write(byte[] b, int off, int len) {
+			public final void write(byte[] b, int off, int len) throws IOException {
+				checkError();
 				byte[] copy = new byte[len];
 				System.arraycopy(b, 0, copy, 0, len);
 				sendData(copy);
@@ -297,6 +300,18 @@ public class PacketStream {
 			@Override
 			public final void close() {
 				sendClose();
+			}
+
+			private final void checkError() throws IOException {
+				if (cause != null) {
+					if (cause instanceof MoleculerError) {
+						throw (MoleculerError) cause;
+					}
+					if (cause instanceof IOException) {
+						throw (IOException) cause;
+					}
+					throw new IOException(cause);
+				}
 			}
 
 		};
@@ -329,7 +344,16 @@ public class PacketStream {
 				}
 
 				@Override
-				public final int write(ByteBuffer src) {
+				public final int write(ByteBuffer src) throws IOException {
+					if (cause != null) {
+						if (cause instanceof MoleculerError) {
+							throw (MoleculerError) cause;
+						}
+						if (cause instanceof IOException) {
+							throw (IOException) cause;
+						}
+						throw new IOException(cause);
+					}
 					try {
 						int len = src.remaining();
 						if (len > 0) {
@@ -372,6 +396,12 @@ public class PacketStream {
 
 			@Override
 			public final int write(ByteBuffer src) throws IOException {
+				if (cause != null) {
+					if (cause instanceof IOException) {
+						throw (IOException) cause;
+					}
+					throw new IOException(cause);
+				}
 				try {
 					int len = src.remaining();
 					if (len > 0) {
@@ -393,6 +423,14 @@ public class PacketStream {
 	}
 
 	// --- "TRANSFER FROM" METHODS ---
+
+	public Promise transferFrom(URL source) {
+		try {
+			return transferFrom(source.openStream());
+		} catch (Throwable cause) {
+			return Promise.reject(cause);
+		}
+	}
 
 	public Promise transferFrom(File source) {
 		try {
@@ -675,6 +713,10 @@ public class PacketStream {
 
 	public long getTransferedBytes() {
 		return transferedBytes.get();
+	}
+
+	public Throwable getCause() {
+		return cause;
 	}
 
 }
