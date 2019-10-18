@@ -73,7 +73,11 @@ import services.moleculer.util.FastBuildTree;
  * <br>
  * TCP Transporter provides the <b>highest speed</b> data transfer between the
  * nodes (eg. hundred thousand packets per second can be transmitted from one
- * node to another over a high-speed LAN).
+ * node to another over a high-speed LAN). Usage:
+ * <pre>
+ * ServiceBroker broker = ServiceBroker.builder().nodeID("node1")
+ * .transporter(new TcpTransporter()).build();
+ * </pre>
  * 
  * @see RedisTransporter
  * @see NatsTransporter

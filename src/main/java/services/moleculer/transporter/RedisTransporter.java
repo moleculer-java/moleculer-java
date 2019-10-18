@@ -44,8 +44,11 @@ import services.moleculer.util.redis.RedisPubSubClient;
 /**
  * Redis Transporter. Redis is an open source (BSD licensed), in-memory data
  * structure store, used as a database, cache and message broker (website:
- * https://redis.io).<br>
- * <br>
+ * https://redis.io). Usage:
+ * <pre>
+ * ServiceBroker broker = ServiceBroker.builder().nodeID("node1")
+ * .transporter(new RedisTransporter("localhost")).build();
+ * </pre>
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/biz.paluch.redis/lettuce<br>

@@ -52,6 +52,11 @@ import services.moleculer.service.Name;
  * much slower than other Transporters). Rather it can be considered as a
  * reference implementation or a sample. With this Transporter multiple Service
  * Brokers can communicate with each other through a common directory structure.
+ * Usage:
+ * <pre>
+ * ServiceBroker broker = ServiceBroker.builder().nodeID("node1")
+ * .transporter(new FileSystemTransporter("/temp")).build();
+ * </pre>
  * 
  * @see AmqpTransporter
  * @see TcpTransporter

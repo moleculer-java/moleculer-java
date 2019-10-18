@@ -202,8 +202,8 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-// version = '1.2.0-SNAPSHOT'
-version = '1.2.0'
+// version = '1.2.1-SNAPSHOT'
+version = '1.2.1'
 
 modifyPom {
     project {
@@ -278,7 +278,7 @@ compileJava {
 
 jar {
     baseName = 'moleculer'
-    version =  '1.2.0'
+    version =  '1.2.1'
 }
 
 // --- TESTING ---
@@ -291,10 +291,12 @@ test {
     exclude '**/GoogleTransporterTest.class'
     exclude '**/UdpMulticastTransporterTest.class'
 	exclude '**/FileSystemTransporterTest.class'
+	exclude '**/InternalTransporterTest.class'
 
     exclude '**/KafkaStreamTest.class'
     exclude '**/JmsStreamTest.class'
     exclude '**/GoogleStreamTest.class'
     exclude '**/UdpMulticastStreamTest.class'
     exclude '**/FileSystemStreamTest.class'
+    exclude '**/InternalTransporterStreamTest.class'
 }

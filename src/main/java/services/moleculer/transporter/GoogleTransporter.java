@@ -68,8 +68,12 @@ import services.moleculer.util.CommonUtils;
 
 /**
  * Google Cloud Pub/Sub Transporter. The Google Cloud Pub/Sub service allows
- * applications to exchange messages reliably, quickly, and asynchronously.<br>
- * <br>
+ * applications to exchange messages reliably, quickly, and asynchronously.
+ * Usage:
+ * <pre>
+ * ServiceBroker broker = ServiceBroker.builder().nodeID("node1")
+ * .transporter(new GoogleTransporter("/credentials.json")).build();
+ * </pre>
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/com.google.cloud/google-cloud-pubsub

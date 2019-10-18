@@ -49,8 +49,11 @@ import services.moleculer.service.Name;
  * AMQP Transporter based on RabbitMQ's AMQP client API. AMQP provides a
  * platform-agnostic method for ensuring information is safely transported
  * between applications, among organizations, within mobile infrastructures, and
- * across the Cloud.<br>
- * <br>
+ * across the Cloud. Usage:
+ * <pre>
+ * ServiceBroker broker = ServiceBroker.builder().nodeID("node1")
+ * .transporter(new AmqpTransporter("localhost")).build();
+ * </pre>
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/com.rabbitmq/amqp-client<br>
@@ -63,6 +66,7 @@ import services.moleculer.service.Name;
  * @see JmsTransporter
  * @see GoogleTransporter
  * @see KafkaTransporter
+ * @see InternalTransporter
  */
 @Name("AMQP Transporter")
 public class AmqpTransporter extends Transporter {

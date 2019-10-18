@@ -55,7 +55,12 @@ import services.moleculer.service.Name;
  * UDP does not behave well in a lossy network by itself.<br>
  * <br>
  * If you need a RELIABLE data transport without central server (i.e. no loss of
- * data, forwarding large messages) then TCPTransporter is much better.
+ * data, forwarding large messages) then TCPTransporter is the suitable option.
+ * Usage:
+ * <pre>
+ * ServiceBroker broker = ServiceBroker.builder().nodeID("node1")
+ * .transporter(new UdpMulticastTransporter()).build();
+ * </pre>
  *
  * @see TcpTransporter
  * @see AmqpTransporter

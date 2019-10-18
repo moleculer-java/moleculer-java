@@ -46,8 +46,11 @@ import services.moleculer.service.Name;
  * MQTT Transporter (eg. for Mosquitto MQTT Server or ActiveMQ Server). MQTT is
  * a machine-to-machine (M2M)/"Internet of Things" connectivity protocol. It was
  * designed as an extremely lightweight publish/subscribe messaging transport
- * (website: http://mqtt.org).<br>
- * <br>
+ * (website: http://mqtt.org). Usage:
+ * <pre>
+ * ServiceBroker broker = ServiceBroker.builder().nodeID("node1")
+ * .transporter(new MqttTransporter("localhost")).build();
+ * </pre>
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/net.sf.xenqtt/xenqtt<br>

@@ -256,11 +256,15 @@ public class MemoryCacher extends Cacher implements Runnable {
 			MemoryPartition partition = getPartition(prefix);
 			if (partition == null) {
 				partition = new MemoryPartition(capacity, useCloning);
+				MemoryPartition previous;
 				final long stamp = lock.writeLock();
 				try {
-					partitions.put(prefix, partition);
+					previous = partitions.putIfAbsent(prefix, partition);
 				} finally {
 					lock.unlockWrite(stamp);
+				}
+				if (previous != null) {
+					partition = previous;
 				}
 			}
 			int entryTTL;

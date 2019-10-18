@@ -385,7 +385,6 @@ public class DefaultEventbus extends Eventbus {
 		if (message.get("broadcast", true)) {
 
 			// Broadcast
-			System.out.print(nodeID + " REMOTE EVENT RECEIVED: " + message);
 			broadcast(ctx, groups, true);
 
 		} else {

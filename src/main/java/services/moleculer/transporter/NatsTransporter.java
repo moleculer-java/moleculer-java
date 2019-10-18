@@ -48,8 +48,11 @@ import services.moleculer.service.Name;
  * NATS Transporter. NATS Server is a simple, high performance open source
  * messaging system for cloud native applications, IoT messaging, and
  * microservices architectures (website: https://nats.io). Tested with NATS
- * server version 1.3.0.<br>
- * <br>
+ * server version 1.3.0. Usage:
+ * <pre>
+ * ServiceBroker broker = ServiceBroker.builder().nodeID("node1")
+ * .transporter(new NatsTransporter("localhost")).build();
+ * </pre>
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/io.nats/jnats<br>
