@@ -86,6 +86,9 @@ public final class CommonUtils {
 		if (reqMeta == null) {
 			return rsp;
 		}
+		if (rsp == null || rsp.isNull()) {
+			return new CheckedTree(null, reqMeta.asObject());
+		}
 		Tree rspMeta = rsp.getMeta(false);
 		if (rspMeta == null) {
 			return new CheckedTree(rsp.asObject(), reqMeta.asObject());

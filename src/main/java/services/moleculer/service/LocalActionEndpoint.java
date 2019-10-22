@@ -88,7 +88,9 @@ public class LocalActionEndpoint extends ActionEndpoint {
 					return action.handler(ctx);
 				}
 				return Promise.resolve(action.handler(ctx)).then(in -> {
-					return mergeMeta(in, ctx.params);
+					Tree merged = mergeMeta(in, ctx.params);
+					//System.out.println("Kijött: " + in + " " + action +  "-ból ctx.params: " + ctx.params + " merged: " + merged);
+					return merged;
 				});
 			}
 

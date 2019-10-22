@@ -590,15 +590,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			return;
 		}
 
-		// Get local action endpoint (with cache handling)
-		ActionEndpoint endpoint = strategy.getEndpoint(nodeID);
-		if (endpoint == null) {
-			logger.warn("Not a local action (" + action + ")!");
-			transporter.publish(PACKET_RESPONSE, sender,
-					throwableToTree(id, nodeID, new ServiceNotAvailableError(nodeID, action)));
-			return;
-		}
-
 		// Process params and meta
 		Tree params = message.get("params");
 		Tree meta = message.get("meta");
@@ -629,6 +620,15 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		Context ctx = new Context(serviceInvoker, eventbus, uidGenerator, id, name, params, level, parentID, requestID,
 				stream, opts, sender);
 
+		// Get local action endpoint (with cache handling)
+		ActionEndpoint endpoint = strategy.getEndpoint(ctx, nodeID);
+		if (endpoint == null) {
+			logger.warn("Not a local action (" + action + ")!");
+			transporter.publish(PACKET_RESPONSE, sender,
+					throwableToTree(id, nodeID, new ServiceNotAvailableError(nodeID, action)));
+			return;
+		}
+		
 		// Invoke action
 		try {
 			new Promise(endpoint.handler(ctx)).then(data -> {
@@ -968,18 +968,25 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 	protected void addOnlineActions(String serviceName, Service service) {
 		Class<? extends Service> clazz = service.getClass();
-		Field[] fields = clazz.getFields();
+		LinkedHashMap<String, Field> fields = new LinkedHashMap<>(64);
+		for (Field f: clazz.getDeclaredFields()) {
+			f.setAccessible(true);
+			fields.putIfAbsent(f.getName(), f);
+		}
+		for (Field f: clazz.getFields()) {
+			f.setAccessible(true);
+			fields.putIfAbsent(f.getName(), f);
+		}
 		int actionCounter = 0;
 
 		final long stamp = lock.writeLock();
 		try {
 
 			// Initialize actions in service
-			for (Field field : fields) {
+			for (Field field : fields.values()) {
 				if (!Action.class.isAssignableFrom(field.getType())) {
 					continue;
 				}
-				field.setAccessible(true);
 				Action action = (Action) field.get(service);
 
 				// Name of the action (eg. "service.action")
@@ -1275,7 +1282,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		if (strategy == null) {
 			throw new ServiceNotFoundError(nodeID, name);
 		}
-		ActionEndpoint endpoint = strategy.getEndpoint(nodeID);
+		ActionEndpoint endpoint = strategy.getEndpoint(null, nodeID);
 		if (endpoint == null) {
 			throw new ServiceNotAvailableError(nodeID, name);
 		}
@@ -1482,7 +1489,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					String serviceName = actionName.substring(0, actionName.lastIndexOf('.'));
 
 					// Get endpoint
-					ActionEndpoint endpoint = entry.getValue().getEndpoint(nodeID);
+					ActionEndpoint endpoint = entry.getValue().getEndpoint(null, nodeID);
 					if (endpoint == null) {
 						continue;
 					}

@@ -66,6 +66,7 @@ public abstract class TransporterTest extends TestCase {
 	// --- COMMON TESTS ---
 
 	@Test
+	@SuppressWarnings("unused")
 	public void testTransporters() throws Exception {
 
 		// NodeIDs
@@ -356,8 +357,7 @@ public abstract class TransporterTest extends TestCase {
 		br2.waitForServices("level1EventService", "level3EventService").waitFor(20000);
 
 		br2.createService(new Service("metasender") {
-			@SuppressWarnings("unused")
-			public Action action = ctx -> {
+			Action action = ctx -> {
 				assertTrue(ctx.params.isEmpty());
 				assertEquals(1, ctx.level);
 
@@ -386,6 +386,101 @@ public abstract class TransporterTest extends TestCase {
 		assertEquals("v2", rsp.getMeta().get("l2", ""));
 		assertEquals("v3", rsp.getMeta().get("l3", ""));
 
+		// Chained meta
+		br2.createService(new Service("ttt") {
+			Action first = ctx -> {
+				
+				// Modify meta (first time)
+				ctx.params.getMeta().put("a", "John");
+				
+				return ctx.call("ttt.second").then(rsp -> {
+
+					// Prints: { a: "John", b: 5 }
+					Tree m = rsp.getMeta();
+					assertEquals("John", m.get("a", ""));
+					assertEquals("5", m.get("b", ""));
+					assertEquals("y", m.get("x", ""));
+					
+					m.put("Q", 123);
+				});
+			};
+			Action second = ctx -> {
+
+				Tree m = ctx.params.getMeta();
+				assertEquals("John", m.get("a", ""));
+				assertEquals("y", m.get("x", ""));	
+				assertNull(m.get("Q"));
+
+				// Modify meta (second time)
+				m.put("b", 5);
+				return null;
+			};
+		});
+		br1.waitForServices("ttt").waitFor(20000);
+		br2.waitForServices("ttt").waitFor(20000);
+		
+		rsp = br1.call("ttt.first", "_meta.x", "y").waitFor(20000);
+		Tree m = rsp.getMeta();
+		assertEquals("John", m.get("a", ""));
+		assertEquals("5", m.get("b", ""));
+		assertEquals("y", m.get("x", ""));
+		assertEquals(123, m.get("Q", 0));
+		
+		rsp = br2.call("ttt.first", "_meta.x", "y").waitFor(20000);
+		m = rsp.getMeta();
+		assertEquals("John", m.get("a", ""));
+		assertEquals("5", m.get("b", ""));
+		assertEquals("y", m.get("x", ""));
+		assertEquals(123, m.get("Q", 0));
+		
+		// Chained meta
+		br1.createService(new Service("ttt2") {
+			Action first = ctx -> {
+				
+				// Modify meta (first time)
+				ctx.params.getMeta().put("a", "John");
+				
+				return ctx.call("ttt3.second").then(rsp -> {
+
+					// Prints: { a: "John", b: 5 }
+					Tree m = rsp.getMeta();
+					assertEquals("John", m.get("a", ""));
+					assertEquals("5", m.get("b", ""));
+					assertEquals("y", m.get("x", ""));
+					
+					m.put("Q", 123);
+				});
+			};
+		});
+		br2.createService(new Service("ttt3") {
+			Action second = ctx -> {
+
+				Tree m = ctx.params.getMeta();
+				assertEquals("John", m.get("a", ""));
+				assertEquals("y", m.get("x", ""));	
+				assertNull(m.get("Q"));
+				
+				m.put("b", 5);
+				return null;
+			};
+		});
+		br1.waitForServices("ttt3").waitFor(20000);
+		br2.waitForServices("ttt2").waitFor(20000);
+		
+		rsp = br1.call("ttt2.first", "_meta.x", "y").waitFor(20000);
+		m = rsp.getMeta();
+		assertEquals("John", m.get("a", ""));
+		assertEquals("5", m.get("b", ""));
+		assertEquals("y", m.get("x", ""));
+		assertEquals(123, m.get("Q", 0));
+		
+		rsp = br2.call("ttt2.first", "_meta.x", "y").waitFor(20000);
+		m = rsp.getMeta();
+		assertEquals("John", m.get("a", ""));
+		assertEquals("5", m.get("b", ""));
+		assertEquals("y", m.get("x", ""));
+		assertEquals(123, m.get("Q", 0));
+
 		// LAST test: reject on disconnect
 		br1.createService(new SlowService());
 		br2.waitForServices("slowService").waitFor(20000);
@@ -411,7 +506,7 @@ public abstract class TransporterTest extends TestCase {
 
 	protected static final class NullService extends Service {
 
-		public Action nullAction = ctx -> {
+		Action nullAction = ctx -> {
 			assertNull(ctx.params);
 			return null;
 		};
@@ -420,7 +515,7 @@ public abstract class TransporterTest extends TestCase {
 
 	protected static final class SlowService extends Service {
 
-		public Action slowAction = ctx -> {
+		Action slowAction = ctx -> {
 			try {
 				Thread.sleep(5000);
 			} catch (Exception e) {
@@ -432,7 +527,7 @@ public abstract class TransporterTest extends TestCase {
 
 	protected static final class MetaEchoService extends Service {
 
-		public Action action = ctx -> {
+		Action action = ctx -> {
 			Tree reqMeta = ctx.params.getMeta();
 
 			Tree rsp = new Tree();
@@ -450,7 +545,7 @@ public abstract class TransporterTest extends TestCase {
 
 		@Group("group1")
 		@Subscribe("test.*")
-		public Listener evt = ctx -> {
+		Listener evt = ctx -> {
 			synchronized (payloads) {
 				payloads.addLast(ctx.params);
 				payloads.notifyAll();
@@ -474,7 +569,7 @@ public abstract class TransporterTest extends TestCase {
 
 		@Group("group2")
 		@Subscribe("test.*")
-		public Listener evt = ctx -> {
+		Listener evt = ctx -> {
 			synchronized (payloads) {
 				payloads.addLast(ctx.params);
 				payloads.notifyAll();
@@ -501,7 +596,7 @@ public abstract class TransporterTest extends TestCase {
 		protected Context ctx;
 
 		@Subscribe("stream.*")
-		public Listener evt = ctx -> {
+		Listener evt = ctx -> {
 			this.ctx = ctx;
 			ctx.stream.onPacket((bytes, err, closed) -> {
 				if (bytes != null) {
@@ -517,7 +612,7 @@ public abstract class TransporterTest extends TestCase {
 
 	protected static final class TestService extends Service {
 
-		public Action add = ctx -> {
+		Action add = ctx -> {
 			return ctx.params.get("a", 0) + ctx.params.get("b", 0);
 		};
 
@@ -526,14 +621,14 @@ public abstract class TransporterTest extends TestCase {
 	protected static final class Level1EventService extends Service {
 
 		@Subscribe("level1.*")
-		public Listener evt = ctx -> {
+		Listener evt = ctx -> {
 			logger.info("Level1EventService invoked.");
 			assertEquals(2, ctx.level);
 			assertEquals("node2", ctx.nodeID);
 			ctx.broadcast("level2.xyz", "a", 4);
 		};
 
-		public Action level1Action = ctx -> {
+		Action level1Action = ctx -> {
 			Tree req = new Tree();
 			req.getMeta().put("l1", "v1");
 			assertEquals(1, ctx.level);
@@ -553,7 +648,7 @@ public abstract class TransporterTest extends TestCase {
 	protected static final class Level2EventService extends Service {
 
 		@Subscribe("level2.xyz")
-		public Listener evt = ctx -> {
+		Listener evt = ctx -> {
 			logger.info("Level2EventService invoked.");
 			assertEquals(3, ctx.level);
 			ctx.broadcast("level3.xyz", "a", 5);
@@ -561,7 +656,7 @@ public abstract class TransporterTest extends TestCase {
 			ctx.call("level3EventService.level3ActionB", "X", "Y");
 		};
 
-		public Action level2Action = ctx -> {
+		Action level2Action = ctx -> {
 			Tree req = new Tree();
 			assertEquals(2, ctx.level);
 			req.getMeta().put("l2", "v2");
@@ -583,13 +678,13 @@ public abstract class TransporterTest extends TestCase {
 		protected Context ctxB;
 
 		@Subscribe("level3.*")
-		public Listener evt = ctx -> {
+		Listener evt = ctx -> {
 			logger.info("Level3EventService invoked.");
 			assertEquals("node2", ctx.nodeID);
 			this.ctx = ctx;
 		};
 
-		public Action level3Action = ctx -> {
+		Action level3Action = ctx -> {
 			assertEquals("node2", ctx.nodeID);
 			assertEquals(3, ctx.level);
 			assertEquals("v0", ctx.params.getMeta().get("l0", ""));
@@ -600,7 +695,7 @@ public abstract class TransporterTest extends TestCase {
 			return rsp;
 		};
 
-		public Action level3ActionB = ctx -> {
+		Action level3ActionB = ctx -> {
 			assertEquals("node2", ctx.nodeID);
 			assertEquals(4, ctx.level);
 			this.ctxB = ctx;

@@ -63,34 +63,34 @@ public abstract class StrategyTest extends TestCase {
 		assertEquals(6, s.getAllEndpoints().size());
 		HashSet<LocalActionEndpoint> set = new HashSet<>();
 		for (int i = 0; i < 100; i++) {
-			set.add(s.getEndpoint(null));
+			set.add(s.getEndpoint(null, null));
 		}
 		assertEquals(3, set.size());
 		set.clear();
 		for (int i = 0; i < 100; i++) {
-			LocalActionEndpoint ep = s.getEndpoint("node1");
+			LocalActionEndpoint ep = s.getEndpoint(null, "node1");
 			assertEquals("node1", ep.getNodeID());
 			set.add(ep);
 		}
 		assertEquals(3, set.size());
 		set.clear();
 		for (int i = 0; i < 100; i++) {
-			LocalActionEndpoint ep = s.getEndpoint("node2");
+			LocalActionEndpoint ep = s.getEndpoint(null, "node2");
 			assertEquals("node2", ep.getNodeID());
 			set.add(ep);
 		}
 		assertEquals(3, set.size());
 		s.remove("node1");
 		for (int i = 0; i < 10; i++) {
-			assertNull(s.getEndpoint("node1"));
+			assertNull(s.getEndpoint(null, "node1"));
 		}
 		for (int i = 0; i < 10; i++) {
-			assertNotNull(s.getEndpoint("node2"));
+			assertNotNull(s.getEndpoint(null, "node2"));
 		}
 		assertEquals(3, s.getAllEndpoints().size());
 		s.remove("node2");
 		for (int i = 0; i < 10; i++) {
-			assertNull(s.getEndpoint("node2"));
+			assertNull(s.getEndpoint(null, "node2"));
 		}
 		assertEquals(0, s.getAllEndpoints().size());
 	}
@@ -104,7 +104,7 @@ public abstract class StrategyTest extends TestCase {
 		HashSet<LocalActionEndpoint> set1 = new HashSet<>();
 		HashSet<LocalActionEndpoint> set2 = new HashSet<>();
 		for (int i = 0; i < 100; i++) {
-			LocalActionEndpoint ep = s.getEndpoint(null);
+			LocalActionEndpoint ep = s.getEndpoint(null, null);
 			if (i > 0 && i % 10 == 0) {
 				assertTrue(set2.size() > 1);
 				set2.clear();

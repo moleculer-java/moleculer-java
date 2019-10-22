@@ -62,7 +62,7 @@ public class CpuUsageStrategyTest extends StrategyTest {
 		assertEquals(6, s.getAllEndpoints().size());
 		double sum = 0;
 		for (int i = 0; i < 200; i++) {
-			LocalActionEndpoint e = s.getEndpoint(null);
+			LocalActionEndpoint e = s.getEndpoint(null, null);
 			sum += Integer.parseInt(e.getNodeID().substring(4));
 		}
 		double average = sum / 200d;

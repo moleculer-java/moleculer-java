@@ -27,6 +27,7 @@ package services.moleculer.strategy;
 
 import java.util.List;
 
+import services.moleculer.context.Context;
 import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
@@ -50,7 +51,7 @@ public abstract class Strategy<T extends Endpoint> {
 
 	// --- GET THE NEXT LOCAL OR REMOTE ENDPOINT ---
 
-	public abstract T getEndpoint(String nodeID);
+	public abstract T getEndpoint(Context ctx, String nodeID);
 
 	// --- GET ALL ENDPOINTS ---
 

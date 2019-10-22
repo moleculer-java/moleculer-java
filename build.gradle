@@ -89,7 +89,7 @@ dependencies {
     // --- DATATREE API ---
     	    
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-adapters
-	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.11'
+	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.12'
 
     // --- PROMISE API ---
     
@@ -133,7 +133,7 @@ dependencies {
     // --- SPRING BOOT (OPTIONAL!) ---
     
 	// https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter
-	compile (group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.1.9.RELEASE') {
+	compile (group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.2.0.RELEASE') {
 		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
 	}
 
@@ -187,7 +187,7 @@ dependencies {
 	// --- DEPENDENCY OF THE GOOGLE CLOUD PUB/SUB TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/com.google.cloud/google-cloud-pubsub
-	compile group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.96.0'
+	compile group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.98.0'
 
 	// --- DEPENDENCY OF THE KAFKA TRANSPORTER ---
 	
@@ -202,8 +202,8 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-// version = '1.2.1-SNAPSHOT'
-version = '1.2.1'
+// version = '1.2.2-SNAPSHOT'
+version = '1.2.2'
 
 modifyPom {
     project {
@@ -231,7 +231,7 @@ modifyPom {
             dependency {
                 groupId 'com.github.berkesa'
                 artifactId 'datatree-adapters'
-                version '1.0.11'
+                version '1.0.12'
                 scope 'runtime'
             }
             dependency {
@@ -278,7 +278,7 @@ compileJava {
 
 jar {
     baseName = 'moleculer'
-    version =  '1.2.1'
+    version =  '1.2.2'
 }
 
 // --- TESTING ---

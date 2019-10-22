@@ -32,6 +32,7 @@ import java.util.List;
 import io.datatree.dom.Cache;
 import io.datatree.dom.Config;
 import services.moleculer.ServiceBroker;
+import services.moleculer.context.Context;
 import services.moleculer.service.Endpoint;
 
 /**
@@ -133,7 +134,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public T getEndpoint(String nodeID) {
+	public T getEndpoint(Context ctx, String nodeID) {
 		Endpoint[] array;
 		if (nodeID == null && preferLocal) {
 			array = getEndpointsByNodeID(this.nodeID);

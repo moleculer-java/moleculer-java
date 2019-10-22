@@ -349,7 +349,7 @@ public class DefaultEventbus extends Eventbus {
 		Tree data = message.get("data");
 		Tree meta = message.get("meta");
 		if (meta != null && !meta.isEmpty()) {
-			if (data == null) {
+			if (data == null || data.isNull()) {
 				data = new CheckedTree(null, meta.asObject());
 			} else {
 				data = new CheckedTree(data.asObject(), meta.asObject());
@@ -402,64 +402,73 @@ public class DefaultEventbus extends Eventbus {
 		// Service name with version
 		String name = (serviceName == null || serviceName.isEmpty()) ? service.getName() : serviceName;
 		Class<? extends Service> clazz = service.getClass();
-		Field[] fields = clazz.getFields();
+		LinkedHashMap<String, Field> fields = new LinkedHashMap<>(64);
+		for (Field f : clazz.getDeclaredFields()) {
+			f.setAccessible(true);
+			fields.putIfAbsent(f.getName(), f);
+		}
+		for (Field f : clazz.getFields()) {
+			f.setAccessible(true);
+			fields.putIfAbsent(f.getName(), f);
+		}
 
 		boolean hasListener = false;
 		registryWriteLock.lock();
 		try {
 
 			// Initialize listeners in service
-			for (Field field : fields) {
+			for (Field field : fields.values()) {
+				if (!Listener.class.isAssignableFrom(field.getType())) {
+					continue;
+				}
 
 				// Register event listener
-				if (Listener.class.isAssignableFrom(field.getType())) {
-					hasListener = true;
+				hasListener = true;
 
-					// Name of the action (eg. "service.action")
-					String listenerName = nameOf(name, field);
+				// Name of the action (eg. "service.action")
+				String listenerName = nameOf(name, field);
 
-					// Process "Subscribe" annotation
-					Subscribe s = field.getAnnotation(Subscribe.class);
-					String subscribe = null;
-					if (s != null) {
-						subscribe = s.value();
-					}
-					if (subscribe == null || subscribe.isEmpty()) {
-						subscribe = listenerName;
-					}
-
-					// Process "Group" annotation
-					String group = null;
-					Group g = field.getAnnotation(Group.class);
-					if (g != null) {
-						group = g.value();
-					}
-					if (group == null || group.isEmpty()) {
-						group = name;
-					}
-
-					// Register listener in EventBus
-					field.setAccessible(true);
-					Listener listener = (Listener) field.get(service);
-
-					// Get or create group map
-					HashMap<String, Strategy<ListenerEndpoint>> groups = listeners.get(subscribe);
-					if (groups == null) {
-						groups = new HashMap<String, Strategy<ListenerEndpoint>>();
-						listeners.put(subscribe, groups);
-					}
-
-					// Get or create strategy
-					Strategy<ListenerEndpoint> strategy = groups.get(group);
-					if (strategy == null) {
-						strategy = this.strategy.create();
-						groups.put(group, strategy);
-					}
-
-					// Add endpoint to strategy
-					strategy.addEndpoint(new LocalListenerEndpoint(executor, nodeID, name, group, subscribe, listener,
-							asyncLocalInvocation));
+				// Process "Subscribe" annotation
+				Subscribe s = field.getAnnotation(Subscribe.class);
+				String subscribe = null;
+				if (s != null) {
+					subscribe = s.value();
 				}
+				if (subscribe == null || subscribe.isEmpty()) {
+					subscribe = listenerName;
+				}
+
+				// Process "Group" annotation
+				String group = null;
+				Group g = field.getAnnotation(Group.class);
+				if (g != null) {
+					group = g.value();
+				}
+				if (group == null || group.isEmpty()) {
+					group = name;
+				}
+
+				// Register listener in EventBus
+				field.setAccessible(true);
+				Listener listener = (Listener) field.get(service);
+
+				// Get or create group map
+				HashMap<String, Strategy<ListenerEndpoint>> groups = listeners.get(subscribe);
+				if (groups == null) {
+					groups = new HashMap<String, Strategy<ListenerEndpoint>>();
+					listeners.put(subscribe, groups);
+				}
+
+				// Get or create strategy
+				Strategy<ListenerEndpoint> strategy = groups.get(group);
+				if (strategy == null) {
+					strategy = this.strategy.create();
+					groups.put(group, strategy);
+				}
+
+				// Add endpoint to strategy
+				strategy.addEndpoint(new LocalListenerEndpoint(executor, nodeID, name, group, subscribe, listener,
+						asyncLocalInvocation));
 			}
 		} catch (Exception cause) {
 			logger.error("Unable to register local listener!", cause);
@@ -613,7 +622,7 @@ public class DefaultEventbus extends Eventbus {
 			try {
 
 				// Invoke local or remote listener
-				ListenerEndpoint endpoint = strategies[0].getEndpoint(local ? nodeID : null);
+				ListenerEndpoint endpoint = strategies[0].getEndpoint(ctx, local ? nodeID : null);
 				if (endpoint != null) {
 					endpoint.on(ctx, groups, false);
 				}
@@ -630,7 +639,7 @@ public class DefaultEventbus extends Eventbus {
 		if (local) {
 			for (int i = 0; i < strategies.length; i++) {
 				try {
-					ListenerEndpoint endpoint = strategies[i].getEndpoint(nodeID);
+					ListenerEndpoint endpoint = strategies[i].getEndpoint(ctx, nodeID);
 					if (endpoint == null) {
 						stopStreaming(ctx);
 					} else {
@@ -652,7 +661,7 @@ public class DefaultEventbus extends Eventbus {
 		// Group targets
 		boolean foundLocal = false;
 		for (int i = 0; i < strategies.length; i++) {
-			ListenerEndpoint endpoint = strategies[i].getEndpoint(null);
+			ListenerEndpoint endpoint = strategies[i].getEndpoint(ctx, null);
 			if (endpoint != null) {
 				if (endpoint.isLocal()) {
 					try {
@@ -695,11 +704,11 @@ public class DefaultEventbus extends Eventbus {
 			}
 		}
 	}
-	
+
 	protected void stopStreaming(Context ctx) {
 		if (ctx.stream != null) {
 			ctx.stream.sendError(new ListenerNotAvailableError(nodeID, ctx.name));
-		}		
+		}
 	}
 
 	// --- SEND EVENT TO ALL LISTENERS IN THE SPECIFIED GROUP ---
