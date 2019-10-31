@@ -26,6 +26,7 @@
 package services.moleculer.strategy;
 
 import services.moleculer.ServiceBroker;
+import services.moleculer.context.Context;
 import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
@@ -39,6 +40,7 @@ import services.moleculer.service.Name;
  * @see XorShiftRandomStrategy
  * @see SecureRandomStrategy
  * @see CpuUsageStrategy
+ * @see ShardStrategy
  */
 @Name("Lowest Network Latency Strategy")
 public class NetworkLatencyStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T> {
@@ -66,7 +68,7 @@ public class NetworkLatencyStrategy<T extends Endpoint> extends XorShiftRandomSt
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
-	public Endpoint next(Endpoint[] array) {
+	public Endpoint next(Context ctx, Endpoint[] array) {
 
 		// Minimum values
 		long minResponseTime = Long.MAX_VALUE;
@@ -80,7 +82,7 @@ public class NetworkLatencyStrategy<T extends Endpoint> extends XorShiftRandomSt
 		for (int i = 0; i < sampleCount; i++) {
 
 			// Get random endpoint
-			endpoint = super.next(array);
+			endpoint = super.next(ctx, array);
 
 			// Check response time
 			responseTime = factory.getAverageResponseTime(endpoint.getNodeID());

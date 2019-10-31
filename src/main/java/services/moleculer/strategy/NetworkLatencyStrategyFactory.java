@@ -51,6 +51,7 @@ import services.moleculer.util.CommonUtils;
  * @see XorShiftRandomStrategyFactory
  * @see NanoSecRandomStrategyFactory
  * @see CpuUsageStrategyFactory
+ * @see ShardStrategyFactory
  */
 @Name("Lowest Network Latency Strategy Factory")
 public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {

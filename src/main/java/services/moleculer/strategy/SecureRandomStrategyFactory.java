@@ -36,6 +36,7 @@ import services.moleculer.service.Name;
  * @see XorShiftRandomStrategyFactory
  * @see CpuUsageStrategyFactory
  * @see NetworkLatencyStrategyFactory
+ * @see ShardStrategyFactory
  */
 @Name("Secure Random Strategy Factory")
 public class SecureRandomStrategyFactory extends ArrayBasedStrategyFactory {

@@ -36,6 +36,7 @@ import services.moleculer.service.Name;
  * @see XorShiftRandomStrategyFactory
  * @see CpuUsageStrategyFactory
  * @see NetworkLatencyStrategyFactory
+ * @see ShardStrategyFactory
  */
 @Name("Round-Robin Strategy Factory")
 public class RoundRobinStrategyFactory extends ArrayBasedStrategyFactory {

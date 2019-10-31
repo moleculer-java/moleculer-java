@@ -27,8 +27,6 @@ package services.moleculer.cacher;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import io.datatree.Tree;
 import io.datatree.dom.BASE64;
@@ -53,7 +51,7 @@ public abstract class DistributedCacher extends Cacher {
 
 	// --- KEY HASHERS ---
 
-	protected final Queue<MessageDigest> hashers = new ConcurrentLinkedQueue<>();
+	protected final ThreadLocal<MessageDigest> hashers = new ThreadLocal<>();
 
 	// --- CONSTRUCTORS ---
 
@@ -99,17 +97,17 @@ public abstract class DistributedCacher extends Cacher {
 
 		// Create SHA-256 hash from the entire key
 		byte[] bytes = serializedParams.getBytes(StandardCharsets.UTF_8);
-		MessageDigest hasher = hashers.poll();
+		MessageDigest hasher = hashers.get();
 		if (hasher == null) {
 			try {
 				hasher = MessageDigest.getInstance("SHA-256");
+				hashers.set(hasher);
 			} catch (Exception cause) {
 				logger.warn("Unable to get SHA-256 hasher!", cause);
 				return name + ':' + serializedParams;
 			}
 		}
 		bytes = hasher.digest(bytes);
-		hashers.add(hasher);
 
 		// Concatenate key and the 44 character long hash
 		String base64 = BASE64.encode(bytes);

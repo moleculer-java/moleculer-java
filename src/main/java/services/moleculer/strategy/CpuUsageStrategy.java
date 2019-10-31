@@ -26,6 +26,7 @@
 package services.moleculer.strategy;
 
 import services.moleculer.ServiceBroker;
+import services.moleculer.context.Context;
 import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 import services.moleculer.transporter.Transporter;
@@ -40,6 +41,7 @@ import services.moleculer.transporter.Transporter;
  * @see XorShiftRandomStrategy
  * @see SecureRandomStrategy
  * @see NetworkLatencyStrategy
+ * @see ShardStrategy
  */
 @Name("Lowest CPU Usage Strategy")
 public class CpuUsageStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T> {
@@ -73,7 +75,7 @@ public class CpuUsageStrategy<T extends Endpoint> extends XorShiftRandomStrategy
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
-	public Endpoint next(Endpoint[] array) {
+	public Endpoint next(Context ctx, Endpoint[] array) {
 
 		// Minimum values
 		long minCPU = Long.MAX_VALUE;
@@ -87,7 +89,7 @@ public class CpuUsageStrategy<T extends Endpoint> extends XorShiftRandomStrategy
 		for (int i = 0; i < sampleCount; i++) {
 
 			// Get random endpoint
-			endpoint = super.next(array);
+			endpoint = super.next(ctx, array);
 
 			// Check CPU usage
 			cpu = transporter.getCpuUsage(endpoint.getNodeID());

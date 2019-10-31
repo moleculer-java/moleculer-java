@@ -28,6 +28,7 @@ package services.moleculer.strategy;
 import java.security.SecureRandom;
 
 import services.moleculer.ServiceBroker;
+import services.moleculer.context.Context;
 import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
@@ -39,6 +40,7 @@ import services.moleculer.service.Name;
  * @see XorShiftRandomStrategy
  * @see CpuUsageStrategy
  * @see NetworkLatencyStrategy
+ * @see ShardStrategy
  */
 @Name("Secure Random Strategy")
 public class SecureRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
@@ -56,7 +58,7 @@ public class SecureRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
-	public Endpoint next(Endpoint[] array) {
+	public Endpoint next(Context ctx, Endpoint[] array) {
 		return array[rnd.nextInt(array.length)];
 	}
 

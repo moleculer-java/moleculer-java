@@ -44,6 +44,7 @@ import services.moleculer.service.Endpoint;
  * @see XorShiftRandomStrategy
  * @see CpuUsageStrategy
  * @see NetworkLatencyStrategy
+ * @see ShardStrategy
  */
 public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T> {
 
@@ -150,7 +151,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 		if (array.length == 1) {
 			return (T) array[0];
 		}
-		return (T) next(array);
+		return (T) next(ctx, array);
 	}
 
 	protected Endpoint[] getEndpointsByNodeID(String nodeID) {
@@ -178,7 +179,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 
 	// --- GET NEXT ENDPOINT ---
 
-	public abstract Endpoint next(Endpoint[] array);
+	public abstract Endpoint next(Context ctx, Endpoint[] array);
 
 	// --- GET ALL ENDPOINTS ---
 

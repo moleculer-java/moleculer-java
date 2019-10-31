@@ -41,6 +41,7 @@ import services.moleculer.util.CommonUtils;
  * @see XorShiftRandomStrategyFactory
  * @see NanoSecRandomStrategyFactory
  * @see NetworkLatencyStrategyFactory
+ * @see ShardStrategyFactory
  */
 @Name("Lowest CPU Usage Strategy Factory")
 public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {

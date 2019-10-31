@@ -28,6 +28,7 @@ package services.moleculer.strategy;
 import java.util.concurrent.atomic.AtomicLong;
 
 import services.moleculer.ServiceBroker;
+import services.moleculer.context.Context;
 import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
@@ -39,6 +40,7 @@ import services.moleculer.service.Name;
  * @see SecureRandomStrategy
  * @see CpuUsageStrategy
  * @see NetworkLatencyStrategy
+ * @see ShardStrategy
  */
 @Name("XORSHIFT Pseudorandom Strategy")
 public class XorShiftRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
@@ -56,7 +58,7 @@ public class XorShiftRandomStrategy<T extends Endpoint> extends ArrayBasedStrate
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
-	public Endpoint next(Endpoint[] array) {
+	public Endpoint next(Context ctx, Endpoint[] array) {
 
 		// Generate pseudo random long (XORShift is the fastest random method)
 		long start;

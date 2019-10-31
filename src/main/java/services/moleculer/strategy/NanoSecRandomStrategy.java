@@ -26,6 +26,7 @@
 package services.moleculer.strategy;
 
 import services.moleculer.ServiceBroker;
+import services.moleculer.context.Context;
 import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
@@ -37,6 +38,7 @@ import services.moleculer.service.Name;
  * @see XorShiftRandomStrategy
  * @see CpuUsageStrategy
  * @see NetworkLatencyStrategy
+ * @see ShardStrategy
  */
 @Name("Nanosecond-based Pseudorandom Strategy")
 public class NanoSecRandomStrategy<T extends Endpoint> extends ArrayBasedStrategy<T> {
@@ -50,7 +52,7 @@ public class NanoSecRandomStrategy<T extends Endpoint> extends ArrayBasedStrateg
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
-	public Endpoint next(Endpoint[] array) {
+	public Endpoint next(Context ctx, Endpoint[] array) {
 		return array[(int) (System.nanoTime() % array.length)];
 	}
 

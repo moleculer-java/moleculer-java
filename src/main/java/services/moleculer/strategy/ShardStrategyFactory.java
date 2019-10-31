@@ -1,7 +1,7 @@
 /**
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
- * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Copyright 2019 Andras Berkes [andras.berkes@programmer.net]<br>
  * Based on Moleculer Framework for NodeJS [https://moleculer.services].
  * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -25,44 +25,79 @@
  */
 package services.moleculer.strategy;
 
+import services.moleculer.service.Endpoint;
+import services.moleculer.service.Name;
+
 /**
- * Abstract class for Round-Robin and Random invocation strategy factories.
- *
+ * Sharding invocation strategy factory. Using consistent-hashing.<br>
+ * More info: https://www.toptal.com/big-data/consistent-hashing
+ * 
  * @see RoundRobinStrategyFactory
- * @see NanoSecRandomStrategyFactory
  * @see SecureRandomStrategyFactory
  * @see XorShiftRandomStrategyFactory
+ * @see NanoSecRandomStrategyFactory
  * @see CpuUsageStrategyFactory
  * @see NetworkLatencyStrategyFactory
- * @see ShardStrategyFactory
  */
-public abstract class ArrayBasedStrategyFactory extends StrategyFactory {
+@Name("Shard Strategy Factory")
+public class ShardStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- PROPERTIES ---
-
-	/**
-	 * Invoke local actions if possible
-	 */
-	protected boolean preferLocal;
-
+	
+	protected String shardKey;
+	protected int vnodes = 10;
+	protected Integer ringSize;
+	protected int cacheSize = 1024;
+	
 	// --- CONSTRUCTORS ---
 
-	public ArrayBasedStrategyFactory() {
-		this(true);
+	public ShardStrategyFactory() {
+		super(false);
 	}
 
-	public ArrayBasedStrategyFactory(boolean preferLocal) {
-		this.preferLocal = preferLocal;
+	public ShardStrategyFactory(boolean preferLocal) {
+		super(preferLocal);
 	}
 
-	// --- GETTERS / SETTERS ---
+	// --- FACTORY METHOD ---
 
-	public boolean isPreferLocal() {
-		return preferLocal;
+	@Override
+	public <T extends Endpoint> Strategy<T> create() {
+		return new ShardStrategy<T>(broker, preferLocal, shardKey, vnodes, ringSize, cacheSize);
 	}
 
-	public void setPreferLocal(boolean preferLocal) {
-		this.preferLocal = preferLocal;
+	// --- GETTERS AND SETTERS ---
+	
+	public String getShardKey() {
+		return shardKey;
 	}
 
+	public void setShardKey(String shardKey) {
+		this.shardKey = shardKey;
+	}
+
+	public int getVnodes() {
+		return vnodes;
+	}
+
+	public void setVnodes(int vnodes) {
+		this.vnodes = vnodes;
+	}
+
+	public Integer getRingSize() {
+		return ringSize;
+	}
+
+	public void setRingSize(Integer ringSize) {
+		this.ringSize = ringSize;
+	}
+
+	public int getCacheSize() {
+		return cacheSize;
+	}
+
+	public void setCacheSize(int cacheSize) {
+		this.cacheSize = cacheSize;
+	}	
+	
 }
