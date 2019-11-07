@@ -25,13 +25,10 @@
  */
 package services.moleculer.strategy;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 import io.datatree.dom.Cache;
 import services.moleculer.ServiceBroker;
@@ -53,10 +50,6 @@ import services.moleculer.service.Name;
 @Name("Shard Strategy")
 public class ShardStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T> {
 
-	// --- CONSTANTS ---
-
-	protected static final char[] HEX = "0123456789abcdef".toCharArray();
-
 	// --- PROPERTIES ---
 
 	protected final String shardKey;
@@ -64,24 +57,22 @@ public class ShardStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T>
 	protected final Integer ringSize;
 	protected final boolean useMeta;
 
-	protected AtomicBoolean needRebuild = new AtomicBoolean(true);
-
 	// --- RING ---
 
 	protected AtomicReference<HashMap<Endpoint, long[]>> limitMapRef = new AtomicReference<>();
 
 	// --- CACHE ---
 
-	protected final Cache<Long, Endpoint> cache;
+	protected final Cache<String, Endpoint> cache;
 
-	// --- MD5 HASHERS ---
+	// --- HASHER ---
 
-	protected final ThreadLocal<MessageDigest> hashers = new ThreadLocal<>();
+	protected final Function<String, Long> hash;
 
 	// --- CONSTRUCTOR ---
 
 	public ShardStrategy(ServiceBroker broker, boolean preferLocal, String shardKey, int vnodes, Integer ringSize,
-			int cacheSize) {
+			int cacheSize, Function<String, Long> hash) {
 		super(broker, preferLocal);
 
 		// Set properties
@@ -96,9 +87,31 @@ public class ShardStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T>
 		this.ringSize = ringSize;
 
 		// Init cache
-		cache = new Cache<>(cacheSize);
+		cache = cacheSize < 1 ? null : new Cache<>(cacheSize);
+
+		// Set hasher
+		this.hash = hash;
 	}
 
+	// --- ADD A LOCAL OR REMOTE ENDPOINT ---
+
+	@Override
+	public void addEndpoint(T endpoint) {
+		super.addEndpoint(endpoint);
+		rebuild();
+	}
+	
+	// --- REMOVE ALL ENDPOINTS OF THE SPECIFIED NODE ---
+
+	@Override
+	public boolean remove(String nodeID) {
+		boolean removed = super.remove(nodeID);
+		if (removed) {
+			rebuild();	
+		}
+		return removed;
+	}
+	
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
@@ -106,25 +119,39 @@ public class ShardStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T>
 		if (shardKey != null) {
 			String key = getKeyFromContext(ctx);
 			if (key != null) {
-				if (needRebuild.compareAndSet(true, false)) {
-					rebuild();
+
+				// Get from cache
+				Endpoint next;
+				if (cache != null) {
+					next = cache.get(key);
+					if (next != null) {
+						return next;
+					}
 				}
-				long hash = getHash(key);
-				Endpoint next = cache.get(hash);
-				if (next != null) {
-					return next;
+
+				// Calculate hash number
+				long hashNum = hash.apply(key);
+				if (ringSize != null) {
+					hashNum %= ringSize;
 				}
+
+				// Find endpoint
 				HashMap<Endpoint, long[]> limitMap = limitMapRef.get();
 				if (limitMap != null) {
+					long[][] limits = new long[array.length][];
+					for (int i = 0; i < array.length; i++) {
+						limits[i] = limitMap.get(array[i]);
+					}
 					for (int j = 0; j < vnodes; j++) {
 						for (int i = 0; i < array.length; i++) {
-							next = array[i];
-							long[] limits = limitMap.get(next);
-							if (limits == null) {
+							if (limits[i] == null) {
 								continue;
 							}
-							if (hash <= limits[j]) {
-								cache.put(hash, next);
+							if (hashNum <= limits[i][j]) {
+								next = array[i];
+								if (cache != null) {
+									cache.put(key, next);
+								}
 								return next;
 							}
 						}
@@ -160,7 +187,7 @@ public class ShardStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T>
 		int total = copy.length * vnodes;
 		long size = ringSize == null ? (long) Math.pow(2, 32) : ringSize;
 		double slice = size / (double) total;
-
+		
 		// Build ring
 		HashMap<Endpoint, long[]> limitMap = new HashMap<>(total * 2);
 		long index = 0;
@@ -181,42 +208,9 @@ public class ShardStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T>
 
 		// Store the new ring
 		limitMapRef.set(limitMap);
-		cache.clear();
-	}
-
-	protected long getHash(String key) {
-
-		// Calculate hash number
-		long hash;
-		try {
-			byte[] bytes = key.getBytes(StandardCharsets.UTF_8);
-			MessageDigest hasher = hashers.get();
-			if (hasher == null) {
-				hasher = MessageDigest.getInstance("MD5");
-				hashers.set(hasher);
-			}
-			hasher.update(bytes);
-			byte[] md5Bytes = hasher.digest();
-			char[] hexChars = new char[md5Bytes.length * 2];
-			for (int j = 0; j < md5Bytes.length; j++) {
-				int v = md5Bytes[j] & 0xFF;
-				hexChars[j * 2] = HEX[v >>> 4];
-				hexChars[j * 2 + 1] = HEX[v & 0x0F];
-			}
-			String hexString = new String(hexChars);
-			if (hexString.length() > 8) {
-				hexString = hexString.substring(0, 8);
-			}
-			hash = Long.parseLong(hexString, 16);
-		} catch (NoSuchAlgorithmException err) {
-			hash = Math.abs(key.hashCode());
+		if (cache != null) {
+			cache.clear();
 		}
-
-		// Return hash number
-		if (ringSize == null) {
-			return hash;
-		}
-		return hash % ringSize;
 	}
 
 }

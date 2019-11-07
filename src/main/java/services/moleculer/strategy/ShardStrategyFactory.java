@@ -25,6 +25,11 @@
  */
 package services.moleculer.strategy;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.function.Function;
+
 import services.moleculer.service.Endpoint;
 import services.moleculer.service.Name;
 
@@ -43,12 +48,51 @@ import services.moleculer.service.Name;
 public class ShardStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- PROPERTIES ---
-	
+
 	protected String shardKey;
 	protected int vnodes = 10;
 	protected Integer ringSize;
 	protected int cacheSize = 1024;
-	
+
+	// --- HASHER ---
+
+	/**
+	 * Default hash function (MD5).
+	 */
+	protected Function<String, Long> hash = new Function<String, Long>() {
+
+		private final char[] HEX = "0123456789abcdef".toCharArray();
+		private final ThreadLocal<MessageDigest> hashers = new ThreadLocal<>();
+
+		@Override
+		public Long apply(String key) {
+			byte[] bytes = key.getBytes(StandardCharsets.UTF_8);
+			MessageDigest hasher = hashers.get();
+			if (hasher == null) {
+				try {
+					hasher = MessageDigest.getInstance("MD5");
+				} catch (NoSuchAlgorithmException notFound) {
+					throw new RuntimeException(notFound);
+				}
+				hashers.set(hasher);
+			}
+			hasher.update(bytes);
+			byte[] md5Bytes = hasher.digest();
+			char[] hexChars = new char[md5Bytes.length * 2];
+			for (int j = 0; j < md5Bytes.length; j++) {
+				int v = md5Bytes[j] & 0xFF;
+				hexChars[j * 2] = HEX[v >>> 4];
+				hexChars[j * 2 + 1] = HEX[v & 0x0F];
+			}
+			String hexString = new String(hexChars);
+			if (hexString.length() > 8) {
+				hexString = hexString.substring(0, 8);
+			}
+			return Long.parseLong(hexString, 16);
+		}
+
+	};
+
 	// --- CONSTRUCTORS ---
 
 	public ShardStrategyFactory() {
@@ -63,11 +107,11 @@ public class ShardStrategyFactory extends ArrayBasedStrategyFactory {
 
 	@Override
 	public <T extends Endpoint> Strategy<T> create() {
-		return new ShardStrategy<T>(broker, preferLocal, shardKey, vnodes, ringSize, cacheSize);
+		return new ShardStrategy<T>(broker, preferLocal, shardKey, vnodes, ringSize, cacheSize, hash);
 	}
 
 	// --- GETTERS AND SETTERS ---
-	
+
 	public String getShardKey() {
 		return shardKey;
 	}
@@ -98,6 +142,14 @@ public class ShardStrategyFactory extends ArrayBasedStrategyFactory {
 
 	public void setCacheSize(int cacheSize) {
 		this.cacheSize = cacheSize;
-	}	
-	
+	}
+
+	public Function<String, Long> getHash() {
+		return hash;
+	}
+
+	public void setHash(Function<String, Long> hash) {
+		this.hash = hash;
+	}
+
 }
