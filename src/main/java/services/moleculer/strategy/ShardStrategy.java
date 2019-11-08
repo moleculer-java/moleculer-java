@@ -52,21 +52,43 @@ public class ShardStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T>
 
 	// --- PROPERTIES ---
 
+	/**
+	 * Shard key's path (eg. "userID", "user.email", etc.)
+	 */
 	protected final String shardKey;
+
+	/**
+	 * Number of virtual nodes
+	 */
 	protected final int vnodes;
+
+	/**
+	 * Ring size (optional)
+	 */
 	protected final Integer ringSize;
+
+	/**
+	 * Size of the memory cache (0 = disabled)
+	 */
 	protected final boolean useMeta;
+
+	/**
+	 * Size of the memory cache (0 = disabled)
+	 */
+	protected final int cacheSize;
 
 	// --- RING ---
 
-	protected AtomicReference<HashMap<Endpoint, long[]>> limitMapRef = new AtomicReference<>();
-
-	// --- CACHE ---
-
-	protected final Cache<String, Endpoint> cache;
+	/**
+	 * The "hash ring" (https://www.toptal.com/big-data/consistent-hashing)
+	 */
+	protected final AtomicReference<Ring> ringRef = new AtomicReference<>();
 
 	// --- HASHER ---
 
+	/**
+	 * Hasher function (generated hash is 32 bits long, default method is MD5)
+	 */
 	protected final Function<String, Long> hash;
 
 	// --- CONSTRUCTOR ---
@@ -83,14 +105,13 @@ public class ShardStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T>
 			this.shardKey = shardKey == null || shardKey.isEmpty() ? null : shardKey;
 			useMeta = false;
 		}
-		this.vnodes = vnodes;
+		this.vnodes = vnodes < 1 ? 1 : vnodes;
 		this.ringSize = ringSize;
-
-		// Init cache
-		cache = cacheSize < 1 ? null : new Cache<>(cacheSize);
-
-		// Set hasher
+		this.cacheSize = cacheSize;
 		this.hash = hash;
+
+		// Init Ring
+		rebuild();
 	}
 
 	// --- ADD A LOCAL OR REMOTE ENDPOINT ---
@@ -100,18 +121,18 @@ public class ShardStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T>
 		super.addEndpoint(endpoint);
 		rebuild();
 	}
-	
+
 	// --- REMOVE ALL ENDPOINTS OF THE SPECIFIED NODE ---
 
 	@Override
 	public boolean remove(String nodeID) {
 		boolean removed = super.remove(nodeID);
 		if (removed) {
-			rebuild();	
+			rebuild();
 		}
 		return removed;
 	}
-	
+
 	// --- GET NEXT ENDPOINT ---
 
 	@Override
@@ -120,10 +141,13 @@ public class ShardStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T>
 			String key = getKeyFromContext(ctx);
 			if (key != null) {
 
+				// Get current ring
+				Ring ring = ringRef.get();
+
 				// Get from cache
 				Endpoint next;
-				if (cache != null) {
-					next = cache.get(key);
+				if (ring.cache != null) {
+					next = ring.cache.get(key);
 					if (next != null) {
 						return next;
 					}
@@ -131,29 +155,26 @@ public class ShardStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T>
 
 				// Calculate hash number
 				long hashNum = hash.apply(key);
-				if (ringSize != null) {
-					hashNum %= ringSize;
+				if (ring.ringSize > -1) {
+					hashNum %= ring.ringSize;
 				}
 
 				// Find endpoint
-				HashMap<Endpoint, long[]> limitMap = limitMapRef.get();
-				if (limitMap != null) {
-					long[][] limits = new long[array.length][];
+				long[][] limits = new long[array.length][];
+				for (int i = 0; i < array.length; i++) {
+					limits[i] = ring.limitMap.get(array[i]);
+				}
+				for (int j = 0; j < vnodes; j++) {
 					for (int i = 0; i < array.length; i++) {
-						limits[i] = limitMap.get(array[i]);
-					}
-					for (int j = 0; j < vnodes; j++) {
-						for (int i = 0; i < array.length; i++) {
-							if (limits[i] == null) {
-								continue;
+						if (limits[i] == null) {
+							continue;
+						}
+						if (hashNum <= limits[i][j]) {
+							next = array[i];
+							if (ring.cache != null) {
+								ring.cache.put(key, next);
 							}
-							if (hashNum <= limits[i][j]) {
-								next = array[i];
-								if (cache != null) {
-									cache.put(key, next);
-								}
-								return next;
-							}
+							return next;
 						}
 					}
 				}
@@ -183,20 +204,22 @@ public class ShardStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T>
 			return String.CASE_INSENSITIVE_ORDER.compare(ep1.getNodeID(), ep2.getNodeID());
 		});
 
+		// Check ringSize
+		Ring ring = new Ring(copy.length, vnodes, ringSize, cacheSize);
+		
 		// Calculate
 		int total = copy.length * vnodes;
-		long size = ringSize == null ? (long) Math.pow(2, 32) : ringSize;
+		long size = ring.ringSize > -1 ? ring.ringSize : (long) Math.pow(2, 32);
 		double slice = size / (double) total;
 		
 		// Build ring
-		HashMap<Endpoint, long[]> limitMap = new HashMap<>(total * 2);
-		long index = 0;
+		long index = 1;
 		for (int j = 0; j < vnodes; j++) {
 			for (int i = 0; i < copy.length; i++) {
-				long[] limits = limitMap.get(copy[i]);
+				long[] limits = ring.limitMap.get(copy[i]);
 				if (limits == null) {
 					limits = new long[vnodes];
-					limitMap.put(copy[i], limits);
+					ring.limitMap.put(copy[i], limits);
 				}
 				if (j == vnodes - 1 && i == copy.length - 1) {
 					limits[j] = size;
@@ -206,11 +229,42 @@ public class ShardStrategy<T extends Endpoint> extends XorShiftRandomStrategy<T>
 			}
 		}
 
-		// Store the new ring
-		limitMapRef.set(limitMap);
-		if (cache != null) {
-			cache.clear();
+		// Store the new ring (clear cache)
+		ringRef.set(ring);
+	}
+
+	// --- RING ---
+
+	protected static class Ring {
+
+		// --- VARIABLES ---
+		/**
+		 * The "hash ring" (https://www.toptal.com/big-data/consistent-hashing)
+		 */
+		protected HashMap<Endpoint, long[]> limitMap;
+
+		/**
+		 * Actual/minimum ring size (or -1, if not set)
+		 */
+		protected final int ringSize;
+
+		/**
+		 * Accelerator cache
+		 */
+		protected final Cache<String, Endpoint> cache;
+
+		// --- CONSTRUCTOR ---
+
+		protected Ring(int nodes, int vnodes, Integer ringSize, int cacheSize) {
+			if (ringSize == null || nodes < 1) {
+				this.ringSize = -1;
+			} else {
+				this.ringSize = Math.max(ringSize, vnodes * nodes);
+			}
+			cache = cacheSize < 1 ? null : new Cache<>(cacheSize);
+			limitMap = new HashMap<>(this.ringSize == -1 ? 512 : this.ringSize * 2);
 		}
+
 	}
 
 }

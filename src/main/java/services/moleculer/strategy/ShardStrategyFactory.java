@@ -49,9 +49,24 @@ public class ShardStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- PROPERTIES ---
 
+	/**
+	 * Shard key's path (eg. "userID", "user.email", etc.)
+	 */
 	protected String shardKey;
+
+	/**
+	 * Number of virtual nodes
+	 */
 	protected int vnodes = 10;
+
+	/**
+	 * Ring size (optional)
+	 */
 	protected Integer ringSize;
+
+	/**
+	 * Size of the memory cache (0 = disabled)
+	 */
 	protected int cacheSize = 1024;
 
 	// --- HASHER ---

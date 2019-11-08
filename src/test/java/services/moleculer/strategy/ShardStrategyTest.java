@@ -39,14 +39,13 @@ public class ShardStrategyTest extends StrategyTest {
 	public Strategy<LocalActionEndpoint> createStrategy(boolean preferLocal) throws Exception {
 		ShardStrategyFactory f = new ShardStrategyFactory(preferLocal);
 		f.setShardKey("key");
-		// f.setRingSize(100);
-		f.setCacheSize(1024);
 		f.started(br);
 		return f.create();
 	}
 
 	// --- TEST METHODS ---
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testSharding() throws Exception {
 
@@ -76,7 +75,7 @@ public class ShardStrategyTest extends StrategyTest {
 		assertEquals(1, set.size());
 		assertNotSame(nodeID, set.iterator().next());
 
-		// Precalculated values
+		// Precalculated values (Node.js compatibility tests)
 		ShardStrategyFactory f = new ShardStrategyFactory();
 
 		assertEquals(3486326916L, (long) f.hash.apply("0"));
@@ -179,6 +178,138 @@ public class ShardStrategyTest extends StrategyTest {
 		assertEquals(3304207601L, (long) f.hash.apply("1c328db726235700"));
 		assertEquals(828887894L, (long) f.hash.apply("1c7cf8be53b913804a6b072aa724b"));
 		assertEquals(3600310098L, (long) f.hash.apply("1cc763c5816d56204a6b072aaef6e94d60e555e626"));
+
+		f = new ShardStrategyFactory(false);
+		f.setShardKey("key");
+		f.setRingSize(3001);
+		f.setVnodes(7);
+		f.setCacheSize(1024);
+		f.started(br);
+		s = (ShardStrategy) f.create();
+		for (int i = 0; i <= 8; i++) {
+			s.addEndpoint(createEndpoint(br, "node" + i, "e" + i));
+		}
+
+		// nodes: 8 (node0...node7)
+		// vnodes: 7
+		// ringSize: 3001
+		assertNodeLinkedToKey(s, "node4", "70f83f5064f4d");
+		assertNodeLinkedToKey(s, "node6", "e1f07ea102414e1f07ea104fd0");
+		assertNodeLinkedToKey(s, "node0", "152e8bdf1ae353");
+		assertNodeLinkedToKey(s, "node8", "1c3e0fd4269a6c1c3e0fd426bc70");
+		assertNodeLinkedToKey(s, "node0", "234d93c934316d234d93c9349ec3");
+		assertNodeLinkedToKey(s, "node2", "2a5d17be439d5e2a5d17be43d7ae2a5d17be43f4dc");
+		assertNodeLinkedToKey(s, "node5", "316c9bb353eef0");
+		assertNodeLinkedToKey(s, "node3", "387c1fa8667440387c1fa866c200");
+		assertNodeLinkedToKey(s, "node3", "3f8ba39d79c0cb");
+		assertNodeLinkedToKey(s, "node1", "469b27928e1156469b27928e6660469b27928f1c9a");
+		assertNodeLinkedToKey(s, "node7", "4daaab87a576564daaab87a5e149");
+		assertNodeLinkedToKey(s, "node7", "54ba2f7cbd0bf4");
+		assertNodeLinkedToKey(s, "node6", "5bc9b371d70ac9");
+		assertNodeLinkedToKey(s, "node5", "62d93766f16ac862d93766f1f2d862d93766f236e0");
+		assertNodeLinkedToKey(s, "node6", "69e8bb5c0e0d11");
+		assertNodeLinkedToKey(s, "node0", "70f83f512ad640");
+		assertNodeLinkedToKey(s, "node0", "7807c3471b4ca7");
+		assertNodeLinkedToKey(s, "node0", "7f17473c4a91fa7f17473c4b56c87f17473c4bae40");
+		assertNodeLinkedToKey(s, "node2", "8626cb317880998626cb3179c3d2");
+		assertNodeLinkedToKey(s, "node4", "8d364f26a8e2408d364f26a98c548d364f26aa4eb4");
+		assertNodeLinkedToKey(s, "node0", "9445d31bd97a85");
+		assertNodeLinkedToKey(s, "node6", "9b555711e7c24a");
+		assertNodeLinkedToKey(s, "node5", "a264db0733382f");
+		assertNodeLinkedToKey(s, "node0", "a9745efc715838");
+		assertNodeLinkedToKey(s, "node5", "b083e2f1dd5c80");
+		assertNodeLinkedToKey(s, "node3", "b79366e725e138b79366e726fd7eb79366e7279b6c");
+		assertNodeLinkedToKey(s, "node7", "bea2eadc89a4cfbea2eadc8aecd1");
+		assertNodeLinkedToKey(s, "node6", "c5b26ed1d43518c5b26ed1d54538c5b26ed1d5ef4c");
+		assertNodeLinkedToKey(s, "node3", "ccc1f2c71e6b81ccc1f2c71f3ee3");
+		assertNodeLinkedToKey(s, "node2", "d3d176bc67833cd3d176bc68825a");
+		assertNodeLinkedToKey(s, "node0", "dae0fab1b4d1c5");
+		assertNodeLinkedToKey(s, "node8", "e1f07ea6ffa3c0e1f07ea700dac0");
+		assertNodeLinkedToKey(s, "node6", "e900029c4f1ebbe900029c50375ce900029c50ffcf");
+		assertNodeLinkedToKey(s, "node7", "f00f86919e3fd6");
+		assertNodeLinkedToKey(s, "node3", "f71f0a86ec89cd");
+		assertNodeLinkedToKey(s, "node6", "fe2e8e7c3dbb68fe2e8e7c3eed8c");
+		assertNodeLinkedToKey(s, "node0", "1053e127193339c1053e1271946e411053e1271954f00");
+		assertNodeLinkedToKey(s, "node3", "10c4d9666e7c772");
+		assertNodeLinkedToKey(s, "node4", "1135d1a5c3bd5851135d1a5c3d50b41135d1a5c3e0e38");
+		assertNodeLinkedToKey(s, "node3", "11a6c9e51948a78");
+		assertNodeLinkedToKey(s, "node0", "1217c2246ec82d4");
+		assertNodeLinkedToKey(s, "node3", "1288ba63c456230");
+		assertNodeLinkedToKey(s, "node5", "12f9b2a31b8068212f9b2a31b9dca712f9b2a31baadc6");
+		assertNodeLinkedToKey(s, "node0", "136aaae27154870136aaae27186a3c136aaae27194038");
+		assertNodeLinkedToKey(s, "node8", "13dba321c778255");
+		assertNodeLinkedToKey(s, "node8", "144c9b611f41f52144c9b611f64e26144c9b611f76590");
+		assertNodeLinkedToKey(s, "node6", "14bd93a0761790d14bd93a0764263914bd93a076c6705");
+		assertNodeLinkedToKey(s, "node7", "152e8bdfcd94d30");
+		assertNodeLinkedToKey(s, "node4", "159f841f244a9f6");
+		assertNodeLinkedToKey(s, "node6", "16107c5e7b215d016107c5e7b4387e");
+		assertNodeLinkedToKey(s, "node8", "1681749dd18e1c41681749dd1ad16c");
+		assertNodeLinkedToKey(s, "node6", "16f26cdd2881dbc");
+		assertNodeLinkedToKey(s, "node6", "1763651c7f5a32b1763651c7f7e6db1763651c7f8e867");
+		assertNodeLinkedToKey(s, "node8", "17d45d5bd610116");
+		assertNodeLinkedToKey(s, "node3", "1845559b2c9c1a61845559b2cbd82e");
+		assertNodeLinkedToKey(s, "node3", "18b64dda839c760");
+		assertNodeLinkedToKey(s, "node8", "19274619daaa2b719274619daccce8");
+		assertNodeLinkedToKey(s, "node6", "19983e59318ff4a");
+		assertNodeLinkedToKey(s, "node6", "1a09369895e39651a0936989614e0f");
+		assertNodeLinkedToKey(s, "node4", "1a7a2ed7edbc45c");
+		assertNodeLinkedToKey(s, "node6", "1aeb271744e63fe1aeb2717450b4d6");
+		assertNodeLinkedToKey(s, "node1", "1b5c1f569c5aa321b5c1f569c7b9701b5c1f569c9320a");
+		assertNodeLinkedToKey(s, "node4", "1bcd1795f447385");
+		assertNodeLinkedToKey(s, "node2", "1c3e0fd54ba5800");
+		assertNodeLinkedToKey(s, "node6", "1caf0814a3ae8ef1caf0814a3d60a7");
+		assertNodeLinkedToKey(s, "node7", "1d200053fc7d8081d200053fca5978");
+		assertNodeLinkedToKey(s, "node7", "1d90f8935427b6a1d90f89354506921d90f8935464c26");
+		assertNodeLinkedToKey(s, "node7", "1e01f0d2ac4119c1e01f0d2ac653e01e01f0d2ac89624");
+		assertNodeLinkedToKey(s, "node0", "1e72e9120455401");
+		assertNodeLinkedToKey(s, "node4", "1ee3e1515f55c781ee3e1515f859d2");
+		assertNodeLinkedToKey(s, "node1", "1f54d990b7d2a301f54d990b8493c61f54d990b8d56a7");
+		assertNodeLinkedToKey(s, "node7", "1fc5d1d01124910");
+		assertNodeLinkedToKey(s, "node1", "2036ca0f695003c2036ca0f697c5b4");
+		assertNodeLinkedToKey(s, "node3", "20a7c24ec18db46");
+		assertNodeLinkedToKey(s, "node7", "2118ba8e1a1c3da2118ba8e1a49cc2");
+		assertNodeLinkedToKey(s, "node7", "2189b2cd7a238bc2189b2cd7a5d4042189b2cd7a74554");
+		assertNodeLinkedToKey(s, "node3", "21faab0cd32764f21faab0cd35056921faab0cd367b95");
+		assertNodeLinkedToKey(s, "node7", "226ba34c2d7a6d4");
+		assertNodeLinkedToKey(s, "node8", "22dc9b8b8874bfd22dc9b8b88a4bc522dc9b8b88d4b8d");
+		assertNodeLinkedToKey(s, "node6", "234d93cae1bc1f0234d93cae1e6a40");
+		assertNodeLinkedToKey(s, "node5", "23be8c0a3a59ed9");
+		assertNodeLinkedToKey(s, "node0", "242f8449934c9f8");
+		assertNodeLinkedToKey(s, "node6", "24a07c88ebec8ed24a07c88ec3e811");
+		assertNodeLinkedToKey(s, "node0", "251174c845d4ac8251174c84601570");
+		assertNodeLinkedToKey(s, "node2", "25826d07a58d00b25826d07a5c7166");
+		assertNodeLinkedToKey(s, "node8", "25f36546fef728a");
+		assertNodeLinkedToKey(s, "node5", "26645d865824b46");
+		assertNodeLinkedToKey(s, "node4", "26d555c5b12da78");
+		assertNodeLinkedToKey(s, "node6", "27464e050a463f027464e050a7c4e827464e050a97564");
+		assertNodeLinkedToKey(s, "node2", "27b7464463dbd0e27b74644640bac2");
+		assertNodeLinkedToKey(s, "node8", "28283e83bd531d2");
+		assertNodeLinkedToKey(s, "node2", "289936c316b17c8289936c316e95e8289936c317054f8");
+		assertNodeLinkedToKey(s, "node3", "290a2f02705f821");
+		assertNodeLinkedToKey(s, "node7", "297b2741c9bb12c297b2741c9ed08a");
+		assertNodeLinkedToKey(s, "node4", "29ec1f8123fe64e");
+		assertNodeLinkedToKey(s, "node5", "2a5d17c07d98120");
+		assertNodeLinkedToKey(s, "node6", "2ace0fffd7243b8");
+		assertNodeLinkedToKey(s, "node6", "2b3f083f3145b18");
+		assertNodeLinkedToKey(s, "node0", "2bb0007e8af96a82bb0007e8b358d02bb0007e8b5b229");
+		assertNodeLinkedToKey(s, "node0", "2c20f8bde5af9902c20f8bde5ec570");
+
+		// for (int i = 0; i < 100; i++) {
+		// String key = Long.toHexString(System.nanoTime() * (i + 1));
+		// for (int n = 0; n < System.nanoTime() % 3; n++) {
+		// key += Long.toHexString(System.nanoTime() * (i + 1));
+		// }
+		// params.put("key", key);
+		// LocalActionEndpoint ep = s.getEndpoint(createContext(params), null);
+		// System.out.println("assertNodeLinkedToKey(s, \"" + ep.getNodeID() +
+		// "\", \"" + params.get("key", "") + "\");");
+		// }
+	}
+
+	protected void assertNodeLinkedToKey(ShardStrategy<LocalActionEndpoint> s, String nodeID, String key) {
+		Tree params = new Tree().put("key", key);
+		LocalActionEndpoint ep = s.getEndpoint(createContext(params), null);
+		assertEquals(nodeID, ep.getNodeID());
 	}
 
 	protected HashSet<String> collect(ShardStrategy<LocalActionEndpoint> s, Tree params, int cycles) {
