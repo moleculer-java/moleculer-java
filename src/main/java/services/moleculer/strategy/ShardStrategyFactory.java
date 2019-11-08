@@ -50,7 +50,7 @@ public class ShardStrategyFactory extends ArrayBasedStrategyFactory {
 	// --- PROPERTIES ---
 
 	/**
-	 * Shard key's path (eg. "userID", "user.email", etc.)
+	 * Shard key's path (eg. "userID", "user.email", "#key", etc.)
 	 */
 	protected String shardKey;
 
@@ -110,10 +110,20 @@ public class ShardStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- CONSTRUCTORS ---
 
+	/**
+	 * Constructor that calls for service based primarily on its own
+	 * (hash-based) logic. Does not matter if the service is available locally.
+	 */
 	public ShardStrategyFactory() {
 		super(false);
 	}
 
+	/**
+	 * Constructor that can be configured to use local services if possible.
+	 * 
+	 * @param preferLocal
+	 *            invoke local actions if possible
+	 */
 	public ShardStrategyFactory(boolean preferLocal) {
 		super(preferLocal);
 	}

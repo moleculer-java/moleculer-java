@@ -43,10 +43,19 @@ public class SecureRandomStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- CONSTRUCTORS ---
 
+	/**
+	 * Constructor that uses local services when available.
+	 */
 	public SecureRandomStrategyFactory() {
 		super();
 	}
 
+	/**
+	 * Constructor that can be configured to use local services if possible.
+	 * 
+	 * @param preferLocal
+	 *            invoke local actions if possible
+	 */
 	public SecureRandomStrategyFactory(boolean preferLocal) {
 		super(preferLocal);
 	}

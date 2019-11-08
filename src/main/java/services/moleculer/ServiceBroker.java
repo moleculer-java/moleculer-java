@@ -116,11 +116,11 @@ public class ServiceBroker extends ContextSource {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final String SOFTWARE_VERSION = "1.2.2";
+	public static final String SOFTWARE_VERSION = "1.2.3";
 
 	/**
 	 * Version of the implemented Moleculer Protocol. Can be configured with the
-	 * "molecular.protocol.version" system property.
+	 * "molecular.protocol.version" System Property.
 	 */
 	public static final String PROTOCOL_VERSION = System.getProperty("moleculer.protocol.version", "4");
 

@@ -64,10 +64,20 @@ public class CpuUsageStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- CONSTRUCTORS ---
 
+	/**
+	 * Constructor that calls for service based primarily on its own (CPU-based)
+	 * logic. Does not matter if the service is available locally.
+	 */
 	public CpuUsageStrategyFactory() {
 		super(false);
 	}
 
+	/**
+	 * Constructor that can be configured to use local services if possible.
+	 * 
+	 * @param preferLocal
+	 *            invoke local actions if possible
+	 */
 	public CpuUsageStrategyFactory(boolean preferLocal) {
 		super(preferLocal);
 	}

@@ -47,10 +47,19 @@ public abstract class ArrayBasedStrategyFactory extends StrategyFactory {
 
 	// --- CONSTRUCTORS ---
 
+	/**
+	 * Constructor that uses local services when available.
+	 */
 	public ArrayBasedStrategyFactory() {
 		this(true);
 	}
 
+	/**
+	 * Constructor that can be configured to use local services if possible.
+	 * 
+	 * @param preferLocal
+	 *            invoke local actions if possible
+	 */
 	public ArrayBasedStrategyFactory(boolean preferLocal) {
 		this.preferLocal = preferLocal;
 	}

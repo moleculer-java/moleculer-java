@@ -44,10 +44,19 @@ public class XorShiftRandomStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- CONSTRUCTORS ---
 
+	/**
+	 * Constructor that uses local services when available.
+	 */
 	public XorShiftRandomStrategyFactory() {
 		super();
 	}
 
+	/**
+	 * Constructor that can be configured to use local services if possible.
+	 * 
+	 * @param preferLocal
+	 *            invoke local actions if possible
+	 */
 	public XorShiftRandomStrategyFactory(boolean preferLocal) {
 		super(preferLocal);
 	}

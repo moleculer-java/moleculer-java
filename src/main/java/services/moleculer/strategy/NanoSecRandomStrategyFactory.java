@@ -43,10 +43,19 @@ public class NanoSecRandomStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- CONSTRUCTORS ---
 
+	/**
+	 * Constructor that uses local services when available.
+	 */
 	public NanoSecRandomStrategyFactory() {
 		super();
 	}
 
+	/**
+	 * Constructor that can be configured to use local services if possible.
+	 * 
+	 * @param preferLocal
+	 *            invoke local actions if possible
+	 */
 	public NanoSecRandomStrategyFactory(boolean preferLocal) {
 		super(preferLocal);
 	}

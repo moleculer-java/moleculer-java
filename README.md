@@ -24,7 +24,7 @@ Java implementation of the [Moleculer microservices framework](http://moleculer.
 	<dependency>
 		<groupId>com.github.berkesa</groupId>
 		<artifactId>moleculer-java</artifactId>
-		<version>1.2.2</version>
+		<version>1.2.3</version>
 		<scope>runtime</scope>
 	</dependency>
 </dependencies>
@@ -34,14 +34,14 @@ Java implementation of the [Moleculer microservices framework](http://moleculer.
 
 ```gradle
 dependencies {
-	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.2.2' 
+	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.2.3' 
 }
 ```
 
 #### Changes in Version 1.2.x:
 
 The Event Listener implementation of Moleculer-Java has become similar to the latest (V1.4) Node.js implementation.
-In the previous versions, Event Listeners received only the data block:
+In the previous versions, Event Listeners received only the data (~= JSON) block:
 
 ```java
 @Subscribe("test.*")

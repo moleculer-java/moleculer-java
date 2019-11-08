@@ -43,10 +43,19 @@ public class RoundRobinStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- CONSTRUCTORS ---
 
+	/**
+	 * Constructor that uses local services when available.
+	 */
 	public RoundRobinStrategyFactory() {
 		super();
 	}
 
+	/**
+	 * Constructor that can be configured to use local services if possible.
+	 * 
+	 * @param preferLocal
+	 *            invoke local actions if possible
+	 */
 	public RoundRobinStrategyFactory(boolean preferLocal) {
 		super(preferLocal);
 	}

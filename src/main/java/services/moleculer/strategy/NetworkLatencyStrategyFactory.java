@@ -104,10 +104,21 @@ public class NetworkLatencyStrategyFactory extends ArrayBasedStrategyFactory {
 
 	// --- CONSTRUCTORS ---
 
+	/**
+	 * Constructor that calls for service based primarily on its own
+	 * (latency-based) logic. Does not matter if the service is available
+	 * locally.
+	 */
 	public NetworkLatencyStrategyFactory() {
 		super(false);
 	}
 
+	/**
+	 * Constructor that can be configured to use local services if possible.
+	 * 
+	 * @param preferLocal
+	 *            invoke local actions if possible
+	 */
 	public NetworkLatencyStrategyFactory(boolean preferLocal) {
 		super(preferLocal);
 	}
