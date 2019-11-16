@@ -26,7 +26,11 @@
 package services.moleculer.monitor;
 
 import java.lang.management.ManagementFactory;
-import java.lang.management.OperatingSystemMXBean;
+
+import javax.management.Attribute;
+import javax.management.AttributeList;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 
 import services.moleculer.service.Name;
 
@@ -41,13 +45,19 @@ public class JmxMonitor extends Monitor {
 
 	// --- PROPERTIES ---
 
-	protected static OperatingSystemMXBean mxBean;
+	protected static Attribute cpuAttribute;
 
 	// --- STATIC CONSTRUCTOR ---
 
 	static {
 		try {
-			mxBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
+			MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+			ObjectName name = ObjectName.getInstance("java.lang:type=OperatingSystem");
+			AttributeList list = mbs.getAttributes(name, new String[] { "SystemCpuLoad" });
+			if (list == null || list.isEmpty()) {
+				throw new UnsupportedOperationException("SystemCpuLoad");
+			}
+			cpuAttribute = (Attribute) list.get(0);
 		} catch (Exception cause) {
 			cause.printStackTrace();
 			invalidMonitor.set(true);
@@ -63,7 +73,7 @@ public class JmxMonitor extends Monitor {
 	 */
 	@Override
 	protected int detectTotalCpuPercent() throws Exception {
-		Double value = (Double) mxBean.getSystemLoadAverage();
+		Double value = (Double) cpuAttribute.getValue();
 		return (int) Math.max(value * 100d, 0d);
 	}
 

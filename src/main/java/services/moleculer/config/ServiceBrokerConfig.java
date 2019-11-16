@@ -27,12 +27,17 @@ package services.moleculer.config;
 
 import static services.moleculer.util.CommonUtils.getHostName;
 
+import java.lang.management.ManagementFactory;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
+
+import javax.management.AttributeList;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 
 import services.moleculer.cacher.Cacher;
 import services.moleculer.cacher.MemoryCacher;
@@ -114,21 +119,34 @@ public class ServiceBrokerConfig {
 
 			// Try to load native library (for Windows and Linux)
 			String[] libs = { "sigar-x86-winnt", "sigar-amd64-winnt", "libsigar-x86-linux", "libsigar-amd64-linux" };
+			ClassLoader loader = ServiceBrokerConfig.class.getClassLoader();
+			String pkg = "services.moleculer.monitor.";
 			for (String lib : libs) {
 				try {
 					System.loadLibrary(lib);
 
 					// Found!
-					ClassLoader cl = ServiceBrokerConfig.class.getClassLoader();
-					defaultMonitor = (Monitor) cl.loadClass("services.moleculer.monitor.SigarMonitor").newInstance();
+					defaultMonitor = (Monitor) loader.loadClass(pkg + "SigarMonitor").newInstance();
 					break;
 				} catch (Throwable notFound) {
 
 					// Not found
 				}
 			}
+			
+			// Try to get "SystemCpuLoad" JMX attribute
+			if (defaultMonitor == null) {
+				MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+				ObjectName name = ObjectName.getInstance("java.lang:type=OperatingSystem");
+				AttributeList list = mbs.getAttributes(name, new String[] { "SystemCpuLoad" });
+				if (list != null && !list.isEmpty()) {
+					defaultMonitor = (Monitor) loader.loadClass(pkg + "JmxMonitor").newInstance();
+				}
+			}
 		} catch (Throwable ignored) {
 		} finally {
+			
+			// Fallback to constant-based "monitor"
 			if (defaultMonitor == null) {
 				defaultMonitor = new ConstantMonitor();
 			}
