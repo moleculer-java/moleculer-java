@@ -45,20 +45,16 @@ public class JmxMonitor extends Monitor {
 
 	// --- PROPERTIES ---
 
-	protected static Attribute cpuAttribute;
+	protected MBeanServer server;
+	protected ObjectName name;
 
-	// --- STATIC CONSTRUCTOR ---
+	// --- CONSTRUCTOR ---
 
-	static {
+	public JmxMonitor() {
 		try {
-			MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-			ObjectName name = ObjectName.getInstance("java.lang:type=OperatingSystem");
-			AttributeList list = mbs.getAttributes(name, new String[] { "SystemCpuLoad" });
-			if (list == null || list.isEmpty()) {
-				throw new UnsupportedOperationException("SystemCpuLoad");
-			}
-			cpuAttribute = (Attribute) list.get(0);
-		} catch (Exception cause) {
+			server = ManagementFactory.getPlatformMBeanServer();
+			name = ObjectName.getInstance("java.lang:type=OperatingSystem");
+		} catch (Throwable cause) {
 			cause.printStackTrace();
 			invalidMonitor.set(true);
 		}
@@ -73,7 +69,11 @@ public class JmxMonitor extends Monitor {
 	 */
 	@Override
 	protected int detectTotalCpuPercent() throws Exception {
-		Double value = (Double) cpuAttribute.getValue();
+		AttributeList list = server.getAttributes(name, new String[] { "SystemCpuLoad" });
+		if (list == null || list.isEmpty()) {
+			return 0;
+		}
+		Double value = (Double) ((Attribute) list.get(0)).getValue();
 		return (int) Math.max(value * 100d, 0d);
 	}
 
