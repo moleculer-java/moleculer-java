@@ -1,6 +1,6 @@
 # Native DLLs for Sigar Cpu Monitor
 
-Molecular Framework uses the Sigar API for CPU-based load-balancing.
+Moleculer Framework uses the Sigar API for CPU-based load-balancing.
 Required Java dependencies:
 
  // https://mvnrepository.com/artifact/org.fusesource/sigar
