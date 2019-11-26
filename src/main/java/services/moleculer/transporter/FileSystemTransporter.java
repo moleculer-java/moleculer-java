@@ -122,7 +122,7 @@ public class FileSystemTransporter extends Transporter {
 
 	public FileSystemTransporter(String directory, long pollingDelay) {
 		setDirectory(directory);
-
+		setPollingDelay(pollingDelay);
 	}
 
 	// --- START TRANSPORTER ---
@@ -144,6 +144,8 @@ public class FileSystemTransporter extends Transporter {
 				TimeUnit.MILLISECONDS);
 	}
 
+	// --- STOP TRANSPORTER ---
+	
 	@Override
 	public void stopped() {
 
@@ -206,6 +208,8 @@ public class FileSystemTransporter extends Transporter {
 		connected(false);
 	}
 
+	// --- SEND MESSAGE ---
+	
 	@Override
 	public void publish(String channel, Tree message) {
 		byte[] bytes;
@@ -228,6 +232,8 @@ public class FileSystemTransporter extends Transporter {
 		handler.saveTempFile(bytes);
 	}
 
+	// --- START DIRECTORY LISTENER ---
+	
 	@Override
 	public Promise subscribe(String channel) {
 		try {
@@ -553,6 +559,8 @@ public class FileSystemTransporter extends Transporter {
 
 	}
 
+	// --- REMOVABLE FILE ---
+	
 	protected static class RemovableFile {
 
 		protected final File file;
