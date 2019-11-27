@@ -47,6 +47,12 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 
 	protected final String name;
 
+	/**
+	 * Private Action; only the local Broker can access it and cannot be called
+	 * remotely.
+	 */
+	protected final boolean privateAccess;
+
 	// --- ACTION WITH MIDDLEWARES ---
 
 	protected Action current;
@@ -61,6 +67,9 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 		super(nodeID);
 		this.config = config;
 		this.name = config.get("name", "unknown");
+		this.privateAccess = config.get("private", false);
+		
+		// Generate hashcode
 		this.hashCode = 31 * nodeID.hashCode() + name.hashCode();
 	}
 
@@ -84,7 +93,7 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 		}
 		return false;
 	}
-	
+
 	// --- COLLECTION HELPERS ---
 
 	@Override
@@ -118,6 +127,10 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 
 	public Action getAction() {
 		return current;
+	}
+
+	public boolean isPrivate() {
+		return privateAccess;
 	}
 
 }

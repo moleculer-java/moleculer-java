@@ -25,7 +25,6 @@
  */
 package services.moleculer.service;
 
-import static services.moleculer.ServiceBroker.PROTOCOL_VERSION;
 import static services.moleculer.transporter.Transporter.PACKET_PING;
 import static services.moleculer.transporter.Transporter.PACKET_RESPONSE;
 import static services.moleculer.util.CommonUtils.convertAnnotations;
@@ -36,6 +35,7 @@ import static services.moleculer.util.CommonUtils.throwableToTree;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.util.Arrays;
@@ -111,6 +111,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected final HashSet<String> names = new HashSet<>(64);
 
 	// --- PENDING REMOTE INVOCATIONS ---
+
 	protected final ConcurrentHashMap<String, PendingPromise> promises = new ConcurrentHashMap<>(1024);
 
 	// --- REGISTERED STREAMS ---
@@ -137,6 +138,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	 * Check protocol version
 	 */
 	protected boolean checkVersion;
+
+	/**
+	 * ServiceBroker's protocol version
+	 */
+	protected String protocolVersion = "4";
 
 	/**
 	 * Write exceptions into the log file
@@ -238,6 +244,9 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Local nodeID
 		this.nodeID = broker.getNodeID();
+
+		// Set the protocol version
+		this.protocolVersion = broker.getProtocolVersion();
 
 		// Set components
 		ServiceBrokerConfig cfg = broker.getConfig();
@@ -482,10 +491,10 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		// Verify protocol version
 		if (checkVersion) {
 			String ver = message.get("ver", "unknown");
-			if (!PROTOCOL_VERSION.equals(ver)) {
+			if (!protocolVersion.equals(ver)) {
 				logger.warn("Invalid protocol version (" + ver + ")!");
-				transporter.publish(PACKET_RESPONSE, sender,
-						throwableToTree(id, nodeID, new ProtocolVersionMismatchError(nodeID, PROTOCOL_VERSION, ver)));
+				transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, nodeID, protocolVersion,
+						new ProtocolVersionMismatchError(nodeID, protocolVersion, ver)));
 				return;
 			}
 		}
@@ -509,7 +518,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 				// Send error
 				try {
-					transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, nodeID, error));
+					transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, nodeID, protocolVersion, error));
 				} catch (Throwable ignored) {
 					logger.debug("Unable to send response!", ignored);
 				}
@@ -555,7 +564,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			if (requestStream == null) {
 				logger.warn("Missing \"action\" property!\r\n" + message);
 				transporter.publish(PACKET_RESPONSE, sender,
-						throwableToTree(id, nodeID, new InvalidPacketDataError(nodeID)));
+						throwableToTree(id, nodeID, protocolVersion, new InvalidPacketDataError(nodeID)));
 			}
 			return;
 		}
@@ -586,7 +595,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		if (strategy == null) {
 			logger.warn("Invalid action name (" + action + ")!");
 			transporter.publish(PACKET_RESPONSE, sender,
-					throwableToTree(id, nodeID, new ServiceNotFoundError(nodeID, action)));
+					throwableToTree(id, nodeID, protocolVersion, new ServiceNotFoundError(nodeID, action)));
 			return;
 		}
 
@@ -622,20 +631,20 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Get local action endpoint (with cache handling)
 		ActionEndpoint endpoint = strategy.getEndpoint(ctx, nodeID);
-		if (endpoint == null) {
+		if (endpoint == null || endpoint.privateAccess) {
 			logger.warn("Not a local action (" + action + ")!");
 			transporter.publish(PACKET_RESPONSE, sender,
-					throwableToTree(id, nodeID, new ServiceNotAvailableError(nodeID, action)));
+					throwableToTree(id, nodeID, protocolVersion, new ServiceNotAvailableError(nodeID, action)));
 			return;
 		}
-		
+
 		// Invoke action
 		try {
 			new Promise(endpoint.handler(ctx)).then(data -> {
 
 				// Send response
 				FastBuildTree msg = new FastBuildTree(8);
-				msg.putUnsafe("ver", PROTOCOL_VERSION);
+				msg.putUnsafe("ver", protocolVersion);
 				msg.putUnsafe("sender", nodeID);
 				msg.putUnsafe("id", id);
 				msg.putUnsafe("success", true);
@@ -700,7 +709,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			}).catchError(error -> {
 
 				// Send error
-				transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, nodeID, error));
+				transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, nodeID, protocolVersion, error));
 
 				// Write error to log file
 				if (writeErrorsToLog) {
@@ -711,7 +720,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		} catch (Throwable error) {
 
 			// Send error
-			transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, nodeID, error));
+			transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, nodeID, protocolVersion, error));
 
 			// Write error to log file
 			if (writeErrorsToLog) {
@@ -730,7 +739,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		// Verify protocol version
 		if (checkVersion) {
 			String ver = message.get("ver", "unknown");
-			if (!PROTOCOL_VERSION.equals(ver)) {
+			if (!protocolVersion.equals(ver)) {
 				logger.warn("Invalid protocol version (" + ver + ")!");
 				return;
 			}
@@ -762,7 +771,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		// Verify protocol version
 		if (checkVersion) {
 			String ver = message.get("ver", "unknown");
-			if (!PROTOCOL_VERSION.equals(ver)) {
+			if (!protocolVersion.equals(ver)) {
 				logger.warn("Invalid protocol version (" + ver + ")!");
 				return;
 			}
@@ -969,11 +978,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected void addOnlineActions(String serviceName, Service service) {
 		Class<? extends Service> clazz = service.getClass();
 		LinkedHashMap<String, Field> fields = new LinkedHashMap<>(64);
-		for (Field f: clazz.getDeclaredFields()) {
+		for (Field f : clazz.getDeclaredFields()) {
 			f.setAccessible(true);
 			fields.putIfAbsent(f.getName(), f);
 		}
-		for (Field f: clazz.getFields()) {
+		for (Field f : clazz.getFields()) {
 			f.setAccessible(true);
 			fields.putIfAbsent(f.getName(), f);
 		}
@@ -994,6 +1003,9 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 				Tree actionConfig = new Tree();
 				actionConfig.put("name", actionName);
+				if (Modifier.isPrivate(field.getModifiers())) {
+					actionConfig.put("private", true);
+				}
 
 				Annotation[] annotations = field.getAnnotations();
 				convertAnnotations(actionConfig, annotations);
@@ -1490,7 +1502,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 					// Get endpoint
 					ActionEndpoint endpoint = entry.getValue().getEndpoint(null, nodeID);
-					if (endpoint == null) {
+					if (endpoint == null || endpoint.privateAccess) {
 						continue;
 					}
 

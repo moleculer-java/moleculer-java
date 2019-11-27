@@ -43,7 +43,7 @@ public class RemoteListenerEndpoint extends ListenerEndpoint {
 
 	protected RemoteListenerEndpoint(Transporter transporter, String nodeID, String service, String group,
 			String subscribe) {
-		super(nodeID, service, group, subscribe);
+		super(nodeID, service, group, subscribe, false);
 
 		// Set components
 		this.transporter = transporter;

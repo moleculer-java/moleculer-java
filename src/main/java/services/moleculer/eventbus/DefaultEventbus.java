@@ -28,6 +28,7 @@ package services.moleculer.eventbus;
 import static services.moleculer.util.CommonUtils.nameOf;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -93,6 +94,11 @@ public class DefaultEventbus extends Eventbus {
 	protected boolean checkVersion;
 
 	/**
+	 * ServiceBroker's protocol version
+	 */
+	protected String protocolVersion = "4";
+
+	/**
 	 * Local Node ID
 	 */
 	protected String nodeID;
@@ -125,6 +131,8 @@ public class DefaultEventbus extends Eventbus {
 	 */
 	protected final Lock registryWriteLock;
 
+	// --- TIMERS ---
+	
 	/**
 	 * Cancelable timer for request streams
 	 */
@@ -184,6 +192,9 @@ public class DefaultEventbus extends Eventbus {
 		// Set nodeID
 		this.nodeID = broker.getNodeID();
 
+		// Set the protocol version
+		this.protocolVersion = broker.getProtocolVersion();
+		
 		// Set components
 		ServiceBrokerConfig cfg = broker.getConfig();
 		this.strategy = cfg.getStrategyFactory();
@@ -259,7 +270,7 @@ public class DefaultEventbus extends Eventbus {
 		// Verify protocol version
 		if (checkVersion) {
 			String ver = message.get("ver", "unknown");
-			if (!ServiceBroker.PROTOCOL_VERSION.equals(ver)) {
+			if (!protocolVersion.equals(ver)) {
 				logger.warn("Invalid protocol version (" + ver + ")!");
 				return;
 			}
@@ -452,6 +463,9 @@ public class DefaultEventbus extends Eventbus {
 				field.setAccessible(true);
 				Listener listener = (Listener) field.get(service);
 
+				// Private (hidden) listener?
+				boolean privateAccess = Modifier.isPrivate(field.getModifiers());
+
 				// Get or create group map
 				HashMap<String, Strategy<ListenerEndpoint>> groups = listeners.get(subscribe);
 				if (groups == null) {
@@ -468,7 +482,7 @@ public class DefaultEventbus extends Eventbus {
 
 				// Add endpoint to strategy
 				strategy.addEndpoint(new LocalListenerEndpoint(executor, nodeID, name, group, subscribe, listener,
-						asyncLocalInvocation));
+						asyncLocalInvocation, privateAccess));
 			}
 		} catch (Exception cause) {
 			logger.error("Unable to register local listener!", cause);
@@ -623,9 +637,11 @@ public class DefaultEventbus extends Eventbus {
 
 				// Invoke local or remote listener
 				ListenerEndpoint endpoint = strategies[0].getEndpoint(ctx, local ? nodeID : null);
-				if (endpoint != null) {
-					endpoint.on(ctx, groups, false);
+				if (endpoint == null || (endpoint.privateAccess && !nodeID.equals(ctx.nodeID))) {
+					stopStreaming(ctx);
+					return;
 				}
+				endpoint.on(ctx, groups, false);
 			} catch (Exception cause) {
 				if (ctx.stream != null) {
 					ctx.stream.sendError(cause);
@@ -640,11 +656,10 @@ public class DefaultEventbus extends Eventbus {
 			for (int i = 0; i < strategies.length; i++) {
 				try {
 					ListenerEndpoint endpoint = strategies[i].getEndpoint(ctx, nodeID);
-					if (endpoint == null) {
-						stopStreaming(ctx);
-					} else {
-						endpoint.on(ctx, groups, false);
+					if (endpoint == null || (endpoint.privateAccess && !nodeID.equals(ctx.nodeID))) {
+						continue;
 					}
+					endpoint.on(ctx, groups, false);
 				} catch (Exception cause) {
 					logger.error("Unable to invoke event listener!", cause);
 				}
@@ -665,6 +680,9 @@ public class DefaultEventbus extends Eventbus {
 			if (endpoint != null) {
 				if (endpoint.isLocal()) {
 					try {
+						if (endpoint.privateAccess && !nodeID.equals(ctx.nodeID)) {
+							continue;
+						}
 						foundLocal = true;
 						endpoint.on(ctx, groups, false);
 					} catch (Exception cause) {
@@ -787,6 +805,9 @@ public class DefaultEventbus extends Eventbus {
 		// Single listener
 		if (endpoints.length == 1) {
 			try {
+				if (endpoints[0].privateAccess && !nodeID.equals(ctx.nodeID)) {
+					return;
+				}
 				endpoints[0].on(ctx, groups, true);
 			} catch (Exception cause) {
 				if (ctx.stream != null) {
@@ -800,12 +821,17 @@ public class DefaultEventbus extends Eventbus {
 		// Group of listeners
 		HashSet<String> nodeSet = new HashSet<>(endpoints.length * 2);
 		for (ListenerEndpoint endpoint : endpoints) {
-			if (endpoint.isLocal() || nodeSet.add(endpoint.getNodeID())) {
-				try {
-					endpoint.on(ctx, groups, true);
-				} catch (Exception cause) {
-					logger.error("Unable to invoke event listener!", cause);
+			try {
+				if (endpoint.isLocal()) {
+					if (endpoint.privateAccess && !nodeID.equals(ctx.nodeID)) {
+						continue;
+					}
+				} else if (!nodeSet.add(endpoint.getNodeID())) {
+					continue;
 				}
+				endpoint.on(ctx, groups, true);
+			} catch (Exception cause) {
+				logger.error("Unable to invoke event listener!", cause);
 			}
 		}
 	}
@@ -835,7 +861,7 @@ public class DefaultEventbus extends Eventbus {
 			for (HashMap<String, Strategy<ListenerEndpoint>> groups : listeners.values()) {
 				for (Strategy<ListenerEndpoint> strategy : groups.values()) {
 					for (ListenerEndpoint endpoint : strategy.getAllEndpoints()) {
-						if (endpoint.isLocal() && endpoint.serviceName.equals(service)) {
+						if (endpoint.isLocal() && !endpoint.privateAccess && endpoint.serviceName.equals(service)) {
 							LinkedHashMap<String, Object> map = new LinkedHashMap<>();
 							descriptor.put(endpoint.subscribe, map);
 							map.put("name", endpoint.subscribe);

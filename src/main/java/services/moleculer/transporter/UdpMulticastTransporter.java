@@ -52,14 +52,15 @@ import services.moleculer.service.Name;
  * Multicast UDP-based, server-less Transporter. It cannot transfer large
  * amounts of data in one package; 64 kilobytes is the theoretical maximum size
  * of a complete IP datagram, but only 576 bytes are guaranteed to be routed.
- * UDP does not behave well in a lossy network by itself.<br>
+ * UDP does not behave well in a lossy network by itself. Can only be used
+ * safely if two or three nodes are connected via "localhost".<br>
  * <br>
  * If you need a RELIABLE data transport without central server (i.e. no loss of
  * data, forwarding large messages) then TCPTransporter is the suitable option.
  * Usage:
+ * 
  * <pre>
- * ServiceBroker broker = ServiceBroker.builder().nodeID("node1")
- * .transporter(new UdpMulticastTransporter()).build();
+ * ServiceBroker broker = ServiceBroker.builder().nodeID("node1").transporter(new UdpMulticastTransporter()).build();
  * </pre>
  *
  * @see TcpTransporter

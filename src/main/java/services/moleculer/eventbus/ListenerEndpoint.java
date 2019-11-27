@@ -43,15 +43,23 @@ public abstract class ListenerEndpoint extends Endpoint {
 	protected final String group;
 	protected final String subscribe;
 
+	/**
+	 * Private Listener; only the local Broker can access it and cannot be
+	 * called remotely.
+	 */
+	protected final boolean privateAccess;
+
 	protected final int hashCode;
 
 	// --- CONSTRUCTOR ---
 
-	protected ListenerEndpoint(String nodeID, String serviceName, String group, String subscribe) {
+	protected ListenerEndpoint(String nodeID, String serviceName, String group, String subscribe,
+			boolean privateAccess) {
 		super(nodeID);
 		this.serviceName = serviceName;
 		this.group = group;
 		this.subscribe = subscribe;
+		this.privateAccess = privateAccess;
 
 		// Generate hashcode
 		int result = 1;
@@ -69,6 +77,12 @@ public abstract class ListenerEndpoint extends Endpoint {
 
 	public abstract boolean isLocal();
 
+	// --- PRIVATE LISTENER? ---
+	
+	public boolean isPrivate() {
+		return privateAccess;
+	}
+	
 	// --- COLLECTION HELPERS ---
 
 	@Override

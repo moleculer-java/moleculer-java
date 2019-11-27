@@ -25,8 +25,6 @@
  */
 package services.moleculer.util;
 
-import static services.moleculer.ServiceBroker.PROTOCOL_VERSION;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -77,7 +75,7 @@ public final class CommonUtils {
 	private static final NumberFormat numberFormatter = DecimalFormat.getInstance(Locale.US);
 
 	// --- MERGE META ---
-	
+
 	public static final Tree mergeMeta(Tree rsp, Tree req) {
 		if (req == null) {
 			return rsp;
@@ -96,14 +94,16 @@ public final class CommonUtils {
 		rspMeta.copyFrom(reqMeta, false);
 		return rsp;
 	}
-	
+
 	// --- CONVERT THROWABLE TO RESPONSE MESSAGE ---
 
-	public static final FastBuildTree throwableToTree(String id, String nodeID, Throwable error) {
+	public static final FastBuildTree throwableToTree(String id, String nodeID, String protocolVersion,
+			Throwable error) {
+		
 		FastBuildTree msg = new FastBuildTree(8);
 
 		msg.putUnsafe("id", id);
-		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("ver", protocolVersion);
 		msg.putUnsafe("sender", nodeID);
 		msg.putUnsafe("success", false);
 		if (error != null) {

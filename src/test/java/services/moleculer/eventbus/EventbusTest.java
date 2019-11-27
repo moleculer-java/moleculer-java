@@ -154,6 +154,11 @@ public class EventbusTest extends TestCase {
 			}
 		};
 
+		@Subscribe("hidden.*")
+		private Listener localListener = ctx -> {
+			payloads.addLast(ctx.params);
+		};
+		
 	}
 
 	@Test
@@ -222,6 +227,10 @@ public class EventbusTest extends TestCase {
 		br.broadcastLocal("test.a", new Tree(), Groups.of("test1", "test2"));
 		assertEquals(1, s1.payloads.size());
 		assertEquals(1, s2.payloads.size());
+		
+		// Check hidden listener in descriptor
+		Tree desc = br.getConfig().getServiceRegistry().getDescriptor();
+		assertFalse(desc.toString().contains("hidden"));
 	}
 
 	@Test
@@ -294,6 +303,16 @@ public class EventbusTest extends TestCase {
 		assertEquals(1, s2.payloads.size());
 		assertEquals(321, s1.payloads.remove().get("y", 0));
 		assertEquals(321, s2.payloads.remove().get("y", 0));
+		
+		// Hidden test
+		s1.payloads.clear();
+		s2.payloads.clear();
+		putIncomingMessage("hidden.test", true, null, new Tree());
+		assertEquals(0, s1.payloads.size());
+		assertEquals(0, s2.payloads.size());
+		br.emit("hidden.test", "key1", "value1", "key2", "value2");
+		assertEquals(1, s1.payloads.size());
+		assertEquals(1, s2.payloads.size());
 	}
 
 	@Test
@@ -332,11 +351,21 @@ public class EventbusTest extends TestCase {
 		assertEquals(1, s2.payloads.size());
 		assertEquals(321, s1.payloads.remove().get("y", 0));
 		assertEquals(321, s2.payloads.remove().get("y", 0));
+		
+		// Hidden test
+		s1.payloads.clear();
+		s2.payloads.clear();
+		putIncomingMessage("hidden.test", false, null, new Tree());
+		assertEquals(0, s1.payloads.size());
+		assertEquals(0, s2.payloads.size());
+		br.emit("hidden.test", "key1", "value1", "key2", "value2");
+		assertEquals(1, s1.payloads.size());
+		assertEquals(1, s2.payloads.size());
 	}
 
 	protected void putIncomingMessage(String name, boolean broadcast, Groups groups, Tree payload) throws Exception {
 		FastBuildTree msg = new FastBuildTree(7);
-		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+		msg.putUnsafe("ver", br.getProtocolVersion());
 		msg.putUnsafe("sender", "node5");
 		msg.putUnsafe("event", name);
 		msg.putUnsafe("broadcast", broadcast);
@@ -501,15 +530,36 @@ public class EventbusTest extends TestCase {
 		putIncomingMessage("test.a", false, Groups.of("group1", "group2"), new Tree());
 		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
 		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
+
+		// Hidden test
+		g1_a.payloads.clear();
+		g1_b.payloads.clear();
+		g2_a.payloads.clear();
+		g2_b.payloads.clear();
+		putIncomingMessage("hidden.a", true, Groups.of("group3"), new Tree());
+		assertEquals(0, g1_a.payloads.size());
+		assertEquals(0, g1_b.payloads.size());
+		assertEquals(0, g2_a.payloads.size());
+		assertEquals(0, g2_b.payloads.size());
 	}
 
 	protected static final class Group1Listener extends Service {
 
 		protected LinkedList<Tree> payloads = new LinkedList<>();
 
+		// --- PUBLIC / SHARED / VISIBLE LISTENER ---
+		
 		@Group("group1")
 		@Subscribe("test.*")
-		public Listener evt = ctx -> {
+		Listener evt = ctx -> {
+			payloads.addLast(ctx.params);
+		};
+		
+		// --- PRIVATE / HIDDEN / LOCAL-ONLY LISTENER ---
+
+		@Group("group3")
+		@Subscribe("hidden.*")
+		private Listener hiddenListener = ctx -> {
 			payloads.addLast(ctx.params);
 		};
 
@@ -519,12 +569,22 @@ public class EventbusTest extends TestCase {
 
 		protected LinkedList<Tree> payloads = new LinkedList<>();
 
+		// --- PUBLIC / SHARED / VISIBLE LISTENER ---
+		
 		@Group("group2")
 		@Subscribe("test.*")
 		public Listener evt = ctx -> {
 			payloads.addLast(ctx.params);
 		};
 
+		// --- PRIVATE / HIDDEN / LOCAL-ONLY LISTENER ---
+
+		@Group("group3")
+		@Subscribe("hidden.*")
+		private Listener localOnly = ctx -> {
+			payloads.addLast(ctx.params);
+		};
+		
 	}
 
 	// --- SET UP ---

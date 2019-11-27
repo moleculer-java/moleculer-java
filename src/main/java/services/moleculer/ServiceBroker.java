@@ -93,15 +93,15 @@ import services.moleculer.transporter.Transporter;
  * ServiceBroker broker = new ServiceBroker("node-1");
  *
  * broker.createService(new Service("math") {
- * 	public Action add = ctx -&gt; {
- * 		return ctx.params.get("a").asInteger() + ctx.params.get("b").asInteger();
- * 	};
+ *   Action add = ctx -&gt; {
+ *     return ctx.params.get("a").asInteger() + ctx.params.get("b").asInteger();
+ *   };
  * });
  *
  * broker.start();
  *
  * broker.call("math.add", "a", 5, "b", 3).then(rsp -&gt; {
- * 	broker.getLogger().info("Response: " + rsp.asInteger());
+ *   broker.getLogger().info("Response: " + rsp.asInteger());
  * });
  * </pre>
  *
@@ -116,12 +116,13 @@ public class ServiceBroker extends ContextSource {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final String SOFTWARE_VERSION = "1.2.3";
+	public static final String SOFTWARE_VERSION = "1.2.4";
 
 	/**
-	 * Version of the implemented Moleculer Protocol. Can be configured with the
-	 * "moleculer.protocol.version" System Property.
+	 * Protocol version, replaced by {@link #getProtocolVersion()}. From the
+	 * future implementations this constant will be removed.
 	 */
+	@Deprecated
 	public static final String PROTOCOL_VERSION = System.getProperty("moleculer.protocol.version", "4");
 
 	// --- LOGGER ---
@@ -254,6 +255,18 @@ public class ServiceBroker extends ContextSource {
 	 */
 	public ServiceBroker(String nodeID, Cacher cacher, Transporter transporter) {
 		this(new ServiceBrokerConfig(nodeID, cacher, transporter));
+	}
+
+	// --- PROTOCOL VERSION ---
+
+	/**
+	 * Returns the version of the implemented Moleculer Protocol. Can be
+	 * configured with the "moleculer.protocol.version" System Property.
+	 * 
+	 * @return version of the implemented protocol (eg. "4")
+	 */
+	public String getProtocolVersion() {
+		return System.getProperty("moleculer.protocol.version", "4");
 	}
 
 	// --- GET CONFIGURATION ---

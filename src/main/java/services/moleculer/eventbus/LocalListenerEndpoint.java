@@ -50,8 +50,8 @@ public class LocalListenerEndpoint extends ListenerEndpoint {
 	// --- CONSTRUCTOR ---
 
 	public LocalListenerEndpoint(ExecutorService executor, String nodeID, String service, String group,
-			String subscribe, Listener listener, boolean asyncLocalInvocation) {
-		super(nodeID, service, group, subscribe);
+			String subscribe, Listener listener, boolean asyncLocalInvocation, boolean privateAccess) {
+		super(nodeID, service, group, subscribe, privateAccess);
 		this.listener = listener;
 		this.asyncLocalInvocation = asyncLocalInvocation;
 		this.executor = executor;

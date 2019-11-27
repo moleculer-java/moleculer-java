@@ -42,7 +42,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.ServiceBroker;
 import services.moleculer.error.InvalidPacketDataError;
 import services.moleculer.error.MoleculerError;
 import services.moleculer.error.MoleculerServerError;
@@ -597,7 +596,7 @@ public class TcpTransporter extends Transporter {
 								// Create response message
 								FastBuildTree response = new FastBuildTree(7);
 								response.putUnsafe("id", id);
-								response.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+								response.putUnsafe("ver", protocolVersion);
 								response.putUnsafe("sender", nodeID);
 								response.putUnsafe("success", false);
 								response.putUnsafe("data", (String) null);
@@ -952,7 +951,7 @@ public class TcpTransporter extends Transporter {
 
 			// Create gossip request
 			FastBuildTree root = new FastBuildTree(5);
-			root.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+			root.putUnsafe("ver", protocolVersion);
 			root.putUnsafe("sender", nodeID);
 			root.putUnsafe("online", online.asObject());
 			if (!offline.isEmpty()) {
@@ -1157,7 +1156,7 @@ public class TcpTransporter extends Transporter {
 
 		// Create gossip response
 		FastBuildTree root = new FastBuildTree(5);
-		root.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+		root.putUnsafe("ver", protocolVersion);
 		root.putUnsafe("sender", nodeID);
 
 		// Remove empty blocks
@@ -1339,7 +1338,7 @@ public class TcpTransporter extends Transporter {
 		}
 		try {
 			FastBuildTree root = new FastBuildTree(5);
-			root.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+			root.putUnsafe("ver", protocolVersion);
 			root.putUnsafe("sender", nodeID);
 			if (useHostname) {
 				root.putUnsafe("host", getHostName());

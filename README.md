@@ -24,7 +24,7 @@ Java implementation of the [Moleculer microservices framework](http://moleculer.
 	<dependency>
 		<groupId>com.github.berkesa</groupId>
 		<artifactId>moleculer-java</artifactId>
-		<version>1.2.3</version>
+		<version>1.2.4</version>
 		<scope>runtime</scope>
 	</dependency>
 </dependencies>
@@ -34,7 +34,7 @@ Java implementation of the [Moleculer microservices framework](http://moleculer.
 
 ```gradle
 dependencies {
-	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.2.3' 
+	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.2.4' 
 }
 ```
 
@@ -112,6 +112,7 @@ public class Sample {
 ```
 
 # Documentation
+
 Developer documentation is in progress. At present, only JavaDoc and test cases are available.
 
 # Sample project
@@ -126,4 +127,5 @@ Developer documentation is in progress. At present, only JavaDoc and test cases 
 *  [MongoDB API for Moleculer](https://moleculer-java.github.io/moleculer-java-mongo/)
 
 # License
+
 Moleculer-java is available under the [MIT license](https://tldrlegal.com/license/mit-license).

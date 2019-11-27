@@ -27,6 +27,7 @@ package services.moleculer.transporter;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.WeakHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
@@ -35,18 +36,16 @@ import java.util.concurrent.locks.StampedLock;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
-import services.moleculer.serializer.Serializer;
 import services.moleculer.service.Name;
 
 /**
  * This is a Transporter that can connect multiple ServiceBrokers running in the
  * same JVM. The calls are made in separate Threads, so call timeouts can be
  * used. Usage:
+ * 
  * <pre>
- * ServiceBroker broker1 = ServiceBroker.builder().nodeID("node1")
- * .transporter(new InternalTransporter()).build();
- * ServiceBroker broker2 = ServiceBroker.builder().nodeID("node2")
- * .transporter(new InternalTransporter()).build();
+ * ServiceBroker broker1 = ServiceBroker.builder().nodeID("node1").transporter(new InternalTransporter()).build();
+ * ServiceBroker broker2 = ServiceBroker.builder().nodeID("node2").transporter(new InternalTransporter()).build();
  * </pre>
  * 
  * @see TcpTransporter
@@ -63,21 +62,30 @@ public class InternalTransporter extends Transporter {
 
 	// --- SHARED STATIC INSTANCE ---
 
-	protected static Subscriptions subscriptions;
+	protected static final Subscriptions sharedInstance = new Subscriptions();
 
+	// --- SUBSCRIPTION HANDLER ---
+	
+	protected final Subscriptions subscriptions;
+	
 	// --- REGISTERED CHANNELS ---
 
 	protected HashSet<String> channels = new HashSet<>();
 
+	// --- CONSTRUCTOR ---
+
+	public InternalTransporter() {
+		this(sharedInstance);
+	}
+
+	public InternalTransporter(Subscriptions subscriptions) {
+		this.subscriptions = Objects.requireNonNull(subscriptions);
+	}
+	
 	// --- CONNECT ---
 
 	@Override
 	public void connect() {
-		synchronized (InternalTransporter.class) {
-			if (subscriptions == null) {
-				subscriptions = new Subscriptions(serializer);
-			}
-		}
 		connected();
 	}
 
@@ -96,13 +104,24 @@ public class InternalTransporter extends Transporter {
 
 	@Override
 	public void stopped() {
-		synchronized (channels) {
-			for (String channel : channels) {
-				subscriptions.deregister(channel, this, !channel.endsWith('.' + nodeID));
-			}
-			channels.clear();
-		}
+		deregister();
 		super.stopped();
+	}
+
+	@Override
+	protected void finalize() throws Throwable {
+		deregister();
+	}
+
+	protected void deregister() {
+		synchronized (channels) {
+			if (!channels.isEmpty()) {
+				for (String channel : channels) {
+					subscriptions.deregister(channel, this, !channel.endsWith('.' + nodeID));
+				}
+				channels.clear();
+			}
+		}
 	}
 
 	// --- SEND DATA ---
@@ -118,7 +137,7 @@ public class InternalTransporter extends Transporter {
 
 	// --- SUBSCRIPTION HANDLER ---
 
-	protected static class Subscriptions {
+	public static class Subscriptions {
 
 		// --- SUBSCRIPTIONS PER CHANNEL ---
 
@@ -128,22 +147,17 @@ public class InternalTransporter extends Transporter {
 
 		protected final StampedLock lock = new StampedLock();
 
-		// --- SERIALIZER ---
-
-		protected final Serializer serializer;
-
 		// --- CONSTRUCTOR ---
-
-		protected Subscriptions(Serializer serializer) {
-			this.serializer = serializer;
+		
+		public Subscriptions() {			
 		}
-
+		
 		// --- METHODS ---
 
 		protected void register(String channel, InternalTransporter transporter) {
 			SubscriptionSet set = getSubscriptionSet(channel);
 			if (set == null) {
-				set = new SubscriptionSet(channel, serializer);
+				set = new SubscriptionSet(channel);
 				SubscriptionSet previous;
 				final long stamp = lock.writeLock();
 				try {
@@ -164,7 +178,7 @@ public class InternalTransporter extends Transporter {
 				return;
 			}
 			if (shared) {
-				set.deregister(transporter);				
+				set.deregister(transporter);
 			} else {
 				final long stamp = lock.writeLock();
 				try {
@@ -217,19 +231,17 @@ public class InternalTransporter extends Transporter {
 		protected final ReadLock readLock;
 		protected final WriteLock writeLock;
 
-		// --- OTHER PROPERTIES ---
+		// --- CHANNEL ---
 
 		protected final String channel;
-		protected final Serializer serializer;
 
 		// --- CONSTRUCTOR ---
 
-		protected SubscriptionSet(String channel, Serializer serializer) {
+		protected SubscriptionSet(String channel) {
 			ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 			this.readLock = lock.readLock();
 			this.writeLock = lock.writeLock();
 			this.channel = channel;
-			this.serializer = serializer;
 		}
 
 		protected void register(InternalTransporter transporter) {
@@ -256,10 +268,12 @@ public class InternalTransporter extends Transporter {
 				if (set.isEmpty()) {
 					return;
 				}
-				byte[] bytes = serializer.write(message);
 				for (InternalTransporter transporter : set.keySet()) {
 					if (transporter != null) {
-						transporter.received(channel, bytes);
+						Tree msg = message == null ? null : message.clone();
+						transporter.executor.execute(() -> {
+							transporter.processReceivedMessage(channel, msg);
+						});
 					}
 				}
 			} finally {

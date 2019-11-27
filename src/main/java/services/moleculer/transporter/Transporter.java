@@ -25,7 +25,6 @@
  */
 package services.moleculer.transporter;
 
-import static services.moleculer.ServiceBroker.PROTOCOL_VERSION;
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.throwableToTree;
 
@@ -104,10 +103,26 @@ public abstract class Transporter extends MoleculerComponent {
 
 	// --- PROPERTIES ---
 
+	/**
+	 * Namespace of channels.
+	 */
 	protected String namespace = "";
+	
+	/**
+	 * Prefix of channels.
+	 */
 	protected String prefix = "MOL";
+	
+	/**
+	 * Local Node ID.
+	 */
 	protected String nodeID;
 
+	/**
+	 * ServiceBroker's protocol version
+	 */
+	protected String protocolVersion = "4";
+	
 	/**
 	 * Heartbeat sending period in SECONDS.
 	 */
@@ -212,6 +227,9 @@ public abstract class Transporter extends MoleculerComponent {
 		}
 		nodeID = broker.getNodeID();
 
+		// Set the protocol version
+		protocolVersion = broker.getProtocolVersion();
+		
 		// Log serializer info
 		serializer.started(broker);
 		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
@@ -348,7 +366,7 @@ public abstract class Transporter extends MoleculerComponent {
 
 	protected void sendInfoPacket(String channel) {
 		Tree msg = registry.getDescriptor();
-		msg.put("ver", PROTOCOL_VERSION);
+		msg.put("ver", protocolVersion);
 		msg.put("sender", nodeID);
 		msg.put("seq", registry.getTimestamp());
 		publish(channel, msg);
@@ -356,14 +374,14 @@ public abstract class Transporter extends MoleculerComponent {
 
 	protected void sendDiscoverPacket(String channel) {
 		FastBuildTree msg = new FastBuildTree(3);
-		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("ver", protocolVersion);
 		msg.putUnsafe("sender", nodeID);
 		publish(channel, msg);
 	}
 
 	protected void sendHeartbeatPacket() {
 		FastBuildTree msg = new FastBuildTree(4);
-		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("ver", protocolVersion);
 		msg.putUnsafe("sender", nodeID);
 		msg.putUnsafe("cpu", monitor.getTotalCpuPercent());
 		publish(heartbeatChannel, msg);
@@ -371,7 +389,7 @@ public abstract class Transporter extends MoleculerComponent {
 
 	protected void sendDisconnectPacket() {
 		FastBuildTree msg = new FastBuildTree(3);
-		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("ver", protocolVersion);
 		msg.putUnsafe("sender", nodeID);
 		publish(disconnectChannel, msg);
 	}
@@ -386,7 +404,7 @@ public abstract class Transporter extends MoleculerComponent {
 
 	public Tree createPingPacket(String id) {
 		FastBuildTree msg = new FastBuildTree(5);
-		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("ver", protocolVersion);
 		msg.putUnsafe("sender", nodeID);
 		msg.putUnsafe("id", id);
 		msg.putUnsafe("time", System.currentTimeMillis());
@@ -399,7 +417,7 @@ public abstract class Transporter extends MoleculerComponent {
 		FastBuildTree msg = new FastBuildTree(13);
 
 		// Add basic properties (version, sender's nodeID, etc.)
-		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+		msg.putUnsafe("ver", protocolVersion);
 		msg.putUnsafe("sender", this.nodeID);
 		msg.putUnsafe("id", ctx.id);
 		msg.putUnsafe("event", ctx.name);
@@ -452,7 +470,7 @@ public abstract class Transporter extends MoleculerComponent {
 		FastBuildTree msg = new FastBuildTree(13);
 
 		// Add basic properties (version, sender's nodeID, etc.)
-		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("ver", protocolVersion);
 		msg.putUnsafe("sender", this.nodeID);
 		msg.putUnsafe("id", ctx.id);
 		msg.putUnsafe("action", ctx.name);
@@ -504,7 +522,7 @@ public abstract class Transporter extends MoleculerComponent {
 		FastBuildTree msg = new FastBuildTree(8);
 
 		// Add required properties (version, sender's nodeID, request ID)
-		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("ver", protocolVersion);
 		msg.putUnsafe("sender", this.nodeID);
 		msg.putUnsafe("id", ctx.id);
 
@@ -546,7 +564,7 @@ public abstract class Transporter extends MoleculerComponent {
 	// --- ERROR PACKET (STREAMING) ---
 
 	public void sendErrorPacket(String cmd, String nodeID, Context ctx, Throwable cause, long sequence) {
-		FastBuildTree msg = throwableToTree(ctx.id, this.nodeID, cause);
+		FastBuildTree msg = throwableToTree(ctx.id, this.nodeID, protocolVersion, cause);
 
 		// Stream packet counter (1...N)
 		msg.putUnsafe("seq", sequence);
@@ -564,7 +582,7 @@ public abstract class Transporter extends MoleculerComponent {
 		FastBuildTree msg = new FastBuildTree(8);
 
 		// Add required properties (version, sender's nodeID, request ID)
-		msg.putUnsafe("ver", PROTOCOL_VERSION);
+		msg.putUnsafe("ver", protocolVersion);
 		msg.putUnsafe("sender", this.nodeID);
 		msg.putUnsafe("id", ctx.id);
 		msg.putUnsafe("success", true);
@@ -621,28 +639,36 @@ public abstract class Transporter extends MoleculerComponent {
 	 *            incoming message
 	 */
 	protected void processReceivedMessage(String channel, byte[] message) {
-
-		// Parse message
-		Tree data;
 		try {
-			data = serializer.read(message);
+			processReceivedMessage(channel, serializer.read(message));
 		} catch (Exception cause) {
 			logger.warn("Unable to parse incoming message!", cause);
 			return;
 		}
+	}
+	
+	/**
+	 * Process incoming message directly (without new Task).
+	 * 
+	 * @param channel
+	 *            incoming channel
+	 * @param message
+	 *            incoming message
+	 */
+	protected void processReceivedMessage(String channel, Tree message) {
 
 		// Debug
 		if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
-			logger.info("Message received from channel \"" + channel + "\":\r\n" + data);
+			logger.info("Message received from channel \"" + channel + "\":\r\n" + message);
 		}
 
 		// Send message to proper component
 		try {
 
 			// Get "sender" property
-			String sender = data.get("sender", "");
+			String sender = message.get("sender", "");
 			if (sender == null || sender.isEmpty()) {
-				logger.warn("Missing \"sender\" property:\r\n" + data);
+				logger.warn("Missing \"sender\" property:\r\n" + message);
 				return;
 			}
 			if (sender.equals(nodeID)) {
@@ -653,19 +679,19 @@ public abstract class Transporter extends MoleculerComponent {
 
 			// Incoming response
 			if (channel.equals(responseChannel)) {
-				registry.receiveResponse(data);
+				registry.receiveResponse(message);
 				return;
 			}
 
 			// Incoming event
 			if (channel.equals(eventChannel)) {
-				eventbus.receiveEvent(data);
+				eventbus.receiveEvent(message);
 				return;
 			}
 
 			// Incoming request
 			if (channel.equals(requestChannel)) {
-				registry.receiveRequest(data);
+				registry.receiveRequest(message);
 				return;
 			}
 
@@ -680,7 +706,7 @@ public abstract class Transporter extends MoleculerComponent {
 					sendDiscoverPacket(channel(PACKET_DISCOVER, sender));
 					return;
 				}
-				int cpu = data.get("cpu", 0);
+				int cpu = message.get("cpu", 0);
 
 				// Update CPU info
 				boolean offline;
@@ -703,9 +729,9 @@ public abstract class Transporter extends MoleculerComponent {
 			if (channel.equals(infoChannel) || channel.equals(infoBroadcastChannel)) {
 
 				// Register services and listeners
-				data.put("seq", System.currentTimeMillis());
-				data.put("port", 1);
-				updateNodeInfo(sender, data);
+				message.put("seq", System.currentTimeMillis());
+				message.put("port", 1);
+				updateNodeInfo(sender, message);
 				return;
 			}
 
@@ -719,13 +745,13 @@ public abstract class Transporter extends MoleculerComponent {
 
 			// Ping packet
 			if (channel.equals(pingChannel)) {
-				sendPongPacket(channel(PACKET_PONG, sender), data);
+				sendPongPacket(channel(PACKET_PONG, sender), message);
 				return;
 			}
 
 			// Pong packet
 			if (channel.equals(pongChannel)) {
-				registry.receivePong(data);
+				registry.receivePong(message);
 				return;
 			}
 

@@ -108,11 +108,34 @@ public class ServiceTest extends TestCase {
 		br.createService(new NullService());
 		rsp = br.call("nullService.nullAction", (Tree) null).waitFor(20000);
 		assertNull(rsp);
+		
+		// Check hidden (private) service in descriptor
+		Tree desc = br.getConfig().getServiceRegistry().getDescriptor();
+		String json = desc.toString();
+		assertTrue(json.contains("add2"));
+		assertFalse(json.contains("add3"));
+		
+		rsp = br.call("test.add2", "a", 4, "b", 6).waitFor(20000);
+		assertEquals(10, (int) rsp.asInteger());
+		rsp = br.call("test.add3", "a", 5, "b", 6).waitFor(20000);
+		assertEquals(11, (int) rsp.asInteger());
+		
+		putIncomingCall("test.add2", new Tree().put("a", 3).put("b", 3));
+		assertEquals(1, tr.getMessageCount());
+		rsp = tr.getMessages().removeFirst();
+		assertEquals(6, rsp.get("data", 1));
+		
+		putIncomingCall("test.add3", new Tree().put("a", 4).put("b", 3));
+		assertEquals(1, tr.getMessageCount());
+		rsp = tr.getMessages().removeFirst();
+		assertFalse(rsp.get("success", true));
+		assertEquals("ServiceNotAvailableError", rsp.get("error.name", ""));
+		assertEquals(404, rsp.get("error.code", 0));
 	}
 
 	protected void putIncomingCall(String name, Tree params) throws Exception {
 		FastBuildTree msg = new FastBuildTree(7);
-		msg.putUnsafe("ver", ServiceBroker.PROTOCOL_VERSION);
+		msg.putUnsafe("ver", br.getProtocolVersion());
 		msg.putUnsafe("sender", "node5");
 		msg.putUnsafe("action", name);
 		msg.putUnsafe("id", "123");
@@ -134,6 +157,15 @@ public class ServiceTest extends TestCase {
 	protected static final class TestService extends Service {
 
 		public Action add = ctx -> {
+			return ctx.params.get("a", 0) + ctx.params.get("b", 0);
+		};
+
+		Action add2 = ctx -> {
+			return ctx.params.get("a", 0) + ctx.params.get("b", 0);
+		};
+
+		@SuppressWarnings("unused")
+		private Action add3 = ctx -> {
 			return ctx.params.get("a", 0) + ctx.params.get("b", 0);
 		};
 
