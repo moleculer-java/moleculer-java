@@ -120,7 +120,8 @@ public class Sample {
 *  [High-performance Web API for Moleculer Apps](https://moleculer-java.github.io/moleculer-java-web/)
 *  [Interactive Developer Console](https://moleculer-java.github.io/moleculer-java-repl/)
 *  [JMX Service for Moleculer](https://moleculer-java.github.io/moleculer-java-jmx/)
-*  [MongoDB API for Moleculer](https://moleculer-java.github.io/moleculer-java-mongo/)
+*  [Non-blocking MongoDB API for Moleculer](https://moleculer-java.github.io/moleculer-java-mongo/)
+*  [Non-blocking HTTP client for Moleculer](https://moleculer-java.github.io/moleculer-java-httpclient/)
 
 ## Documentation
 
