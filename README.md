@@ -111,21 +111,22 @@ public class Sample {
 }
 ```
 
-# Documentation
-
-Developer documentation is in progress. At present, only JavaDoc and test cases are available.
-
-# Sample project
+## Sample project
 
 *  [Moleculer Java demo project with Gradle](https://moleculer-java.github.io/moleculer-spring-boot-demo/)
 
-# Subprojects
+## Subprojects
 
 *  [High-performance Web API for Moleculer Apps](https://moleculer-java.github.io/moleculer-java-web/)
 *  [Interactive Developer Console](https://moleculer-java.github.io/moleculer-java-repl/)
 *  [JMX Service for Moleculer](https://moleculer-java.github.io/moleculer-java-jmx/)
-*  [MongoDB API for Moleculer](https://moleculer-java.github.io/moleculer-java-mongo/)
+*  [Non-blocking MongoDB API for Moleculer](https://moleculer-java.github.io/moleculer-java-mongo/)
+*  [Non-blocking HTTP client for Moleculer](https://moleculer-java.github.io/moleculer-java-httpclient/)
 
-# License
+## Documentation
+
+Developer documentation is in progress. At present, only JavaDoc and test cases are available.
+
+## License
 
 Moleculer-java is available under the [MIT license](https://tldrlegal.com/license/mit-license).
