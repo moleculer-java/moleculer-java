@@ -89,7 +89,7 @@ public class Sample {
 			});
 		};
 		
-		// Sacond action
+		// Second action
 		Action second = ctx -> {
 			return ctx.params.get("a", 0) + ctx.params.get("c.d", 0);
 		};
