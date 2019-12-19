@@ -91,6 +91,12 @@ public class MemoryCacher extends Cacher implements Runnable {
 	 */
 	protected boolean useCloning = true;
 
+	/**
+	 * The ordering mode - <tt>true</tt> for access-order (LRU cache),
+	 * <tt>false</tt> for insertion-order
+	 */
+	protected boolean accessOrder = true;
+
 	// --- READ/WRITE LOCK ---
 
 	protected final StampedLock lock = new StampedLock();
@@ -255,7 +261,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 			String prefix = key.substring(0, pos);
 			MemoryPartition partition = getPartition(prefix);
 			if (partition == null) {
-				partition = new MemoryPartition(capacity, useCloning);
+				partition = new MemoryPartition(capacity, useCloning, accessOrder);
 				MemoryPartition previous;
 				final long stamp = lock.writeLock();
 				try {
@@ -394,8 +400,8 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 		// --- CONSTUCTORS ---
 
-		protected MemoryPartition(int capacity, boolean useCloning) {
-			cache = new LinkedHashMap<String, PartitionEntry>(capacity, 1.0f, true) {
+		protected MemoryPartition(int capacity, boolean useCloning, boolean accessOrder) {
+			cache = new LinkedHashMap<String, PartitionEntry>(capacity, 1.0f, accessOrder) {
 
 				private static final long serialVersionUID = 5994447707758047152L;
 
@@ -577,6 +583,14 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 	public void setUseCloning(boolean useCloning) {
 		this.useCloning = useCloning;
+	}
+
+	public boolean isAccessOrder() {
+		return accessOrder;
+	}
+
+	public void setAccessOrder(boolean accessOrder) {
+		this.accessOrder = accessOrder;
 	}
 
 }
