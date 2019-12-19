@@ -40,6 +40,8 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -74,6 +76,12 @@ public final class CommonUtils {
 
 	private static final NumberFormat numberFormatter = DecimalFormat.getInstance(Locale.US);
 
+	// --- INTERNAL EVENTS ---
+
+	private static final Set<String> internalEvents = Collections.unmodifiableSet(new HashSet<>(Arrays
+			.asList(new String[] { "$node.connected", "$node.updated", "$node.disconnected", "$transporter.connected",
+					"$transporter.disconnected", "$broker.started", "$broker.stopped", "$services.changed" })));
+
 	// --- MERGE META ---
 
 	public static final Tree mergeMeta(Tree rsp, Tree req) {
@@ -99,7 +107,7 @@ public final class CommonUtils {
 
 	public static final FastBuildTree throwableToTree(String id, String nodeID, String protocolVersion,
 			Throwable error) {
-		
+
 		FastBuildTree msg = new FastBuildTree(8);
 
 		msg.putUnsafe("id", id);
@@ -179,13 +187,13 @@ public final class CommonUtils {
 
 			// Create entry for annotation
 			String annotationName = annotation.toString();
-			int i = annotationName.lastIndexOf('.');
-			if (i > -1) {
-				annotationName = annotationName.substring(i + 1);
-			}
-			i = annotationName.indexOf('(');
+			int i = annotationName.indexOf('(');
 			if (i > -1) {
 				annotationName = annotationName.substring(0, i);
+			}
+			i = annotationName.lastIndexOf('.');
+			if (i > -1) {
+				annotationName = annotationName.substring(i + 1);
 			}
 			if (annotationName.length() > 1) {
 				annotationName = Character.toLowerCase(annotationName.charAt(0)) + annotationName.substring(1);
@@ -213,6 +221,7 @@ public final class CommonUtils {
 			int size = annotationMap.size();
 			if (size == 0) {
 				annotationMap.remove();
+				config.put(annotationName, true);
 			} else if (size == 1) {
 				Tree value = annotationMap.getFirstChild();
 				if (value != null && "value".equals(value.getName())) {
@@ -282,6 +291,26 @@ public final class CommonUtils {
 			}
 		}
 		return infos;
+	}
+
+	public static final Tree removeLocalEvents(Tree descriptor) {
+		if (descriptor == null) {
+			return null;
+		}
+		Tree services = descriptor.get("services");
+		if (services == null || services.isNull()) {
+			return descriptor;
+		}
+		for (Tree service : services) {
+			Tree events = service.get("events");
+			if (events == null || events.isNull()) {
+				continue;
+			}
+			events.remove((event -> {
+				return internalEvents.contains(event.getName());
+			}), true);
+		}
+		return descriptor;
 	}
 
 	// --- GET HOSTNAME OR IP FROM AN INFO STRUCTURE ---

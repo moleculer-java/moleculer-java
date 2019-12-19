@@ -36,9 +36,9 @@ public class LocalActionEndpoint extends ActionEndpoint {
 
 	// --- CONSTRUCTOR ---
 
-	public LocalActionEndpoint(DefaultServiceRegistry registry, ExecutorService executor, String nodeID, Tree config,
-			Action action, String actionName) {
-		super(nodeID, config);
+	public LocalActionEndpoint(DefaultServiceRegistry registry, ExecutorService executor, String nodeID, String service,
+			Tree config, Action action, String actionName) {
+		super(nodeID, service, config);
 
 		// Handle local timeout with a handler
 		current = ctx -> {

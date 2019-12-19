@@ -55,7 +55,7 @@ public class CpuUsageStrategyTest extends StrategyTest {
 		Strategy<LocalActionEndpoint> s = f.create();
 
 		for (int i = 1; i <= 6; i++) {
-			s.addEndpoint(createEndpoint(broker, "node" + i, "e" + i));
+			s.addEndpoint(createEndpoint(broker, "node" + i, "e", "e" + i));
 			tr.setCpuUsage("node" + i, i * 10);
 		}
 

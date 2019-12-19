@@ -27,6 +27,7 @@ package services.moleculer.transporter;
 
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.throwableToTree;
+import static services.moleculer.util.CommonUtils.removeLocalEvents;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -107,12 +108,12 @@ public abstract class Transporter extends MoleculerComponent {
 	 * Namespace of channels.
 	 */
 	protected String namespace = "";
-	
+
 	/**
 	 * Prefix of channels.
 	 */
 	protected String prefix = "MOL";
-	
+
 	/**
 	 * Local Node ID.
 	 */
@@ -122,7 +123,7 @@ public abstract class Transporter extends MoleculerComponent {
 	 * ServiceBroker's protocol version
 	 */
 	protected String protocolVersion = "4";
-	
+
 	/**
 	 * Heartbeat sending period in SECONDS.
 	 */
@@ -229,7 +230,7 @@ public abstract class Transporter extends MoleculerComponent {
 
 		// Set the protocol version
 		protocolVersion = broker.getProtocolVersion();
-		
+
 		// Log serializer info
 		serializer.started(broker);
 		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
@@ -318,6 +319,9 @@ public abstract class Transporter extends MoleculerComponent {
 							TimeUnit.SECONDS);
 				}
 
+				// Notify internal listeners
+				broadcastTransporterConnected();
+				
 			}).catchError(error -> {
 
 				logger.warn("Unable to subscribe channels!", error);
@@ -365,7 +369,7 @@ public abstract class Transporter extends MoleculerComponent {
 	// --- GENERIC MOLECULER PACKETS ---
 
 	protected void sendInfoPacket(String channel) {
-		Tree msg = registry.getDescriptor();
+		Tree msg = removeLocalEvents(registry.getDescriptor());		
 		msg.put("ver", protocolVersion);
 		msg.put("sender", nodeID);
 		msg.put("seq", registry.getTimestamp());
@@ -646,7 +650,7 @@ public abstract class Transporter extends MoleculerComponent {
 			return;
 		}
 	}
-	
+
 	/**
 	 * Process incoming message directly (without new Task).
 	 * 
@@ -889,6 +893,16 @@ public abstract class Transporter extends MoleculerComponent {
 	}
 
 	// --- INTERNAL MOLECULER EVENTS ---
+
+	protected void broadcastTransporterConnected() {
+		eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
+				"$transporter.connected", null, 1, null, null, null, null, nodeID), null, true);
+	}
+
+	protected void broadcastTransporterDisconnected() {
+		eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
+				"$transporter.disconnected", null, 1, null, null, null, null, nodeID), null, true);
+	}
 
 	protected void broadcastNodeConnected(Tree info, boolean reconnected) {
 		if (info != null) {

@@ -28,6 +28,7 @@ package services.moleculer.transporter;
 import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.parseURLs;
 import static services.moleculer.util.CommonUtils.readTree;
+import static services.moleculer.util.CommonUtils.removeLocalEvents;
 
 import java.net.InetAddress;
 import java.net.URL;
@@ -325,7 +326,7 @@ public class TcpTransporter extends Transporter {
 			currentPort = reader.getCurrentPort();
 
 			// Create descriptor of current node
-			Tree info = registry.getDescriptor();
+			Tree info = removeLocalEvents(registry.getDescriptor());
 			info.put("port", currentPort);
 			info.put("seq", "0");
 			cachedDescriptor = new NodeDescriptor(nodeID, useHostname, true, info);
@@ -350,6 +351,9 @@ public class TcpTransporter extends Transporter {
 						TimeUnit.SECONDS);
 			}
 
+			// Notify internal listeners
+			broadcastTransporterConnected();
+
 			// Ok, transporter started
 			logger.info("Message receiver started on tcp://" + getHostName() + ':' + currentPort + ".");
 
@@ -368,29 +372,39 @@ public class TcpTransporter extends Transporter {
 	// --- DISCONNECT ---
 
 	protected void disconnect() {
-
+		boolean notify = false;
+		
 		// Stop broadcaster
 		if (locator != null) {
+			notify = true;
 			locator.disconnect();
 			locator = null;
 		}
 
 		// Stop gossiper's timer
 		if (gossiperTimer != null) {
+			notify = true;
 			gossiperTimer.cancel(false);
 			gossiperTimer = null;
 		}
 
 		// Close socket reader
 		if (reader != null) {
+			notify = true;
 			reader.disconnect();
 			reader = null;
 		}
 
 		// Close socket writer
 		if (writer != null) {
+			notify = true;
 			writer.disconnect();
 			writer = null;
+		}
+		
+		// Notify internal listeners
+		if (notify) {
+			broadcastTransporterDisconnected();
 		}
 	}
 
@@ -405,7 +419,7 @@ public class TcpTransporter extends Transporter {
 	// --- STOP TRANSPORTER ---
 
 	/**
-	 * Closes transporter.
+	 * Closes TCP Transporter.
 	 */
 	@Override
 	public void stopped() {
@@ -745,7 +759,7 @@ public class TcpTransporter extends Transporter {
 			} else {
 				while (true) {
 					current = registry.getTimestamp();
-					cachedDescriptor.info = registry.getDescriptor();
+					cachedDescriptor.info = removeLocalEvents(registry.getDescriptor());
 					if (current == registry.getTimestamp()) {
 						timestamp.set(current);
 						break;

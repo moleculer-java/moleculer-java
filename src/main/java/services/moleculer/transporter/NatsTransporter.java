@@ -337,7 +337,9 @@ public class NatsTransporter extends Transporter implements MessageHandler, Conn
 	}
 
 	protected void disconnect() {
+		boolean notify = false;
 		if (dispatcher != null && client != null) {
+			notify = true;
 			try {
 				client.closeDispatcher(dispatcher);
 			} catch (Throwable cause) {
@@ -347,6 +349,7 @@ public class NatsTransporter extends Transporter implements MessageHandler, Conn
 			dispatcher = null;
 		}
 		if (client != null) {
+			notify = true;
 			try {
 				client.close();
 			} catch (Throwable cause) {
@@ -354,6 +357,11 @@ public class NatsTransporter extends Transporter implements MessageHandler, Conn
 			} finally {
 				client = null;
 			}
+		}
+		
+		// Notify internal listeners
+		if (notify) {
+			broadcastTransporterDisconnected();
 		}
 	}
 

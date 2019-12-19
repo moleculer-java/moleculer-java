@@ -171,6 +171,7 @@ public class JmsTransporter extends Transporter {
 	// --- DISCONNECT ---
 
 	protected void disconnect() {
+		boolean notify = false;
 		if (client != null) {
 			try {
 				client.stop();
@@ -196,6 +197,7 @@ public class JmsTransporter extends Transporter {
 			subscribers.clear();
 		}
 		if (session != null) {
+			notify = true;
 			try {
 				session.close();
 			} catch (Exception ignored) {
@@ -203,11 +205,17 @@ public class JmsTransporter extends Transporter {
 			session = null;
 		}
 		if (client != null) {
+			notify = true;
 			try {
 				client.close();
 			} catch (Exception ignored) {
 			}
 			client = null;
+		}
+		
+		// Notify internal listeners
+		if (notify) {
+			broadcastTransporterDisconnected();
 		}
 	}
 

@@ -29,6 +29,7 @@ import io.datatree.Tree;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
+import services.moleculer.service.Version;
 
 public class Sample {
 
@@ -57,7 +58,7 @@ public class Sample {
 			broker.start();
 
 			// Invoke service (blocking style)
-			Tree response = broker.call("myService.first").waitFor(5000);
+			Tree response = broker.call("v2.myService.first").waitFor(5000);
 			
 			// Print response
 			System.out.println("RESPONSE: " + response);
@@ -70,6 +71,7 @@ public class Sample {
 		}
 	}
 
+	@Version("2")
 	public static class MyService extends Service {
 
 		// First action (which calls the second action)
@@ -82,7 +84,7 @@ public class Sample {
 			params.put("c.d", 3);
 
 			// Invoke local action via EventBus
-			return ctx.call("myService.second", params).then(in -> {
+			return ctx.call("v2.myService.second", params).then(in -> {
 
 				// The result will be 10
 				return in.asLong() * 2;

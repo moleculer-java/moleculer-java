@@ -146,8 +146,10 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	// --- DISCONNECT ---
 
 	protected Promise disconnect() {
+		boolean notify = false;
 		int s = status.get();
 		if (s != STATUS_DISCONNECTED && s != STATUS_DISCONNECTING) {
+			notify = true;
 			status.set(STATUS_DISCONNECTING);
 			if (clientSub != null) {
 				clientSub.disconnect();
@@ -155,8 +157,14 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 			if (clientPub != null) {
 				clientPub.disconnect();
 			}
-			status.set(STATUS_DISCONNECTED);
+			status.set(STATUS_DISCONNECTED);			
 		}
+		
+		// Notify internal listeners
+		if (notify) {
+			broadcastTransporterDisconnected();
+		}
+		
 		return Promise.resolve();
 	}
 

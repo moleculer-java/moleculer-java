@@ -27,6 +27,7 @@ package services.moleculer.transporter;
 
 import java.io.ByteArrayOutputStream;
 import java.util.LinkedList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
 
@@ -706,9 +707,18 @@ public abstract class TransporterTest extends TestCase {
 
 	// --- UTILITIES ---
 
+	protected AtomicInteger started = new AtomicInteger();
+	protected AtomicInteger stopped = new AtomicInteger();
+	protected AtomicInteger connected = new AtomicInteger();
+	protected AtomicInteger disconnected = new AtomicInteger();
+	
 	@Override
 	protected void setUp() throws Exception {
-
+		started.set(0);
+		stopped.set(0);
+		connected.set(0);
+		disconnected.set(0);
+		
 		// Create transporters
 		tr1 = createTransporter();
 		tr2 = createTransporter();
@@ -723,24 +733,67 @@ public abstract class TransporterTest extends TestCase {
 
 		// Create "marker" service
 		br1.createService("marker", new Service() {
+			
+			// --- INTERNAL EVENTS ---
+			
+			@Subscribe("$broker.started")
+			Listener evtStarted = ctx -> {
+				started.incrementAndGet();
+			};
+
+			@Subscribe("$broker.stopped")
+			Listener evtStopped = ctx -> {
+				stopped.incrementAndGet();
+			};
+
+			@Subscribe("$transporter.connected")
+			Listener evtConnected = ctx -> {
+				connected.incrementAndGet();
+			};
+
+			@Subscribe("$transporter.disconnected")
+			Listener evtDisconnected = ctx -> {
+				disconnected.incrementAndGet();
+			};
+			
 		});
+
+		assertEquals(0, started.get());
+		assertEquals(0, stopped.get());
 
 		// Start brokers
 		br1.start();
 		br2.start();
 
+		// Check started/stopped
+		assertEquals(1, started.get());
+		assertEquals(0, stopped.get());
+		
 		// Wait for connecting nodes
-		br2.waitForServices(15000, "marker").waitFor(15000);
+		br2.waitForServices(1500000, "marker").waitFor(1500000);
+		
+		// Check connected/disconnected
+		Thread.sleep(200);
+		assertEquals(1, connected.get());
+		assertEquals(0, disconnected.get());		
 	}
 
 	@Override
 	protected void tearDown() throws Exception {
-		if (br1 != null) {
+		if (br1 != null) {	
 			br1.stop();
 		}
 		if (br2 != null) {
 			br2.stop();
 		}
+		
+		// Check started/stopped
+		assertEquals(1, started.get());
+		assertEquals(1, stopped.get());
+		
+		// Check connected/disconnected
+		assertEquals(1, connected.get());
+		assertEquals(1, disconnected.get());	
 	}
 
 }

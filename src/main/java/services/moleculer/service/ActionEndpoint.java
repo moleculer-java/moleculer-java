@@ -47,6 +47,8 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 
 	protected final String name;
 
+	protected final String service;
+	
 	/**
 	 * Private Action; only the local Broker can access it and cannot be called
 	 * remotely.
@@ -63,11 +65,12 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 
 	// --- CONSTRUCTOR ---
 
-	public ActionEndpoint(String nodeID, Tree config) {
+	public ActionEndpoint(String nodeID, String service, Tree config) {
 		super(nodeID);
 		this.config = config;
 		this.name = config.get("name", "unknown");
 		this.privateAccess = config.get("private", false);
+		this.service = service;
 		
 		// Generate hashcode
 		this.hashCode = 31 * nodeID.hashCode() + name.hashCode();

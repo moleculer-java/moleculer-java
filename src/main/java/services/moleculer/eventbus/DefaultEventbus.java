@@ -132,7 +132,7 @@ public class DefaultEventbus extends Eventbus {
 	protected final Lock registryWriteLock;
 
 	// --- TIMERS ---
-	
+
 	/**
 	 * Cancelable timer for request streams
 	 */
@@ -194,7 +194,7 @@ public class DefaultEventbus extends Eventbus {
 
 		// Set the protocol version
 		this.protocolVersion = broker.getProtocolVersion();
-		
+
 		// Set components
 		ServiceBrokerConfig cfg = broker.getConfig();
 		this.strategy = cfg.getStrategyFactory();
@@ -414,27 +414,26 @@ public class DefaultEventbus extends Eventbus {
 		String name = (serviceName == null || serviceName.isEmpty()) ? service.getName() : serviceName;
 		Class<? extends Service> clazz = service.getClass();
 		LinkedHashMap<String, Field> fields = new LinkedHashMap<>(64);
-		for (Field f : clazz.getDeclaredFields()) {
-			f.setAccessible(true);
-			fields.putIfAbsent(f.getName(), f);
+		for (Field field : clazz.getDeclaredFields()) {
+			if (Listener.class.isAssignableFrom(field.getType())) {
+				field.setAccessible(true);
+				fields.putIfAbsent(field.getName(), field);
+			}
 		}
-		for (Field f : clazz.getFields()) {
-			f.setAccessible(true);
-			fields.putIfAbsent(f.getName(), f);
+		for (Field field : clazz.getFields()) {
+			if (Listener.class.isAssignableFrom(field.getType())) {
+				field.setAccessible(true);
+				fields.putIfAbsent(field.getName(), field);
+			}
+		}
+		if (fields.isEmpty()) {
+			return;
 		}
 
-		boolean hasListener = false;
+		// Initialize listeners in service
 		registryWriteLock.lock();
 		try {
-
-			// Initialize listeners in service
 			for (Field field : fields.values()) {
-				if (!Listener.class.isAssignableFrom(field.getType())) {
-					continue;
-				}
-
-				// Register event listener
-				hasListener = true;
 
 				// Name of the action (eg. "service.action")
 				String listenerName = nameOf(name, field);
@@ -489,11 +488,9 @@ public class DefaultEventbus extends Eventbus {
 		} finally {
 
 			// Clear caches
-			if (hasListener) {
-				emitterCache.clear();
-				broadcasterCache.clear();
-				localBroadcasterCache.clear();
-			}
+			emitterCache.clear();
+			broadcasterCache.clear();
+			localBroadcasterCache.clear();
 
 			// Unlock reader threads
 			registryWriteLock.unlock();

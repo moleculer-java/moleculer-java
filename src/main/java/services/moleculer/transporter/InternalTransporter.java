@@ -104,8 +104,13 @@ public class InternalTransporter extends Transporter {
 
 	@Override
 	public void stopped() {
-		deregister();
+		boolean notify = deregister();
 		super.stopped();
+		
+		// Notify internal listeners
+		if (notify) {
+			broadcastTransporterDisconnected();
+		}
 	}
 
 	@Override
@@ -113,15 +118,17 @@ public class InternalTransporter extends Transporter {
 		deregister();
 	}
 
-	protected void deregister() {
+	protected boolean deregister() {
 		synchronized (channels) {
 			if (!channels.isEmpty()) {
 				for (String channel : channels) {
 					subscriptions.deregister(channel, this, !channel.endsWith('.' + nodeID));
 				}
 				channels.clear();
+				return true;
 			}
 		}
+		return false;
 	}
 
 	// --- SEND DATA ---

@@ -93,12 +93,14 @@ public class KafkaTransporter extends Transporter {
 
 	protected KafkaPoller poller;
 
-	// --- COMPONENTS ---
+	// --- EXECUTOR ---
 
 	/**
 	 * Executor of reader loop for incoming messages
 	 */
 	protected ExecutorService executor;
+	
+	protected boolean shutDownThreadPools;
 
 	// --- CONSTUCTORS ---
 
@@ -147,7 +149,10 @@ public class KafkaTransporter extends Transporter {
 
 			// Start reader loop
 			poller = new KafkaPoller(this);
-			executor = Executors.newSingleThreadExecutor();
+			if (executor == null) {
+				executor = Executors.newSingleThreadExecutor();
+				shutDownThreadPools = true;
+			}
 			executor.execute(poller);
 
 			// Start subscribing channels...
@@ -161,10 +166,12 @@ public class KafkaTransporter extends Transporter {
 	// --- DISCONNECT ---
 
 	protected void disconnect() {
+		boolean notify = false;
 		if (poller != null) {
 			poller.stop();
 		}
-		if (executor != null) {
+		if (executor != null && shutDownThreadPools) {
+			notify = true;
 			try {
 				executor.shutdown();
 			} catch (Exception ignored) {
@@ -172,14 +179,21 @@ public class KafkaTransporter extends Transporter {
 			executor = null;
 		}
 		if (poller != null) {
+			notify = true;
 			poller = null;
 		}
 		if (producer != null) {
+			notify = true;
 			try {
 				producer.close(Duration.ofSeconds(10));
 			} catch (Exception ignored) {
 			}
 			producer = null;
+		}
+		
+		// Notify internal listeners
+		if (notify) {
+			broadcastTransporterDisconnected();
 		}
 	}
 
@@ -382,6 +396,22 @@ public class KafkaTransporter extends Transporter {
 
 	public void setConsumerProperties(Properties consumerProperties) {
 		this.consumerProperties = consumerProperties;
+	}
+
+	public ExecutorService getExecutor() {
+		return executor;
+	}
+
+	public void setExecutor(ExecutorService executor) {
+		this.executor = executor;
+	}
+
+	public boolean isShutDownThreadPools() {
+		return shutDownThreadPools;
+	}
+
+	public void setShutDownThreadPools(boolean shutDownThreadPools) {
+		this.shutDownThreadPools = shutDownThreadPools;
 	}
 
 }

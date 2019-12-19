@@ -33,7 +33,6 @@ import static services.moleculer.util.CommonUtils.mergeMeta;
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.throwableToTree;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.InetAddress;
@@ -978,13 +977,17 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected void addOnlineActions(String serviceName, Service service) {
 		Class<? extends Service> clazz = service.getClass();
 		LinkedHashMap<String, Field> fields = new LinkedHashMap<>(64);
-		for (Field f : clazz.getDeclaredFields()) {
-			f.setAccessible(true);
-			fields.putIfAbsent(f.getName(), f);
+		for (Field field : clazz.getDeclaredFields()) {
+			if (Action.class.isAssignableFrom(field.getType())) {
+				field.setAccessible(true);
+				fields.putIfAbsent(field.getName(), field);
+			}
 		}
-		for (Field f : clazz.getFields()) {
-			f.setAccessible(true);
-			fields.putIfAbsent(f.getName(), f);
+		for (Field field : clazz.getFields()) {
+			if (Action.class.isAssignableFrom(field.getType())) {
+				field.setAccessible(true);
+				fields.putIfAbsent(field.getName(), field);
+			}
 		}
 		int actionCounter = 0;
 
@@ -993,9 +996,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 			// Initialize actions in service
 			for (Field field : fields.values()) {
-				if (!Action.class.isAssignableFrom(field.getType())) {
-					continue;
-				}
 				Action action = (Action) field.get(service);
 
 				// Name of the action (eg. "service.action")
@@ -1006,13 +1006,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				if (Modifier.isPrivate(field.getModifiers())) {
 					actionConfig.put("private", true);
 				}
-
-				Annotation[] annotations = field.getAnnotations();
-				convertAnnotations(actionConfig, annotations);
+				convertAnnotations(actionConfig, field.getAnnotations());
 
 				// Register action
-				LocalActionEndpoint endpoint = new LocalActionEndpoint(this, executor, nodeID, actionConfig, action,
-						actionName);
+				LocalActionEndpoint endpoint = new LocalActionEndpoint(this, executor, nodeID, serviceName,
+						actionConfig, action, actionName);
 				Strategy<ActionEndpoint> actionStrategy = strategies.get(actionName);
 				if (actionStrategy == null) {
 
@@ -1102,8 +1100,8 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					String actionName = actionConfig.get("name", "");
 
 					// Register remote action
-					RemoteActionEndpoint endpoint = new RemoteActionEndpoint(this, transporter, nodeID, actionConfig,
-							actionName);
+					RemoteActionEndpoint endpoint = new RemoteActionEndpoint(this, transporter, nodeID, serviceName,
+							actionConfig, actionName);
 					Strategy<ActionEndpoint> actionStrategy = strategies.get(actionName);
 					if (actionStrategy == null) {
 						actionStrategy = strategyFactory.create();
@@ -1173,7 +1171,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 			// Update service names
 			names.clear();
-			names.addAll(strategies.keySet());
+			for (Strategy<ActionEndpoint> strategy : strategies.values()) {
+				for (ActionEndpoint endpoint : strategy.getAllEndpoints()) {
+					names.add(endpoint.service);
+				}
+			}
 
 			// Delete cached node descriptor
 			if (this.nodeID.equals(nodeID)) {

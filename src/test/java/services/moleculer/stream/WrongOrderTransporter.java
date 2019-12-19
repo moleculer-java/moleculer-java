@@ -59,6 +59,9 @@ public class WrongOrderTransporter extends Transporter implements Runnable {
 		synchronized (channels) {
 			channels.clear();
 		}
+		
+		// Notify internal listeners
+		broadcastTransporterDisconnected();
 	}
 
 	@Override

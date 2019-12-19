@@ -148,17 +148,20 @@ public class FileSystemTransporter extends Transporter {
 	
 	@Override
 	public void stopped() {
-
+		boolean notify = false;
+		
 		// Stop timers
 		if (pollerProcess != null) {
 			pollerProcess.cancel(false);
 			pollerProcess = null;
+			notify = true;
 		}
 		if (timeoutProcess != null) {
 			timeoutProcess.cancel(false);
 			timeoutProcess = null;
+			notify = true;
 		}
-		super.stopped();
+		super.stopped();		
 		synchronized (outputDirectories) {
 			for (DirectoryHandler handler : outputDirectories.values()) {
 				handler.removeAllSavedFiles();
@@ -174,6 +177,11 @@ public class FileSystemTransporter extends Transporter {
 					}
 				}
 			}
+		}
+		
+		// Notify internal listeners
+		if (notify) {
+			broadcastTransporterDisconnected();
 		}
 	}
 

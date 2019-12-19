@@ -25,92 +25,67 @@
  */
 package services.moleculer.breaker;
 
-public class ErrorCounter {
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
+public class ErrorCounter {
+	
 	// --- PROPERTIES ---
 
 	protected final long windowLength;
 	protected final long lockTimeout;
-
+	protected final int maxErrors;
+	
 	// --- ERROR TIMESTAMPS ---
 
-	protected final long[] timestamps;
-	protected volatile int pointer;
-
-	protected volatile long max;
-	protected volatile long min;
-
-	protected volatile long tested;
-
-	protected volatile boolean locked;
-
+	protected final AtomicInteger errorCounter = new AtomicInteger();
+	protected final AtomicLong lastError = new AtomicLong();
+	protected final AtomicLong lastTested = new AtomicLong();
+	
 	// --- CONSTRUCTOR ---
 
 	protected ErrorCounter(long windowLength, long lockTimeout, int maxErrors) {
 		this.windowLength = windowLength;
 		this.lockTimeout = lockTimeout;
-		this.timestamps = new long[maxErrors];
+		this.maxErrors = maxErrors;
 	}
 
 	// --- INCREMENT ERROR COUNTER ---
 
-	protected synchronized void increment(long now) {
-		pointer++;
-		if (pointer >= timestamps.length) {
-			pointer = 0;
-		}
-		timestamps[pointer] = now;
-		max = now;
-
-		int next = pointer + 1;
-		if (next >= timestamps.length) {
-			next = 0;
-		}
-		min = timestamps[next];
+	protected void increment(long now) {
+		errorCounter.incrementAndGet();
+		lastError.set(now);
 	}
 
 	// --- FOR CLEANUP ---
 
-	protected synchronized boolean isEmpty() {
-		return (max == 0 || min == 0);
+	protected boolean isEmpty() {
+		return errorCounter.get() == 0;
 	}
 
 	// --- CHECK ENDPOINT STATUS ---
 
-	protected synchronized boolean isAvailable(long now) {
-		if (max == 0 || min == 0) {
+	protected boolean isAvailable(long now) {
+		int errors = errorCounter.get();
+		if (errors < maxErrors) {
 			return true;
 		}
-		if (now - max > lockTimeout) {
-			if (now - tested > lockTimeout) {
-				tested = now;
-				return true;
-			}
+		long last = lastError.get();
+		if (now - last <= lockTimeout) {
 			return false;
 		}
-		if (locked) {
+		long tested = lastTested.get();
+		if (now - tested <= lockTimeout) {
 			return false;
 		}
-		if (now - min > windowLength) {
-			return true;
-		}
-		locked = true;
-		return false;
+		lastTested.set(now);
+		return true;
 	}
 
 	// --- RESET VARIABLES ---
 
-	protected synchronized void reset() {
-		if (max == 0) {
-			return;
-		}
-		for (int i = 0; i < timestamps.length; i++) {
-			timestamps[i] = 0;
-		}
-		min = 0;
-		max = 0;
-		tested = 0;
-		locked = false;
+	protected void reset() {
+		errorCounter.set(0);
 	}
 
 }

@@ -256,7 +256,7 @@ public class GoogleTransporter extends Transporter {
 	// --- DISCONNECT ---
 
 	protected void disconnect() {
-		connected.set(false);
+		boolean notify = connected.getAndSet(false);
 		synchronized (publishers) {
 			for (Publisher publisher : publishers.values()) {
 				try {
@@ -288,6 +288,11 @@ public class GoogleTransporter extends Transporter {
 			} catch (Exception ingored) {
 			}
 			subscriptionAdmin = null;
+		}
+		
+		// Notify internal listeners
+		if (notify) {
+			broadcastTransporterDisconnected();
 		}
 	}
 

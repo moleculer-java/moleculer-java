@@ -49,6 +49,7 @@ import io.datatree.dom.TreeWriterRegistry;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.config.ServiceBrokerBuilder;
 import services.moleculer.config.ServiceBrokerConfig;
+import services.moleculer.context.Context;
 import services.moleculer.context.ContextSource;
 import services.moleculer.error.MoleculerServerError;
 import services.moleculer.internal.NodeService;
@@ -93,15 +94,15 @@ import services.moleculer.transporter.Transporter;
  * ServiceBroker broker = new ServiceBroker("node-1");
  *
  * broker.createService(new Service("math") {
- *   Action add = ctx -&gt; {
- *     return ctx.params.get("a").asInteger() + ctx.params.get("b").asInteger();
- *   };
+ * 	Action add = ctx -&gt; {
+ * 		return ctx.params.get("a").asInteger() + ctx.params.get("b").asInteger();
+ * 	};
  * });
  *
  * broker.start();
  *
  * broker.call("math.add", "a", 5, "b", 3).then(rsp -&gt; {
- *   broker.getLogger().info("Response: " + rsp.asInteger());
+ * 	broker.getLogger().info("Response: " + rsp.asInteger());
  * });
  * </pre>
  *
@@ -116,7 +117,7 @@ public class ServiceBroker extends ContextSource {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final String SOFTWARE_VERSION = "1.2.4";
+	public static final String SOFTWARE_VERSION = "1.2.5";
 
 	/**
 	 * Protocol version, replaced by {@link #getProtocolVersion()}. From the
@@ -354,6 +355,10 @@ public class ServiceBroker extends ContextSource {
 				transporter.connect();
 			}
 
+			// Notify listeners
+			eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
+					"$broker.started", null, 1, null, null, null, null, nodeID), null, true);
+
 			// Ok, services, transporter and gateway started
 			logger.info("Node \"" + config.getNodeID() + "\" started successfully.");
 
@@ -464,9 +469,17 @@ public class ServiceBroker extends ContextSource {
 	 */
 	public ServiceBroker stop() {
 
-		// Stop internal components
+		// Stop transporter and services
 		stop(transporter);
 		stop(serviceRegistry);
+		
+		// Notify listeners
+		if (eventbus != null && serviceInvoker != null && uidGenerator != null) {
+			eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
+					"$broker.stopped", null, 1, null, null, null, null, nodeID), null, true);
+		}
+
+		// Stop other internal components
 		stop(eventbus);
 		stop(serviceInvoker);
 		stop(strategyFactory);
@@ -803,7 +816,7 @@ public class ServiceBroker extends ContextSource {
 			return true;
 		} catch (ClassNotFoundException notFound) {
 			logger.error("Unable to start REPL console!");
-			suggestDependency("com.github.berkesa", "moleculer-java-repl", "1.0.6");
+			suggestDependency("com.github.berkesa", "moleculer-java-repl", "1.2.1");
 		} catch (Exception cause) {
 			logger.error("Unable to start REPL console!", cause);
 		}

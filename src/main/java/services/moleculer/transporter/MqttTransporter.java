@@ -164,7 +164,9 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 	}
 
 	protected void disconnect() {
+		boolean notify = false;
 		if (client != null) {
+			notify = true;
 			try {
 				if (!client.isClosed()) {
 					client.disconnect();
@@ -191,6 +193,11 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 				}
 			} catch (Exception ignored) {
 			}
+		}
+		
+		// Notify internal listeners
+		if (notify) {
+			broadcastTransporterDisconnected();
 		}
 	}
 

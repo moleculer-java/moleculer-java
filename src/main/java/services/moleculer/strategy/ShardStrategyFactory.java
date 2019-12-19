@@ -128,6 +128,29 @@ public class ShardStrategyFactory extends ArrayBasedStrategyFactory {
 		super(preferLocal);
 	}
 
+	/**
+	 * Constructor that can be configured to use local services if possible.
+	 * 
+	 * @param shardKey
+	 *            Shard key's path (eg. "userID", "user.email", "#key", etc.)
+	 */
+	public ShardStrategyFactory(String shardKey) {
+		this(false, shardKey);
+	}
+	
+	/**
+	 * Constructor that can be configured to use local services if possible.
+	 * 
+	 * @param preferLocal
+	 *            invoke local actions if possible
+	 * @param shardKey
+	 *            Shard key's path (eg. "userID", "user.email", "#key", etc.)
+	 */
+	public ShardStrategyFactory(boolean preferLocal, String shardKey) {
+		super(preferLocal);
+		setShardKey(shardKey);
+	}
+
 	// --- FACTORY METHOD ---
 
 	@Override

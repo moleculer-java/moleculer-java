@@ -175,12 +175,14 @@ public class AmqpTransporter extends Transporter {
 	// --- DISCONNECT ---
 
 	protected void disconnect() {
+		boolean notify = false;
 		if (channel != null) {
 			try {
 				channel.close();
 			} catch (Throwable cause) {
 				logger.warn("Unexpected error occurred while closing AMQP channel!", cause);
 			} finally {
+				notify = true;
 				channel = null;
 			}
 		}
@@ -190,8 +192,14 @@ public class AmqpTransporter extends Transporter {
 			} catch (Throwable cause) {
 				logger.warn("Unexpected error occurred while closing AMQP client!", cause);
 			} finally {
+				notify = true;
 				client = null;
 			}
+		}
+		
+		// Notify internal listeners
+		if (notify) {
+			broadcastTransporterDisconnected();
 		}
 	}
 

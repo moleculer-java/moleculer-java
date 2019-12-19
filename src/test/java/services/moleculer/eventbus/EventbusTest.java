@@ -391,7 +391,7 @@ public class EventbusTest extends TestCase {
 		Group1Listener g1_a = (Group1Listener) br.getLocalService("g1_a");
 		br.createService("g1_b", new Group1Listener());
 		Group1Listener g1_b = (Group1Listener) br.getLocalService("g1_b");
-
+		
 		// Group2
 		br.createService("g2_a", new Group2Listener());
 		Group2Listener g2_a = (Group2Listener) br.getLocalService("g2_a");
@@ -546,7 +546,7 @@ public class EventbusTest extends TestCase {
 	protected static final class Group1Listener extends Service {
 
 		protected LinkedList<Tree> payloads = new LinkedList<>();
-
+		
 		// --- PUBLIC / SHARED / VISIBLE LISTENER ---
 		
 		@Group("group1")

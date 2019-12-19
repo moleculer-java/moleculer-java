@@ -105,8 +105,8 @@ public class CircuitBreakerTest extends TestCase {
 		assertFalse(ok);
 		ErrorCounter ec = cb.errorCounters.get(new EndpointKey(nodeID, "test.test"));
 		assertNotNull(ec);
-		assertEquals(1, ec.pointer);
-		long now = ec.timestamps[0];
+		assertEquals(1, ec.errorCounter.get());
+		long now = ec.lastError.get();
 		assertTrue(ec.isAvailable(now));
 
 		// Create faults2
@@ -121,7 +121,7 @@ public class CircuitBreakerTest extends TestCase {
 		assertFalse(ok);
 		ec = cb.errorCounters.get(new EndpointKey(nodeID, "test.test"));
 		assertNotNull(ec);
-		assertEquals(1, ec.pointer);
+		assertEquals(1, ec.errorCounter.get());
 
 		// Create fault
 		int node1Count = 0;
@@ -142,19 +142,13 @@ public class CircuitBreakerTest extends TestCase {
 				assertNotNull(ec);
 				if (node1Count < 3) {
 					if (node1Count == 1) {
-						assertTrue(ec.timestamps[0] == 0);
-						assertTrue(ec.timestamps[1] > 0);
-						assertTrue(ec.timestamps[2] == 0);
+						assertTrue(ec.errorCounter.get() == 1);
 					} else if (node1Count == 2) {
-						assertTrue(ec.timestamps[0] == 0);
-						assertTrue(ec.timestamps[1] > 0);
-						assertTrue(ec.timestamps[2] > 0);
+						assertTrue(ec.errorCounter.get() == 2);
 					}
 					assertTrue(ec.isAvailable(now));
 				} else {
-					assertTrue(ec.timestamps[0] > 0);
-					assertTrue(ec.timestamps[1] > 0);
-					assertTrue(ec.timestamps[2] > 0);
+					assertTrue(ec.errorCounter.get() == 3);
 					assertFalse(ec.isAvailable(now));
 				}
 			}
@@ -184,6 +178,12 @@ public class CircuitBreakerTest extends TestCase {
 		assertTrue(ec.isAvailable(now));
 		assertFalse(ec.isAvailable(now));
 		assertFalse(ec.isAvailable(now));
+		
+		// Avaliable
+		ec.reset();
+		assertTrue(ec.isAvailable(now));
+		assertTrue(ec.isAvailable(now));
+		assertTrue(ec.isAvailable(now));
 	}
 
 	public String createResponse(boolean success) throws Exception {

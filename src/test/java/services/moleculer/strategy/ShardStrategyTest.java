@@ -51,7 +51,7 @@ public class ShardStrategyTest extends StrategyTest {
 
 		ShardStrategy<LocalActionEndpoint> s = (ShardStrategy<LocalActionEndpoint>) createStrategy(false);
 		for (int i = 0; i <= 9; i++) {
-			s.addEndpoint(createEndpoint(br, "node" + i, "e" + i));
+			s.addEndpoint(createEndpoint(br, "node" + i, "e", "e" + i));
 		}
 
 		Tree params = new Tree();
@@ -187,7 +187,7 @@ public class ShardStrategyTest extends StrategyTest {
 		f.started(br);
 		s = (ShardStrategy) f.create();
 		for (int i = 0; i <= 8; i++) {
-			s.addEndpoint(createEndpoint(br, "node" + i, "e" + i));
+			s.addEndpoint(createEndpoint(br, "node" + i, "e", "e" + i));
 		}
 
 		// nodes: 8 (node0...node7)

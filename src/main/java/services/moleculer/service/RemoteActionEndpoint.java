@@ -40,9 +40,9 @@ public class RemoteActionEndpoint extends ActionEndpoint {
 
 	// --- CONSTRUCTOR ---
 
-	public RemoteActionEndpoint(DefaultServiceRegistry registry, Transporter transporter, String nodeID, Tree config,
-			String actionName) {
-		super(nodeID, config);
+	public RemoteActionEndpoint(DefaultServiceRegistry registry, Transporter transporter, String nodeID, String service,
+			Tree config, String actionName) {
+		super(nodeID, service, config);
 
 		// Handle remote timeout with a handler
 		current = ctx -> {

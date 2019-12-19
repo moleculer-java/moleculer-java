@@ -189,17 +189,27 @@ public class UdpMulticastTransporter extends Transporter {
 	// --- DISCONNECT ---
 
 	protected void disconnect() {
+		boolean notify = false;
 		synchronized (receivers) {
-			for (MulticastReceiver receiver : receivers) {
-				receiver.close();
+			notify = !receivers.isEmpty();
+			if (notify) {
+				for (MulticastReceiver receiver : receivers) {
+					receiver.close();
+				}
+				receivers.clear();
 			}
-			receivers.clear();
 		}
 		if (executor != null) {
+			notify = true;
 			executor.shutdownNow();
 			executor = null;
 		}
 		subscriptions.clear();
+
+		// Notify internal listeners
+		if (notify) {
+			broadcastTransporterDisconnected();
+		}
 	}
 
 	// --- RECONNECT ---
