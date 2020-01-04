@@ -61,6 +61,11 @@ public abstract class Serializer extends MoleculerComponent {
 	 */
 	protected TreeReader reader;
 
+	/**
+	 * Enable debug mode.
+	 */
+	protected boolean debug;
+	
 	// --- CONSTRUCTOR ---
 
 	protected Serializer(String format) {
@@ -97,6 +102,16 @@ public abstract class Serializer extends MoleculerComponent {
 
 	public String getFormat() {
 		return format;
+	}
+
+	// --- DEBUG MODE ---
+	
+	public boolean isDebug() {
+		return debug;
+	}
+
+	public void setDebug(boolean debug) {
+		this.debug = debug;
 	}
 
 }

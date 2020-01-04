@@ -25,40 +25,17 @@
  */
 package services.moleculer.serializer;
 
-import services.moleculer.service.Name;
+public class BlockCipherSerializerTest extends SerializerTest {
 
-/**
- * <b>MessagePack serializer</b><br>
- * <br>
- * MessagePack is an efficient binary serialization format. It lets you exchange
- * data among multiple languages like JSON. But it's faster and smaller. Small
- * integers are encoded into a single byte, and typical short strings require
- * only one extra byte in addition to the strings themselves. This serializer is
- * COMPATIBLE with the JavaScript/Node version of Moleculer. Sample of usage:
- * 
- * <pre>
- * Transporter trans = new NatsTransporter("localhost");
- * trans.setSerializer(new MsgPackSerializer());
- * ServiceBroker broker = ServiceBroker.builder()
- *                                     .nodeID("node1")
- *                                     .transporter(trans)
- *                                     .build();
- * </pre>
- * 
- * <b>Required dependency:</b><br>
- * <br>
- * https://mvnrepository.com/artifact/org.msgpack/msgpack<br>
- * compile group: 'org.msgpack', name: 'msgpack', version: '0.6.12'
- *
- * @see JsonSerializer
- */
-@Name("MessagePack Serializer")
-public class MsgPackSerializer extends Serializer {
-
-	// --- CONSTRUCTOR ---
-
-	public MsgPackSerializer() {
-		super("msgpack");
+	@Override
+	protected Serializer createSerializer() {
+		BlockCipherSerializer serializer = new BlockCipherSerializer();
+		try {
+			serializer.started(null);			
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+		return serializer;
 	}
 
 }

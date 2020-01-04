@@ -67,6 +67,7 @@ import services.moleculer.service.Name;
  * compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.3.0'
  * <br>
  *
+ * @see AblyTransporter
  * @see TcpTransporter
  * @see RedisTransporter
  * @see NatsTransporter

@@ -62,6 +62,8 @@ public abstract class StreamTest extends TestCase {
 
 	protected Random rnd = new Random();
 
+	protected long sleep = 0;
+	
 	// --- ABSTRACT METHODS ---
 
 	public abstract Transporter createTransporter();
@@ -304,6 +306,7 @@ public abstract class StreamTest extends TestCase {
 
 		long trans, prev = -1;
 		for (int i = 0; i < 1001; i++) {
+			Thread.sleep(sleep);
 			out.write(i);
 			trans = stream.getTransferedBytes();
 			assertTrue(trans >= prev);

@@ -31,8 +31,17 @@ import services.moleculer.service.Name;
  * <b>BSON Serializer</b><br>
  * <br>
  * Binary BSON reader and writer. This serializer is NOT compatible with the
- * JavaScript/Node version of Moleculer.<br>
- * <br>
+ * JavaScript/Node version of Moleculer. Sample of usage:<br>
+ * 
+ * <pre>
+ * Transporter trans = new NatsTransporter("localhost");
+ * trans.setSerializer(new BsonSerializer());
+ * ServiceBroker broker = ServiceBroker.builder()
+ *                                     .nodeID("node1")
+ *                                     .transporter(trans)
+ *                                     .build();
+ * </pre>
+ * 
  * <b>Required dependency:</b><br>
  * <br>
  * https://mvnrepository.com/artifact/de.undercouch/bson4jackson<br>

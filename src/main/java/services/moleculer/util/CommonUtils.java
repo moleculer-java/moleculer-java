@@ -573,7 +573,7 @@ public final class CommonUtils {
 		return new Tree(readFully(in), format);
 	}
 
-	public static final byte[] readFully(InputStream in) throws Exception {
+	public static final byte[] readFully(InputStream in) throws IOException {
 		try {
 			ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 			byte[] buffer = new byte[1024];

@@ -722,11 +722,11 @@ public abstract class TransporterTest extends TestCase {
 		// Create transporters
 		tr1 = createTransporter();
 		tr2 = createTransporter();
-
+		
 		// Enable debug messages
 		tr1.setDebug(true);
 		tr2.setDebug(true);
-
+		
 		// Create brokers
 		br1 = ServiceBroker.builder().transporter(tr1).monitor(new ConstantMonitor()).nodeID("node1").build();
 		br2 = ServiceBroker.builder().transporter(tr2).monitor(new ConstantMonitor()).nodeID("node2").build();

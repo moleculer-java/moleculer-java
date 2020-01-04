@@ -1,7 +1,7 @@
 /**
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
- * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Copyright 2019 Andras Berkes [andras.berkes@programmer.net]<br>
  * Based on Moleculer Framework for NodeJS [https://moleculer.services].
  * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -25,40 +25,59 @@
  */
 package services.moleculer.serializer;
 
-import services.moleculer.service.Name;
+import services.moleculer.ServiceBroker;
 
 /**
- * <b>MessagePack serializer</b><br>
- * <br>
- * MessagePack is an efficient binary serialization format. It lets you exchange
- * data among multiple languages like JSON. But it's faster and smaller. Small
- * integers are encoded into a single byte, and typical short strings require
- * only one extra byte in addition to the strings themselves. This serializer is
- * COMPATIBLE with the JavaScript/Node version of Moleculer. Sample of usage:
+ * Superclass of chainable Serializers. Sample of usage (serialize then compress
+ * then encrypt packets):
  * 
  * <pre>
  * Transporter trans = new NatsTransporter("localhost");
- * trans.setSerializer(new MsgPackSerializer());
- * ServiceBroker broker = ServiceBroker.builder()
- *                                     .nodeID("node1")
- *                                     .transporter(trans)
- *                                     .build();
- * </pre>
  * 
- * <b>Required dependency:</b><br>
- * <br>
- * https://mvnrepository.com/artifact/org.msgpack/msgpack<br>
- * compile group: 'org.msgpack', name: 'msgpack', version: '0.6.12'
- *
- * @see JsonSerializer
+ * MsgPackSerializer msgPack = new MsgPackSerializer();
+ * DeflaterSerializer deflater = new DeflaterSerializer(msgPack);
+ * BlockCipherSerializer cipher = new BlockCipherSerializer(deflater);
+ * 
+ * trans.setSerializer(cipher);
+ * </pre>
  */
-@Name("MessagePack Serializer")
-public class MsgPackSerializer extends Serializer {
+public abstract class ChainedSerializer extends Serializer {
 
-	// --- CONSTRUCTOR ---
+	protected final Serializer parent;
 
-	public MsgPackSerializer() {
-		super("msgpack");
+	protected ChainedSerializer(Serializer parent) {
+		super("json");
+		this.parent = parent;
 	}
+
+	// --- INSTANCE STARTED ---
+
+	@Override
+	public void started(ServiceBroker broker) throws Exception {
+		this.broker = broker;
+		parent.started(broker);
+	}
+
+	// --- INSTANCE STOPPED ---
+
+	@Override
+	public void stopped() {
+		parent.stopped();
+	}
+
+	// --- GET FORMAT NAME ---
+
+	@Override
+	public String getFormat() {
+		return parent.getFormat();
+	}
+	
+	// --- DEBUG MODE ---
+	
+	@Override
+	public void setDebug(boolean debug) {
+		super.setDebug(debug);
+		parent.setDebug(debug);
+	}	
 
 }

@@ -37,6 +37,7 @@ public abstract class SerializerTest extends KeyTest {
 
 	public SerializerTest() {
 		serializer = createSerializer();
+		serializer.setDebug(true);
 	}
 
 	protected abstract Serializer createSerializer();

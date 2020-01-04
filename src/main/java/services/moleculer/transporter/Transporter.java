@@ -64,6 +64,7 @@ import services.moleculer.util.FastBuildTree;
 /**
  * Base superclass of all Transporter implementations.
  *
+ * @see AblyTransporter
  * @see TcpTransporter
  * @see RedisTransporter
  * @see NatsTransporter
@@ -220,6 +221,11 @@ public abstract class Transporter extends MoleculerComponent {
 	public void started(ServiceBroker broker) throws Exception {
 		super.started(broker);
 
+		// Debug mode
+		if (debug) {
+			serializer.setDebug(true);
+		}
+		
 		// Process config
 		ServiceBrokerConfig cfg = broker.getConfig();
 		namespace = cfg.getNamespace();

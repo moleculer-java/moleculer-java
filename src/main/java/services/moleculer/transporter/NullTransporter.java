@@ -30,6 +30,15 @@ import io.datatree.Tree;
 
 /**
  * "Null" / empty transporter.
+ * 
+ * @see AblyTransporter
+ * @see TcpTransporter
+ * @see NatsTransporter
+ * @see MqttTransporter
+ * @see JmsTransporter
+ * @see GoogleTransporter
+ * @see KafkaTransporter
+ * @see AmqpTransporter
  */
 public class NullTransporter extends Transporter {
 

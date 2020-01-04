@@ -58,6 +58,7 @@ import services.moleculer.service.Name;
  * .transporter(new FileSystemTransporter("/temp")).build();
  * </pre>
  * 
+ * @see AblyTransporter
  * @see AmqpTransporter
  * @see TcpTransporter
  * @see RedisTransporter

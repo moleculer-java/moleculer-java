@@ -1,7 +1,7 @@
 /**
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
- * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Copyright 2019 Andras Berkes [andras.berkes@programmer.net]<br>
  * Based on Moleculer Framework for NodeJS [https://moleculer.services].
  * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -23,39 +23,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.serializer;
+package services.moleculer.transporter;
 
-import services.moleculer.service.Name;
+public class AblyTransporterTest extends TransporterTest {
 
-/**
- * <b>Generic JSON serializer</b><br>
- * <br>
- * JSON (JavaScript Object Notation) is a lightweight data-interchange format.
- * It is easy for humans to read and write. This serializer is fully COMPATIBLE
- * with the JavaScript/Node version of Moleculer, use this if possible.
- * Sample of usage:
- * 
- * <pre>
- * Transporter trans = new NatsTransporter("localhost");
- * trans.setSerializer(new JsonSerializer());
- * ServiceBroker broker = ServiceBroker.builder()
- *                                     .nodeID("node1")
- *                                     .transporter(trans)
- *                                     .build();
- * </pre>
- * 
- * <b>Required dependency:</b> none / optional (eg. if you add Jackson API to
- * the classpath, JsonSerializer will user Jackson parser).
- *
- * @see MsgPackSerializer
- */
-@Name("JSON Serializer")
-public class JsonSerializer extends Serializer {
-
-	// --- CONSTRUCTOR ---
-
-	public JsonSerializer() {
-		super("json");
+	@Override
+	public Transporter createTransporter() {
+		return new AblyTransporter(System.getProperty("ablyKey"));
 	}
 
 }

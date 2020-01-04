@@ -59,6 +59,7 @@ import services.moleculer.service.Name;
  * // https://mvnrepository.com/artifact/com.rabbitmq/amqp-client<br>
  * compile group: 'com.rabbitmq', name: 'amqp-client', version: '5.7.3'
  *
+ * @see AblyTransporter
  * @see TcpTransporter
  * @see RedisTransporter
  * @see NatsTransporter

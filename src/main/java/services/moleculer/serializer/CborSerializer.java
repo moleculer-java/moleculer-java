@@ -38,8 +38,17 @@ import services.moleculer.service.Name;
  * evolving at high speed.<br>
  * <br>
  * This serializer is NOT compatible with the JavaScript/Node version of
- * Moleculer.<br>
- * <br>
+ * Moleculer. Sample of usage:<br>
+ * 
+ * <pre>
+ * Transporter trans = new NatsTransporter("localhost");
+ * trans.setSerializer(new CborSerializer());
+ * ServiceBroker broker = ServiceBroker.builder()
+ *                                     .nodeID("node1")
+ *                                     .transporter(trans)
+ *                                     .build();
+ * </pre>
+ * 
  * <b>Required dependency:</b><br>
  * <br>
  * https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/

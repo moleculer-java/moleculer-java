@@ -25,6 +25,10 @@
  */
 package services.moleculer.transporter;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -32,7 +36,6 @@ import java.net.InetSocketAddress;
 import java.net.InterfaceAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
-import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -60,9 +63,13 @@ import services.moleculer.service.Name;
  * Usage:
  * 
  * <pre>
- * ServiceBroker broker = ServiceBroker.builder().nodeID("node1").transporter(new UdpMulticastTransporter()).build();
+ * ServiceBroker broker = ServiceBroker.builder()
+ *                                     .nodeID("node1")
+ *                                     .transporter(new UdpMulticastTransporter())
+ *                                     .build();
  * </pre>
  *
+ * @see AblyTransporter
  * @see TcpTransporter
  * @see AmqpTransporter
  * @see RedisTransporter
@@ -212,6 +219,14 @@ public class UdpMulticastTransporter extends Transporter {
 		}
 	}
 
+	// --- STOP INSTANCE ---
+	
+	@Override
+	public void stopped() {
+		super.stopped();
+		disconnect();
+	}
+	
 	// --- RECONNECT ---
 
 	protected void reconnect() {
@@ -236,12 +251,13 @@ public class UdpMulticastTransporter extends Transporter {
 		// Send multicast packet
 		MulticastSocket udpSocket = null;
 		try {
-			byte[] channelBytes = channel.getBytes(StandardCharsets.UTF_8);
+			ByteArrayOutputStream buffer = new ByteArrayOutputStream(bufferSize);
+			DataOutputStream out = new DataOutputStream(buffer);
+			out.writeUTF(channel);
 			byte[] messageBytes = serializer.write(message);
-			byte[] bytes = new byte[channelBytes.length + 1 + messageBytes.length];
-			System.arraycopy(channelBytes, 0, bytes, 0, channelBytes.length);
-			bytes[channelBytes.length] = '|';
-			System.arraycopy(messageBytes, 0, bytes, channelBytes.length + 1, messageBytes.length);
+			out.writeInt(messageBytes.length);
+			out.write(messageBytes);
+			byte[] bytes = buffer.toByteArray();
 			udpSocket = new MulticastSocket(port);
 			udpSocket.setTimeToLive(multicastTTL);
 			udpSocket.setReuseAddress(reuseAddr);
@@ -338,23 +354,15 @@ public class UdpMulticastTransporter extends Transporter {
 				try {
 
 					// Waiting for packet...
-					byte[] buffer = new byte[transporter.bufferSize];
-					DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+					byte[] bytes = new byte[transporter.bufferSize];
+					DatagramPacket packet = new DatagramPacket(bytes, bytes.length);
 					multicastReceiver.receive(packet);
-					int pos = -1;
-					for (int i = 0; i < buffer.length; i++) {
-						if (buffer[i] == '|') {
-							pos = i;
-							break;
-						}
-					}
-
-					// Parse channel
-					if (pos == -1) {
-						logger.warn("Invalid packet received!");
-						continue;
-					}
-					String channel = new String(buffer, 0, pos, StandardCharsets.UTF_8);
+					ByteArrayInputStream buffer = new ByteArrayInputStream(bytes);
+					DataInputStream in = new DataInputStream(buffer);
+					String channel = in.readUTF();
+					int len = in.readInt();
+					byte[] message = new byte[len];
+					in.readFully(message);
 
 					// Synchronization is unnecessary (subscriptions will not
 					// change)
@@ -364,15 +372,6 @@ public class UdpMulticastTransporter extends Transporter {
 					if (transporter.debug) {
 						logger.info("Multicast UDP message received (channel: " + channel + ", destination nodeID: "
 								+ transporter.nodeID + ").");
-					}
-
-					// Parse message
-					byte[] message;
-					if (pos == buffer.length - 1) {
-						message = new byte[0];
-					} else {
-						message = new byte[buffer.length - pos - 1];
-						System.arraycopy(buffer, pos + 1, message, 0, message.length);
 					}
 
 					// Process message

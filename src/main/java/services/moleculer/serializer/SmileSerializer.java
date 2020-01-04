@@ -37,8 +37,17 @@ import services.moleculer.service.Name;
  * both more compact and more efficient to process (both to read and write).<br>
  * <br>
  * It is the FASTEST serializer, but it is NOT compatible with the
- * JavaScript/Node version of Moleculer.<br>
- * <br>
+ * JavaScript/Node version of Moleculer. Sample of usage:
+ * 
+ * <pre>
+ * Transporter trans = new NatsTransporter("localhost");
+ * trans.setSerializer(new SmileSerializer());
+ * ServiceBroker broker = ServiceBroker.builder()
+ *                                     .nodeID("node1")
+ *                                     .transporter(trans)
+ *                                     .build();
+ * </pre>
+ * 
  * <b>Required dependency:</b><br>
  * <br>
  * https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/

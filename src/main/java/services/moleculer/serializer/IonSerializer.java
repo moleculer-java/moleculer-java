@@ -40,8 +40,17 @@ import services.moleculer.service.Name;
  * engineering large-scale, service-oriented architectures.<br>
  * <br>
  * This serializer is NOT compatible with the JavaScript/Node version of
- * Moleculer.<br>
- * <br>
+ * Moleculer. Sample of usage:<br>
+ * 
+ * <pre>
+ * Transporter trans = new NatsTransporter("localhost");
+ * trans.setSerializer(new IonSerializer());
+ * ServiceBroker broker = ServiceBroker.builder()
+ *                                     .nodeID("node1")
+ *                                     .transporter(trans)
+ *                                     .build();
+ * </pre>
+ * 
  * <b>Required dependency:</b><br>
  * <br>
  * https://mvnrepository.com/artifact/software.amazon.ion/ion-java<br>
