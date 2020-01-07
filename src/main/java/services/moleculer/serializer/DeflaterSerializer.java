@@ -40,10 +40,7 @@ import services.moleculer.service.Name;
  * <pre>
  * Transporter trans = new NatsTransporter("localhost");
  * trans.setSerializer(new DeflaterSerializer());
- * ServiceBroker broker = ServiceBroker.builder()
- *                                     .nodeID("node1")
- *                                     .transporter(trans)
- *                                     .build();
+ * ServiceBroker broker = ServiceBroker.builder().nodeID("node1").transporter(trans).build();
  * </pre>
  * 
  * Chaining Serializers (serialize then compress then encrypt packets):
@@ -75,22 +72,66 @@ public class DeflaterSerializer extends ChainedSerializer {
 	// --- CONSTRUCTORS ---
 
 	/**
-	 * Creates makes a JSON-based Serializer that compresses content above a
-	 * specified size (see the "compressAbove" parameter).
+	 * Creates a JSON-based Serializer that compresses content above 1024 bytes
+	 * with compression level "1".
 	 */
-	protected DeflaterSerializer() {
-		super(new JsonSerializer());
+	public DeflaterSerializer() {
+		this(null, 1024, Deflater.BEST_SPEED);
 	}
 
 	/**
-	 * Creates a custom Serializer that compresses content above a specified
+	 * Creates a JSON-based Serializer that compresses content above a specified
 	 * size (see the "compressAbove" parameter).
+	 * 
+	 * @param compressAbove
+	 *            Compress key and/or value above this size (BYTES), 0 = disable
+	 *            compression
+	 */
+	public DeflaterSerializer(int compressAbove) {
+		this(null, compressAbove, Deflater.BEST_SPEED);
+	}
+
+	/**
+	 * Creates a JSON-based Serializer that compresses content above a specified
+	 * size with the specified compression level (1-9).
+	 * 
+	 * @param compressAbove
+	 *            Compress key and/or value above this size (BYTES), 0 = disable
+	 *            compression
+	 * @param compressionLevel
+	 *            Compression level (best speed = 1, best compression = 9)
+	 */
+	public DeflaterSerializer(int compressAbove, int compressionLevel) {
+		this(null, compressAbove, compressionLevel);
+	}
+
+	/**
+	 * Creates a custom Serializer that compresses content above 1024 bytes size
+	 * with the compression level "1".
 	 * 
 	 * @param parent
 	 *            parent Serializer (eg. a JsonSerializer)
 	 */
 	public DeflaterSerializer(Serializer parent) {
-		super(parent);
+		this(parent, 1024, Deflater.BEST_SPEED);
+	}
+
+	/**
+	 * Creates a custom Serializer that compresses content above a specified
+	 * size with the specified compression level (1-9).
+	 * 
+	 * @param parent
+	 *            parent Serializer (eg. a JsonSerializer)
+	 * @param compressAbove
+	 *            Compress key and/or value above this size (BYTES), 0 = disable
+	 *            compression
+	 * @param compressionLevel
+	 *            Compression level (best speed = 1, best compression = 9)
+	 */
+	public DeflaterSerializer(Serializer parent, int compressAbove, int compressionLevel) {
+		super(parent == null ? new JsonSerializer() : parent);
+		setCompressAbove(compressAbove);
+		setCompressionLevel(compressionLevel);
 	}
 
 	// --- SERIALIZE AND COMPRESS TREE TO BYTE ARRAY ---
@@ -121,8 +162,8 @@ public class DeflaterSerializer extends ChainedSerializer {
 		System.arraycopy(bytes, 0, copy, 1, bytes.length);
 		if (compressed) {
 
-			// Compressed -> first byte = 1
-			copy[0] = (byte) 1;
+			// Compressed = first byte is "1"
+			copy[0] = 1;
 		}
 		return copy;
 	}

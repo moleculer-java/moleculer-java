@@ -41,7 +41,7 @@ import services.moleculer.service.Name;
 /**
  * This is a Transporter that can connect multiple ServiceBrokers running in the
  * same JVM. The calls are made in separate Threads, so call timeouts can be
- * used. Usage:
+ * used. Used primarily for testing Serializers. Usage:
  * 
  * <pre>
  * ServiceBroker broker1 = ServiceBroker.builder().nodeID("node1").transporter(new InternalTransporter()).build();
@@ -137,7 +137,7 @@ public class InternalTransporter extends Transporter {
 	@Override
 	public void publish(String channel, Tree message) {
 		try {
-			subscriptions.send(channel, message);
+			subscriptions.send(channel, serializer.write(message));
 		} catch (Exception cause) {
 			logger.warn("Unable to publish message!", cause);
 		}
@@ -197,7 +197,7 @@ public class InternalTransporter extends Transporter {
 			}
 		}
 
-		protected void send(String channel, Tree message) throws Exception {
+		protected void send(String channel, byte[] message) throws Exception {
 			SubscriptionSet set = getSubscriptionSet(channel);
 			if (set != null) {
 				set.send(message);
@@ -270,7 +270,7 @@ public class InternalTransporter extends Transporter {
 			}
 		}
 
-		protected void send(Tree message) throws Exception {
+		protected void send(byte[] message) throws Exception {
 			readLock.lock();
 			try {
 				if (set.isEmpty()) {
@@ -278,9 +278,8 @@ public class InternalTransporter extends Transporter {
 				}
 				for (InternalTransporter transporter : set.keySet()) {
 					if (transporter != null) {
-						Tree msg = message == null ? null : message.clone();
 						transporter.executor.execute(() -> {
-							transporter.processReceivedMessage(channel, msg);
+							transporter.processReceivedMessage(channel, message);
 						});
 					}
 				}

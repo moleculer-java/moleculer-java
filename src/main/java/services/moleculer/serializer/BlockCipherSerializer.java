@@ -27,14 +27,11 @@ package services.moleculer.serializer;
 
 import static services.moleculer.util.CommonUtils.formatNamoSec;
 
-import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Objects;
 
 import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import io.datatree.Tree;
@@ -46,9 +43,16 @@ import services.moleculer.service.Name;
  * encryption. Sample of usage:<br>
  * 
  * <pre>
+ * BlockCipherSerializer serializer = new BlockCipherSerializer();
+ * serializer.setAlgorithm("AES/CBC/PKCS5Padding");
+ * serializer.setPassword("12345678901234567890123456789012");
+ * serializer.setIv("1234567890123456");
  * Transporter trans = new NatsTransporter("localhost");
- * trans.setSerializer(new BlockCipherSerializer("secret123"));
- * ServiceBroker broker = ServiceBroker.builder().nodeID("node1").transporter(trans).build();
+ * trans.setSerializer(serializer);
+ * ServiceBroker broker = ServiceBroker.builder()
+ *                                     .nodeID("node1")
+ *                                     .transporter(trans)
+ *                                     .build();
  * </pre>
  * 
  * Chaining Serializers (serialize then compress then encrypt packets):
@@ -64,11 +68,25 @@ import services.moleculer.service.Name;
 @Name("Block Cipher Serializer")
 public class BlockCipherSerializer extends ChainedSerializer {
 
+	// --- DEFAULT CIPHER ---
+
+	/**
+	 * Same as "aes-256-cbc" in Node.js.
+	 */
+	public static final String DEFAULT_ALGORITHM = "AES/CBC/PKCS5Padding";
+
+	/**
+	 * Empty IV block.
+	 */
+	public static final byte[] EMPTY_IV = new byte[16];
+
 	// --- PROPERTIES ---
 
 	/**
 	 * Type of the block Cipher. Possible values include:
 	 * <ul>
+	 * <li>AES/CTR/NoPadding
+	 * <li>AES/CBC/PKCS5Padding
 	 * <li>AES
 	 * <li>DES
 	 * <li>DESede
@@ -78,24 +96,29 @@ public class BlockCipherSerializer extends ChainedSerializer {
 	 * <li>etc.
 	 * </ul>
 	 */
-	protected String algorithm = "AES";
+	protected String algorithm = DEFAULT_ALGORITHM;
 
 	/**
 	 * Password for Symmetric Key Encryption. Using this hard-coded, default
-	 * password is not secure. Use a custom password instead of this.
+	 * password is not secure. Use a custom password instead of this. The
+	 * required password length is 32, when using "AES/CBC/PKCS5Padding"!
 	 */
-	protected String password = "k@#QMw!93mcDg%2y";
+	protected String password = "k@#QMw!93mcDg%2yo39dmw2p397dhtzI";
 
 	/**
-	 * Key length (in bytes, or -1 = try to autodetect key length).
+	 * Algorithm parameters (IV). Can be "null".
 	 */
-	protected int requiredKeyLength = -1;
+	protected byte[] iv = EMPTY_IV;
 
 	// --- SECRET KEY ---
 
+	/**
+	 * SecretKeySpec, can be specified externally. If not specified, it is
+	 * calculated from the "password".
+	 */
 	protected SecretKeySpec secretKey;
 
-	// --- CHIPHERS ---
+	// --- CHIPHERS OF THE THREAD ---
 
 	protected ThreadLocal<Cipher> encriptors = new ThreadLocal<>();
 	protected ThreadLocal<Cipher> decriptors = new ThreadLocal<>();
@@ -108,7 +131,7 @@ public class BlockCipherSerializer extends ChainedSerializer {
 	 * secure).
 	 */
 	public BlockCipherSerializer() {
-		super(new JsonSerializer());
+		this(null, null, null, EMPTY_IV);
 	}
 
 	/**
@@ -119,20 +142,31 @@ public class BlockCipherSerializer extends ChainedSerializer {
 	 *            password for Symmetric Key Encryption
 	 */
 	public BlockCipherSerializer(String password) {
-		this(new JsonSerializer(), password);
+		this(null, password, null, EMPTY_IV);
 	}
 
 	/**
-	 * Creates a custom Serializer that uses AES encryption algorithm to
+	 * Creates a Serializer that uses a symmetric encryption algorithm to
 	 * encrypt/decrypt messages.
-	 * 
+	 *
+	 * @param parent
+	 *            parent Serializer (eg. a JsonSerializer)
+	 */
+	public BlockCipherSerializer(Serializer parent) {
+		this(parent, null, null, EMPTY_IV);
+	}
+	
+	/**
+	 * Creates a Serializer that uses a symmetric encryption algorithm to
+	 * encrypt/decrypt messages.
+	 *
 	 * @param parent
 	 *            parent Serializer (eg. a JsonSerializer)
 	 * @param password
 	 *            password for Symmetric Key Encryption
 	 */
 	public BlockCipherSerializer(Serializer parent, String password) {
-		this(parent, password, "AES", 16);
+		this(parent, password, null, EMPTY_IV);
 	}
 
 	/**
@@ -145,16 +179,82 @@ public class BlockCipherSerializer extends ChainedSerializer {
 	 *            password for Symmetric Key Encryption
 	 * @param algorithm
 	 *            block Cipher type (eg. "AES", "DES", "DESede", "Blowfish")
-	 * @param requiredKeyLength
-	 *            required key length (-1 = try to autodetect)
 	 */
-	public BlockCipherSerializer(Serializer parent, String password, String algorithm, int requiredKeyLength) {
-		super(parent);
-		setPassword(password);
-		setAlgorithm(algorithm);
-		setRequiredKeyLength(requiredKeyLength);
+	public BlockCipherSerializer(Serializer parent, String password, String algorithm) {
+		this(parent, password, algorithm, (byte[]) null);
 	}
 
+	/**
+	 * Creates a Serializer that uses a symmetric encryption algorithm to
+	 * encrypt/decrypt messages.
+	 *
+	 * @param password
+	 *            password for Symmetric Key Encryption
+	 * @param algorithm
+	 *            block Cipher type (eg. "AES", "DES", "DESede", "Blowfish")
+	 * @param iv
+	 *            IV parameter (can be null)
+	 */
+	public BlockCipherSerializer(String password, String algorithm, byte[] iv) {
+		this(null, password, algorithm, iv);
+	}
+
+	/**
+	 * Creates a Serializer that uses a symmetric encryption algorithm to
+	 * encrypt/decrypt messages.
+	 *
+	 * @param password
+	 *            password for Symmetric Key Encryption
+	 * @param algorithm
+	 *            block Cipher type (eg. "AES", "DES", "DESede", "Blowfish")
+	 * @param iv
+	 *            IV parameter (can be null)
+	 */
+	public BlockCipherSerializer(String password, String algorithm, String iv) {
+		this(null, password, algorithm, iv);
+	}
+
+	/**
+	 * Creates a Serializer that uses a symmetric encryption algorithm to
+	 * encrypt/decrypt messages.
+	 *
+	 * @param parent
+	 *            parent Serializer (eg. a JsonSerializer)
+	 * @param password
+	 *            password for Symmetric Key Encryption
+	 * @param algorithm
+	 *            block Cipher type (eg. "AES", "DES", "DESede", "Blowfish")
+	 * @param iv
+	 *            IV parameter (can be null)
+	 */
+	public BlockCipherSerializer(Serializer parent, String password, String algorithm, String iv) {
+		this(parent, password, algorithm, iv == null ? (byte[]) null : iv.getBytes(StandardCharsets.UTF_8));
+	}
+
+	/**
+	 * Creates a Serializer that uses a symmetric encryption algorithm to
+	 * encrypt/decrypt messages.
+	 *
+	 * @param parent
+	 *            parent Serializer (eg. a JsonSerializer)
+	 * @param password
+	 *            password for Symmetric Key Encryption
+	 * @param algorithm
+	 *            block Cipher type (eg. "AES", "DES", "DESede", "Blowfish")
+	 * @param iv
+	 *            IV parameter (can be null)
+	 */
+	public BlockCipherSerializer(Serializer parent, String password, String algorithm, byte[] iv) {
+		super(parent == null ? new JsonSerializer() : parent);
+		if (password != null) {
+			setPassword(password);
+		}
+		if (algorithm != null) {
+			setAlgorithm(algorithm);
+		}
+		setIv(iv);
+	}
+	
 	// --- INIT ---
 
 	@Override
@@ -162,33 +262,20 @@ public class BlockCipherSerializer extends ChainedSerializer {
 		super.started(broker);
 
 		// Create SecretKey
-		int keyLength;
-		if (requiredKeyLength < 1) {
-			try {
-				KeyGenerator keyGen = KeyGenerator.getInstance(algorithm);
-				SecretKey sample = keyGen.generateKey();
-				keyLength = sample.getEncoded().length;
-			} catch (Exception e) {
-				keyLength = 16;
+		if (secretKey == null) {
+			String shortName = algorithm;
+			int i = shortName.indexOf('/');
+			if (i > -1) {
+				shortName = shortName.substring(0, i);
 			}
-		} else {
-			keyLength = requiredKeyLength;
-		}
-		ByteArrayOutputStream buffer = new ByteArrayOutputStream(keyLength * 2);
-		byte[] key = password.getBytes(StandardCharsets.UTF_8);
-		while (buffer.size() < keyLength) {
-			buffer.write(key);
-		}
-		key = buffer.toByteArray();
-		if (key.length > keyLength) {
-			key = Arrays.copyOf(key, keyLength);
-		}
-		secretKey = new SecretKeySpec(key, algorithm);
-		if (debug) {
-			logger.info(algorithm + " secret key created (" + secretKey + ").");
+			byte[] key = password.getBytes(StandardCharsets.UTF_8);
+			secretKey = new SecretKeySpec(key, shortName);
+			if (debug) {
+				logger.info(algorithm + " secret key created (" + secretKey + ").");
+			}
 		}
 	}
-	
+
 	// --- DEBUG INFO ---
 
 	protected String getAlgorithmName() {
@@ -242,7 +329,11 @@ public class BlockCipherSerializer extends ChainedSerializer {
 		Cipher encriptor = encriptors.get();
 		if (encriptor == null) {
 			encriptor = Cipher.getInstance(algorithm);
-			encriptor.init(Cipher.ENCRYPT_MODE, secretKey);
+			if (iv == null || iv.length == 0) {
+				encriptor.init(Cipher.ENCRYPT_MODE, secretKey);
+			} else {
+				encriptor.init(Cipher.ENCRYPT_MODE, secretKey, new IvParameterSpec(iv));
+			}
 			encriptors.set(encriptor);
 			if (debug) {
 				logger.info(algorithm + " encryptor created for Thread \"" + Thread.currentThread().getName() + "\".");
@@ -255,7 +346,11 @@ public class BlockCipherSerializer extends ChainedSerializer {
 		Cipher decriptor = decriptors.get();
 		if (decriptor == null) {
 			decriptor = Cipher.getInstance(algorithm);
-			decriptor.init(Cipher.DECRYPT_MODE, secretKey);
+			if (iv == null || iv.length == 0) {
+				decriptor.init(Cipher.DECRYPT_MODE, secretKey);
+			} else {
+				decriptor.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(iv));
+			}
 			decriptors.set(decriptor);
 			if (debug) {
 				logger.info(algorithm + " decryptor created for Thread \"" + Thread.currentThread().getName() + "\".");
@@ -272,6 +367,7 @@ public class BlockCipherSerializer extends ChainedSerializer {
 
 	public void setAlgorithm(String algorithm) {
 		this.algorithm = Objects.requireNonNull(algorithm);
+		this.secretKey = null;
 	}
 
 	public String getPassword() {
@@ -283,14 +379,33 @@ public class BlockCipherSerializer extends ChainedSerializer {
 			throw new IllegalArgumentException("Null or empty password!");
 		}
 		this.password = password;
+		this.secretKey = null;
 	}
 
-	public int getRequiredKeyLength() {
-		return requiredKeyLength;
+	public byte[] getIv() {
+		return iv;
 	}
 
-	public void setRequiredKeyLength(int requiredKeyLength) {
-		this.requiredKeyLength = requiredKeyLength;
+	public void setIv(String iv) {
+		if (iv == null) {
+			this.iv = null;
+		} else {
+			this.iv = iv.getBytes(StandardCharsets.UTF_8);
+		}
+		this.secretKey = null;
+	}
+
+	public void setIv(byte[] iv) {
+		this.iv = iv;
+		this.secretKey = null;		
+	}
+
+	public SecretKeySpec getSecretKey() {
+		return secretKey;
+	}
+
+	public void setSecretKey(SecretKeySpec secretKey) {
+		this.secretKey = secretKey;
 	}
 
 }

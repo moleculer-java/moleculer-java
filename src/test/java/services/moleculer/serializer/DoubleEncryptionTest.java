@@ -7,10 +7,10 @@ public class DoubleEncryptionTest extends SerializerTest {
 		JsonSerializer jsonSerializer = new JsonSerializer();
 		
 		// First cipher
-		BlockCipherSerializer first = new BlockCipherSerializer(jsonSerializer, "password1", "AES", -1);
+		BlockCipherSerializer first = new BlockCipherSerializer(jsonSerializer, "password1", "ARCFOUR");
 		
 		// Second cipher
-		BlockCipherSerializer second = new BlockCipherSerializer(first, "password2", "Blowfish", -1);
+		BlockCipherSerializer second = new BlockCipherSerializer(first, "password2", "Blowfish");
 		
 		// Init (by MessageBroker)
 		try {

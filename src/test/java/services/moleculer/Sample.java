@@ -27,9 +27,12 @@ package services.moleculer;
 
 import io.datatree.Tree;
 import services.moleculer.config.ServiceBrokerConfig;
+import services.moleculer.serializer.BlockCipherSerializer;
+import services.moleculer.serializer.DeflaterSerializer;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
 import services.moleculer.service.Version;
+import services.moleculer.transporter.NatsTransporter;
 
 public class Sample {
 
@@ -42,15 +45,25 @@ public class Sample {
 			// Unique nodeID
 			cfg.setNodeID("node1");
 
-			// NatsTransporter t = new NatsTransporter("localhost");
-			// t.setVerbose(true);
-			// t.setDebug(true);
-			// t.setNoEcho(true);
-			// cfg.setTransporter(t);
+			NatsTransporter transporter = new NatsTransporter("localhost");
+			transporter.setVerbose(true);
+			transporter.setDebug(true);
+			transporter.setNoEcho(true);
+			cfg.setTransporter(transporter);
 
+			// Enable compression (same as "deflateRaw" in Node.js)
+			DeflaterSerializer deflater = new DeflaterSerializer(512);
+			
+			// Enable encryption (same as "aes-256-cbc" in Node.js) 
+			transporter.setSerializer(new BlockCipherSerializer(
+					deflater,                           // Parent Serializer
+					"12345678901234567890123456789012", // 32 bytes of password
+					"AES/CBC/PKCS5Padding",             // Name of the algorithm
+					"1234567890123456"));               // 16 bytes of IV
+			
 			// Create Service Broker by config
 			ServiceBroker broker = new ServiceBroker(cfg);
-
+			
 			// Install "MyService" Service
 			broker.createService(new MyService());
 
@@ -59,13 +72,13 @@ public class Sample {
 
 			// Invoke service (blocking style)
 			Tree response = broker.call("v2.myService.first").waitFor(5000);
-			
+
 			// Print response
 			System.out.println("RESPONSE: " + response);
 
 			// Stop Service Broker
-			broker.stop();
-			
+			// broker.stop();
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -90,7 +103,7 @@ public class Sample {
 				return in.asLong() * 2;
 			});
 		};
-		
+
 		// Second action
 		Action second = ctx -> {
 			return ctx.params.get("a", 0) + ctx.params.get("c.d", 0);
