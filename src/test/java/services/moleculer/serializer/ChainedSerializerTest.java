@@ -34,7 +34,7 @@ public class ChainedSerializerTest extends SerializerTest {
 		DeflaterSerializer deflater = new DeflaterSerializer(msgPack);
 		deflater.setCompressAbove(1);
 		
-		BlockCipherSerializer cipher = new BlockCipherSerializer(deflater, "0123456789");
+		BlockCipherSerializer cipher = new BlockCipherSerializer(deflater, "1234567890123456");
 		try {
 			cipher.started(null);			
 		} catch (Exception e) {
