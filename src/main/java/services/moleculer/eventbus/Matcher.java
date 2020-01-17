@@ -43,8 +43,15 @@ public final class Matcher {
 
 	public static final boolean matches(String text, String pattern) {
 
-		// Simple patterns
-		if (pattern.indexOf('?') == -1) {
+		// Simple patterns?
+		boolean simple = true;
+		for (char c: pattern.toCharArray()) {
+			if (c == '?' || c == '\\' || c == '^' || c == '$' || c == '[') {
+				simple = false;
+				break;
+			}
+		}
+		if (simple) {
 
 			// Exact match (eg. "prefix.event")
 			final int firstStarPosition = pattern.indexOf('*');
