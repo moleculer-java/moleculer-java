@@ -29,8 +29,8 @@ public class DeflaterSerializerTest extends SerializerTest {
 
 	@Override
 	protected Serializer createSerializer() {
-		DeflaterSerializer serializer = new DeflaterSerializer();
-		serializer.setCompressAbove(0);
+		DeflaterSerializer serializer = new DeflaterSerializer(1);
+		serializer.setThreshold(1);
 		return serializer;
 	}
 

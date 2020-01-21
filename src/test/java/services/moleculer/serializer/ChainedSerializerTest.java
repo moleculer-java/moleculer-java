@@ -32,7 +32,7 @@ public class ChainedSerializerTest extends SerializerTest {
 		MsgPackSerializer msgPack = new MsgPackSerializer();
 		
 		DeflaterSerializer deflater = new DeflaterSerializer(msgPack);
-		deflater.setCompressAbove(1);
+		deflater.setThreshold(1);
 		
 		BlockCipherSerializer cipher = new BlockCipherSerializer(deflater, "1234567890123456");
 		try {

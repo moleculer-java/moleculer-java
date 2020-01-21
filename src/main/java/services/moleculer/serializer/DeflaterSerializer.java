@@ -62,7 +62,7 @@ public class DeflaterSerializer extends ChainedSerializer {
 	 * Compress key and/or value above this size (BYTES), 0 = disable
 	 * compression
 	 */
-	protected int compressAbove = 1024;
+	protected int threshold = 1024;
 
 	/**
 	 * Compression level (best speed = 1, best compression = 9)
@@ -83,26 +83,26 @@ public class DeflaterSerializer extends ChainedSerializer {
 	 * Creates a JSON-based Serializer that compresses content above a specified
 	 * size (see the "compressAbove" parameter).
 	 * 
-	 * @param compressAbove
+	 * @param threshold
 	 *            Compress key and/or value above this size (BYTES), 0 = disable
 	 *            compression
 	 */
-	public DeflaterSerializer(int compressAbove) {
-		this(null, compressAbove, Deflater.BEST_SPEED);
+	public DeflaterSerializer(int threshold) {
+		this(null, threshold, Deflater.BEST_SPEED);
 	}
 
 	/**
 	 * Creates a JSON-based Serializer that compresses content above a specified
 	 * size with the specified compression level (1-9).
 	 * 
-	 * @param compressAbove
+	 * @param threshold
 	 *            Compress key and/or value above this size (BYTES), 0 = disable
 	 *            compression
 	 * @param compressionLevel
 	 *            Compression level (best speed = 1, best compression = 9)
 	 */
-	public DeflaterSerializer(int compressAbove, int compressionLevel) {
-		this(null, compressAbove, compressionLevel);
+	public DeflaterSerializer(int threshold, int compressionLevel) {
+		this(null, threshold, compressionLevel);
 	}
 
 	/**
@@ -122,15 +122,15 @@ public class DeflaterSerializer extends ChainedSerializer {
 	 * 
 	 * @param parent
 	 *            parent Serializer (eg. a JsonSerializer)
-	 * @param compressAbove
+	 * @param threshold
 	 *            Compress key and/or value above this size (BYTES), 0 = disable
 	 *            compression
 	 * @param compressionLevel
 	 *            Compression level (best speed = 1, best compression = 9)
 	 */
-	public DeflaterSerializer(Serializer parent, int compressAbove, int compressionLevel) {
+	public DeflaterSerializer(Serializer parent, int threshold, int compressionLevel) {
 		super(parent == null ? new JsonSerializer() : parent);
-		setCompressAbove(compressAbove);
+		setThreshold(threshold);
 		setCompressionLevel(compressionLevel);
 	}
 
@@ -143,7 +143,7 @@ public class DeflaterSerializer extends ChainedSerializer {
 
 		// Compress content
 		boolean compressed;
-		if (compressAbove > 0 && bytes.length > compressAbove) {
+		if (threshold > 0 && bytes.length > threshold) {
 			if (debug) {
 				long start = System.nanoTime();
 				byte[] compressedBytes = compress(bytes, compressionLevel);
@@ -204,12 +204,12 @@ public class DeflaterSerializer extends ChainedSerializer {
 		this.compressionLevel = compressionLevel;
 	}
 
-	public int getCompressAbove() {
-		return compressAbove;
+	public int getThreshold() {
+		return threshold;
 	}
 
-	public void setCompressAbove(int compressAbove) {
-		this.compressAbove = compressAbove;
+	public void setThreshold(int threshold) {
+		this.threshold = threshold;
 	}
 
 }
