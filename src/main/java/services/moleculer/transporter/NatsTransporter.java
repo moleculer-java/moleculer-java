@@ -56,7 +56,7 @@ import services.moleculer.service.Name;
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/io.nats/jnats<br>
- * compile group: 'io.nats', name: 'jnats', version: '2.6.5'
+ * compile group: 'io.nats', name: 'jnats', version: '2.6.6'
  *
  * @see AblyTransporter
  * @see TcpTransporter

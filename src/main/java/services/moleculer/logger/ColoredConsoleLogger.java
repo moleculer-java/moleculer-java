@@ -127,8 +127,10 @@ public class ColoredConsoleLogger implements ConsoleLogger {
 				msg = msg.trim();
 			}
 			coloredPrinter.println(msg, Attribute.LIGHT, FColor.WHITE, BColor.NONE);
-			coloredPrinter.clear();
-
+			coloredPrinter.setAttribute(Attribute.CLEAR);
+			coloredPrinter.setForegroundColor(FColor.NONE);
+			coloredPrinter.setBackgroundColor(BColor.NONE);
+	        
 			cause = record.getThrown();
 			if (cause != null) {
 				cause.printStackTrace(errorWriter);

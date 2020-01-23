@@ -64,7 +64,7 @@ import services.moleculer.service.Name;
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients<br>
- * compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.3.0'
+ * compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.4.0'
  * <br>
  *
  * @see AblyTransporter

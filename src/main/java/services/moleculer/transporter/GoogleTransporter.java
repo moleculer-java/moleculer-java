@@ -45,7 +45,6 @@ import com.google.api.gax.rpc.NotFoundException;
 import com.google.api.gax.rpc.TransportChannelProvider;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.ServiceOptions;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.cloud.pubsub.v1.Subscriber;
 import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
@@ -79,7 +78,7 @@ import services.moleculer.util.CommonUtils;
  * // https://mvnrepository.com/artifact/com.google.cloud/google-cloud-pubsub
  * <br>
  * compile group: 'com.google.cloud', name: 'google-cloud-pubsub', version:
- * '1.96.0'<br>
+ * '1.102.1'<br>
  *
  * @see AblyTransporter
  * @see TcpTransporter
@@ -95,7 +94,7 @@ public class GoogleTransporter extends Transporter {
 
 	// --- PROPERTIES ---
 
-	protected String projectID = ServiceOptions.getDefaultProjectId();
+	protected String projectID = "moleculer";
 	protected BatchingSettings batchingSettings;
 	protected TransportChannelProvider channelProvider;
 	protected CredentialsProvider credentialsProvider;
