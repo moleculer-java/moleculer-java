@@ -184,20 +184,10 @@ dependencies {
 	// https://mvnrepository.com/artifact/com.rabbitmq/amqp-client
 	compile group: 'com.rabbitmq', name: 'amqp-client', version: '5.8.0'
 
-	// --- DEPENDENCY OF THE GOOGLE CLOUD PUB/SUB TRANSPORTER ---
-	
-	// https://mvnrepository.com/artifact/com.google.cloud/google-cloud-pubsub
-	compile group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.102.1'
-
 	// --- DEPENDENCY OF THE KAFKA TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients
 	compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.4.0'
-
-	// --- DEPENDENCY OF ABLY TRANSPORTER ---
-	
-	// https://mvnrepository.com/artifact/io.ably/ably-java
-	compile group: 'io.ably', name: 'ably-java', version: '1.1.8'
 
 }
 
@@ -293,17 +283,7 @@ test {
     
     exclude '**/KafkaTransporterTest.class'
     exclude '**/JmsTransporterTest.class'
-    exclude '**/GoogleTransporterTest.class'
-    exclude '**/UdpMulticastTransporterTest.class'
-	exclude '**/FileSystemTransporterTest.class'
-	exclude '**/InternalTransporterTest.class'
-	exclude '**/AblyTransporterTest.class'
 
     exclude '**/KafkaStreamTest.class'
     exclude '**/JmsStreamTest.class'
-    exclude '**/GoogleStreamTest.class'
-    exclude '**/UdpMulticastStreamTest.class'
-    exclude '**/FileSystemStreamTest.class'
-    exclude '**/InternalTransporterStreamTest.class'
-	exclude '**/AblyTransporterStreamTest.class'    
 }

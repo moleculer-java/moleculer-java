@@ -1,7 +1,7 @@
 /**
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
- * Copyright 2019 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Copyright 2020 Andras Berkes [andras.berkes@programmer.net]<br>
  * Based on Moleculer Framework for NodeJS [https://moleculer.services].
  * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -23,13 +23,42 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.transporter;
+package services.moleculer.uid;
 
-public class AblyTransporterTest extends TransporterTest {
+import services.moleculer.service.Name;
+
+/**
+ * Time-based standard UUID generator. The generated UUIDs can be sorted in
+ * alphabetical order, which corresponds to a time-based order. If no such
+ * sorting is required, use the faster faster {@link IncrementalUidGenerator} in
+ * production mode.
+ *
+ * @see IncrementalUidGenerator
+ * @see XorShiftRandomUidGenerator
+ */
+@Name("Time-based UUID Generator")
+public class TimeBasedUidGenerator extends XorShiftRandomUidGenerator {
+
+	// --- GENERATE UID ---
 
 	@Override
-	public Transporter createTransporter() {
-		return new AblyTransporter(System.getProperty("ablyKey"));
+	public String nextUID() {
+		StringBuilder tmp = new StringBuilder(45);
+		tmp.append(Long.toHexString(System.currentTimeMillis()));
+		while (tmp.length() < 32) {
+			tmp.append(Long.toHexString(nextLong()));
+		}
+		char[] chars = new char[36];
+		tmp.getChars(0, 32, chars, 0);
+		System.arraycopy(chars, 8, chars, 9, 35 - 8);
+		chars[8] = '-';
+		System.arraycopy(chars, 13, chars, 14, 35 - 13);
+		chars[13] = '-';
+		System.arraycopy(chars, 18, chars, 19, 35 - 18);
+		chars[18] = '-';
+		System.arraycopy(chars, 23, chars, 24, 35 - 23);
+		chars[23] = '-';
+		return new String(chars);
 	}
 
 }

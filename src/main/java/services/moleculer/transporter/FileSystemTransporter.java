@@ -49,23 +49,22 @@ import services.moleculer.service.Name;
 
 /**
  * Filesystem-based transporter. It is primarily not for production use (its
- * much slower than other Transporters). Rather it can be considered as a
- * reference implementation or a sample. With this Transporter multiple Service
- * Brokers can communicate with each other through a common directory structure.
- * Usage:
+ * safe but much slower than other Transporters). Rather it can be considered as
+ * a reference implementation or a sample. With this Transporter multiple
+ * Service Brokers can communicate with each other through a common directory
+ * structure. Usage:
+ * 
  * <pre>
  * ServiceBroker broker = ServiceBroker.builder().nodeID("node1")
  * .transporter(new FileSystemTransporter("/temp")).build();
  * </pre>
  * 
- * @see AblyTransporter
  * @see AmqpTransporter
  * @see TcpTransporter
  * @see RedisTransporter
  * @see NatsTransporter
  * @see MqttTransporter
  * @see JmsTransporter
- * @see GoogleTransporter
  * @see KafkaTransporter
  */
 @Name("File System based Transporter")

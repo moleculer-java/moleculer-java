@@ -54,26 +54,11 @@ import services.moleculer.context.ContextSource;
 import services.moleculer.error.MoleculerServerError;
 import services.moleculer.internal.NodeService;
 import services.moleculer.service.Action;
-import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.MoleculerComponent;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
-import services.moleculer.strategy.CpuUsageStrategyFactory;
-import services.moleculer.strategy.NanoSecRandomStrategyFactory;
-import services.moleculer.strategy.NetworkLatencyStrategyFactory;
-import services.moleculer.strategy.RoundRobinStrategyFactory;
-import services.moleculer.strategy.SecureRandomStrategyFactory;
 import services.moleculer.strategy.StrategyFactory;
-import services.moleculer.strategy.XorShiftRandomStrategyFactory;
-import services.moleculer.transporter.AmqpTransporter;
-import services.moleculer.transporter.GoogleTransporter;
-import services.moleculer.transporter.JmsTransporter;
-import services.moleculer.transporter.KafkaTransporter;
-import services.moleculer.transporter.MqttTransporter;
-import services.moleculer.transporter.NatsTransporter;
-import services.moleculer.transporter.RedisTransporter;
-import services.moleculer.transporter.TcpTransporter;
 import services.moleculer.transporter.Transporter;
 
 /**
@@ -162,13 +147,6 @@ public class ServiceBroker extends ContextSource {
 	/**
 	 * Default (round-robin) service invocation factory. Use
 	 * <code>getConfig().getStrategyFactory()</code> to access this instance.
-	 * 
-	 * @see RoundRobinStrategyFactory
-	 * @see NanoSecRandomStrategyFactory
-	 * @see SecureRandomStrategyFactory
-	 * @see XorShiftRandomStrategyFactory
-	 * @see CpuUsageStrategyFactory
-	 * @see NetworkLatencyStrategyFactory
 	 */
 	protected StrategyFactory strategyFactory;
 
@@ -176,7 +154,6 @@ public class ServiceBroker extends ContextSource {
 	 * Implementation of the service registry of the current node. Use
 	 * <code>getConfig().getServiceRegistry()</code> to access this instance.
 	 * 
-	 * @see DefaultServiceRegistry
 	 * @see #call(String, Object...)
 	 */
 	protected ServiceRegistry serviceRegistry;
@@ -185,15 +162,6 @@ public class ServiceBroker extends ContextSource {
 	 * Implementation of the Transporter. Use
 	 * <code>getConfig().getTransporter()</code> to access this instance. Can be
 	 * <code>null</code>.
-	 * 
-	 * @see TcpTransporter
-	 * @see RedisTransporter
-	 * @see NatsTransporter
-	 * @see MqttTransporter
-	 * @see JmsTransporter
-	 * @see GoogleTransporter
-	 * @see KafkaTransporter
-	 * @see AmqpTransporter
 	 */
 	protected Transporter transporter;
 

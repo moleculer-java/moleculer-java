@@ -1,7 +1,7 @@
 /**
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
- * Copyright 2019 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Copyright 2020 Andras Berkes [andras.berkes@programmer.net]<br>
  * Based on Moleculer Framework for NodeJS [https://moleculer.services].
  * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -23,22 +23,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.stream;
+package services.moleculer.serializer;
 
-import services.moleculer.transporter.AblyTransporter;
-import services.moleculer.transporter.Transporter;
+public class JavaSerializerTest extends SerializerTest {
 
-public class AblyTransporterStreamTest extends StreamTest {
-
-	public AblyTransporterStreamTest() {
-		
-		// Slow down data sending
-		sleep = 20;
-	}
-	
 	@Override
-	public Transporter createTransporter() {
-		return new AblyTransporter(System.getProperty("ablyKey"));
+	protected Serializer createSerializer() {
+		return new JavaSerializer();
 	}
 
 }

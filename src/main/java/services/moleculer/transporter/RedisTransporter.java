@@ -54,12 +54,10 @@ import services.moleculer.util.redis.RedisPubSubClient;
  * // https://mvnrepository.com/artifact/biz.paluch.redis/lettuce<br>
  * compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.5.0.Final'
  *
- * @see AblyTransporter
  * @see TcpTransporter
  * @see NatsTransporter
  * @see MqttTransporter
  * @see JmsTransporter
- * @see GoogleTransporter
  * @see KafkaTransporter
  * @see AmqpTransporter
  */

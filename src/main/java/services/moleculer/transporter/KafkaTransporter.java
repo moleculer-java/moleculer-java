@@ -67,13 +67,11 @@ import services.moleculer.service.Name;
  * compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.4.0'
  * <br>
  *
- * @see AblyTransporter
  * @see TcpTransporter
  * @see RedisTransporter
  * @see NatsTransporter
  * @see MqttTransporter
  * @see JmsTransporter
- * @see GoogleTransporter
  * @see AmqpTransporter
  */
 @Name("Kafka Transporter")

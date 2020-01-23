@@ -1,7 +1,7 @@
 /**
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
- * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Copyright 2020 Andras Berkes [andras.berkes@programmer.net]<br>
  * Based on Moleculer Framework for NodeJS [https://moleculer.services].
  * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -23,23 +23,34 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.transporter;
+package services.moleculer.serializer;
 
-public class GoogleTransporterTest extends TransporterTest {
+/**
+ * <b>Serializer based on Java Object Serialization</b><br>
+ * <br>
+ * Type safe, but Java-dependent and slower than the JsonSerializer.
+ * Sample of usage:
+ * 
+ * <pre>
+ * Transporter trans = new NatsTransporter("localhost");
+ * trans.setSerializer(new JavaSerializer());
+ * ServiceBroker broker = ServiceBroker.builder()
+ *                                     .nodeID("node1")
+ *                                     .transporter(trans)
+ *                                     .build();
+ * </pre>
+ * 
+ * <b>Required dependency:</b> none
+ *
+ * @see JsonSerializer
+ * @see MsgPackSerializer
+ */
+public class JavaSerializer extends Serializer {
 
-	public GoogleTransporterTest() {
-		sleep = 3000;
+	// --- CONSTRUCTOR ---
+
+	public JavaSerializer() {
+		super("java");
 	}
-
-	@Override
-	public Transporter createTransporter() {
-		try {
-			String pathToConfig = "/temp/test.json";
-			return new GoogleTransporter(pathToConfig);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
-
+	
 }

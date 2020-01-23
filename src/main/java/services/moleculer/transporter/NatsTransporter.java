@@ -58,12 +58,10 @@ import services.moleculer.service.Name;
  * // https://mvnrepository.com/artifact/io.nats/jnats<br>
  * compile group: 'io.nats', name: 'jnats', version: '2.6.6'
  *
- * @see AblyTransporter
  * @see TcpTransporter
  * @see RedisTransporter
  * @see MqttTransporter
  * @see JmsTransporter
- * @see GoogleTransporter
  * @see KafkaTransporter
  * @see AmqpTransporter
  */

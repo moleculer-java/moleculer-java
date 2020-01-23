@@ -58,19 +58,18 @@ import services.moleculer.service.ServiceInvoker;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.transporter.tcp.NodeDescriptor;
 import services.moleculer.transporter.tcp.RemoteAddress;
+import services.moleculer.uid.TimeBasedUidGenerator;
 import services.moleculer.uid.UidGenerator;
 import services.moleculer.util.FastBuildTree;
 
 /**
  * Base superclass of all Transporter implementations.
  *
- * @see AblyTransporter
  * @see TcpTransporter
  * @see RedisTransporter
  * @see NatsTransporter
  * @see MqttTransporter
  * @see JmsTransporter
- * @see GoogleTransporter
  * @see KafkaTransporter
  * @see AmqpTransporter
  */
@@ -166,10 +165,14 @@ public abstract class Transporter extends MoleculerComponent {
 
 	// --- SERIALIZER / DESERIALIZER ---
 
-	protected Serializer serializer = new JsonSerializer();
+	protected Serializer serializer;
 
 	protected boolean usingJsonSerializer = true;
 
+	// --- INSTANCE ID ---
+	
+	protected final String instanceID;
+	
 	// --- COMPONENTS ---
 
 	protected ExecutorService executor;
@@ -203,10 +206,12 @@ public abstract class Transporter extends MoleculerComponent {
 	// --- CONSTUCTORS ---
 
 	public Transporter() {
+		this(new JsonSerializer());
 	}
 
 	public Transporter(Serializer serializer) {
 		this.serializer = Objects.requireNonNull(serializer);
+		this.instanceID = new TimeBasedUidGenerator().nextUID();
 	}
 
 	// --- START TRANSPORTER ---
@@ -379,6 +384,7 @@ public abstract class Transporter extends MoleculerComponent {
 		msg.put("ver", protocolVersion);
 		msg.put("sender", nodeID);
 		msg.put("seq", registry.getTimestamp());
+		msg.put("instanceID", instanceID);
 		publish(channel, msg);
 	}
 

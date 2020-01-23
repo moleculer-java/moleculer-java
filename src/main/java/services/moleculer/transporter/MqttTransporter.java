@@ -56,12 +56,10 @@ import services.moleculer.service.Name;
  * // https://mvnrepository.com/artifact/net.sf.xenqtt/xenqtt<br>
  * compile group: 'net.sf.xenqtt', name: 'xenqtt', version: '0.9.7'
  *
- * @see AblyTransporter
  * @see TcpTransporter
  * @see RedisTransporter
  * @see NatsTransporter
  * @see JmsTransporter
- * @see GoogleTransporter
  * @see KafkaTransporter
  * @see AmqpTransporter
  */

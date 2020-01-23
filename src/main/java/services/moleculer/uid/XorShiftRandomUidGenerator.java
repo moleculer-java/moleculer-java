@@ -76,11 +76,15 @@ public class XorShiftRandomUidGenerator extends UidGenerator {
 		// Add prefix
 		tmp.append(prefix);
 		
-		// Add sequence
+		// Add sequence and random number
 		tmp.append(counter.incrementAndGet());
 		tmp.append(':');
+		tmp.append(nextLong());
 		
-		// Generate pseudo random long (XORShift is the fastest random method)
+		return tmp.toString();
+	}
+
+	protected long nextLong() {
 		long start;
 		long next;
 		do {
@@ -90,13 +94,9 @@ public class XorShiftRandomUidGenerator extends UidGenerator {
 			next ^= (next >>> 35);
 			next ^= (next << 4);
 		} while (!rnd.compareAndSet(start, next));
-		
-		// Add random number
-		tmp.append(Math.abs(next));
-		
-		return tmp.toString();
+		return Math.abs(next);
 	}
-
+	
 	// --- GETTERS / SETTERS ---
 
 	public String getPrefix() {
