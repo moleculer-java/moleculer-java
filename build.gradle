@@ -82,7 +82,7 @@ dependencies {
 	compile group: 'org.slf4j', name: 'jcl-over-slf4j', version: '1.7.30'
 
 	// https://mvnrepository.com/artifact/com.diogonunes/JCDP
-	compile group: 'com.diogonunes', name: 'JCDP', version: '4.0.1'
+	compile group: 'com.diogonunes', name: 'JCDP', version: '2.0.3.1'
 
 	// =============== SERIALIZATION ===============
 
@@ -197,8 +197,8 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-version = '1.2.6-SNAPSHOT'
-// version = '1.2.6'
+// version = '1.2.6-SNAPSHOT'
+version = '1.2.6'
 
 modifyPom {
     project {

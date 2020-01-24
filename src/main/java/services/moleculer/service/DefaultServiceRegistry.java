@@ -1486,7 +1486,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			if (descriptor == null) {
 
 				// Create new descriptor block
-				descriptor = new FastBuildTree(6);
+				descriptor = new FastBuildTree(4);
 
 				// Services array
 				int serviceCount = names.size();
@@ -1588,10 +1588,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				client.putUnsafe("type", "java");
 				client.putUnsafe("version", ServiceBroker.SOFTWARE_VERSION);
 				client.putUnsafe("langVersion", System.getProperty("java.version", "1.8"));
-
-				// Not implemented
-				descriptor.putMapUnsafe("config", 0);
-				descriptor.putMapUnsafe("metadata", 0);
 				
 				// Set timestamp
 				timestamp.set(System.currentTimeMillis());

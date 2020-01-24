@@ -770,10 +770,10 @@ public abstract class TransporterTest extends TestCase {
 		assertEquals(0, stopped.get());
 		
 		// Wait for connecting nodes
-		br2.waitForServices(1500000, "marker").waitFor(1500000);
+		br2.waitForServices(20000, "marker").waitFor(20000);
 		
 		// Check connected/disconnected
-		Thread.sleep(200);
+		Thread.sleep(500);
 		assertEquals(1, connected.get());
 		assertEquals(0, disconnected.get());		
 	}
