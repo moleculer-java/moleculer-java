@@ -59,67 +59,67 @@ dependencies {
 
     // ============= COMPILATION =============
 
-    testCompile 'junit:junit:4.12'
+    testImplementation 'junit:junit:4.12'
 	ecj 'org.eclipse.jdt.core.compiler:ecj:4.4.2'
 
 	// =============== TESTING ===============
 
 	// https://mvnrepository.com/artifact/com.openpojo/openpojo
-	testCompile group: 'com.openpojo', name: 'openpojo', version: '0.8.10'	
+	testImplementation group: 'com.openpojo', name: 'openpojo', version: '0.8.10'	
 		
 	// =============== LOGGING ===============
 	
 	// http://mvnrepository.com/artifact/org.slf4j/slf4j-api
-	compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
+	implementation group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
        
 	// http://mvnrepository.com/artifact/org.slf4j/slf4j-jdk14
-	compile group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.7.30'
+	implementation group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.7.30'
 
 	// https://mvnrepository.com/artifact/org.slf4j/log4j-over-slf4j
-	compile group: 'org.slf4j', name: 'log4j-over-slf4j', version: '1.7.30'
+	implementation group: 'org.slf4j', name: 'log4j-over-slf4j', version: '1.7.30'
 
 	// https://mvnrepository.com/artifact/org.slf4j/jcl-over-slf4j
-	compile group: 'org.slf4j', name: 'jcl-over-slf4j', version: '1.7.30'
+	implementation group: 'org.slf4j', name: 'jcl-over-slf4j', version: '1.7.30'
 
 	// https://mvnrepository.com/artifact/com.diogonunes/JCDP
-	compile group: 'com.diogonunes', name: 'JCDP', version: '2.0.3.1'
+	implementation group: 'com.diogonunes', name: 'JCDP', version: '2.0.3.1'
 
 	// =============== SERIALIZATION ===============
 
     // --- DATATREE API ---
     	    
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-adapters
-	compile group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.13'
+	implementation group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.13'
 
     // --- PROMISE API ---
     
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-promise
-	// compile project(':datatree-promise')
-	compile group: 'com.github.berkesa', name: 'datatree-promise', version: '1.0.6'
+	// implementation project(':datatree-promise')
+	implementation group: 'com.github.berkesa', name: 'datatree-promise', version: '1.0.6'
 
     // --- SERIALIZER APIS ---
    
 	// https://mvnrepository.com/artifact/de.undercouch/bson4jackson
-	compile group: 'de.undercouch', name: 'bson4jackson', version: '2.9.2'
+	implementation group: 'de.undercouch', name: 'bson4jackson', version: '2.9.2'
  
 	// https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
-	compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: '2.10.1'
+	implementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: '2.10.1'
  
 	// https://mvnrepository.com/artifact/software.amazon.ion/ion-java
-	compile group: 'software.amazon.ion', name: 'ion-java', version: '1.5.1'
+	implementation group: 'software.amazon.ion', name: 'ion-java', version: '1.5.1'
  
 	// https://mvnrepository.com/artifact/org.msgpack/msgpack
-	compile group: 'org.msgpack', name: 'msgpack', version: '0.6.12'
+	implementation group: 'org.msgpack', name: 'msgpack', version: '0.6.12'
  
 	// https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/jackson-dataformat-smile
-	compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-smile', version: '2.10.1'
+	implementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-smile', version: '2.10.1'
  
 	// =============== MONITORING ===============
 	
 	// --- SIGAR API TO QUERY THE CPU USAGE ---
 	
 	// https://mvnrepository.com/artifact/org.fusesource/sigar
-	compile (group: 'org.fusesource', name: 'sigar', version: '1.6.4') {
+	implementation (group: 'org.fusesource', name: 'sigar', version: '1.6.4') {
 		exclude group: 'log4j', module: 'log4j'
 	}
 	
@@ -128,12 +128,12 @@ dependencies {
     // --- SPRING FRAMEWORK (REQUIRED FOR MOLECULER RUNNER) ---
 
 	// https://mvnrepository.com/artifact/org.springframework/spring-context
-	compile group: 'org.springframework', name: 'spring-context', version: '5.2.3.RELEASE'
+	implementation group: 'org.springframework', name: 'spring-context', version: '5.2.3.RELEASE'
 
     // --- SPRING BOOT (OPTIONAL!) ---
     
 	// https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter
-	compile (group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.2.4.RELEASE') {
+	implementation (group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.2.4.RELEASE') {
 		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
 	}
 
@@ -142,52 +142,52 @@ dependencies {
 	// --- OHC OFF-HEAP CACHE ---
 	
 	// https://mvnrepository.com/artifact/org.caffinitas.ohc/ohc-core-j8
-	compile group: 'org.caffinitas.ohc', name: 'ohc-core-j8', version: '0.6.1'
+	implementation group: 'org.caffinitas.ohc', name: 'ohc-core-j8', version: '0.6.1'
 
 	// --- JCACHE API + IMPLEMENTATION ---
 		
 	// https://mvnrepository.com/artifact/org.jsr107.ri/cache-ri-impl
-	compile group: 'org.jsr107.ri', name: 'cache-ri-impl', version: '1.1.1'
+	implementation group: 'org.jsr107.ri', name: 'cache-ri-impl', version: '1.1.1'
 		
 	// https://mvnrepository.com/artifact/javax.cache/cache-api
-	compile group: 'javax.cache', name: 'cache-api', version: '1.1.1'
+	implementation group: 'javax.cache', name: 'cache-api', version: '1.1.1'
 
 	// =============== TRANSPORTERS ===============
 	
 	// --- DEPENDENCY OF THE REDIS TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/biz.paluch.redis/lettuce
-	compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.5.0.Final'
+	implementation group: 'biz.paluch.redis', name: 'lettuce', version: '4.5.0.Final'
 
 	// --- DEPENDENCY OF THE NATS TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/io.nats/jnats
-	compile group: 'io.nats', name: 'jnats', version: '2.6.6'
+	implementation group: 'io.nats', name: 'jnats', version: '2.6.6'
 
 	// --- DEPENDENCY OF THE MQTT TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/net.sf.xenqtt/xenqtt
-	compile group: 'net.sf.xenqtt', name: 'xenqtt', version: '0.9.7'
+	implementation group: 'net.sf.xenqtt', name: 'xenqtt', version: '0.9.7'
 
 	// --- DEPENDENCY OF THE JMS TRANSPORTER ---
 
 	// https://mvnrepository.com/artifact/javax.jms/javax.jms-api
-	compile group: 'javax.jms', name: 'javax.jms-api', version: '2.0.1'
+	implementation group: 'javax.jms', name: 'javax.jms-api', version: '2.0.1'
 
 	// --- ACTIVE QM CLIENT API FOR JMS TESTING ---
 
 	// https://mvnrepository.com/artifact/org.apache.activemq/activemq-client
-	compile group: 'org.apache.activemq', name: 'activemq-client', version: '5.15.11'
+	implementation group: 'org.apache.activemq', name: 'activemq-client', version: '5.15.11'
 
 	// --- DEPENDENCY OF THE AMQP/RABBITMQ TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/com.rabbitmq/amqp-client
-	compile group: 'com.rabbitmq', name: 'amqp-client', version: '5.8.0'
+	implementation group: 'com.rabbitmq', name: 'amqp-client', version: '5.8.0'
 
 	// --- DEPENDENCY OF THE KAFKA TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients
-	compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.4.0'
+	implementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.4.0'
 
 }
 
