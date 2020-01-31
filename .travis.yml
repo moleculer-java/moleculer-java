@@ -28,8 +28,8 @@ before_install:
   - sudo apt-get update -y
   - sudo apt-get install mosquitto -y
 
-script: ./gradlew -S check  
-// script: ./gradlew -i -s check
+// script: ./gradlew -S check  
+script: ./gradlew -i -s check
 // script: ./gradlew check
 
 after_success:
