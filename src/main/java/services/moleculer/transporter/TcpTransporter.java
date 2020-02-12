@@ -329,8 +329,9 @@ public class TcpTransporter extends Transporter {
 			info.put("port", currentPort);
 			info.put("seq", "0");
 			cachedDescriptor = new NodeDescriptor(nodeID, useHostname, true, info);
-
+			
 			// Start data writer (TCP client)
+			cachedHelloMessage = null;
 			writer.connect();
 
 			// TCP + UDP mode ("zero config")
@@ -400,6 +401,9 @@ public class TcpTransporter extends Transporter {
 			writer.disconnect();
 			writer = null;
 		}
+		
+		// Clear cached "hello" message
+		cachedHelloMessage = null;
 		
 		// Notify internal listeners
 		if (notify) {
