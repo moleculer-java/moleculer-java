@@ -126,6 +126,7 @@ public class ServiceBrokerConfig {
 					System.loadLibrary(lib);
 
 					// Found!
+					Class.forName("org.hyperic.sigar.Sigar");
 					defaultMonitor = (Monitor) loader.loadClass(pkg + "SigarMonitor").newInstance();
 					break;
 				} catch (Throwable notFound) {
