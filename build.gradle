@@ -164,6 +164,11 @@ dependencies {
 	// https://mvnrepository.com/artifact/io.nats/jnats
 	implementation group: 'io.nats', name: 'jnats', version: '2.6.6'
 
+	// --- DEPENDENCY OF THE NATS-STREAMING TRANSPORTER ---
+	
+	// https://mvnrepository.com/artifact/io.nats/java-nats-streaming
+	implementation group: 'io.nats', name: 'java-nats-streaming', version: '2.2.3'
+
 	// --- DEPENDENCY OF THE MQTT TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/net.sf.xenqtt/xenqtt
@@ -197,8 +202,8 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-// version = '1.2.6-SNAPSHOT'
-version = '1.2.6'
+// version = '1.2.7-SNAPSHOT'
+version = '1.2.7'
 
 modifyPom {
     project {
@@ -273,7 +278,7 @@ compileJava {
 
 jar {
     baseName = 'moleculer'
-    version =  '1.2.6'
+    version =  '1.2.7'
 }
 
 // --- TESTING ---
@@ -283,7 +288,9 @@ test {
     
     exclude '**/KafkaTransporterTest.class'
     exclude '**/JmsTransporterTest.class'
+    exclude '**/NatsStreamingTransporterTest.class'
 
     exclude '**/KafkaStreamTest.class'
     exclude '**/JmsStreamTest.class'
+    exclude '**/NatsStreamingStreamTest.class'
 }

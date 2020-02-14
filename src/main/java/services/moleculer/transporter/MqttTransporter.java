@@ -59,6 +59,7 @@ import services.moleculer.service.Name;
  * @see TcpTransporter
  * @see RedisTransporter
  * @see NatsTransporter
+ * @see NatsStreamingTransporter
  * @see JmsTransporter
  * @see KafkaTransporter
  * @see AmqpTransporter

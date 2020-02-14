@@ -56,6 +56,7 @@ import services.moleculer.util.redis.RedisPubSubClient;
  *
  * @see TcpTransporter
  * @see NatsTransporter
+ * @see NatsStreamingTransporter
  * @see MqttTransporter
  * @see JmsTransporter
  * @see KafkaTransporter

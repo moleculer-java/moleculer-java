@@ -23,37 +23,16 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.serializer;
+package services.moleculer.stream;
 
-import services.moleculer.service.Name;
+import services.moleculer.transporter.NatsStreamingTransporter;
+import services.moleculer.transporter.Transporter;
 
-/**
- * <b>Serializer based on Java Object Serialization</b><br>
- * <br>
- * Type safe, but Java-dependent and slower than the JsonSerializer.
- * Sample of usage:
- * 
- * <pre>
- * Transporter trans = new NatsTransporter("localhost");
- * trans.setSerializer(new JavaSerializer());
- * ServiceBroker broker = ServiceBroker.builder()
- *                                     .nodeID("node1")
- *                                     .transporter(trans)
- *                                     .build();
- * </pre>
- * 
- * <b>Required dependency:</b> none
- *
- * @see JsonSerializer
- * @see MsgPackSerializer
- */
-@Name("Java Object Serializer")
-public class JavaSerializer extends Serializer {
+public class NatsStreamingStreamTest extends StreamTest {
 
-	// --- CONSTRUCTOR ---
-
-	public JavaSerializer() {
-		super("java");
+	@Override
+	public Transporter createTransporter() {
+		return new NatsStreamingTransporter();
 	}
-	
+
 }

@@ -60,6 +60,7 @@ import services.moleculer.service.Name;
  *
  * @see TcpTransporter
  * @see RedisTransporter
+ * @see NatsStreamingTransporter
  * @see MqttTransporter
  * @see JmsTransporter
  * @see KafkaTransporter
@@ -267,7 +268,7 @@ public class NatsTransporter extends Transporter implements MessageHandler, Conn
 			} else if (!msg.endsWith("!") && !msg.endsWith(".")) {
 				msg += "!";
 			}
-			logger.warn(msg);
+			logger.warn(msg, cause);
 		}
 	}
 

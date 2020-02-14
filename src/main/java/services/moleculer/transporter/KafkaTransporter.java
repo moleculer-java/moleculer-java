@@ -70,6 +70,7 @@ import services.moleculer.service.Name;
  * @see TcpTransporter
  * @see RedisTransporter
  * @see NatsTransporter
+ * @see NatsStreamingTransporter
  * @see MqttTransporter
  * @see JmsTransporter
  * @see AmqpTransporter

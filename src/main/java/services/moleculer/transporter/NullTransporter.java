@@ -33,6 +33,7 @@ import io.datatree.Tree;
  * 
  * @see TcpTransporter
  * @see NatsTransporter
+ * @see NatsStreamingTransporter
  * @see MqttTransporter
  * @see JmsTransporter
  * @see KafkaTransporter
