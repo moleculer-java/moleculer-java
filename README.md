@@ -10,7 +10,7 @@ Moleculer Ecosystem is designed to facilitate the development of non-blocking di
 
 ## Documentation
 
-[link](https://moleculer-java.github.io/site/)
+[Documentation](https://moleculer-java.github.io/site/introduction.html)
 
 ## License
 
