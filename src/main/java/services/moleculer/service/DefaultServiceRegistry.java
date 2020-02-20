@@ -1533,16 +1533,13 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				for (String serviceName : names) {
 					if (!actionsMap.containsKey(serviceName)) {
 
-						// Create service block
-						FastBuildTree service = new FastBuildTree(3);
-						service.putUnsafe("name", serviceName);
-						servicesMap.put(serviceName, service);
-
-						actionsMap.put(serviceName, new FastBuildTree(1));
-
 						// Create event listener block
 						Tree listeners = eventbus.generateListenerDescriptor(serviceName);
 						if (listeners != null && !listeners.isEmpty()) {
+							FastBuildTree service = new FastBuildTree(3);
+							service.putUnsafe("name", serviceName);
+							servicesMap.put(serviceName, service);
+							actionsMap.put(serviceName, new FastBuildTree(1));
 							service.putUnsafe("events", listeners.asObject());
 						}
 					}

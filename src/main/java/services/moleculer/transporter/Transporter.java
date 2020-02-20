@@ -1208,4 +1208,8 @@ public abstract class Transporter extends MoleculerComponent {
 		this.debugHeartbeats = debugHeartbeats;
 	}
 
+	public String getInstanceID() {
+		return instanceID;
+	}
+
 }
