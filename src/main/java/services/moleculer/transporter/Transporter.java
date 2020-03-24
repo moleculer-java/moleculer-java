@@ -300,14 +300,14 @@ public abstract class Transporter extends MoleculerComponent {
 			Promise.all(subscribe(eventChannel), // EVENT
 					subscribe(requestChannel), // REQ
 					subscribe(responseChannel), // RES
-					subscribe(discoverBroadcastChannel), // DISCOVER
 					subscribe(discoverChannel), // DISCOVER
-					subscribe(infoBroadcastChannel), // INFO
 					subscribe(infoChannel), // INFO
-					subscribe(disconnectChannel), // DISCONNECT
-					subscribe(heartbeatChannel), // HEARTBEAT
 					subscribe(pingChannel), // PING
-					subscribe(pongChannel) // PONG
+					subscribe(pongChannel), // PONG
+					subscribe(disconnectChannel), // DISCONNECT
+					subscribe(discoverBroadcastChannel), // DISCOVER
+					subscribe(infoBroadcastChannel), // INFO
+					subscribe(heartbeatChannel) // HEARTBEAT					
 			).then(in -> {
 				promise.complete();
 
