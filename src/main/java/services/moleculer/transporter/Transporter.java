@@ -88,7 +88,7 @@ public abstract class Transporter extends MoleculerComponent {
 	public static final String PACKET_HEARTBEAT = "HEARTBEAT";
 	public static final String PACKET_PING = "PING";
 	public static final String PACKET_PONG = "PONG";
-
+	
 	// --- CHANNELS OF CURRENT NODE ---
 
 	public String eventChannel;
@@ -227,7 +227,7 @@ public abstract class Transporter extends MoleculerComponent {
 	public void started(ServiceBroker broker) throws Exception {
 		super.started(broker);
 
-		// Debug mode
+		// Set serializer's debug mode
 		if (debug) {
 			serializer.setDebug(true);
 		}
