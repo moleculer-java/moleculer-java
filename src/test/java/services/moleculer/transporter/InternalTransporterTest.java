@@ -28,7 +28,8 @@ package services.moleculer.transporter;
 public class InternalTransporterTest extends TransporterTest {
 
 	public InternalTransporterTest() {
-		sleep = 200;
+		min = 100;
+		timeout = 200;
 	}
 	
 	@Override

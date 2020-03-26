@@ -102,7 +102,7 @@ public class ServiceBroker extends ContextSource {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final String SOFTWARE_VERSION = "1.2.9";
+	public static final String SOFTWARE_VERSION = "1.2.10";
 
 	/**
 	 * Protocol version, replaced by {@link #getProtocolVersion()}. From the

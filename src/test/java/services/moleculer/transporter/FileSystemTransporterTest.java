@@ -28,7 +28,7 @@ package services.moleculer.transporter;
 public class FileSystemTransporterTest extends TransporterTest {
 
 	public FileSystemTransporterTest() {
-		sleep = 6000;
+		min = 1100;
 	}
 
 	@Override

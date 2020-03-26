@@ -26,8 +26,8 @@
 package services.moleculer.transporter;
 
 import static services.moleculer.util.CommonUtils.nameOf;
-import static services.moleculer.util.CommonUtils.throwableToTree;
 import static services.moleculer.util.CommonUtils.removeLocalEvents;
+import static services.moleculer.util.CommonUtils.throwableToTree;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -41,6 +41,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
@@ -203,7 +204,12 @@ public abstract class Transporter extends MoleculerComponent {
 	// --- SENDING INFO BLOCK ---
 
 	protected final AtomicBoolean infoScheduled = new AtomicBoolean();
-
+	protected final AtomicLong infoScheduledAt = new AtomicLong();
+	
+	// --- FOR TESTING ONLY ---
+	
+	protected final AtomicLong lastReceivedMessageAt = new AtomicLong();
+	
 	// --- CONSTUCTORS ---
 
 	public Transporter() {
@@ -674,9 +680,10 @@ public abstract class Transporter extends MoleculerComponent {
 	 */
 	protected void processReceivedMessage(String channel, Tree message) {
 
-		// Debug
+		// Debug & test
 		if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 			logger.info("Message received from channel \"" + channel + "\":\r\n" + message);
+			lastReceivedMessageAt.set(System.currentTimeMillis());
 		}
 
 		// Send message to proper component
@@ -949,12 +956,21 @@ public abstract class Transporter extends MoleculerComponent {
 	// --- SEND BROADCAST INFO PACKET ---
 
 	public void broadcastInfoPacket() {
+		infoScheduledAt.set(System.currentTimeMillis());
 		if (infoScheduled.compareAndSet(false, true)) {
-			scheduler.schedule(() -> {
+			scheduleInfoPacket();
+		}
+	}
+	
+	protected void scheduleInfoPacket() {
+		scheduler.schedule(() -> {
+			if (System.currentTimeMillis() - infoScheduledAt.get() >= 1000L) {
 				infoScheduled.set(false);
 				sendInfoPacket(infoBroadcastChannel);
-			}, 1, TimeUnit.SECONDS);
-		}
+			} else {
+				scheduleInfoPacket();
+			}
+		}, 1, TimeUnit.SECONDS);		
 	}
 
 	// --- TIMEOUT PROCESS ---
