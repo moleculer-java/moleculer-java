@@ -52,8 +52,10 @@ public abstract class TransporterTest extends TestCase {
 
 	// --- VARIABLES ---
 
-	protected long sleep = 700;
-
+	protected long min = 500;
+	protected long max = 10000;
+	protected long timeout = 500;
+	
 	protected Transporter tr1;
 	protected ServiceBroker br1;
 
@@ -125,7 +127,7 @@ public abstract class TransporterTest extends TestCase {
 
 		// Broadcast
 		br1.broadcast("test.a", new Tree());
-		Thread.sleep(sleep);
+		waitForMessages();
 		g1_a.waitFor(20000);
 		g1_b.waitFor(20000);
 		g2_a.waitFor(20000);
@@ -182,7 +184,7 @@ public abstract class TransporterTest extends TestCase {
 
 		// Emit
 		br1.emit("test.a", t);
-		Thread.sleep(sleep);
+		waitForMessages();
 		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
 		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
 		Tree v;
@@ -203,7 +205,7 @@ public abstract class TransporterTest extends TestCase {
 
 		// Emit NULL
 		br1.emit("test.a", (Tree) null);
-		Thread.sleep(sleep);
+		waitForMessages();
 		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
 		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
 		v = null;
@@ -220,7 +222,7 @@ public abstract class TransporterTest extends TestCase {
 
 		// Emit to group1
 		br1.emit("test.a", t, Groups.of("group1"));
-		Thread.sleep(sleep);
+		waitForMessages();
 		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
 		assertEquals(0, g2_a.payloads.size() + g2_b.payloads.size());
 		g1_a.payloads.clear();
@@ -228,7 +230,7 @@ public abstract class TransporterTest extends TestCase {
 
 		// Emit NULL to group1
 		br1.emit("test.a", (Tree) null, Groups.of("group1"));
-		Thread.sleep(sleep);
+		waitForMessages();
 		assertEquals(1, g1_a.payloads.size() + g1_b.payloads.size());
 		assertEquals(0, g2_a.payloads.size() + g2_b.payloads.size());
 		v = null;
@@ -243,7 +245,7 @@ public abstract class TransporterTest extends TestCase {
 
 		// Emit to group2
 		br1.emit("test.a", t, Groups.of("group2"));
-		Thread.sleep(sleep);
+		waitForMessages();
 		assertEquals(0, g1_a.payloads.size() + g1_b.payloads.size());
 		assertEquals(1, g2_a.payloads.size() + g2_b.payloads.size());
 		v = null;
@@ -286,7 +288,7 @@ public abstract class TransporterTest extends TestCase {
 
 		PacketStream ps = br2.createStream();
 		br2.broadcast("stream.receive", ps);
-		Thread.sleep(sleep);
+		waitForMessages();
 
 		assertNotNull(sl.ctx);
 		assertEquals(1, sl.ctx.level);
@@ -305,7 +307,7 @@ public abstract class TransporterTest extends TestCase {
 		assertFalse(s2.streamClosed);
 
 		ps.sendClose();
-		Thread.sleep(sleep * 3);
+		waitForMessages(3);
 
 		assertEquals("1234567890", new String(sl.buffer.toByteArray()));
 		assertTrue(sl.streamClosed);
@@ -329,7 +331,7 @@ public abstract class TransporterTest extends TestCase {
 		ps.sendData("12345".getBytes());
 		ps.sendData("67".getBytes());
 		ps.sendClose();
-		Thread.sleep(sleep * 3);
+		waitForMessages(3);
 
 		StreamListener s, d;
 		if (sl.streamClosed) {
@@ -371,7 +373,7 @@ public abstract class TransporterTest extends TestCase {
 		});
 		br2.call("metasender.action");
 
-		Thread.sleep(sleep * 3);
+		waitForMessages(3);
 		assertNotNull(l3e.ctx);
 		assertEquals(4, l3e.ctx.level);
 		assertEquals(123, l3e.ctx.params.getMeta().get("a", 0));
@@ -723,7 +725,7 @@ public abstract class TransporterTest extends TestCase {
 		tr1 = createTransporter();
 		tr2 = createTransporter();
 		
-		// Enable debug messages
+		// Enable debug messages + receiveListener
 		tr1.setDebug(true);
 		tr2.setDebug(true);
 		
@@ -773,7 +775,7 @@ public abstract class TransporterTest extends TestCase {
 		br2.waitForServices(20000, "marker").waitFor(20000);
 		
 		// Check connected/disconnected
-		Thread.sleep(500);
+		waitForMessages();
 		assertEquals(1, connected.get());
 		assertEquals(0, disconnected.get());		
 	}
@@ -794,6 +796,33 @@ public abstract class TransporterTest extends TestCase {
 		// Check connected/disconnected
 		assertEquals(1, connected.get());
 		assertEquals(1, disconnected.get());	
+	}
+
+	// --- RECEIVE LISTENER ---
+	
+	public final void waitForMessages() throws InterruptedException {
+		waitForMessages(1);
+	}
+	
+	public final void waitForMessages(long multi) throws InterruptedException {
+		long start = System.currentTimeMillis();
+		tr1.lastReceivedMessageAt.set(start);
+		tr2.lastReceivedMessageAt.set(start);
+		long now, last;
+		Thread.sleep(min * multi);
+		for (int i = 0; i < max * multi / 100; i++) {
+			if (i > 0) {
+				Thread.sleep(100);
+			}
+			now = System.currentTimeMillis();
+			if (now - start >= max * multi) {
+				break;
+			}
+			last = Math.max(tr1.lastReceivedMessageAt.get(), tr2.lastReceivedMessageAt.get());
+			if (now - last >= timeout * multi) {
+				break;
+			}
+		}
 	}
 
 }

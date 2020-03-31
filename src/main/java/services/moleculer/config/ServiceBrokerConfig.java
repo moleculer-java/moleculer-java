@@ -31,7 +31,6 @@ import java.lang.management.ManagementFactory;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -163,8 +162,9 @@ public class ServiceBrokerConfig {
 	public ServiceBrokerConfig(String nodeID, Cacher cacher, Transporter transporter) {
 
 		// Create default thread pools
-		executor = ForkJoinPool.commonPool();
-		scheduler = Executors.newScheduledThreadPool(ForkJoinPool.commonPool().getParallelism());
+		int threads = Math.max(4, Runtime.getRuntime().availableProcessors());
+		executor = Executors.newWorkStealingPool(threads);
+		scheduler = Executors.newScheduledThreadPool(threads);
 
 		// Set the default System Monitor
 		monitor = defaultMonitor;

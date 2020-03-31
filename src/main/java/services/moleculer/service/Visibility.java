@@ -1,7 +1,7 @@
 /**
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
- * Copyright 2019 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Copyright 2020 Andras Berkes [andras.berkes@programmer.net]<br>
  * Based on Moleculer Framework for NodeJS [https://moleculer.services].
  * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -23,22 +23,17 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.transporter;
+package services.moleculer.service;
 
-public class FileSystemTransporterTest extends TransporterTest {
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-	public FileSystemTransporterTest() {
-		min = 1100;
-	}
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ ElementType.TYPE })
+public @interface Visibility {
 
-	@Override
-	public Transporter createTransporter() {
-		try {
-			return new FileSystemTransporter();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
+	String value() default "published";
 	
 }

@@ -27,8 +27,6 @@ package services.moleculer;
 
 import io.datatree.Tree;
 import services.moleculer.config.ServiceBrokerConfig;
-import services.moleculer.serializer.BlockCipherSerializer;
-import services.moleculer.serializer.DeflaterSerializer;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
 import services.moleculer.service.Version;
@@ -50,16 +48,6 @@ public class Sample {
 			transporter.setDebug(true);
 			transporter.setNoEcho(true);
 			cfg.setTransporter(transporter);
-
-			// Enable compression (same as "deflateRaw" in Node.js)
-			DeflaterSerializer deflater = new DeflaterSerializer(512);
-			
-			// Enable encryption (same as "aes-256-cbc" in Node.js) 
-			transporter.setSerializer(new BlockCipherSerializer(
-					deflater,                           // Parent Serializer
-					"12345678901234567890123456789012", // 32 bytes of password
-					"AES/CBC/PKCS5Padding",             // Name of the algorithm
-					"1234567890123456"));               // 16 bytes of IV
 			
 			// Create Service Broker by config
 			ServiceBroker broker = new ServiceBroker(cfg);
@@ -74,11 +62,11 @@ public class Sample {
 			Tree response = broker.call("v2.myService.first").waitFor(5000);
 
 			// Print response
-			System.out.println("RESPONSE: " + response);
+			System.out.println(response);
 
 			// Stop Service Broker
 			// broker.stop();
-
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
