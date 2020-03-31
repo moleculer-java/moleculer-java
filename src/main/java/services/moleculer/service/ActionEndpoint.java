@@ -69,8 +69,11 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 		super(nodeID);
 		this.config = config;
 		this.name = config.get("name", "unknown");
-		this.privateAccess = config.get("private", false);
 		this.service = service;
+		
+		// Private Action
+		String visibility = config.get("visibility", "published");
+		this.privateAccess = config.get("private", false) || "protected".equals(visibility) || "private".equals(visibility);
 		
 		// Generate hashcode
 		this.hashCode = 31 * nodeID.hashCode() + name.hashCode();
