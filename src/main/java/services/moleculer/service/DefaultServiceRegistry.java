@@ -630,7 +630,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 		// Get local action endpoint (with cache handling)
 		ActionEndpoint endpoint = strategy.getEndpoint(ctx, nodeID);
-		if (endpoint == null || endpoint.privateAccess) {
+		if (endpoint == null || endpoint.localOnly) {
 			logger.warn("Not a local action (" + action + ")!");
 			transporter.publish(PACKET_RESPONSE, sender,
 					throwableToTree(id, nodeID, protocolVersion, new ServiceNotAvailableError(nodeID, action)));
@@ -1004,7 +1004,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				Tree actionConfig = new Tree();
 				actionConfig.put("name", actionName);
 				if (Modifier.isPrivate(field.getModifiers())) {
-					actionConfig.put("private", true);
+					actionConfig.put("visibility", "protected");
 				}
 				convertAnnotations(actionConfig, field.getAnnotations());
 
@@ -1504,7 +1504,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 					// Get endpoint
 					ActionEndpoint endpoint = entry.getValue().getEndpoint(null, nodeID);
-					if (endpoint == null || endpoint.privateAccess) {
+					if (endpoint == null || endpoint.localOnly) {
 						continue;
 					}
 

@@ -53,7 +53,7 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 	 * Private Action; only the local Broker can access it and cannot be called
 	 * remotely.
 	 */
-	protected final boolean privateAccess;
+	protected final boolean localOnly;
 
 	// --- ACTION WITH MIDDLEWARES ---
 
@@ -71,9 +71,8 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 		this.name = config.get("name", "unknown");
 		this.service = service;
 		
-		// Private Action
-		String visibility = config.get("visibility", "published");
-		this.privateAccess = config.get("private", false) || "protected".equals(visibility) || "private".equals(visibility);
+		// Can be called only locally (from local services)
+		this.localOnly = "protected".equals(config.get("visibility", "published"));
 		
 		// Generate hashcode
 		this.hashCode = 31 * nodeID.hashCode() + name.hashCode();
@@ -135,8 +134,8 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 		return current;
 	}
 
-	public boolean isPrivate() {
-		return privateAccess;
+	public boolean isLocalOnly() {
+		return localOnly;
 	}
 
 }

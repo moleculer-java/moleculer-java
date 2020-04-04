@@ -30,10 +30,21 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * The "Visibility" annotation controls the visibility of an Action. The default
+ * values is "null" (= "published") due to backward compatibility. Available
+ * values:
+ * <ul>
+ * <li><b>published</b>: public action. It can be called locally, remotely and
+ * can be published via API Gateway
+ * <li><b>protected</b>: can be called only locally (from local services)
+ * </ul>
+ * The "public" and "private" values are not implemented.
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.TYPE })
 public @interface Visibility {
 
 	String value() default "published";
-	
+
 }
