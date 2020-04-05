@@ -105,26 +105,36 @@ public class ServiceTest extends TestCase {
 		assertEquals(123, rsp.get("data", -1));
 		assertEquals("MOL.RES.node5", rsp.get("channel", ""));
 
+		// Null response
 		br.createService(new NullService());
 		rsp = br.call("nullService.nullAction", (Tree) null).waitFor(20000);
-		assertNull(rsp);
+		assertNull(rsp); 
+
+		// Parent & child service
+		br.createService(new ParentService());
+		rsp = br.call("parentService.action", (Tree) null).waitFor(20000);
+		assertEquals(1, (int) rsp.asInteger());
+
+		br.createService(new ChildService());
+		rsp = br.call("childService.action", (Tree) null).waitFor(20000);
+		assertEquals(2, (int) rsp.asInteger());
 		
 		// Check hidden (private) service in descriptor
 		Tree desc = br.getConfig().getServiceRegistry().getDescriptor();
 		String json = desc.toString();
 		assertTrue(json.contains("add2"));
 		assertFalse(json.contains("add3"));
-		
+
 		rsp = br.call("test.add2", "a", 4, "b", 6).waitFor(20000);
 		assertEquals(10, (int) rsp.asInteger());
 		rsp = br.call("test.add3", "a", 5, "b", 6).waitFor(20000);
 		assertEquals(11, (int) rsp.asInteger());
-		
+
 		putIncomingCall("test.add2", new Tree().put("a", 3).put("b", 3));
 		assertEquals(1, tr.getMessageCount());
 		rsp = tr.getMessages().removeFirst();
 		assertEquals(6, rsp.get("data", 1));
-		
+
 		putIncomingCall("test.add3", new Tree().put("a", 4).put("b", 3));
 		assertEquals(1, tr.getMessageCount());
 		rsp = tr.getMessages().removeFirst();
@@ -143,6 +153,24 @@ public class ServiceTest extends TestCase {
 			msg.putUnsafe("params", params);
 		}
 		tr.received(tr.requestChannel, msg);
+	}
+
+	protected static class ParentService extends Service {
+
+		public Action action = ctx -> {
+			return 1;
+		};
+
+	}
+
+	protected static final class ChildService extends ParentService {
+
+		ChildService() {
+			action = ctx -> {
+				return 2;
+			};
+		}
+
 	}
 
 	protected static final class NullService extends Service {
