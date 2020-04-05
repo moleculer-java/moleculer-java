@@ -28,7 +28,7 @@ package services.moleculer.transporter;
 public class MqttTransporterTest extends TransporterTest {
 
 	public MqttTransporterTest() {
-		timeout = 1100;
+		timeout = 1500;
 	}
 	
 	@Override
