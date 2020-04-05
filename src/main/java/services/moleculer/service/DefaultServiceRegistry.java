@@ -975,19 +975,22 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	}
 
 	protected void addOnlineActions(String serviceName, Service service) {
-		Class<? extends Service> clazz = service.getClass();
+		Class<?> clazz = service.getClass();
 		LinkedHashMap<String, Field> fields = new LinkedHashMap<>(64);
-		for (Field field : clazz.getDeclaredFields()) {
-			if (Action.class.isAssignableFrom(field.getType())) {
-				field.setAccessible(true);
-				fields.putIfAbsent(field.getName(), field);
+		while (clazz != null) {
+			for (Field field : clazz.getDeclaredFields()) {
+				if (Action.class.isAssignableFrom(field.getType())) {
+					field.setAccessible(true);
+					fields.putIfAbsent(field.getName(), field);
+				}
 			}
-		}
-		for (Field field : clazz.getFields()) {
-			if (Action.class.isAssignableFrom(field.getType())) {
-				field.setAccessible(true);
-				fields.putIfAbsent(field.getName(), field);
+			for (Field field : clazz.getFields()) {
+				if (Action.class.isAssignableFrom(field.getType())) {
+					field.setAccessible(true);
+					fields.putIfAbsent(field.getName(), field);
+				}
 			}
+			clazz = clazz.getSuperclass();
 		}
 		int actionCounter = 0;
 

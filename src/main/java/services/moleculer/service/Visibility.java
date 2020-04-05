@@ -42,7 +42,7 @@ import java.lang.annotation.Target;
  * The "public" and "private" values are not implemented.
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ ElementType.TYPE })
+@Target({ ElementType.FIELD, ElementType.TYPE })
 public @interface Visibility {
 
 	String value() default "published";

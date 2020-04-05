@@ -319,9 +319,11 @@ public abstract class Transporter extends MoleculerComponent {
 
 				// Redis transporter is ready for use
 				logger.info("All channels subscribed successfully.");
-
+				
 				// Do the discovery process
-				sendDiscoverPacket(discoverBroadcastChannel);
+				scheduler.schedule(() -> {
+					sendDiscoverPacket(discoverBroadcastChannel);
+				}, 500, TimeUnit.MILLISECONDS);
 				broadcastInfoPacket();
 
 				// Start sendHeartbeat timer
