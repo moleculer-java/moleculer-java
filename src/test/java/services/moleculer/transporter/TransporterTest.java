@@ -54,7 +54,7 @@ public abstract class TransporterTest extends TestCase {
 
 	protected long min = 500;
 	protected long max = 10000;
-	protected long timeout = 500;
+	protected long timeout = 800;
 	
 	protected Transporter tr1;
 	protected ServiceBroker br1;
@@ -775,7 +775,7 @@ public abstract class TransporterTest extends TestCase {
 		br2.waitForServices(20000, "marker").waitFor(20000);
 		
 		// Check connected/disconnected
-		waitForMessages();
+		waitForMessages(3);
 		assertEquals(1, connected.get());
 		assertEquals(0, disconnected.get());		
 	}
@@ -815,11 +815,11 @@ public abstract class TransporterTest extends TestCase {
 				Thread.sleep(100);
 			}
 			now = System.currentTimeMillis();
-			if (now - start >= max * multi) {
+			if (now - start >= (max * multi)) {
 				break;
 			}
 			last = Math.max(tr1.lastReceivedMessageAt.get(), tr2.lastReceivedMessageAt.get());
-			if (now - last >= timeout * multi) {
+			if (now - last >= (timeout * multi)) {
 				break;
 			}
 		}
