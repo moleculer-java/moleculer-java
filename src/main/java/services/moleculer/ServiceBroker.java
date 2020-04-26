@@ -102,7 +102,7 @@ public class ServiceBroker extends ContextSource {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final String SOFTWARE_VERSION = "1.2.11";
+	public static final String SOFTWARE_VERSION = "1.2.12";
 
 	/**
 	 * Protocol version, replaced by {@link #getProtocolVersion()}. From the
@@ -314,8 +314,9 @@ public class ServiceBroker extends ContextSource {
 			for (Map.Entry<String, Service> entry : services.entrySet()) {
 				Service service = entry.getValue();
 				String serviceName = entry.getKey();
-				eventbus.addListeners(serviceName, service);
-				serviceRegistry.addActions(serviceName, service);
+				serviceRegistry.addActions(serviceName, service).then(deployed -> {
+					eventbus.addListeners(serviceName, service);					
+				});
 			}
 
 			// Start transporter's connection loop
@@ -562,8 +563,9 @@ public class ServiceBroker extends ContextSource {
 		} else {
 
 			// Register and start service now
-			eventbus.addListeners(name, service);
-			serviceRegistry.addActions(name, service);
+			serviceRegistry.addActions(name, service).then(deployed -> {
+				eventbus.addListeners(name, service);				
+			});
 		}
 		return this;
 	}

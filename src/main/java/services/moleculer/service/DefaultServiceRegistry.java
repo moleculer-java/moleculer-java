@@ -932,7 +932,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	// --- ADD A LOCAL SERVICE ---
 
 	@Override
-	public void addActions(String serviceName, Service service) {
+	public Promise addActions(String serviceName, Service service) {
 		if (serviceName == null || serviceName.isEmpty()) {
 			serviceName = service.getName();
 		} else {
@@ -944,6 +944,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		if (dependencies != null) {
 			String[] services = dependencies.value();
 			if (services != null && services.length > 0) {
+				Promise deployed = new Promise();
 				waitForServices(0, Arrays.asList(services)).then(ok -> {
 					StringBuilder msg = new StringBuilder(64);
 					msg.append("Starting \"");
@@ -965,13 +966,16 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					msg.append(" available...");
 					logger.info(msg.toString());
 					addOnlineActions(name, service);
+					deployed.complete();
 				}).catchError(cause -> {
 					logger.error("Unable to deploy service!", cause);
+					deployed.complete(cause);
 				});
-				return;
+				return deployed;
 			}
 		}
 		addOnlineActions(name, service);
+		return Promise.resolve();
 	}
 
 	protected void addOnlineActions(String serviceName, Service service) {
@@ -1033,7 +1037,6 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				actionCounter++;
 			}
 			services.put(serviceName, service);
-			names.add(serviceName);
 
 			// Delete cached node descriptor
 			clearDescriptorCache();
@@ -1052,6 +1055,14 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			logger.error("Unable to start local service!", cause);
 		}
 
+		// Add to "names" (listened by "waitForServices")
+		final long nameStamp = lock.writeLock();
+		try {
+			names.add(serviceName);			
+		} finally {
+			lock.unlockWrite(nameStamp);
+		}
+		
 		// Notify local listeners about the new LOCAL service
 		broadcastServicesChanged(true);
 

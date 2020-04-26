@@ -56,7 +56,7 @@ public abstract class ServiceRegistry extends MoleculerComponent {
 
 	// --- ADD ACTION OF A LOCAL SERVICE ---
 
-	public abstract void addActions(String name, Service service);
+	public abstract Promise addActions(String name, Service service);
 
 	// --- ADD ACTIONS OF A REMOTE SERVICE ---
 
