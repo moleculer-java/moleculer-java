@@ -32,6 +32,7 @@ import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.mergeMeta;
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.throwableToTree;
+import static services.moleculer.util.CommonUtils.getFieldFromProxy;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -1003,7 +1004,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 
 			// Initialize actions in service
 			for (Field field : fields.values()) {
-				Action action = (Action) field.get(service);
+				Action action = (Action) getFieldFromProxy(service, field);
 
 				// Name of the action (eg. "service.action")
 				String actionName = nameOf(serviceName, field);

@@ -103,6 +103,21 @@ public final class CommonUtils {
 		return rsp;
 	}
 
+	// --- SPRING HELPER ---
+	
+	public static final Object getFieldFromProxy(Object object, Field field) throws Exception {
+		try {
+			Method gtsMethod = object.getClass().getMethod("getTargetSource", new Class[0]);
+			Object targetSource = gtsMethod.invoke(object, new Object[0]);
+			Method gtMethod = targetSource.getClass().getMethod("getTarget", new Class[0]);
+			Object target = gtMethod.invoke(targetSource, new Object[0]);
+			Field originalField = target.getClass().getField(field.getName());
+			return originalField.get(target);
+		} catch (Exception ignored) {
+		}
+		return field.get(object);
+	}
+	
 	// --- CONVERT THROWABLE TO RESPONSE MESSAGE ---
 
 	public static final FastBuildTree throwableToTree(String id, String nodeID, String protocolVersion,

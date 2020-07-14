@@ -26,6 +26,7 @@
 package services.moleculer.eventbus;
 
 import static services.moleculer.util.CommonUtils.nameOf;
+import static services.moleculer.util.CommonUtils.getFieldFromProxy;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -460,7 +461,7 @@ public class DefaultEventbus extends Eventbus {
 
 				// Register listener in EventBus
 				field.setAccessible(true);
-				Listener listener = (Listener) field.get(service);
+				Listener listener = (Listener) getFieldFromProxy(service, field);
 
 				// Private (hidden) listener?
 				boolean privateAccess = Modifier.isPrivate(field.getModifiers());
