@@ -53,6 +53,7 @@ import services.moleculer.context.Context;
 import services.moleculer.context.ContextSource;
 import services.moleculer.error.MoleculerServerError;
 import services.moleculer.internal.NodeService;
+import services.moleculer.metrics.MetricRegistry;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.MoleculerComponent;
@@ -289,6 +290,13 @@ public class ServiceBroker extends ContextSource {
 			// Set global JSON writer API (Jackson, Gson, Boon, FastJson, etc.)
 			initJsonWriter();
 
+			// Add MetricsRegistry to middlewares
+			MetricRegistry metrics = config.getMetrics();
+			if (metrics != null && config.isMetricsEnabled()) {
+				middlewares.add(metrics);
+				logger.info(nameOf(metrics, true) + " started.");
+			}
+
 			// Set internal components
 			start(uidGenerator);
 			strategyFactory = start(config.getStrategyFactory());
@@ -300,8 +308,8 @@ public class ServiceBroker extends ContextSource {
 			// Register enqued middlewares
 			Cacher cacher = config.getCacher();
 			if (cacher != null) {
-				logger.info(nameOf(cacher, true) + " started.");
 				middlewares.add(cacher);
+				logger.info(nameOf(cacher, true) + " started.");
 			}
 			serviceRegistry.use(middlewares);
 
@@ -315,7 +323,7 @@ public class ServiceBroker extends ContextSource {
 				Service service = entry.getValue();
 				String serviceName = entry.getKey();
 				serviceRegistry.addActions(serviceName, service).then(deployed -> {
-					eventbus.addListeners(serviceName, service);					
+					eventbus.addListeners(serviceName, service);
 				});
 			}
 
@@ -441,7 +449,7 @@ public class ServiceBroker extends ContextSource {
 		// Stop transporter and services
 		stop(transporter);
 		stop(serviceRegistry);
-		
+
 		// Notify listeners
 		if (eventbus != null && serviceInvoker != null && uidGenerator != null) {
 			eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
@@ -564,7 +572,7 @@ public class ServiceBroker extends ContextSource {
 
 			// Register and start service now
 			serviceRegistry.addActions(name, service).then(deployed -> {
-				eventbus.addListeners(name, service);				
+				eventbus.addListeners(name, service);
 			});
 		}
 		return this;

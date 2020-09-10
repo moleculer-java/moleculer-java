@@ -25,11 +25,12 @@
  */
 package services.moleculer.eventbus;
 
-import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.getFieldFromProxy;
+import static services.moleculer.util.CommonUtils.nameOf;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -37,7 +38,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -55,6 +55,8 @@ import services.moleculer.context.Context;
 import services.moleculer.error.ListenerNotAvailableError;
 import services.moleculer.error.MaxCallLevelError;
 import services.moleculer.error.RequestTimeoutError;
+import services.moleculer.metrics.MetricConstants;
+import services.moleculer.metrics.MetricRegistry;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceInvoker;
@@ -70,7 +72,7 @@ import services.moleculer.util.CheckedTree;
  * Default EventBus implementation.
  */
 @Name("Default Event Bus")
-public class DefaultEventbus extends Eventbus {
+public class DefaultEventbus extends Eventbus implements MetricConstants {
 
 	// --- REGISTERED EVENT LISTENERS ---
 
@@ -83,11 +85,6 @@ public class DefaultEventbus extends Eventbus {
 	protected final Cache<String, ListenerEndpoint[]> localBroadcasterCache = new Cache<>(Config.CACHE_SIZE);
 
 	// --- PROPERTIES ---
-
-	/**
-	 * Invoke all local listeners via Thread pool (true) or directly (false)
-	 */
-	protected boolean asyncLocalInvocation;
 
 	/**
 	 * Check protocol version
@@ -143,10 +140,10 @@ public class DefaultEventbus extends Eventbus {
 
 	protected StrategyFactory strategy;
 	protected Transporter transporter;
-	protected ExecutorService executor;
 	protected ServiceInvoker serviceInvoker;
 	protected ScheduledExecutorService scheduler;
 	protected UidGenerator uidGenerator;
+	protected MetricRegistry metrics;
 
 	// --- REGISTERED STREAMS ---
 
@@ -160,13 +157,6 @@ public class DefaultEventbus extends Eventbus {
 	// --- CONSTRUCTORS ---
 
 	public DefaultEventbus() {
-		this(false);
-	}
-
-	public DefaultEventbus(boolean asyncLocalInvocation) {
-
-		// Async or direct local invocation
-		this.asyncLocalInvocation = asyncLocalInvocation;
 
 		// Init locks
 		ReentrantReadWriteLock registryLock = new ReentrantReadWriteLock(true);
@@ -200,10 +190,14 @@ public class DefaultEventbus extends Eventbus {
 		ServiceBrokerConfig cfg = broker.getConfig();
 		this.strategy = cfg.getStrategyFactory();
 		this.transporter = cfg.getTransporter();
-		this.executor = cfg.getExecutor();
 		this.serviceInvoker = cfg.getServiceInvoker();
 		this.scheduler = cfg.getScheduler();
 		this.uidGenerator = cfg.getUidGenerator();
+
+		// Metrics
+		if (cfg.isMetricsEnabled()) {
+			metrics = cfg.getMetrics();
+		}
 
 		// Start timer
 		if (streamTimeout > 0) {
@@ -397,12 +391,12 @@ public class DefaultEventbus extends Eventbus {
 		if (message.get("broadcast", true)) {
 
 			// Broadcast
-			broadcast(ctx, groups, true);
+			broadcastInternal(ctx, groups, true);
 
 		} else {
 
 			// Emit
-			emit(ctx, groups, true);
+			emitInternal(ctx, groups, true);
 		}
 	}
 
@@ -481,8 +475,8 @@ public class DefaultEventbus extends Eventbus {
 				}
 
 				// Add endpoint to strategy
-				strategy.addEndpoint(new LocalListenerEndpoint(executor, nodeID, name, group, subscribe, listener,
-						asyncLocalInvocation, privateAccess));
+				strategy.addEndpoint(
+						new LocalListenerEndpoint(nodeID, name, group, subscribe, listener, privateAccess, metrics));
 			}
 		} catch (Exception cause) {
 			logger.error("Unable to register local listener!", cause);
@@ -512,8 +506,8 @@ public class DefaultEventbus extends Eventbus {
 					String group = listenerConfig.get("group", serviceName);
 
 					// Register remote listener
-					RemoteListenerEndpoint endpoint = new RemoteListenerEndpoint(transporter, nodeID, serviceName,
-							group, subscribe);
+					RemoteListenerEndpoint endpoint = new RemoteListenerEndpoint(nodeID, serviceName, group, subscribe,
+							transporter);
 
 					// Get or create group map
 					HashMap<String, Strategy<ListenerEndpoint>> groups = listeners.get(subscribe);
@@ -583,8 +577,28 @@ public class DefaultEventbus extends Eventbus {
 	// --- SEND EVENT TO ONE LISTENER IN THE SPECIFIED GROUP ---
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void emit(Context ctx, Groups groups, boolean local) {
+
+		// Metrics (send/emit event)
+		if (metrics != null) {
+			String[] groupArray = groups == null ? null : groups.groups();
+			String[] tagValuePairs;
+			if (groupArray == null || groupArray.length == 0) {
+				tagValuePairs = new String[] { "event", ctx.name };
+			} else {
+				Arrays.sort(groupArray, String.CASE_INSENSITIVE_ORDER);
+				String groupList = String.join(".", groupArray);
+				tagValuePairs = new String[] { "event", ctx.name, "groups", groupList };
+			}
+			metrics.getCounter(MOLECULER_EVENT_EMIT_TOTAL, "Number of emitted events", tagValuePairs).increment();
+		}
+
+		// Invoke listeners
+		emitInternal(ctx, groups, local);
+	}
+
+	@SuppressWarnings("unchecked")
+	protected void emitInternal(Context ctx, Groups groups, boolean local) {
 
 		// Verify call level
 		if (maxCallLevel > 0 && ctx.level >= maxCallLevel) {
@@ -595,6 +609,7 @@ public class DefaultEventbus extends Eventbus {
 			throw error;
 		}
 
+		// Emit event
 		String key = getCacheKey(ctx.name, groups);
 		Strategy<ListenerEndpoint>[] strategies = emitterCache.get(key);
 		if (strategies == null) {
@@ -732,6 +747,34 @@ public class DefaultEventbus extends Eventbus {
 	@Override
 	public void broadcast(Context ctx, Groups groups, boolean local) {
 
+		// Metrics (send/broadcast event)
+		if (metrics != null) {
+			String[] groupArray = groups == null ? null : groups.groups();
+			String[] tagValuePairs;
+			if (groupArray == null || groupArray.length == 0) {
+				tagValuePairs = new String[] { "event", ctx.name };
+			} else {
+				Arrays.sort(groupArray, String.CASE_INSENSITIVE_ORDER);
+				String groupList = String.join(".", groupArray);
+				tagValuePairs = new String[] { "event", ctx.name, "groups", groupList };
+			}
+			String name, desc;
+			if (local) {
+				name = MOLECULER_EVENT_BROADCASTLOCAL_TOTAL;
+				desc = "Number of local broadcast events";
+			} else {
+				name = MOLECULER_EVENT_BROADCAST_TOTAL;
+				desc = "Number of broadcast events";
+			}
+			metrics.getCounter(name, desc, tagValuePairs).increment();
+		}
+
+		// Call listeners
+		broadcastInternal(ctx, groups, local);
+	}
+
+	protected void broadcastInternal(Context ctx, Groups groups, boolean local) {
+
 		// Verify call level
 		if (maxCallLevel > 0 && ctx.level >= maxCallLevel) {
 			MaxCallLevelError error = new MaxCallLevelError(nodeID, maxCallLevel);
@@ -741,6 +784,7 @@ public class DefaultEventbus extends Eventbus {
 			throw error;
 		}
 
+		// Broadcast event
 		String key = getCacheKey(ctx.name, groups);
 		ListenerEndpoint[] endpoints;
 		if (local) {
@@ -882,14 +926,6 @@ public class DefaultEventbus extends Eventbus {
 
 	public void setCheckVersion(boolean checkVersion) {
 		this.checkVersion = checkVersion;
-	}
-
-	public boolean isAsyncLocalInvocation() {
-		return asyncLocalInvocation;
-	}
-
-	public void setAsyncLocalInvocation(boolean asyncLocalInvocation) {
-		this.asyncLocalInvocation = asyncLocalInvocation;
 	}
 
 	public boolean isWriteErrorsToLog() {

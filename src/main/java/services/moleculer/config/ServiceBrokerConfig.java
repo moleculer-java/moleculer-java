@@ -42,6 +42,7 @@ import services.moleculer.cacher.Cacher;
 import services.moleculer.cacher.MemoryCacher;
 import services.moleculer.eventbus.DefaultEventbus;
 import services.moleculer.eventbus.Eventbus;
+import services.moleculer.metrics.MetricRegistry;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.service.DefaultServiceInvoker;
@@ -55,6 +56,7 @@ import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.IncrementalUidGenerator;
 import services.moleculer.uid.UidGenerator;
 
+@SuppressWarnings("unchecked")
 public class ServiceBrokerConfig {
 
 	// --- THREAD POOLS ---
@@ -66,7 +68,14 @@ public class ServiceBrokerConfig {
 
 	// --- PROPERTIES ---
 
+	/**
+	 * Namespace of Broker.
+	 */
 	protected String namespace = "";
+
+	/**
+	 * Unique NodeID of Broker.
+	 */
 	protected String nodeID;
 
 	/**
@@ -104,16 +113,29 @@ public class ServiceBrokerConfig {
 	protected Eventbus eventbus = new DefaultEventbus();
 	protected ServiceRegistry serviceRegistry = new DefaultServiceRegistry();
 	protected Cacher cacher = new MemoryCacher();
-	protected ServiceInvoker serviceInvoker = new DefaultServiceInvoker();
-
+	protected ServiceInvoker serviceInvoker = new DefaultServiceInvoker();	
+	protected MetricRegistry metrics;	
+	
 	protected Transporter transporter;
 	protected Monitor monitor;
+	
+	protected boolean metricsEnabled;
 
-	// --- INSTALL CPU MONITOR (FOR CPU-BASED LOAD-BALANCING) ---
+	// --- SET DEFAULT CPU MONITOR AND METRICS REGISTRY ---
 
 	private static Monitor defaultMonitor;
 
+	private static Class<? extends MetricRegistry> defaultMetricRegistry;
+	
 	static {
+		try {
+			defaultMetricRegistry = (Class<? extends MetricRegistry>) Class.forName("services.moleculer.metrics.MicrometerMetricRegistry");
+		} catch (Throwable notFound) {			
+			try {
+				defaultMetricRegistry = (Class<? extends MetricRegistry>) Class.forName("services.moleculer.metrics.DropwizardMetricRegistry");
+			} catch (Throwable ignored) {			
+			}
+		}
 		try {
 
 			// Try to load native library (for Windows and Linux)
@@ -187,6 +209,14 @@ public class ServiceBrokerConfig {
 
 		// Set transporter
 		setTransporter(transporter);
+		
+		// Set metrics
+		if (defaultMetricRegistry != null) {
+			try {
+				setMetrics(defaultMetricRegistry.newInstance());
+			} catch (Throwable ignored) {			
+			}			
+		}
 	}
 
 	// --- GETTERS AND SETTERS ---
@@ -321,6 +351,22 @@ public class ServiceBrokerConfig {
 
 	public void setServiceInvoker(ServiceInvoker serviceInvoker) {
 		this.serviceInvoker = Objects.requireNonNull(serviceInvoker);
+	}
+
+	public MetricRegistry getMetrics() {
+		return metrics;
+	}
+
+	public void setMetrics(MetricRegistry metrics) {
+		this.metrics = metrics;
+	}
+
+	public boolean isMetricsEnabled() {
+		return metricsEnabled;
+	}
+
+	public void setMetricsEnabled(boolean metricsEnabled) {
+		this.metricsEnabled = metricsEnabled;
 	}
 
 }

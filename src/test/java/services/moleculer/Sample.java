@@ -25,8 +25,13 @@
  */
 package services.moleculer;
 
+import java.util.Map;
+
 import io.datatree.Tree;
 import services.moleculer.config.ServiceBrokerConfig;
+import services.moleculer.metrics.DropwizardMetricRegistry;
+import services.moleculer.metrics.MetricCounter;
+import services.moleculer.metrics.MetricHistogram;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
 import services.moleculer.service.Version;
@@ -43,15 +48,18 @@ public class Sample {
 			// Unique nodeID
 			cfg.setNodeID("node1");
 
+			DropwizardMetricRegistry metrics = new DropwizardMetricRegistry();
+			cfg.setMetrics(metrics);
+
 			NatsTransporter transporter = new NatsTransporter("localhost");
 			transporter.setVerbose(true);
 			transporter.setDebug(true);
 			transporter.setNoEcho(true);
 			cfg.setTransporter(transporter);
-			
+
 			// Create Service Broker by config
 			ServiceBroker broker = new ServiceBroker(cfg);
-			
+
 			// Install "MyService" Service
 			broker.createService(new MyService());
 
@@ -59,14 +67,23 @@ public class Sample {
 			broker.start();
 
 			// Invoke service (blocking style)
-			Tree response = broker.call("v2.myService.first").waitFor(5000);
+			for (int i = 0; i < 10000; i++) {
+				Tree response = broker.call("v2.myService.first").waitFor(5000);
 
-			// Print response
-			System.out.println(response);
+				// Print response
+				System.out.println(response);
+				Thread.sleep(1000);
+			}
+
+			Map<String, MetricCounter> counters = metrics.getCounters();
+			System.out.println(counters);
+
+			Map<String, MetricHistogram> histograms = metrics.getHistograms();
+			System.out.println(histograms);
 
 			// Stop Service Broker
 			// broker.stop();
-			
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

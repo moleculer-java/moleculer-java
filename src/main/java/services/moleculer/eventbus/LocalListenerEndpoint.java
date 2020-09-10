@@ -25,11 +25,16 @@
  */
 package services.moleculer.eventbus;
 
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import services.moleculer.context.Context;
+import services.moleculer.error.MoleculerError;
+import services.moleculer.metrics.MetricConstants;
+import services.moleculer.metrics.MetricCounter;
+import services.moleculer.metrics.MetricRegistry;
+import services.moleculer.metrics.MetricTimer;
 
-public class LocalListenerEndpoint extends ListenerEndpoint {
+public class LocalListenerEndpoint extends ListenerEndpoint implements MetricConstants {
 
 	// --- PROPERTIES ---
 
@@ -39,43 +44,86 @@ public class LocalListenerEndpoint extends ListenerEndpoint {
 	protected Listener listener;
 
 	/**
-	 * Invoke all local listeners via Thread pool (true) or directly (false)
+	 * Metrics registry (or null)
 	 */
-	protected boolean asyncLocalInvocation;
-
-	// --- COMPONENTS ---
-
-	protected ExecutorService executor;
+	protected MetricRegistry metrics;
 
 	// --- CONSTRUCTOR ---
 
-	public LocalListenerEndpoint(ExecutorService executor, String nodeID, String service, String group,
-			String subscribe, Listener listener, boolean asyncLocalInvocation, boolean privateAccess) {
+	public LocalListenerEndpoint(String nodeID, String service, String group, String subscribe, Listener listener,
+			boolean privateAccess, MetricRegistry metrics) {
 		super(nodeID, service, group, subscribe, privateAccess);
 		this.listener = listener;
-		this.asyncLocalInvocation = asyncLocalInvocation;
-		this.executor = executor;
+		this.metrics = metrics;
 	}
 
 	// --- INVOKE LOCAL LISTENER ---
 
 	@Override
 	public void on(Context ctx, Groups groups, boolean broadcast) throws Exception {
+		if (metrics == null) {
 
-		// A.) Async invocation
-		if (asyncLocalInvocation) {
-			executor.execute(() -> {
-				try {
-					listener.on(ctx);
-				} catch (Exception cause) {
-					logger.warn("Unable to invoke local listener!", cause);
+			// Call without metrics
+			listener.on(ctx);
+
+		} else {
+
+			// Get metrics
+			String[] tagValuePairs = new String[] { "service", serviceName, "event", subscribe, "group",
+					group == null ? "null" : group, "caller", ctx.nodeID };
+			MetricCounter receivedActive = metrics.getCounter(MOLECULER_EVENT_RECEIVED_ACTIVE,
+					"Number of active event executions", tagValuePairs);
+			MetricTimer receivedTime = metrics.getTimer(MOLECULER_EVENT_RECEIVED_TIME, "Execution time of events", 5,
+					TimeUnit.SECONDS, TimeUnit.NANOSECONDS, tagValuePairs);
+			long startTime = System.nanoTime();
+
+			// Call with metrics
+			try {
+
+				// Before call
+				metrics.getCounter(MOLECULER_EVENT_RECEIVED_TOTAL, "Number of received events", tagValuePairs)
+						.increment();
+				receivedActive.increment();
+
+				// Call listener
+				listener.on(ctx);
+
+			} catch (Exception cause) {
+
+				// After call (error)
+				String errorName = null;
+				int errorCode = 500;
+				String errorType = null;
+				if (cause instanceof MoleculerError) {
+					MoleculerError me = (MoleculerError) cause;
+					errorName = me.getName();
+					errorCode = me.getCode();
+					errorType = me.getType();
 				}
-			});
-			return;
-		}
+				if (errorName == null || errorName.isEmpty()) {
+					errorName = "MoleculerError";
+				}
+				if (errorType == null || errorType.isEmpty()) {
+					errorType = cause.getMessage();
+					if (errorType == null || errorType.isEmpty()) {
+						errorType = "MOLECULER_ERROR";
+					}
+				}
+				metrics.getCounter(MOLECULER_EVENT_RECEIVED_ERROR_TOTAL, "Number of event execution errors", "service",
+						serviceName, "event", subscribe, "group", group == null ? "null" : group, "caller", ctx.nodeID,
+						"errorName", errorName, "errorCode", Integer.toString(errorCode), "errorType", errorType)
+						.increment();
 
-		// B.) Faster in-process (direct) invocation
-		listener.on(ctx);
+				// Rethrow error
+				throw cause;
+
+			} finally {
+
+				// After call (error and normal response)
+				receivedActive.decrement();
+				receivedTime.addValue(System.nanoTime() - startTime);
+			}
+		}
 	}
 
 	// --- IS IT A LOCAL EVENT LISTENER? ---

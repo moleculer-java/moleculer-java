@@ -108,6 +108,7 @@ public abstract class Cacher extends Middleware {
 					});
 				});
 			}
+			
 		};
 	}
 

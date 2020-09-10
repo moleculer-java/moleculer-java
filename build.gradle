@@ -194,6 +194,18 @@ dependencies {
 	// https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients
 	implementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.4.0'
 
+	// =============== METRICS ===============
+
+	// --- DEPENDENCY OF THE DROPWIZARD METRIC REGISTRY ---
+	
+	// https://mvnrepository.com/artifact/com.codahale.metrics/metrics-core
+	compile group: 'com.codahale.metrics', name: 'metrics-core', version: '3.0.2'
+
+	// --- DEPENDENCY OF THE MICROMETER METRIC REGISTRY ---
+	
+	// https://mvnrepository.com/artifact/io.micrometer/micrometer-core
+	compile group: 'io.micrometer', name: 'micrometer-core', version: '1.5.4'
+
 }
 
 

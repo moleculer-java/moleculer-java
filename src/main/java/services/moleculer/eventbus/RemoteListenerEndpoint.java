@@ -41,8 +41,8 @@ public class RemoteListenerEndpoint extends ListenerEndpoint {
 
 	// --- CONSTRUCTOR ---
 
-	protected RemoteListenerEndpoint(Transporter transporter, String nodeID, String service, String group,
-			String subscribe) {
+	protected RemoteListenerEndpoint(String nodeID, String service, String group,
+			String subscribe, Transporter transporter) {
 		super(nodeID, service, group, subscribe, false);
 
 		// Set components
