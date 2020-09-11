@@ -25,7 +25,9 @@
  */
 package services.moleculer.metrics;
 
+import java.lang.reflect.Array;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -129,41 +131,41 @@ public abstract class MetricRegistry extends Middleware implements MetricConstan
 
 	// --- METRIC GETTERS ---
 
-	public Map<String, MetricCounter> getCounters() {
+	public MetricCounter[] getCounters() {
 		return getCounters(null);
 	}
 
-	public Map<String, MetricCounter> getCounters(String prefix) {
-		return getMetricMap(prefix, MetricCounter.class);
+	public MetricCounter[] getCounters(String prefix) {
+		return getMetricArray(prefix, MetricCounter.class);
 	}
 
-	public Map<String, MetricGauge> getGauges() {
+	public MetricGauge[] getGauges() {
 		return getGauges(null);
 	}
 
-	public Map<String, MetricGauge> getGauges(String prefix) {
-		return getMetricMap(prefix, MetricGauge.class);
+	public MetricGauge[] getGauges(String prefix) {
+		return getMetricArray(prefix, MetricGauge.class);
 	}
 
-	public Map<String, MetricHistogram> getHistograms() {
+	public MetricHistogram[] getHistograms() {
 		return getHistograms(null);
 	}
 
-	public Map<String, MetricHistogram> getHistograms(String prefix) {
-		return getMetricMap(prefix, MetricHistogram.class);
+	public MetricHistogram[] getHistograms(String prefix) {
+		return getMetricArray(prefix, MetricHistogram.class);
 	}
 
-	public Map<String, MetricTimer> getTimers() {
+	public MetricTimer[] getTimers() {
 		return getTimers(null);
 	}
 
-	public Map<String, MetricTimer> getTimers(String prefix) {
-		return getMetricMap(prefix, MetricTimer.class);
+	public MetricTimer[] getTimers(String prefix) {
+		return getMetricArray(prefix, MetricTimer.class);
 	}
 
 	@SuppressWarnings("unchecked")
-	protected <T> Map<String, T> getMetricMap(String prefix, Class<T> type) {
-		HashMap<String, T> counters = new HashMap<>();
+	protected <T> T[] getMetricArray(String prefix, Class<T> type) {
+		HashSet<T> set = new HashSet<>();
 		String name;
 		Object metric;
 		for (Map.Entry<String, Object> entry : registry.entrySet()) {
@@ -175,9 +177,11 @@ public abstract class MetricRegistry extends Middleware implements MetricConstan
 			if (!type.isAssignableFrom(metric.getClass())) {
 				continue;
 			}
-			counters.put(name, (T) metric);
+			set.add((T) metric);
 		}
-		return counters;
+		T[] array = (T[]) Array.newInstance(type, set.size());
+		set.toArray(array);
+		return array;
 	}
 
 	// --- METRIC FACTORIES ---

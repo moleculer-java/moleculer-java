@@ -45,7 +45,6 @@ import com.codahale.metrics.Slf4jReporter;
 import com.codahale.metrics.SlidingTimeWindowReservoir;
 import com.codahale.metrics.Timer;
 
-import services.moleculer.ServiceBroker;
 import services.moleculer.service.Name;
 
 /**
@@ -56,12 +55,19 @@ import services.moleculer.service.Name;
  * full-stack visibility. https://metrics.dropwizard.io
  * 
  * <pre>
- * // Create Metrics Registry
- * DropwizardMetricRegistry metrics = new DropwizardMetricRegistry();
+ * // Create Service Broker configuration
+ * ServiceBrokerConfig cfg = new ServiceBrokerConfig();
  * 
- * // Export metrics data to JMX
- * JmxReporter reporter = JmxReporter.forRegistry(metrics.getRegistry()).build();
- * reporter.start();
+ * // Create and enable Dropwizard Metric Registry
+ * DropwizardMetricRegistry metrics = new DropwizardMetricRegistry();
+ * cfg.setMetrics(metrics);
+ * cfg.setMetricsEnabled(true);
+ * 
+ * // Start JMX Reporter (optional)
+ * metrics.startJmxReporter();
+ * 
+ * // Create Service Broker with metrics
+ * ServiceBroker broker = new ServiceBroker(cfg);
  * </pre>
  * 
  * @see MicrometerMetricRegistry
@@ -77,34 +83,22 @@ public class DropwizardMetricRegistry extends MetricRegistry {
 
 	protected com.codahale.metrics.MetricRegistry dropwizardRegistry;
 
-	protected boolean autostartJmxReporter = true;
-
 	// --- REPORTERS ---
 
 	protected HashMap<Class<? extends Closeable>, Closeable> reporters = new HashMap<>();
 
 	// --- CONSTRUCTORS ---
 
-	public DropwizardMetricRegistry() {
+	public DropwizardMetricRegistry() {		
+	}
+	
+	public DropwizardMetricRegistry(String sharedRegistryName) {
+		setRegistryName(sharedRegistryName);
+		setUseSharedRegistry(true);
 	}
 
-	public DropwizardMetricRegistry(boolean autostartJmxReporter) {
-		this(null, autostartJmxReporter);
-	}
-
-	public DropwizardMetricRegistry(com.codahale.metrics.MetricRegistry registry, boolean autostartJmxReporter) {
+	public DropwizardMetricRegistry(com.codahale.metrics.MetricRegistry registry) {
 		this.dropwizardRegistry = registry;
-		this.autostartJmxReporter = autostartJmxReporter;
-	}
-
-	// --- AUTOSTART JMX REPORTER ---
-
-	@Override
-	public void started(ServiceBroker broker) throws Exception {
-		super.started(broker);
-		if (autostartJmxReporter && !reporters.containsKey(JmxReporter.class)) {
-			startJmxReporter();
-		}
 	}
 
 	// --- METRIC FACTORIES ---
@@ -472,17 +466,6 @@ public class DropwizardMetricRegistry extends MetricRegistry {
 
 	public void setRegistry(com.codahale.metrics.MetricRegistry registry) {
 		this.dropwizardRegistry = registry;
-	}
-
-	public boolean isAutostartJmxReporter() {
-		return autostartJmxReporter;
-	}
-
-	public void setAutostartJmxReporter(boolean autostartJmxReporter) {
-		this.autostartJmxReporter = autostartJmxReporter;
-		if (!autostartJmxReporter) {
-			closeReporter(reporters.get(JmxReporter.class));
-		}
 	}
 
 }

@@ -25,13 +25,16 @@
  */
 package services.moleculer;
 
-import java.util.Map;
+import java.util.Arrays;
 
 import io.datatree.Tree;
+import io.micrometer.core.instrument.Clock;
+import io.micrometer.jmx.JmxConfig;
+import io.micrometer.jmx.JmxMeterRegistry;
 import services.moleculer.config.ServiceBrokerConfig;
-import services.moleculer.metrics.DropwizardMetricRegistry;
 import services.moleculer.metrics.MetricCounter;
 import services.moleculer.metrics.MetricHistogram;
+import services.moleculer.metrics.MicrometerMetricRegistry;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
 import services.moleculer.service.Version;
@@ -48,8 +51,11 @@ public class Sample {
 			// Unique nodeID
 			cfg.setNodeID("node1");
 
-			DropwizardMetricRegistry metrics = new DropwizardMetricRegistry();
+			JmxMeterRegistry registry = new JmxMeterRegistry(JmxConfig.DEFAULT, Clock.SYSTEM);
+			MicrometerMetricRegistry metrics = new MicrometerMetricRegistry(registry);
+			
 			cfg.setMetrics(metrics);
+			cfg.setMetricsEnabled(true);
 
 			NatsTransporter transporter = new NatsTransporter("localhost");
 			transporter.setVerbose(true);
@@ -67,7 +73,7 @@ public class Sample {
 			broker.start();
 
 			// Invoke service (blocking style)
-			for (int i = 0; i < 10000; i++) {
+			for (int i = 0; i < 20000; i++) {
 				Tree response = broker.call("v2.myService.first").waitFor(5000);
 
 				// Print response
@@ -75,11 +81,11 @@ public class Sample {
 				Thread.sleep(1000);
 			}
 
-			Map<String, MetricCounter> counters = metrics.getCounters();
-			System.out.println(counters);
+			MetricCounter[] counters = metrics.getCounters();
+			System.out.println(Arrays.toString(counters));
 
-			Map<String, MetricHistogram> histograms = metrics.getHistograms();
-			System.out.println(histograms);
+			MetricHistogram[] histograms = metrics.getHistograms();
+			System.out.println(Arrays.toString(histograms));
 
 			// Stop Service Broker
 			// broker.stop();

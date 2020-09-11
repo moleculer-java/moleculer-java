@@ -79,7 +79,7 @@ public abstract class AbstractMetric {
 		return getTagValue(tagName) != null;
 	}
 
-	public boolean hasTag(String tagName, String tagValue) {
+	public boolean hasTagWithValue(String tagName, String tagValue) {
 		String value = getTagValue(tagName);
 		if (tagValue == null) {
 			return value == null;

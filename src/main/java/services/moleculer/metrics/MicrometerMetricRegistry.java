@@ -72,7 +72,7 @@ public class MicrometerMetricRegistry extends MetricRegistry {
 	protected int distributionStatisticBufferLength = 5;
 
 	protected JvmGcMetrics jvmGcMetrics;
-	
+
 	// --- CONSTRUCTORS ---
 
 	public MicrometerMetricRegistry() {
@@ -388,6 +388,7 @@ public class MicrometerMetricRegistry extends MetricRegistry {
 						closeRegistry = false;
 					}
 				}
+				logger.info("Metrics registry type is " + micrometerRegistry.toString() + ".");
 			}
 		}
 		return micrometerRegistry;

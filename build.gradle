@@ -203,8 +203,8 @@ dependencies {
 
 	// --- DEPENDENCY OF THE MICROMETER METRIC REGISTRY ---
 	
-	// https://mvnrepository.com/artifact/io.micrometer/micrometer-core
-	compile group: 'io.micrometer', name: 'micrometer-core', version: '1.5.4'
+	// https://mvnrepository.com/artifact/io.micrometer/micrometer-registry-jmx
+	compile group: 'io.micrometer', name: 'micrometer-registry-jmx', version: '1.5.4'
 
 }
 
