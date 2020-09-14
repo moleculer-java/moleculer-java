@@ -25,16 +25,11 @@
  */
 package services.moleculer;
 
-import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 import io.datatree.Tree;
-import io.micrometer.core.instrument.Clock;
-import io.micrometer.jmx.JmxConfig;
-import io.micrometer.jmx.JmxMeterRegistry;
 import services.moleculer.config.ServiceBrokerConfig;
-import services.moleculer.metrics.MetricCounter;
-import services.moleculer.metrics.MetricHistogram;
-import services.moleculer.metrics.MicrometerMetricRegistry;
+import services.moleculer.metrics.DefaultMetrics;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
 import services.moleculer.service.Version;
@@ -51,12 +46,10 @@ public class Sample {
 			// Unique nodeID
 			cfg.setNodeID("node1");
 
-			JmxMeterRegistry registry = new JmxMeterRegistry(JmxConfig.DEFAULT, Clock.SYSTEM);
-			MicrometerMetricRegistry metrics = new MicrometerMetricRegistry(registry);
-			
-			cfg.setMetrics(metrics);
 			cfg.setMetricsEnabled(true);
-
+			DefaultMetrics dm = (DefaultMetrics) cfg.getMetrics();
+			dm.startConsoleReporter(1, TimeUnit.SECONDS);
+			
 			NatsTransporter transporter = new NatsTransporter("localhost");
 			transporter.setVerbose(true);
 			transporter.setDebug(true);
@@ -80,12 +73,6 @@ public class Sample {
 				System.out.println(response);
 				Thread.sleep(1000);
 			}
-
-			MetricCounter[] counters = metrics.getCounters();
-			System.out.println(Arrays.toString(counters));
-
-			MetricHistogram[] histograms = metrics.getHistograms();
-			System.out.println(Arrays.toString(histograms));
 
 			// Stop Service Broker
 			// broker.stop();

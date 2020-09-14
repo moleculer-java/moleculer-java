@@ -25,7 +25,7 @@
  */
 package services.moleculer.metrics;
 
-public interface MetricConstants {
+public interface MetricsConstants {
 
 	// --- MOLECULER REQUEST METRICS ---
 

@@ -42,7 +42,8 @@ import services.moleculer.cacher.Cacher;
 import services.moleculer.cacher.MemoryCacher;
 import services.moleculer.eventbus.DefaultEventbus;
 import services.moleculer.eventbus.Eventbus;
-import services.moleculer.metrics.MetricRegistry;
+import services.moleculer.metrics.DefaultMetrics;
+import services.moleculer.metrics.Metrics;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.service.DefaultServiceInvoker;
@@ -56,7 +57,6 @@ import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.IncrementalUidGenerator;
 import services.moleculer.uid.UidGenerator;
 
-@SuppressWarnings("unchecked")
 public class ServiceBrokerConfig {
 
 	// --- THREAD POOLS ---
@@ -114,28 +114,18 @@ public class ServiceBrokerConfig {
 	protected ServiceRegistry serviceRegistry = new DefaultServiceRegistry();
 	protected Cacher cacher = new MemoryCacher();
 	protected ServiceInvoker serviceInvoker = new DefaultServiceInvoker();	
-	protected MetricRegistry metrics;	
+	protected Metrics metrics = new DefaultMetrics();	
 	
 	protected Transporter transporter;
 	protected Monitor monitor;
 	
 	protected boolean metricsEnabled;
 
-	// --- SET DEFAULT CPU MONITOR AND METRICS REGISTRY ---
+	// --- SET DEFAULT CPU MONITOR ---
 
 	private static Monitor defaultMonitor;
 
-	private static Class<? extends MetricRegistry> defaultMetricRegistry;
-	
 	static {
-		try {
-			defaultMetricRegistry = (Class<? extends MetricRegistry>) Class.forName("services.moleculer.metrics.MicrometerMetricRegistry");
-		} catch (Throwable notFound) {			
-			try {
-				defaultMetricRegistry = (Class<? extends MetricRegistry>) Class.forName("services.moleculer.metrics.DropwizardMetricRegistry");
-			} catch (Throwable ignored) {			
-			}
-		}
 		try {
 
 			// Try to load native library (for Windows and Linux)
@@ -209,14 +199,6 @@ public class ServiceBrokerConfig {
 
 		// Set transporter
 		setTransporter(transporter);
-		
-		// Set metrics
-		if (defaultMetricRegistry != null) {
-			try {
-				setMetrics(defaultMetricRegistry.newInstance());
-			} catch (Throwable ignored) {			
-			}			
-		}
 	}
 
 	// --- GETTERS AND SETTERS ---
@@ -353,11 +335,11 @@ public class ServiceBrokerConfig {
 		this.serviceInvoker = Objects.requireNonNull(serviceInvoker);
 	}
 
-	public MetricRegistry getMetrics() {
+	public Metrics getMetrics() {
 		return metrics;
 	}
 
-	public void setMetrics(MetricRegistry metrics) {
+	public void setMetrics(Metrics metrics) {
 		this.metrics = metrics;
 	}
 

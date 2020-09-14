@@ -31,7 +31,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import services.moleculer.ServiceBroker;
 import services.moleculer.cacher.Cacher;
 import services.moleculer.eventbus.Eventbus;
-import services.moleculer.metrics.MetricRegistry;
+import services.moleculer.metrics.Metrics;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.service.ServiceInvoker;
 import services.moleculer.service.ServiceRegistry;
@@ -115,7 +115,7 @@ public class ServiceBrokerBuilder {
 		return this;
 	}
 	
-	public ServiceBrokerBuilder metrics(MetricRegistry metrics) {
+	public ServiceBrokerBuilder metrics(Metrics metrics) {
 		config.setMetrics(metrics);
 		return this;
 	}	

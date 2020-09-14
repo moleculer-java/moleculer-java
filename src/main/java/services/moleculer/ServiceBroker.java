@@ -53,7 +53,8 @@ import services.moleculer.context.Context;
 import services.moleculer.context.ContextSource;
 import services.moleculer.error.MoleculerServerError;
 import services.moleculer.internal.NodeService;
-import services.moleculer.metrics.MetricRegistry;
+import services.moleculer.metrics.MetricMiddleware;
+import services.moleculer.metrics.Metrics;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.MoleculerComponent;
@@ -291,10 +292,12 @@ public class ServiceBroker extends ContextSource {
 			initJsonWriter();
 
 			// Add MetricsRegistry to middlewares
-			MetricRegistry metrics = config.getMetrics();
-			if (metrics != null && config.isMetricsEnabled()) {
-				middlewares.add(metrics);
-				logger.info(nameOf(metrics, true) + " started.");
+			if (config.isMetricsEnabled()) {
+				Metrics metrics = config.getMetrics();
+				if (metrics != null) {
+					middlewares.add(new MetricMiddleware());
+					logger.info(nameOf(metrics, true) + " started.");
+				}
 			}
 
 			// Set internal components

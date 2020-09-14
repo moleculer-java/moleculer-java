@@ -1,61 +1,20 @@
-/**
- * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
- * <br>
- * Copyright 2020 Andras Berkes [andras.berkes@programmer.net]<br>
- * Based on Moleculer Framework for NodeJS [https://moleculer.services].
- * <br><br>
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:<br>
- * <br>
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.<br>
- * <br>
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
- * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
- * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
- * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
 package services.moleculer.metrics;
 
-public abstract class MetricCounter extends AbstractMetric {
+@FunctionalInterface
+public interface MetricCounter {
 
-	// --- CONSTRUCTOR ---
-
-	public MetricCounter(String name, String description, String[] tagValuePairs) {
-		super(name, description, tagValuePairs);
-	}
-	
-	// --- COUNTER METHODS ---
-
-	public void increment() {
-		increment(1);
-	}
-
-	public abstract void increment(long value);
-
-	public void decrement() {
+	public default void decrement() {
 		increment(-1);
 	}
 
-	public void decrement(long value) {
+	public default void decrement(long value) {
 		increment(-value);
 	}
 
-	public abstract long getCounter();
-
-	// --- TO STRING ---
-	
-	@Override
-	public String toString() {
-		return name + ":" + getCounter();
+	public default void increment() {
+		increment(1);
 	}
+	
+	public void increment(long value);
 	
 }

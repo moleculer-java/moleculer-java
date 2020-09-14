@@ -55,8 +55,8 @@ import services.moleculer.context.Context;
 import services.moleculer.error.ListenerNotAvailableError;
 import services.moleculer.error.MaxCallLevelError;
 import services.moleculer.error.RequestTimeoutError;
-import services.moleculer.metrics.MetricConstants;
-import services.moleculer.metrics.MetricRegistry;
+import services.moleculer.metrics.MetricsConstants;
+import services.moleculer.metrics.Metrics;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceInvoker;
@@ -72,7 +72,7 @@ import services.moleculer.util.CheckedTree;
  * Default EventBus implementation.
  */
 @Name("Default Event Bus")
-public class DefaultEventbus extends Eventbus implements MetricConstants {
+public class DefaultEventbus extends Eventbus implements MetricsConstants {
 
 	// --- REGISTERED EVENT LISTENERS ---
 
@@ -143,7 +143,7 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 	protected ServiceInvoker serviceInvoker;
 	protected ScheduledExecutorService scheduler;
 	protected UidGenerator uidGenerator;
-	protected MetricRegistry metrics;
+	protected Metrics metrics;
 
 	// --- REGISTERED STREAMS ---
 
@@ -582,15 +582,15 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 		// Metrics (send/emit event)
 		if (metrics != null) {
 			String[] groupArray = groups == null ? null : groups.groups();
-			String[] tagValuePairs;
+			String[] tags;
 			if (groupArray == null || groupArray.length == 0) {
-				tagValuePairs = new String[] { "event", ctx.name };
+				tags = new String[] { "event", ctx.name };
 			} else {
 				Arrays.sort(groupArray, String.CASE_INSENSITIVE_ORDER);
 				String groupList = String.join(".", groupArray);
-				tagValuePairs = new String[] { "event", ctx.name, "groups", groupList };
+				tags = new String[] { "event", ctx.name, "groups", groupList };
 			}
-			metrics.getCounter(MOLECULER_EVENT_EMIT_TOTAL, "Number of emitted events", tagValuePairs).increment();
+			metrics.increment(MOLECULER_EVENT_EMIT_TOTAL, "Number of emitted events", tags);
 		}
 
 		// Invoke listeners
@@ -750,13 +750,13 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 		// Metrics (send/broadcast event)
 		if (metrics != null) {
 			String[] groupArray = groups == null ? null : groups.groups();
-			String[] tagValuePairs;
+			String[] tags;
 			if (groupArray == null || groupArray.length == 0) {
-				tagValuePairs = new String[] { "event", ctx.name };
+				tags = new String[] { "event", ctx.name };
 			} else {
 				Arrays.sort(groupArray, String.CASE_INSENSITIVE_ORDER);
 				String groupList = String.join(".", groupArray);
-				tagValuePairs = new String[] { "event", ctx.name, "groups", groupList };
+				tags = new String[] { "event", ctx.name, "groups", groupList };
 			}
 			String name, desc;
 			if (local) {
@@ -766,7 +766,7 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 				name = MOLECULER_EVENT_BROADCAST_TOTAL;
 				desc = "Number of broadcast events";
 			}
-			metrics.getCounter(name, desc, tagValuePairs).increment();
+			metrics.increment(name, desc, tags);
 		}
 
 		// Call listeners

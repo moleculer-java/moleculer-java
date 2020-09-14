@@ -25,16 +25,14 @@
  */
 package services.moleculer.eventbus;
 
-import java.util.concurrent.TimeUnit;
-
 import services.moleculer.context.Context;
 import services.moleculer.error.MoleculerError;
-import services.moleculer.metrics.MetricConstants;
 import services.moleculer.metrics.MetricCounter;
-import services.moleculer.metrics.MetricRegistry;
-import services.moleculer.metrics.MetricTimer;
+import services.moleculer.metrics.MetricsConstants;
+import services.moleculer.metrics.Metrics;
+import services.moleculer.metrics.StoppableTimer;
 
-public class LocalListenerEndpoint extends ListenerEndpoint implements MetricConstants {
+public class LocalListenerEndpoint extends ListenerEndpoint implements MetricsConstants {
 
 	// --- PROPERTIES ---
 
@@ -46,12 +44,12 @@ public class LocalListenerEndpoint extends ListenerEndpoint implements MetricCon
 	/**
 	 * Metrics registry (or null)
 	 */
-	protected MetricRegistry metrics;
+	protected Metrics metrics;
 
 	// --- CONSTRUCTOR ---
 
 	public LocalListenerEndpoint(String nodeID, String service, String group, String subscribe, Listener listener,
-			boolean privateAccess, MetricRegistry metrics) {
+			boolean privateAccess, Metrics metrics) {
 		super(nodeID, service, group, subscribe, privateAccess);
 		this.listener = listener;
 		this.metrics = metrics;
@@ -68,22 +66,20 @@ public class LocalListenerEndpoint extends ListenerEndpoint implements MetricCon
 
 		} else {
 
-			// Get metrics
-			String[] tagValuePairs = new String[] { "service", serviceName, "event", subscribe, "group",
+			// Increment counters
+			String[] tags = new String[] { "service", serviceName, "event", subscribe, "group",
 					group == null ? "null" : group, "caller", ctx.nodeID };
-			MetricCounter receivedActive = metrics.getCounter(MOLECULER_EVENT_RECEIVED_ACTIVE,
-					"Number of active event executions", tagValuePairs);
-			MetricTimer receivedTime = metrics.getTimer(MOLECULER_EVENT_RECEIVED_TIME, "Execution time of events", 5,
-					TimeUnit.SECONDS, TimeUnit.NANOSECONDS, tagValuePairs);
-			long startTime = System.nanoTime();
+
+			MetricCounter receivedActive = metrics.increment(MOLECULER_EVENT_RECEIVED_ACTIVE,
+					"Number of active event executions", tags);
+
+			StoppableTimer processingTime = metrics.timer(MOLECULER_EVENT_RECEIVED_TIME, "Execution time of events",
+					tags);
+
+			metrics.increment(MOLECULER_EVENT_RECEIVED_TOTAL, "Number of received events", tags);
 
 			// Call with metrics
 			try {
-
-				// Before call
-				metrics.getCounter(MOLECULER_EVENT_RECEIVED_TOTAL, "Number of received events", tagValuePairs)
-						.increment();
-				receivedActive.increment();
 
 				// Call listener
 				listener.on(ctx);
@@ -109,10 +105,9 @@ public class LocalListenerEndpoint extends ListenerEndpoint implements MetricCon
 						errorType = "MOLECULER_ERROR";
 					}
 				}
-				metrics.getCounter(MOLECULER_EVENT_RECEIVED_ERROR_TOTAL, "Number of event execution errors", "service",
+				metrics.increment(MOLECULER_EVENT_RECEIVED_ERROR_TOTAL, "Number of event execution errors", "service",
 						serviceName, "event", subscribe, "group", group == null ? "null" : group, "caller", ctx.nodeID,
-						"errorName", errorName, "errorCode", Integer.toString(errorCode), "errorType", errorType)
-						.increment();
+						"errorName", errorName, "errorCode", Integer.toString(errorCode), "errorType", errorType);
 
 				// Rethrow error
 				throw cause;
@@ -120,8 +115,8 @@ public class LocalListenerEndpoint extends ListenerEndpoint implements MetricCon
 			} finally {
 
 				// After call (error and normal response)
+				processingTime.stop();
 				receivedActive.decrement();
-				receivedTime.addValue(System.nanoTime() - startTime);
 			}
 		}
 	}
