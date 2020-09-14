@@ -28,11 +28,11 @@ package services.moleculer.eventbus;
 import services.moleculer.context.Context;
 import services.moleculer.error.MoleculerError;
 import services.moleculer.metrics.MetricCounter;
-import services.moleculer.metrics.MetricsConstants;
+import services.moleculer.metrics.MetricConstants;
 import services.moleculer.metrics.Metrics;
 import services.moleculer.metrics.StoppableTimer;
 
-public class LocalListenerEndpoint extends ListenerEndpoint implements MetricsConstants {
+public class LocalListenerEndpoint extends ListenerEndpoint implements MetricConstants {
 
 	// --- PROPERTIES ---
 

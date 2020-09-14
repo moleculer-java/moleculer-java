@@ -28,11 +28,11 @@ package services.moleculer.service;
 import static services.moleculer.transporter.Transporter.PACKET_PING;
 import static services.moleculer.transporter.Transporter.PACKET_RESPONSE;
 import static services.moleculer.util.CommonUtils.convertAnnotations;
+import static services.moleculer.util.CommonUtils.getFieldFromProxy;
 import static services.moleculer.util.CommonUtils.getHostName;
 import static services.moleculer.util.CommonUtils.mergeMeta;
 import static services.moleculer.util.CommonUtils.nameOf;
 import static services.moleculer.util.CommonUtils.throwableToTree;
-import static services.moleculer.util.CommonUtils.getFieldFromProxy;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -78,6 +78,8 @@ import services.moleculer.error.RequestTimeoutError;
 import services.moleculer.error.ServiceNotAvailableError;
 import services.moleculer.error.ServiceNotFoundError;
 import services.moleculer.eventbus.Eventbus;
+import services.moleculer.metrics.MetricConstants;
+import services.moleculer.metrics.Metrics;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.stream.IncomingStream;
@@ -92,7 +94,7 @@ import services.moleculer.util.FastBuildTree;
  * Default implementation of the Service Registry.
  */
 @Name("Default Service Registry")
-public class DefaultServiceRegistry extends ServiceRegistry {
+public class DefaultServiceRegistry extends ServiceRegistry implements MetricConstants {
 
 	// --- REGISTERED MIDDLEWARES ---
 
@@ -172,6 +174,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	protected Eventbus eventbus;
 	protected UidGenerator uidGenerator;
 	protected ServiceInvoker serviceInvoker;
+	protected Metrics metrics;
 
 	// --- VARIABLES OF THE TIMEOUT HANDLER ---
 
@@ -257,6 +260,14 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		this.eventbus = cfg.getEventbus();
 		this.uidGenerator = cfg.getUidGenerator();
 		this.serviceInvoker = cfg.getServiceInvoker();
+		if (cfg.isMetricsEnabled()) {
+			metrics = cfg.getMetrics();
+			if (metrics != null) {
+				metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, "Number of active requests", 0);
+				metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, "Number of active incoming streams", 0);
+				metrics.increment(MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL, "Number of orphan responses", 0);
+			}
+		}
 	}
 
 	// --- STOP SERVICE REGISTRY ---
@@ -332,6 +343,12 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				pending.promise.complete(new RequestTimeoutError(this.nodeID, pending.action));
 				i.remove();
 				removed = true;
+
+				// Metrics
+				if (metrics != null) {
+					metrics.increment(MOLECULER_REQUEST_TIMEOUT_TOTAL, "Total number of request timeouts", "action",
+							pending.action);
+				}
 			}
 		}
 
@@ -368,6 +385,13 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			}
 		} finally {
 			responseStreamWriteLock.unlock();
+		}
+
+		// Metrics
+		if (metrics != null && removed) {
+			metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, "Number of active requests", promises.size());
+			metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, "Number of active incoming streams",
+					requestStreams.size() + responseStreams.size());
 		}
 
 		// Reschedule
@@ -455,8 +479,16 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	// --- REGISTER PROMISE ---
 
 	protected void register(String id, Promise promise, long timeoutAt, String nodeID, String action, Tree req) {
+
+		// Register Promise
 		promises.put(id, new PendingPromise(promise, timeoutAt, nodeID, action, req));
 
+		// Metrics
+		if (metrics != null) {
+			metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, "Number of active requests", promises.size());
+		}
+
+		// Reschedule
 		long nextTimeoutAt = prevTimeoutAt.get();
 		if (nextTimeoutAt == 0 || (timeoutAt / 100 * 100) + 100 < nextTimeoutAt || promises.size() < 3) {
 			scheduler.execute(() -> {
@@ -466,7 +498,14 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 	}
 
 	protected void deregister(String id) {
+
+		// Remove Promise
 		promises.remove(id);
+
+		// Metrics
+		if (metrics != null) {
+			metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, "Number of active requests", promises.size());
+		}
 	}
 
 	// --- RECEIVE REQUEST FROM REMOTE SERVICE ---
@@ -556,6 +595,12 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 					requestStreamWriteLock.unlock();
 				}
 			}
+		}
+
+		// Metrics
+		if (metrics != null && requestStream != null) {
+			metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, "Number of active incoming streams",
+					requestStreams.size() + responseStreams.size());
 		}
 
 		// Get action property
@@ -756,6 +801,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		PendingPromise pending = promises.remove(id);
 		if (pending == null) {
 			logger.warn("Unknown (maybe timeouted) response received!", message);
+
+			// Metrics
+			if (metrics != null) {
+				metrics.increment(MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL, "Number of orphan responses");
+			}
 			return;
 		}
 
@@ -838,13 +888,29 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 			message.putObject("data", responseStream.getPacketStream());
 		}
 
+		// Metrics
+		if (metrics != null && responseStream != null) {
+			metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, "Number of active incoming streams",
+					requestStreams.size() + responseStreams.size());
+		}
+
 		// Get stored promise
 		PendingPromise pending = promises.remove(id);
 		if (pending == null) {
 			logger.warn("Unknown (maybe timeouted) response received!", message);
+
+			// Metrics
+			if (metrics != null) {
+				metrics.increment(MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL, "Number of orphan responses");
+			}
 			return;
 		}
 		try {
+
+			// Metrics
+			if (metrics != null) {
+				metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, "Number of active requests", promises.size());
+			}
 
 			// Get response status (successed or not?)
 			boolean success = message.get("success", true);
@@ -1059,11 +1125,11 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 		// Add to "names" (listened by "waitForServices")
 		final long nameStamp = lock.writeLock();
 		try {
-			names.add(serviceName);			
+			names.add(serviceName);
 		} finally {
 			lock.unlockWrite(nameStamp);
 		}
-		
+
 		// Notify local listeners about the new LOCAL service
 		broadcastServicesChanged(true);
 
@@ -1602,7 +1668,7 @@ public class DefaultServiceRegistry extends ServiceRegistry {
 				client.putUnsafe("type", "java");
 				client.putUnsafe("version", ServiceBroker.SOFTWARE_VERSION);
 				client.putUnsafe("langVersion", System.getProperty("java.version", "1.8"));
-				
+
 				// Set timestamp
 				timestamp.set(System.currentTimeMillis());
 				cachedDescriptor = descriptor;

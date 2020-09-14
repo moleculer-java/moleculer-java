@@ -36,13 +36,15 @@ import services.moleculer.context.Context;
 import services.moleculer.error.MaxCallLevelError;
 import services.moleculer.error.MoleculerError;
 import services.moleculer.eventbus.Eventbus;
+import services.moleculer.metrics.MetricConstants;
+import services.moleculer.metrics.Metrics;
 import services.moleculer.uid.UidGenerator;
 
 /**
  * Default service invoker with retry logic.
  */
 @Name("Default Service Invoker")
-public class DefaultServiceInvoker extends ServiceInvoker {
+public class DefaultServiceInvoker extends ServiceInvoker implements MetricConstants {
 
 	// --- PROPERTIES ---
 
@@ -61,6 +63,7 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 	protected ServiceRegistry serviceRegistry;
 	protected Eventbus eventbus;
 	protected UidGenerator uidGenerator;
+	protected Metrics metrics;
 
 	// --- RETRY LOGIC (BY ERROR) ---
 
@@ -91,6 +94,9 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 		this.serviceRegistry = cfg.getServiceRegistry();
 		this.eventbus = cfg.getEventbus();
 		this.uidGenerator = cfg.getUidGenerator();
+		if (cfg.isMetricsEnabled()) {
+			metrics = cfg.getMetrics();
+		}
 	}
 
 	// --- CALL SERVICE ---
@@ -150,6 +156,11 @@ public class DefaultServiceInvoker extends ServiceInvoker {
 			logger.warn("Retrying request (" + newRemaining + " attempts left)...");
 		}
 
+		// Metrics
+		if (metrics != null) {
+			metrics.increment(MOLECULER_REQUEST_RETRY_ATTEMPTS_TOTAL, "Number of retries", "action", ctx.name); 
+		}
+		
 		// Create new Context (with new id)
 		return call(new Context(this, eventbus, uidGenerator, uidGenerator.nextUID(), ctx.name, ctx.params, ctx.level,
 				ctx.parentID, ctx.requestID, ctx.stream, ctx.opts, ctx.nodeID), targetID, newRemaining);

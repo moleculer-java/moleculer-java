@@ -28,7 +28,13 @@ package services.moleculer.breaker;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import services.moleculer.metrics.Metrics;
+
 public class ErrorCounter {
+
+	// --- METRICS ---
+	
+	protected final Metrics metrics;
 	
 	// --- PROPERTIES ---
 
@@ -44,10 +50,11 @@ public class ErrorCounter {
 	
 	// --- CONSTRUCTOR ---
 
-	protected ErrorCounter(long windowLength, long lockTimeout, int maxErrors) {
+	protected ErrorCounter(long windowLength, long lockTimeout, int maxErrors, Metrics metrics) {
 		this.windowLength = windowLength;
 		this.lockTimeout = lockTimeout;
 		this.maxErrors = maxErrors;
+		this.metrics = metrics;
 	}
 
 	// --- INCREMENT ERROR COUNTER ---

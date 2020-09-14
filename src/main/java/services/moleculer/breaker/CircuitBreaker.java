@@ -39,6 +39,7 @@ import io.datatree.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.Context;
+import services.moleculer.metrics.Metrics;
 import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.DefaultServiceInvoker;
 import services.moleculer.service.Name;
@@ -86,6 +87,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 	// --- COMPONENTS ---
 
 	protected ServiceRegistry serviceRegistry;
+	protected Metrics metrics;
 
 	// --- IGNORABLE ERRORS / EXCEPTIONS ---
 
@@ -115,7 +117,10 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 		// Set components
 		ServiceBrokerConfig cfg = broker.getConfig();
 		serviceRegistry = cfg.getServiceRegistry();
-
+		if (cfg.isMetricsEnabled()) {
+			metrics = cfg.getMetrics();
+		}
+		
 		// Start timer
 		if (cleanup > 0) {
 			timer = broker.getConfig().getScheduler().scheduleWithFixedDelay(this, cleanup, cleanup, TimeUnit.SECONDS);
@@ -159,7 +164,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 			lock.unlockWrite(stamp);
 		}
 	}
-
+ 
 	// --- CALL SERVICE ---
 
 	@Override
@@ -279,7 +284,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 
 			// Create new Error Counter
 			if (errorCounter == null) {
-				ErrorCounter counter = new ErrorCounter(windowLength, lockTimeout, maxErrors);
+				ErrorCounter counter = new ErrorCounter(windowLength, lockTimeout, maxErrors, metrics);
 				ErrorCounter prev;
 				final long stamp = lock.writeLock();
 				try {

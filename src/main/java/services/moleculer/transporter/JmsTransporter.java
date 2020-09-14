@@ -314,9 +314,18 @@ public class JmsTransporter extends Transporter {
 				if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
 				}
+				
+				// Metrics
+				byte[] bytes = serializer.write(message);
+				if (metrics != null) {
+					metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL, "Number of sent packets");
+					metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES, "Amount of total bytes sent",
+							bytes.length);
+				}				
+				
 				TopicPublisher publisher = createOrGetPublisher(channel);
 				BytesMessage msg = session.createBytesMessage();
-				msg.writeBytes(serializer.write(message));
+				msg.writeBytes(bytes);
 				if (transacted) {
 					synchronized (this) {
 						try {

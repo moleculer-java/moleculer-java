@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import services.moleculer.ServiceBroker;
 
-public abstract class MoleculerComponent {
+public abstract class MoleculerComponent implements MoleculerLifecycle {
 
 	// --- LOGGER ---
 
@@ -57,12 +57,14 @@ public abstract class MoleculerComponent {
 
 	// --- INSTANCE STARTED ---
 
+	@Override
 	public void started(ServiceBroker broker) throws Exception {
 		this.broker = broker;
 	}
 
 	// --- INSTANCE STOPPED ---
 
+	@Override
 	public void stopped() {
 
 		// Optional logic

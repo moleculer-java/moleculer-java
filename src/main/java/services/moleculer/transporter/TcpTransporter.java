@@ -711,7 +711,7 @@ public class TcpTransporter extends Transporter {
 
 				// Create data packet to send
 				packet = serialize(packetID, message);
-
+				
 				// Check size
 				if (maxPacketSize > 0 && packet.length > maxPacketSize) {
 					throw new InvalidPacketDataError(
@@ -720,6 +720,13 @@ public class TcpTransporter extends Transporter {
 							"maxPacketSize", maxPacketSize, "packetSize", packet.length);
 				}
 
+				// Metrics
+				if (metrics != null) {
+					metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL, "Number of sent packets");
+					metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES, "Amount of total bytes sent",
+							packet.length);
+				}
+				
 				// Send packet to endpoint
 				writer.send(nodeID, packet);
 

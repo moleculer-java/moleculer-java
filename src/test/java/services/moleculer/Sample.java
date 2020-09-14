@@ -25,8 +25,6 @@
  */
 package services.moleculer;
 
-import java.util.concurrent.TimeUnit;
-
 import io.datatree.Tree;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.metrics.DefaultMetrics;
@@ -48,7 +46,7 @@ public class Sample {
 
 			cfg.setMetricsEnabled(true);
 			DefaultMetrics dm = (DefaultMetrics) cfg.getMetrics();
-			dm.startConsoleReporter(1, TimeUnit.SECONDS);
+			dm.startCsvReporter("/temp");
 			
 			NatsTransporter transporter = new NatsTransporter("localhost");
 			transporter.setVerbose(true);

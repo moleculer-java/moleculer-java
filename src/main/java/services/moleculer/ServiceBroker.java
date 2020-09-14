@@ -53,11 +53,15 @@ import services.moleculer.context.Context;
 import services.moleculer.context.ContextSource;
 import services.moleculer.error.MoleculerServerError;
 import services.moleculer.internal.NodeService;
+import services.moleculer.metrics.DefaultMetrics;
+import services.moleculer.metrics.MetricConstants;
 import services.moleculer.metrics.MetricMiddleware;
 import services.moleculer.metrics.Metrics;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.MoleculerComponent;
+import services.moleculer.service.MoleculerLifecycle;
+import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceRegistry;
 import services.moleculer.strategy.StrategyFactory;
@@ -97,7 +101,8 @@ import services.moleculer.transporter.Transporter;
  * Node.js (https://moleculer.services). Special thanks to the Moleculer's
  * project owner (https://github.com/icebob) for the consultations.
  */
-public class ServiceBroker extends ContextSource {
+@Name("Default Metric Registry")
+public class ServiceBroker extends ContextSource implements MetricConstants {
 
 	// --- VERSIONS ---
 
@@ -292,12 +297,18 @@ public class ServiceBroker extends ContextSource {
 			initJsonWriter();
 
 			// Add MetricsRegistry to middlewares
-			if (config.isMetricsEnabled()) {
-				Metrics metrics = config.getMetrics();
-				if (metrics != null) {
-					middlewares.add(new MetricMiddleware());
-					logger.info(nameOf(metrics, true) + " started.");
+			Metrics metrics = start(config.getMetrics());
+			boolean metricsEnabled = config.isMetricsEnabled();
+			if (metricsEnabled && metrics != null) {
+				middlewares.add(new MetricMiddleware());
+				logger.info("Metrics are enabled (turn it off when not in use).");
+				if (metrics instanceof DefaultMetrics) {
+					DefaultMetrics dm = (DefaultMetrics) metrics;
+					dm.addExecutorServiceMetrics(config.getExecutor(), MOLECULER_EXECUTOR);
+					dm.addExecutorServiceMetrics(config.getScheduler(), MOLECULER_SCHEDULER);
 				}
+			} else {
+				logger.info("Metrics are not enabled.");
 			}
 
 			// Set internal components
@@ -429,7 +440,7 @@ public class ServiceBroker extends ContextSource {
 	 * @throws Exception
 	 *             any configuration or I/O exceptions
 	 */
-	protected <TYPE extends MoleculerComponent> TYPE start(TYPE component) throws Exception {
+	protected <TYPE extends MoleculerLifecycle> TYPE start(TYPE component) throws Exception {
 		if (component == null) {
 			return null;
 		}
@@ -464,6 +475,11 @@ public class ServiceBroker extends ContextSource {
 		stop(serviceInvoker);
 		stop(strategyFactory);
 		stop(uidGenerator);
+
+		Metrics metrics = config.getMetrics();
+		if (metrics != null) {
+			metrics.stopped();
+		}
 
 		// Shutdown thread pools
 		if (config.isShutDownThreadPools()) {

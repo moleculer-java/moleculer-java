@@ -50,6 +50,8 @@ import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.Context;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.eventbus.Groups;
+import services.moleculer.metrics.MetricConstants;
+import services.moleculer.metrics.Metrics;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
@@ -76,7 +78,7 @@ import services.moleculer.util.FastBuildTree;
  * @see AmqpTransporter
  */
 @Name("Transporter")
-public abstract class Transporter extends MoleculerComponent {
+public abstract class Transporter extends MoleculerComponent implements MetricConstants {
 
 	// --- CHANNEL NAMES / PACKET TYPES ---
 
@@ -184,6 +186,7 @@ public abstract class Transporter extends MoleculerComponent {
 	protected Eventbus eventbus;
 	protected Monitor monitor;
 	protected UidGenerator uidGenerator;
+	protected Metrics metrics;
 
 	// --- TIMER ---
 
@@ -261,6 +264,16 @@ public abstract class Transporter extends MoleculerComponent {
 		eventbus = cfg.getEventbus();
 		uidGenerator = cfg.getUidGenerator();
 		serviceInvoker = cfg.getServiceInvoker();
+		if (cfg.isMetricsEnabled()) {
+			metrics = cfg.getMetrics();
+			if (metrics != null) {
+				metrics.set(MOLECULER_TRANSIT_CONNECTED, "Transit is connected", 0);
+				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL, "Number of sent packets", 0);
+				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES, "Amount of total bytes sent", 0);				
+				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_TOTAL, "Number of received packets", 0);
+				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_BYTES, "Size of all received data in bytes", 0);				
+			}
+		}
 
 		// Set channel names
 		eventChannel = channel(PACKET_EVENT, nodeID);
@@ -274,6 +287,7 @@ public abstract class Transporter extends MoleculerComponent {
 		heartbeatChannel = channel(PACKET_HEARTBEAT, null);
 		pingChannel = channel(PACKET_PING, nodeID);
 		pongChannel = channel(PACKET_PONG, nodeID);
+				
 	}
 
 	protected String channel(String cmd, String nodeID) {
@@ -665,6 +679,14 @@ public abstract class Transporter extends MoleculerComponent {
 	 */
 	protected void processReceivedMessage(String channel, byte[] message) {
 		try {
+			
+			// Metrics
+			if (metrics != null) {
+				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_TOTAL, "Number of received packets");
+				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_BYTES, "Size of all received data in bytes", message.length);
+			}
+			
+			// Process parsed (JSON) request
 			processReceivedMessage(channel, serializer.read(message));
 		} catch (Exception cause) {
 			logger.warn("Unable to parse incoming message!", cause);
@@ -919,11 +941,21 @@ public abstract class Transporter extends MoleculerComponent {
 	protected void broadcastTransporterConnected() {
 		eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
 				"$transporter.connected", null, 1, null, null, null, null, nodeID), null, true);
+		
+		// Metrics
+		if (metrics != null) {
+			metrics.set(MOLECULER_TRANSIT_CONNECTED, "Transit is connected", 1); 
+		}		
 	}
 
 	protected void broadcastTransporterDisconnected() {
 		eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
 				"$transporter.disconnected", null, 1, null, null, null, null, nodeID), null, true);
+		
+		// Metrics
+		if (metrics != null) {
+			metrics.set(MOLECULER_TRANSIT_CONNECTED, "Transit is connected", 0); 
+		}		
 	}
 
 	protected void broadcastNodeConnected(Tree info, boolean reconnected) {

@@ -291,7 +291,17 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 				if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
 				}
-				client.publish(new PublishMessage(channel, qos, serializer.write(message), false));
+				
+				// Metrics
+				byte[] bytes = serializer.write(message);
+				if (metrics != null) {
+					metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL, "Number of sent packets");
+					metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES, "Amount of total bytes sent",
+							bytes.length);
+				}
+				
+				// Send
+				client.publish(new PublishMessage(channel, qos, bytes, false));
 			} catch (Exception cause) {
 				logger.warn("Unable to send message to MQTT server!", cause);
 			}

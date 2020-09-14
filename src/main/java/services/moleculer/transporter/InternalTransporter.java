@@ -136,7 +136,17 @@ public class InternalTransporter extends Transporter {
 	@Override
 	public void publish(String channel, Tree message) {
 		try {
-			subscriptions.send(channel, serializer.write(message));
+			
+			// Metrics
+			byte[] bytes = serializer.write(message);
+			if (metrics != null) {
+				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL, "Number of sent packets");
+				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES, "Amount of total bytes sent",
+						bytes.length);
+			}			
+			
+			// Send bytes
+			subscriptions.send(channel, bytes);
 		} catch (Exception cause) {
 			logger.warn("Unable to publish message!", cause);
 		}

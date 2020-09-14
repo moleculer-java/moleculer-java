@@ -355,7 +355,17 @@ public class KafkaTransporter extends Transporter {
 				if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
 				}
-				producer.send(new ProducerRecord<byte[], byte[]>(channel, serializer.write(message)));
+				
+				// Metrics
+				byte[] bytes = serializer.write(message);
+				if (metrics != null) {
+					metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL, "Number of sent packets");
+					metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES, "Amount of total bytes sent",
+							bytes.length);
+				}
+				
+				// Send
+				producer.send(new ProducerRecord<byte[], byte[]>(channel, bytes));
 			} catch (Exception cause) {
 				logger.warn("Unable to send message to Kafka server!", cause);
 			}

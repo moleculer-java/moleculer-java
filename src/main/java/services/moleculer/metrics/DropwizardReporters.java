@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit;
 public interface DropwizardReporters {
 
 	public static final int TYPE_CONSOLE  = 0;
-	public static final int TYPE_LOGGER = 1;
+	public static final int TYPE_SLF4J = 1;
 	public static final int TYPE_JMX = 2;
 	public static final int TYPE_CSV = 3;
 	

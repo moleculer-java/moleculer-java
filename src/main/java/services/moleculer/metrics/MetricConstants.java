@@ -25,7 +25,7 @@
  */
 package services.moleculer.metrics;
 
-public interface MetricsConstants {
+public interface MetricConstants {
 
 	// --- MOLECULER REQUEST METRICS ---
 
@@ -48,17 +48,9 @@ public interface MetricsConstants {
 	
 	// --- MOLECULER TRANSIT METRICS ---
 
-	public static final String MOLECULER_TRANSIT_PUBLISH_TOTAL = "moleculer.transit.publish.total";
-	public static final String MOLECULER_TRANSIT_RECEIVE_TOTAL = "moleculer.transit.receive.total";
-
 	public static final String MOLECULER_TRANSIT_REQUESTS_ACTIVE = "moleculer.transit.requests.active";
-	public static final String MOLECULER_TRANSIT_STREAMS_SEND_ACTIVE = "moleculer.transit.streams.send.active";
-	public static final String MOLECULER_TRANSIT_READY = "moleculer.transit.ready";
+	public static final String MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE = "moleculer.transit.streams.receive.active";
 	public static final String MOLECULER_TRANSIT_CONNECTED = "moleculer.transit.connected";
-
-	public static final String MOLECULER_TRANSIT_PONG_TIME = "moleculer.transit.pong.time";
-	public static final String MOLECULER_TRANSIT_PONG_SYSTIME_DIFF = "moleculer.transit.pong.systime-diff";
-
 	public static final String MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL = "moleculer.transit.orphan.response.total";
 
 	// --- MOLECULER TRANSPORTER METRICS ---
@@ -94,5 +86,10 @@ public interface MetricsConstants {
 	public static final String MOLECULER_CACHER_CLEAN_TOTAL = "moleculer.cacher.clean.total";
 	public static final String MOLECULER_CACHER_CLEAN_TIME = "moleculer.cacher.clean.time";
 	public static final String MOLECULER_CACHER_EXPIRED_TOTAL = "moleculer.cacher.expired.total";
+
+	// --- MOLECULER EXECUTOR METRICS ---
+	
+	public static final String MOLECULER_EXECUTOR = "moleculer.executor";
+	public static final String MOLECULER_SCHEDULER = "moleculer.scheduler";
 	
 }

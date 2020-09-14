@@ -55,7 +55,7 @@ import services.moleculer.context.Context;
 import services.moleculer.error.ListenerNotAvailableError;
 import services.moleculer.error.MaxCallLevelError;
 import services.moleculer.error.RequestTimeoutError;
-import services.moleculer.metrics.MetricsConstants;
+import services.moleculer.metrics.MetricConstants;
 import services.moleculer.metrics.Metrics;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
@@ -72,7 +72,7 @@ import services.moleculer.util.CheckedTree;
  * Default EventBus implementation.
  */
 @Name("Default Event Bus")
-public class DefaultEventbus extends Eventbus implements MetricsConstants {
+public class DefaultEventbus extends Eventbus implements MetricConstants {
 
 	// --- REGISTERED EVENT LISTENERS ---
 

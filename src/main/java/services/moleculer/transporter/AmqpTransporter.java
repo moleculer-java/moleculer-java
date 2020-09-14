@@ -50,10 +50,11 @@ import services.moleculer.service.Name;
  * platform-agnostic method for ensuring information is safely transported
  * between applications, among organizations, within mobile infrastructures, and
  * across the Cloud. Usage:
+ * 
  * <pre>
- * ServiceBroker broker = ServiceBroker.builder().nodeID("node1")
- * .transporter(new AmqpTransporter("localhost")).build();
+ * ServiceBroker broker = ServiceBroker.builder().nodeID("node1").transporter(new AmqpTransporter("localhost")).build();
  * </pre>
+ * 
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/com.rabbitmq/amqp-client<br>
@@ -196,7 +197,7 @@ public class AmqpTransporter extends Transporter {
 				client = null;
 			}
 		}
-		
+
 		// Notify internal listeners
 		if (notify) {
 			broadcastTransporterDisconnected();
@@ -332,6 +333,15 @@ public class AmqpTransporter extends Transporter {
 	public void publish(String channel, Tree message) {
 		if (client != null) {
 			try {
+
+				// Metrics
+				byte[] bytes = serializer.write(message);
+				if (metrics != null) {
+					metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL, "Number of sent packets");
+					metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES, "Amount of total bytes sent",
+							bytes.length);
+				}
+
 				int pos = channel.indexOf('.');
 				if (channel.indexOf('.', pos + 1) > -1) {
 
@@ -339,8 +349,7 @@ public class AmqpTransporter extends Transporter {
 					if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 						logger.info("Submitting message to queue \"" + channel + "\":\r\n" + message.toString());
 					}
-					this.channel.basicPublish("", channel, mandatory, immediate, messageProperties,
-							serializer.write(message));
+					this.channel.basicPublish("", channel, mandatory, immediate, messageProperties, bytes);
 
 				} else {
 
@@ -348,8 +357,7 @@ public class AmqpTransporter extends Transporter {
 					if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 						logger.info("Submitting message to exchange \"" + channel + "\":\r\n" + message.toString());
 					}
-					this.channel.basicPublish(channel, "", mandatory, immediate, messageProperties,
-							serializer.write(message));
+					this.channel.basicPublish(channel, "", mandatory, immediate, messageProperties, bytes);
 
 				}
 			} catch (Exception cause) {

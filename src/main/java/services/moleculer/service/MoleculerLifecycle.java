@@ -1,7 +1,7 @@
 /**
  * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
  * <br>
- * Copyright 2017 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Copyright 2020 Andras Berkes [andras.berkes@programmer.net]<br>
  * Based on Moleculer Framework for NodeJS [https://moleculer.services].
  * <br><br>
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -23,48 +23,17 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package services.moleculer.transporter;
+package services.moleculer.service;
 
-import io.datatree.Promise;
-import io.datatree.Tree;
+import services.moleculer.ServiceBroker;
 
-/**
- * "Null" / empty transporter.
- * 
- * @see TcpTransporter
- * @see NatsTransporter
- * @see NatsStreamingTransporter
- * @see MqttTransporter
- * @see JmsTransporter
- * @see KafkaTransporter
- * @see AmqpTransporter
- */
-public class NullTransporter extends Transporter {
+public interface MoleculerLifecycle {
 
-	@Override
-	public void connect() {
+	// --- INSTANCE STARTED ---
 
-		// Do nothing
-	}
+	public void started(ServiceBroker broker) throws Exception;
 
-	@Override
-	public void publish(String channel, Tree message) {
+	// --- INSTANCE STOPPED ---
 
-		// Metrics
-		if (metrics != null) {
-			try {
-				byte[] bytes = serializer.write(message);
-				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL, "Number of sent packets");
-				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES, "Amount of total bytes sent", bytes.length);
-			} catch (Exception cause) {
-				logger.error("Unable to serialize message!", cause);
-			}
-		}
-	}
-
-	@Override
-	public Promise subscribe(String channel) {
-		return Promise.resolve();
-	}
-
+	public void stopped();	
 }

@@ -1,7 +1,33 @@
+/**
+ * THIS SOFTWARE IS LICENSED UNDER MIT LICENSE.<br>
+ * <br>
+ * Copyright 2020 Andras Berkes [andras.berkes@programmer.net]<br>
+ * Based on Moleculer Framework for NodeJS [https://moleculer.services].
+ * <br><br>
+ * Permission is hereby granted; free of charge; to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"); to deal in the Software without restriction; including
+ * without limitation the rights to use; copy; modify; merge; publish;
+ * distribute; sublicense; and/or sell copies of the Software; and to
+ * permit persons to whom the Software is furnished to do so; subject to
+ * the following conditions:<br>
+ * <br>
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.<br>
+ * <br>
+ * THE SOFTWARE IS PROVIDED "AS IS"; WITHOUT WARRANTY OF ANY KIND;
+ * EXPRESS OR IMPLIED; INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY; FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM; DAMAGES OR OTHER LIABILITY; WHETHER IN AN ACTION
+ * OF CONTRACT; TORT OR OTHERWISE; ARISING FROM; OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package services.moleculer.metrics;
 
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.StampedLock;
@@ -11,10 +37,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.binder.MeterBinder;
+import io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics;
+import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
+import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
+import services.moleculer.ServiceBroker;
+import services.moleculer.service.Name;
+import services.moleculer.util.CommonUtils;
 
+@Name("Default Metric Registry")
 public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 
 	// --- LOGGER ---
@@ -25,9 +63,17 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 
 	protected final HashMap<String, Object> registry = new HashMap<>(128);
 
+	protected final HashMap<Class<? extends MeterBinder>, MeterBinder> binders = new HashMap<>();
+
 	protected final StampedLock lock = new StampedLock();
 
 	protected DropwizardReporters reporters;
+
+	// --- START METRICS ---
+
+	@Override
+	public void started(ServiceBroker broker) throws Exception {
+	}
 
 	// --- METRIC REGISTRY FUNCTIONS ---
 
@@ -54,15 +100,12 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 
 	@Override
 	public StoppableTimer timer(String name, String description, Duration duration, String... tags) {
-		DistributionSummary timer = getMetric(name, tags, () -> {
-			return DistributionSummary.builder(name).description(description).tags(tags)
-					.publishPercentileHistogram(true).percentilePrecision(2).distributionStatisticBufferLength(5)
-					.distributionStatisticExpiry(duration).publishPercentiles(0.75, 0.95, 0.98, 0.99, 0.999)
-					.register(this);
-		});
+		Timer timer = Timer.builder(name).description(description).tags(tags).publishPercentileHistogram(true)
+				.percentilePrecision(2).distributionStatisticBufferLength(5).distributionStatisticExpiry(duration)
+				.publishPercentiles(0.75, 0.95, 0.98, 0.99, 0.999).register(this);
 		long start = System.nanoTime();
 		return () -> {
-			timer.record(System.nanoTime() - start);
+			timer.record(System.nanoTime() - start, TimeUnit.NANOSECONDS);
 		};
 	}
 
@@ -120,16 +163,6 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 	}
 
 	// --- DROPWIZARD REPORTERS ---
-
-	/**
-	 * Starts JmxReporter. With JmxReporter, you can expose your metrics as JMX
-	 * MBeans. To explore this you can use VisualVM (which ships with most JDKs
-	 * as jvisualvm) with the VisualVM-MBeans plugins installed or JConsole
-	 * (which ships with most JDKs as jconsole).
-	 */
-	public void startJmxReporter() {
-		reporters().started(this, DropwizardReporters.TYPE_JMX, 0, null, null);
-	}
 
 	/**
 	 * Starts ConsoleReporter. For simple benchmarks, Metrics comes with
@@ -217,12 +250,12 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 	 *            the amount of time between polls
 	 * @param periodUnit
 	 *            the unit for {@code period}
-	 * @param logger
+	 * @param loggerName
 	 *            name of the logger (eg. "moleculer.metrics" or null)
 	 */
-	public void startSlf4jReporter(long period, TimeUnit periodUnit, String logger) {
+	public void startSlf4jReporter(long period, TimeUnit periodUnit, String loggerName) {
 		reporters().started(this, DropwizardReporters.TYPE_CSV, period, periodUnit,
-				logger == null ? DefaultMetrics.class.getName() : logger);
+				loggerName == null ? DefaultMetrics.class.getName() : loggerName);
 	}
 
 	protected synchronized DropwizardReporters reporters() {
@@ -232,19 +265,74 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 						.newInstance();
 			} catch (Throwable cause) {
 				logger.error("Unable to create Dropwizard Reporter!", cause);
+				CommonUtils.suggestDependency("com.codahale.metrics", "metrics-core", "3.0.2");
 			}
 		}
 		return reporters;
 	}
 
-	// --- STOP REGISTRY ---
-	
-	public void stopped() {
-		this.close();
-		if (reporters != null) {
-			reporters.stopped();
-			reporters = null;
+	// --- JVM AND SYSTEM METRICS ---
+
+	public void addClassLoaderMetrics() {
+		addMetrics(new ClassLoaderMetrics());
+	}
+
+	public void addJvmMemoryMetrics() {
+		addMetrics(new JvmMemoryMetrics());
+	}
+
+	public void addJvmGcMetrics() {
+		addMetrics(new JvmGcMetrics());
+	}
+
+	public void addProcessorMetrics() {
+		addMetrics(new ProcessorMetrics());
+	}
+
+	public void addJvmThreadMetrics() {
+		addMetrics(new JvmThreadMetrics());
+	}
+
+	public void addExecutorServiceMetrics(ExecutorService executor, String executorServiceName, String... tags) {
+		if (executor != null) {
+			addMetrics(new ExecutorServiceMetrics(executor, executorServiceName, Tags.of(tags)));
 		}
 	}
 	
+	public void addMetrics(MeterBinder binder) {
+		if (!binders.containsKey(binder.getClass())) {
+			binders.put(binder.getClass(), binder);
+			binder.bindTo(this);
+		}
+	}
+
+	// --- STOP REGISTRY ---
+
+	@Override
+	public void stopped() {
+		try {
+			this.close();
+		} catch (Exception ignored) {
+		}
+		if (reporters != null) {
+			try {
+				reporters.stopped();
+			} catch (Exception ignored) {
+			}
+			reporters = null;
+		}
+		if (!binders.isEmpty()) {
+			for (MeterBinder binder : binders.values()) {
+				if (binder instanceof AutoCloseable) {
+					AutoCloseable closeable = (AutoCloseable) binder;
+					try {
+						closeable.close();
+					} catch (Exception ignored) {
+					}
+				}
+			}
+			binders.clear();
+		}
+	}
+
 }
