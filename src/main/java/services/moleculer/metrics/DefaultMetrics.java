@@ -294,9 +294,7 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 	}
 
 	public void addExecutorServiceMetrics(ExecutorService executor, String executorServiceName, String... tags) {
-		if (executor != null) {
-			addMetrics(new ExecutorServiceMetrics(executor, executorServiceName, Tags.of(tags)));
-		}
+		addMetrics(new ExecutorServiceMetrics(executor, executorServiceName, Tags.of(tags)));
 	}
 	
 	public void addMetrics(MeterBinder binder) {

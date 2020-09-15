@@ -301,14 +301,20 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 			boolean metricsEnabled = config.isMetricsEnabled();
 			if (metricsEnabled && metrics != null) {
 				middlewares.add(new MetricMiddleware());
-				logger.info("Metrics are enabled (turn it off when not in use).");
+				logger.info("Metrics are enabled (turn off the measurement if you do not collect performance data).");
 				if (metrics instanceof DefaultMetrics) {
 					DefaultMetrics dm = (DefaultMetrics) metrics;
-					dm.addExecutorServiceMetrics(config.getExecutor(), MOLECULER_EXECUTOR);
-					dm.addExecutorServiceMetrics(config.getScheduler(), MOLECULER_SCHEDULER);
+					ExecutorService executor = config.getExecutor();
+					if (executor != null) {
+						dm.addExecutorServiceMetrics(executor, MOLECULER_EXECUTOR);
+					}
+					ScheduledExecutorService scheduler = config.getScheduler();
+					if (scheduler != null && scheduler != executor) {
+						dm.addExecutorServiceMetrics(scheduler, MOLECULER_SCHEDULER);
+					}
 				}
 			} else {
-				logger.info("Metrics are not enabled.");
+				logger.info("Metrics are disabled.");
 			}
 
 			// Set internal components
