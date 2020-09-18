@@ -71,12 +71,12 @@ public class LocalListenerEndpoint extends ListenerEndpoint implements MetricCon
 					group == null ? "null" : group, "caller", ctx.nodeID };
 
 			MetricCounter receivedActive = metrics.increment(MOLECULER_EVENT_RECEIVED_ACTIVE,
-					"Number of active event executions", tags);
+					MOLECULER_EVENT_RECEIVED_ACTIVE_DESC, tags);
 
-			StoppableTimer processingTime = metrics.timer(MOLECULER_EVENT_RECEIVED_TIME, "Execution time of events",
+			StoppableTimer processingTime = metrics.timer(MOLECULER_EVENT_RECEIVED_TIME, MOLECULER_EVENT_RECEIVED_TIME_DESC,
 					tags);
 
-			metrics.increment(MOLECULER_EVENT_RECEIVED_TOTAL, "Number of received events", tags);
+			metrics.increment(MOLECULER_EVENT_RECEIVED_TOTAL, MOLECULER_EVENT_RECEIVED_TOTAL_DESC, tags);
 
 			// Call with metrics
 			try {
@@ -105,7 +105,7 @@ public class LocalListenerEndpoint extends ListenerEndpoint implements MetricCon
 						errorType = "MOLECULER_ERROR";
 					}
 				}
-				metrics.increment(MOLECULER_EVENT_RECEIVED_ERROR_TOTAL, "Number of event execution errors", "service",
+				metrics.increment(MOLECULER_EVENT_RECEIVED_ERROR_TOTAL, MOLECULER_EVENT_RECEIVED_ERROR_TOTAL_DESC, "service",
 						serviceName, "event", subscribe, "group", group == null ? "null" : group, "caller", ctx.nodeID,
 						"errorName", errorName, "errorCode", Integer.toString(errorCode), "errorType", errorType);
 

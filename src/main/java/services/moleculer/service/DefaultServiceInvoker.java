@@ -158,7 +158,7 @@ public class DefaultServiceInvoker extends ServiceInvoker implements MetricConst
 
 		// Metrics
 		if (metrics != null) {
-			metrics.increment(MOLECULER_REQUEST_RETRY_ATTEMPTS_TOTAL, "Number of retries", "action", ctx.name); 
+			metrics.increment(MOLECULER_REQUEST_RETRY_ATTEMPTS_TOTAL, MOLECULER_REQUEST_RETRY_ATTEMPTS_TOTAL_DESC, "action", ctx.name); 
 		}
 		
 		// Create new Context (with new id)

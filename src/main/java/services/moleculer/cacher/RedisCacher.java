@@ -45,6 +45,8 @@ import io.datatree.Tree;
 import rx.Observable;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
+import services.moleculer.metrics.MetricCounter;
+import services.moleculer.metrics.StoppableTimer;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
 import services.moleculer.service.Name;
@@ -103,6 +105,14 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 
 	protected SetArgs expiration;
 
+	// --- COUNTERS ---
+
+	protected MetricCounter counterGet;
+	protected MetricCounter counterSet;
+	protected MetricCounter counterDel;
+	protected MetricCounter counterClean;
+	protected MetricCounter counterFound;
+	
 	// --- CONSTUCTORS ---
 
 	public RedisCacher() {
@@ -145,6 +155,15 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 			expiration = null;
 		}
 
+		// Create counters
+		if (metrics != null) {
+			counterGet = metrics.increment(MOLECULER_CACHER_GET_TOTAL, MOLECULER_CACHER_GET_TOTAL_DESC, 0);
+			counterSet = metrics.increment(MOLECULER_CACHER_SET_TOTAL, MOLECULER_CACHER_SET_TOTAL_DESC, 0);
+			counterDel = metrics.increment(MOLECULER_CACHER_DEL_TOTAL, MOLECULER_CACHER_DEL_TOTAL_DESC, 0);
+			counterClean = metrics.increment(MOLECULER_CACHER_CLEAN_TOTAL, MOLECULER_CACHER_CLEAN_TOTAL_DESC, 0);
+			counterFound = metrics.increment(MOLECULER_CACHER_FOUND_TOTAL, MOLECULER_CACHER_FOUND_TOTAL_DESC, 0);
+		}
+		
 		// Connect to Redis server
 		connect();
 	}
@@ -216,6 +235,16 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 	@Override
 	public Promise get(String key) {
 		if (status.get() == STATUS_CONNECTED) {
+			
+			// Metrics
+			StoppableTimer getTimer;
+			if (metrics == null) {
+				getTimer = null;
+			} else {
+				counterGet.increment();
+				getTimer = metrics.timer(MOLECULER_CACHER_GET_TIME, MOLECULER_CACHER_GET_TIME_DESC);
+			}
+			
 			try {
 				return client.get(key).then(in -> {
 					if (in != null) {
@@ -233,9 +262,20 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 							}
 						}
 					}
+					if (getTimer != null) {
+						getTimer.stop();
+					}
 					return Promise.resolve((Object) null);
+				}).catchError(err -> {
+					if (getTimer != null) {
+						getTimer.stop();
+					}					
+					return err;
 				});
 			} catch (Exception cause) {
+				if (getTimer != null) {
+					getTimer.stop();
+				}				
 				logger.warn("Unable to get data from Redis!", cause);
 			}
 		}
@@ -245,6 +285,16 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 	@Override
 	public Promise set(String key, Tree value, int ttl) {
 		if (status.get() == STATUS_CONNECTED) {
+
+			// Metrics
+			StoppableTimer setTimer;
+			if (metrics == null) {
+				setTimer = null;
+			} else {
+				counterSet.increment();
+				setTimer = metrics.timer(MOLECULER_CACHER_SET_TIME, "Response time for cache SET operations");
+			}
+
 			try {
 				SetArgs args;
 				if (ttl > 0) {
@@ -257,8 +307,21 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 					args = expiration;
 				}
 				Tree root = new CheckedTree(Collections.singletonMap(CONTENT, value.asObject()));
-				return client.set(key, serializer.write(root), args);
+				byte[] bytes = serializer.write(root);
+				if (setTimer == null) {
+					return client.set(key, bytes, args);
+				}
+				return client.set(key, bytes, args).then(rsp -> {
+					setTimer.stop();
+					return rsp;
+				}).catchError(err -> {
+					setTimer.stop();
+					return err;
+				});
 			} catch (Exception cause) {
+				if (setTimer != null) {
+					setTimer.stop();
+				}
 				logger.warn("Unable to put data into Redis!", cause);
 			}
 		}
@@ -268,9 +331,31 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 	@Override
 	public Promise del(String key) {
 		if (status.get() == STATUS_CONNECTED) {
+			
+			// Metrics
+			StoppableTimer delTimer;
+			if (metrics == null) {
+				delTimer = null;
+			} else {
+				counterDel.increment();
+				delTimer = metrics.timer(MOLECULER_CACHER_DEL_TIME, "Response time for cache DEL operations");
+			}
+			
 			try {
-				return client.del(key);
+				if (delTimer == null) {
+					return client.del(key);
+				}
+				return client.del(key).then(rsp -> {
+					delTimer.stop();
+					return rsp;
+				}).catchError(err -> {
+					delTimer.stop();
+					return err;
+				});				
 			} catch (Exception cause) {
+				if (delTimer != null) {
+					delTimer.stop();
+				}
 				logger.warn("Unable to delete data from Redis!", cause);
 			}
 		}
@@ -280,9 +365,31 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 	@Override
 	public Promise clean(String match) {
 		if (status.get() == STATUS_CONNECTED) {
+			
+			// Metrics
+			StoppableTimer cleanTimer;
+			if (metrics == null) {
+				cleanTimer = null;
+			} else {
+				counterClean.increment();
+				cleanTimer = metrics.timer(MOLECULER_CACHER_CLEAN_TIME, "Response time for cache CLEAN operations");
+			}
+			
 			try {
-				return client.clean(match);
+				if (cleanTimer == null) {
+					return client.clean(match);
+				}
+				return client.clean(match).then(rsp -> {
+					cleanTimer.stop();
+					return rsp;
+				}).catchError(err -> {
+					cleanTimer.stop();
+					return err;
+				});	
 			} catch (Exception cause) {
+				if (cleanTimer != null) {
+					cleanTimer.stop();
+				}
 				logger.warn("Unable to delete data from Redis!", cause);
 			}
 		}

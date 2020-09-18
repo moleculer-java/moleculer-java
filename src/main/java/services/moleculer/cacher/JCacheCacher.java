@@ -45,6 +45,8 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.error.MoleculerServerError;
 import services.moleculer.eventbus.Matcher;
+import services.moleculer.metrics.MetricCounter;
+import services.moleculer.metrics.StoppableTimer;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
 import services.moleculer.service.Name;
@@ -114,6 +116,14 @@ public class JCacheCacher extends DistributedCacher {
 
 	protected final StampedLock lock = new StampedLock();
 
+	// --- COUNTERS ---
+
+	protected MetricCounter counterGet;
+	protected MetricCounter counterSet;
+	protected MetricCounter counterDel;
+	protected MetricCounter counterClean;
+	protected MetricCounter counterFound;
+
 	// --- CONSTUCTORS ---
 
 	public JCacheCacher() {
@@ -163,6 +173,15 @@ public class JCacheCacher extends DistributedCacher {
 		super.started(broker);
 		serializer.started(broker);
 		logger.info(nameOf(this, true) + " will use " + nameOf(serializer, true) + '.');
+
+		// Create counters
+		if (metrics != null) {
+			counterGet = metrics.increment(MOLECULER_CACHER_GET_TOTAL, MOLECULER_CACHER_GET_TOTAL_DESC, 0);
+			counterSet = metrics.increment(MOLECULER_CACHER_SET_TOTAL, MOLECULER_CACHER_SET_TOTAL_DESC, 0);
+			counterDel = metrics.increment(MOLECULER_CACHER_DEL_TOTAL, MOLECULER_CACHER_DEL_TOTAL_DESC, 0);
+			counterClean = metrics.increment(MOLECULER_CACHER_CLEAN_TOTAL, MOLECULER_CACHER_CLEAN_TOTAL_DESC, 0);
+			counterFound = metrics.increment(MOLECULER_CACHER_FOUND_TOTAL, MOLECULER_CACHER_FOUND_TOTAL_DESC, 0);
+		}
 	}
 
 	// --- STOP CACHER ---
@@ -192,6 +211,14 @@ public class JCacheCacher extends DistributedCacher {
 
 	@Override
 	public Promise get(String key) {
+
+		// Metrics
+		StoppableTimer getTimer = null;
+		if (metrics != null) {
+			counterGet.increment();
+			getTimer = metrics.timer(MOLECULER_CACHER_GET_TIME, MOLECULER_CACHER_GET_TIME_DESC);
+		}
+
 		try {
 			int pos = partitionPosition(key, true);
 
@@ -204,6 +231,9 @@ public class JCacheCacher extends DistributedCacher {
 				if (bytes != null) {
 					Tree root = serializer.read(bytes);
 					Tree content = root.get(CONTENT);
+					if (counterFound != null) {
+						counterFound.increment();
+					}
 					if (content != null) {
 						return Promise.resolve(content);
 					}
@@ -212,6 +242,10 @@ public class JCacheCacher extends DistributedCacher {
 			}
 		} catch (Throwable cause) {
 			logger.warn("Unable to get data from JCache!", cause);
+		} finally {
+			if (getTimer != null) {
+				getTimer.stop();
+			}
 		}
 		return Promise.resolve((Object) null);
 	}
@@ -239,6 +273,14 @@ public class JCacheCacher extends DistributedCacher {
 
 	@Override
 	public Promise set(String key, Tree value, int ttl) {
+
+		// Metrics
+		StoppableTimer setTimer = null;
+		if (metrics != null) {
+			counterSet.increment();
+			setTimer = metrics.timer(MOLECULER_CACHER_SET_TIME, MOLECULER_CACHER_SET_TIME_DESC);
+		}
+
 		try {
 			int pos = partitionPosition(key, true);
 
@@ -263,7 +305,12 @@ public class JCacheCacher extends DistributedCacher {
 				}
 				final long stamp = lock.writeLock();
 				try {
-					partitions.put(prefix, partition);
+					javax.cache.Cache<String, byte[]> prev = partitions.get(prefix);
+					if (prev == null) {
+						partitions.put(prefix, partition);
+					} else {
+						partition = prev;
+					}
 				} finally {
 					lock.unlockWrite(stamp);
 				}
@@ -277,26 +324,52 @@ public class JCacheCacher extends DistributedCacher {
 			}
 		} catch (Throwable cause) {
 			logger.warn("Unable to write data to JCache!", cause);
+		} finally {
+			if (setTimer != null) {
+				setTimer.stop();
+			}
 		}
 		return Promise.resolve();
 	}
 
 	@Override
 	public Promise del(String key) {
-		int pos = partitionPosition(key, true);
 
-		// Prefix is the name of the partition / region (eg.
-		// "user" from the "user.name" cache key)
-		String prefix = key.substring(0, pos);
-		javax.cache.Cache<String, byte[]> partition = getPartition(prefix);
-		if (partition != null) {
-			partition.remove(key.substring(pos + 1));
+		// Metrics
+		StoppableTimer delTimer = null;
+		if (metrics != null) {
+			counterDel.increment();
+			delTimer = metrics.timer(MOLECULER_CACHER_DEL_TIME, MOLECULER_CACHER_DEL_TIME_DESC);
+		}
+
+		try {
+			int pos = partitionPosition(key, true);
+
+			// Prefix is the name of the partition / region (eg.
+			// "user" from the "user.name" cache key)
+			String prefix = key.substring(0, pos);
+			javax.cache.Cache<String, byte[]> partition = getPartition(prefix);
+			if (partition != null) {
+				partition.remove(key.substring(pos + 1));
+			}
+		} finally {
+			if (delTimer != null) {
+				delTimer.stop();
+			}
 		}
 		return Promise.resolve();
 	}
 
 	@Override
 	public Promise clean(String match) {
+
+		// Metrics
+		StoppableTimer cleanTimer = null;
+		if (metrics != null) {
+			counterClean.increment();
+			cleanTimer = metrics.timer(MOLECULER_CACHER_CLEAN_TIME, MOLECULER_CACHER_CLEAN_TIME_DESC);
+		}
+
 		try {
 			int pos = partitionPosition(match, false);
 			if (pos > 0) {
@@ -348,6 +421,10 @@ public class JCacheCacher extends DistributedCacher {
 			}
 		} catch (Throwable cause) {
 			logger.warn("Unable to clean JCache!", cause);
+		} finally {
+			if (cleanTimer != null) {
+				cleanTimer.stop();
+			}
 		}
 		return Promise.resolve();
 	}

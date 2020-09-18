@@ -263,9 +263,9 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		if (cfg.isMetricsEnabled()) {
 			metrics = cfg.getMetrics();
 			if (metrics != null) {
-				metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, "Number of active requests", 0);
-				metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, "Number of active incoming streams", 0);
-				metrics.increment(MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL, "Number of orphan responses", 0);
+				metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, MOLECULER_TRANSIT_REQUESTS_ACTIVE_DESC, 0);
+				metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE_DESC, 0);
+				metrics.increment(MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL, MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL_DESC, 0);
 			}
 		}
 	}
@@ -346,7 +346,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 				// Metrics
 				if (metrics != null) {
-					metrics.increment(MOLECULER_REQUEST_TIMEOUT_TOTAL, "Total number of request timeouts", "action",
+					metrics.increment(MOLECULER_REQUEST_TIMEOUT_TOTAL, MOLECULER_REQUEST_TIMEOUT_TOTAL_DESC, "action",
 							pending.action);
 				}
 			}
@@ -389,8 +389,8 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 		// Metrics
 		if (metrics != null && removed) {
-			metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, "Number of active requests", promises.size());
-			metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, "Number of active incoming streams",
+			metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, MOLECULER_TRANSIT_REQUESTS_ACTIVE_DESC, promises.size());
+			metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE_DESC,
 					requestStreams.size() + responseStreams.size());
 		}
 
@@ -485,7 +485,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 		// Metrics
 		if (metrics != null) {
-			metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, "Number of active requests", promises.size());
+			metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, MOLECULER_TRANSIT_REQUESTS_ACTIVE_DESC, promises.size());
 		}
 
 		// Reschedule
@@ -504,7 +504,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 		// Metrics
 		if (metrics != null) {
-			metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, "Number of active requests", promises.size());
+			metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, MOLECULER_TRANSIT_REQUESTS_ACTIVE_DESC, promises.size());
 		}
 	}
 
@@ -599,7 +599,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 		// Metrics
 		if (metrics != null && requestStream != null) {
-			metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, "Number of active incoming streams",
+			metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE_DESC,
 					requestStreams.size() + responseStreams.size());
 		}
 
@@ -804,7 +804,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 			// Metrics
 			if (metrics != null) {
-				metrics.increment(MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL, "Number of orphan responses");
+				metrics.increment(MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL, MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL_DESC);
 			}
 			return;
 		}
@@ -890,7 +890,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 		// Metrics
 		if (metrics != null && responseStream != null) {
-			metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, "Number of active incoming streams",
+			metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE_DESC,
 					requestStreams.size() + responseStreams.size());
 		}
 
@@ -901,7 +901,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 			// Metrics
 			if (metrics != null) {
-				metrics.increment(MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL, "Number of orphan responses");
+				metrics.increment(MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL, MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL_DESC);
 			}
 			return;
 		}
@@ -909,7 +909,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 			// Metrics
 			if (metrics != null) {
-				metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, "Number of active requests", promises.size());
+				metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, MOLECULER_TRANSIT_REQUESTS_ACTIVE_DESC, promises.size());
 			}
 
 			// Get response status (successed or not?)

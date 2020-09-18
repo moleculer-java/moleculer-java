@@ -29,6 +29,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.Supplier;
@@ -82,7 +83,9 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 		Counter counter = getMetric(name, tags, () -> {
 			return Counter.builder(name).description(description).tags(tags).register(this);
 		});
-		counter.increment(delta);
+		if (delta != 0) {
+			counter.increment(delta);
+		}
 		return (value) -> {
 			counter.increment(value);
 		};
@@ -104,8 +107,11 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 				.percentilePrecision(2).distributionStatisticBufferLength(5).distributionStatisticExpiry(duration)
 				.publishPercentiles(0.75, 0.95, 0.98, 0.99, 0.999).register(this);
 		long start = System.nanoTime();
+		AtomicBoolean submitted = new AtomicBoolean();
 		return () -> {
-			timer.record(System.nanoTime() - start, TimeUnit.NANOSECONDS);
+			if (submitted.compareAndSet(false, true)) {
+				timer.record(System.nanoTime() - start, TimeUnit.NANOSECONDS);
+			}
 		};
 	}
 
@@ -115,9 +121,12 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 	protected <T> T getMetric(String name, String[] tags, Supplier<T> factory) {
 
 		// Create map key
-		StringBuilder keyBuilder = new StringBuilder(128);
-		keyBuilder.append(name);
-		if (tags != null && tags.length > 1) {
+		String key;
+		if (tags == null || tags.length == 0) {
+			key = name;
+		} else {
+			StringBuilder keyBuilder = new StringBuilder(128);
+			keyBuilder.append(name);
 			keyBuilder.append('.');
 			for (int i = 0; i < tags.length; i++) {
 				keyBuilder.append(tags[i]);
@@ -125,8 +134,8 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 					keyBuilder.append('.');
 				}
 			}
+			key = keyBuilder.toString();
 		}
-		String key = keyBuilder.toString();
 
 		// Find in registry
 		Object metric = null;
@@ -296,7 +305,7 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 	public void addExecutorServiceMetrics(ExecutorService executor, String executorServiceName, String... tags) {
 		addMetrics(new ExecutorServiceMetrics(executor, executorServiceName, Tags.of(tags)));
 	}
-	
+
 	public void addMetrics(MeterBinder binder) {
 		if (!binders.containsKey(binder.getClass())) {
 			binders.put(binder.getClass(), binder);

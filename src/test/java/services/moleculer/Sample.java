@@ -26,6 +26,8 @@
 package services.moleculer;
 
 import io.datatree.Tree;
+import services.moleculer.cacher.Cache;
+import services.moleculer.cacher.OHCacher;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.metrics.DefaultMetrics;
 import services.moleculer.service.Action;
@@ -43,6 +45,10 @@ public class Sample {
 
 			// Unique nodeID
 			cfg.setNodeID("node1");
+			
+			OHCacher c = new OHCacher();
+			c.setTtl(3);
+			cfg.setCacher(c);
 
 			cfg.setMetricsEnabled(true);
 			DefaultMetrics dm = (DefaultMetrics) cfg.getMetrics();
@@ -84,6 +90,7 @@ public class Sample {
 	public static class MyService extends Service {
 
 		// First action (which calls the second action)
+		@Cache()
 		Action first = ctx -> {
 
 			// Create input JSON structure
@@ -101,6 +108,7 @@ public class Sample {
 		};
 
 		// Second action
+		@Cache()
 		Action second = ctx -> {
 			return ctx.params.get("a", 0) + ctx.params.get("c.d", 0);
 		};

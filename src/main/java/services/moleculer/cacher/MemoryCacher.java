@@ -40,6 +40,8 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.error.MoleculerServerError;
 import services.moleculer.eventbus.Matcher;
+import services.moleculer.metrics.MetricCounter;
+import services.moleculer.metrics.StoppableTimer;
 import services.moleculer.service.Name;
 
 /**
@@ -116,6 +118,15 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 	protected AtomicBoolean timerStopped = new AtomicBoolean();
 
+	// --- COUNTERS ---
+
+	protected MetricCounter counterExpired;
+	protected MetricCounter counterGet;
+	protected MetricCounter counterSet;
+	protected MetricCounter counterDel;
+	protected MetricCounter counterClean;
+	protected MetricCounter counterFound;
+	
 	// --- CONSTUCTORS ---
 
 	public MemoryCacher() {
@@ -157,6 +168,16 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 		// Log capacity
 		logger.info("Maximum number of cached entries is " + capacity + " per partition.");
+
+		// Create counters
+		if (metrics != null) {
+			counterExpired = metrics.increment(MOLECULER_CACHER_EXPIRED_TOTAL, MOLECULER_CACHER_EXPIRED_TOTAL_DESC, 0);
+			counterGet = metrics.increment(MOLECULER_CACHER_GET_TOTAL, MOLECULER_CACHER_GET_TOTAL_DESC, 0);
+			counterSet = metrics.increment(MOLECULER_CACHER_SET_TOTAL, MOLECULER_CACHER_SET_TOTAL_DESC, 0);
+			counterDel = metrics.increment(MOLECULER_CACHER_DEL_TOTAL, MOLECULER_CACHER_DEL_TOTAL_DESC, 0);
+			counterClean = metrics.increment(MOLECULER_CACHER_CLEAN_TOTAL, MOLECULER_CACHER_CLEAN_TOTAL_DESC, 0);
+			counterFound = metrics.increment(MOLECULER_CACHER_FOUND_TOTAL, MOLECULER_CACHER_FOUND_TOTAL_DESC, 0);
+		}
 	}
 
 	// --- REMOVE OLD ENTRIES ---
@@ -261,7 +282,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 			String prefix = key.substring(0, pos);
 			MemoryPartition partition = getPartition(prefix);
 			if (partition == null) {
-				partition = new MemoryPartition(capacity, useCloning, accessOrder);
+				partition = new MemoryPartition(this);
 				MemoryPartition previous;
 				final long stamp = lock.writeLock();
 				try {
@@ -379,16 +400,9 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 	protected static class MemoryPartition {
 
-		// --- CLONE VALUES ---
+		// --- PARENT ---
 
-		/**
-		 * Do you need to make a copy of the returned values? Cloning the values
-		 * is much SAFER, but little bit slower. If the services work with
-		 * common objects, they can modify the cached object. If you turn off
-		 * cloning, the cache will be faster, but you need to be careful NOT TO
-		 * CHANGE the values from the cache!
-		 */
-		protected boolean useCloning = true;
+		protected final MemoryCacher parent;
 
 		// --- READ/WRITE LOCK ---
 
@@ -400,16 +414,25 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 		// --- CONSTUCTORS ---
 
-		protected MemoryPartition(int capacity, boolean useCloning, boolean accessOrder) {
-			cache = new LinkedHashMap<String, PartitionEntry>(capacity, 1.0f, accessOrder) {
+		protected MemoryPartition(MemoryCacher parent) {
+
+			// Create cache
+			cache = new LinkedHashMap<String, PartitionEntry>(parent.capacity, 1.0f, parent.accessOrder) {
 
 				private static final long serialVersionUID = 5994447707758047152L;
 
 				protected final boolean removeEldestEntry(Map.Entry<String, PartitionEntry> entry) {
-					return size() > capacity;
+					boolean remove = size() > parent.capacity;
+
+					// Metrics
+					if (remove && parent.counterExpired != null) {
+						parent.counterExpired.increment();
+					}
+
+					return remove;
 				};
 			};
-			this.useCloning = useCloning;
+			this.parent = parent;
 		}
 
 		// --- REMOVE OLD ENTRIES ---
@@ -436,6 +459,13 @@ public class MemoryCacher extends Cacher implements Runnable {
 			if (expiredKeys.isEmpty()) {
 				return;
 			}
+
+			// Metrics
+			if (parent.counterExpired != null) {
+				parent.counterExpired.increment(expiredKeys.size());
+			}
+
+			// Remove elements
 			stamp = lock.writeLock();
 			try {
 				for (String key : expiredKeys) {
@@ -459,6 +489,14 @@ public class MemoryCacher extends Cacher implements Runnable {
 		// --- CACHE METHODS ---
 
 		protected Tree get(String key) throws Exception {
+
+			// Metrics
+			StoppableTimer getTimer = null;
+			if (parent.metrics != null) {
+				parent.counterGet.increment();
+				getTimer = parent.metrics.timer(MOLECULER_CACHER_GET_TIME, MOLECULER_CACHER_GET_TIME_DESC);
+			}
+
 			PartitionEntry entry = null;
 			long stamp = lock.tryOptimisticRead();
 			if (stamp != 0) {
@@ -476,16 +514,33 @@ public class MemoryCacher extends Cacher implements Runnable {
 					lock.unlockRead(stamp);
 				}
 			}
-			if (entry == null) {
-				return null;
+			try {
+				if (entry == null || entry.value == null) {
+					return null;
+				}
+				if (parent.counterFound != null) {
+					parent.counterFound.increment();
+				}
+				if (parent.useCloning) {
+					return entry.value.clone();
+				}
+				return entry.value;
+			} finally {
+				if (getTimer != null) {
+					getTimer.stop();
+				}
 			}
-			if (useCloning) {
-				return entry.value.clone();
-			}
-			return entry.value;
 		}
 
 		protected void set(String key, Tree value, int ttl) {
+
+			// Metrics
+			StoppableTimer setTimer = null;
+			if (parent.metrics != null) {
+				parent.counterSet.increment();
+				setTimer = parent.metrics.timer(MOLECULER_CACHER_SET_TIME, MOLECULER_CACHER_SET_TIME_DESC);
+			}
+
 			final long stamp = lock.writeLock();
 			try {
 				if (value == null) {
@@ -501,19 +556,41 @@ public class MemoryCacher extends Cacher implements Runnable {
 				}
 			} finally {
 				lock.unlockWrite(stamp);
+				if (setTimer != null) {
+					setTimer.stop();
+				}
 			}
 		}
 
 		protected void del(String key) {
+
+			// Metrics
+			StoppableTimer delTimer = null;
+			if (parent.metrics != null) {
+				parent.counterDel.increment();
+				delTimer = parent.metrics.timer(MOLECULER_CACHER_DEL_TIME, MOLECULER_CACHER_DEL_TIME_DESC);
+			}
+
 			final long stamp = lock.writeLock();
 			try {
 				cache.remove(key);
 			} finally {
 				lock.unlockWrite(stamp);
+				if (delTimer != null) {
+					delTimer.stop();
+				}
 			}
 		}
 
 		protected void clean(String match) {
+
+			// Metrics
+			StoppableTimer cleanTimer = null;
+			if (parent.metrics != null) {
+				parent.counterClean.increment();
+				cleanTimer = parent.metrics.timer(MOLECULER_CACHER_CLEAN_TIME, MOLECULER_CACHER_CLEAN_TIME_DESC);
+			}
+
 			final long stamp = lock.writeLock();
 			try {
 				if (match.isEmpty() || "**".equals(match)) {
@@ -532,6 +609,9 @@ public class MemoryCacher extends Cacher implements Runnable {
 				}
 			} finally {
 				lock.unlockWrite(stamp);
+				if (cleanTimer != null) {
+					cleanTimer.stop();
+				}
 			}
 		}
 

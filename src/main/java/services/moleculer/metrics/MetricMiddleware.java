@@ -61,15 +61,15 @@ public class MetricMiddleware extends Middleware implements MetricConstants {
 					// Before call
 					String callType = localNodeID.equals(ctx.nodeID) ? "local" : "remote";
 					String[] tags = new String[] { "action", actionName, "type", callType, "caller", ctx.nodeID };
-					metrics.increment(MOLECULER_REQUEST_TOTAL, "Number of requests", tags);
+					metrics.increment(MOLECULER_REQUEST_TOTAL, MOLECULER_REQUEST_TOTAL_DESC, tags);
 
 					MetricCounter requestActive = metrics.increment(MOLECULER_REQUEST_ACTIVE,
-							"Number of active requests", tags);
+							MOLECULER_REQUEST_ACTIVE_DESC, tags);
 
-					metrics.increment(MOLECULER_REQUEST_LEVELS, "Number of requests by context level", "action",
+					metrics.increment(MOLECULER_REQUEST_LEVELS, MOLECULER_REQUEST_LEVELS_DESC, "action",
 							actionName, "caller", ctx.nodeID, "level", Integer.toString(ctx.level));
 
-					StoppableTimer timer = metrics.timer(MOLECULER_REQUEST_TIME, "Request times", tags);
+					StoppableTimer timer = metrics.timer(MOLECULER_REQUEST_TIME, MOLECULER_REQUEST_TIME_DESC, tags);
 
 					new Promise(action.handler(ctx)).then(tree -> {
 
@@ -102,7 +102,7 @@ public class MetricMiddleware extends Middleware implements MetricConstants {
 								errorType = "MOLECULER_ERROR";
 							}
 						}
-						metrics.increment(MOLECULER_REQUEST_ERROR_TOTAL, "Number of request errors", "action",
+						metrics.increment(MOLECULER_REQUEST_ERROR_TOTAL, MOLECULER_REQUEST_ERROR_TOTAL_DESC, "action",
 								actionName, "type", callType, "caller", ctx.nodeID, "errorName", errorName, "errorCode",
 								Integer.toString(errorCode), "errorType", errorType);
 

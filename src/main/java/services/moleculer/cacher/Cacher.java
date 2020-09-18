@@ -34,7 +34,11 @@ import io.datatree.Promise;
 import io.datatree.Tree;
 import io.datatree.dom.Config;
 import io.datatree.dom.converters.DataConverterRegistry;
+import services.moleculer.ServiceBroker;
+import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.Context;
+import services.moleculer.metrics.MetricConstants;
+import services.moleculer.metrics.Metrics;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.Name;
@@ -47,7 +51,24 @@ import services.moleculer.service.Name;
  * @see RedisCacher
  */
 @Name("Cacher")
-public abstract class Cacher extends Middleware {
+public abstract class Cacher extends Middleware implements MetricConstants {
+
+	// --- METRICS ---
+
+	protected Metrics metrics;
+
+	// --- START MIDDLEWARE ---
+
+	@Override
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
+
+		// Get metrics
+		ServiceBrokerConfig cfg = broker.getConfig();
+		if (cfg.isMetricsEnabled()) {
+			metrics = cfg.getMetrics();
+		}
+	}
 
 	// --- ADD MIDDLEWARE TO ACTION ---
 
@@ -86,10 +107,38 @@ public abstract class Cacher extends Middleware {
 		// Get TTL (0 = use default TTL)
 		final int ttl = cacheNode.get("ttl", 0);
 
+		// Metrics is disabled
+		if (metrics == null) {
+			return new Action() {
+
+				@Override
+				public Object handler(Context ctx) throws Exception {
+					String key = getCacheKey(ctx.name, ctx.params, keys);
+					return new Promise(resolver -> {
+						get(key).then(in -> {
+							if (in == null || in.isNull()) {
+								new Promise(action.handler(ctx)).then(tree -> {
+									set(key, tree, ttl);
+									resolver.resolve(tree);
+								}).catchError(err -> {
+									resolver.reject(err);
+								});
+							} else {
+								resolver.resolve(in);
+							}
+						}).catchError(err -> {
+							resolver.reject(err);
+						});
+					});
+				}
+			};
+		}
+		
+		// Metrics is enabled
 		return new Action() {
 
 			@Override
-			public Object handler(Context ctx) throws Exception {
+			public Object handler(Context ctx) throws Exception {			
 				String key = getCacheKey(ctx.name, ctx.params, keys);
 				return new Promise(resolver -> {
 					get(key).then(in -> {
@@ -108,7 +157,6 @@ public abstract class Cacher extends Middleware {
 					});
 				});
 			}
-			
 		};
 	}
 

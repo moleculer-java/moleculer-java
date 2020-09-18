@@ -38,6 +38,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Objects;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.Deflater;
 
 import org.caffinitas.ohc.CacheSerializer;
@@ -48,6 +51,8 @@ import io.datatree.Promise;
 import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.Matcher;
+import services.moleculer.metrics.MetricCounter;
+import services.moleculer.metrics.StoppableTimer;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
 import services.moleculer.service.Name;
@@ -143,6 +148,21 @@ public class OHCacher extends Cacher {
 
 	protected OHCache<byte[], byte[]> cache;
 
+	// --- METRICS TIMER ---
+
+	/**
+	 * Cancelable timer
+	 */
+	protected volatile ScheduledFuture<?> timer;
+
+	// --- COUNTERS ---
+
+	protected MetricCounter counterGet;
+	protected MetricCounter counterSet;
+	protected MetricCounter counterDel;
+	protected MetricCounter counterClean;
+	protected MetricCounter counterFound;
+
 	// --- CONSTRUCTORS ---
 
 	/**
@@ -229,16 +249,46 @@ public class OHCacher extends Cacher {
 		builder.valueSerializer(serializer);
 
 		// Set scheduler
-		builder.executorService(broker.getConfig().getScheduler());
+		ScheduledExecutorService scheduler = broker.getConfig().getScheduler();
+		builder.executorService(scheduler);
 
 		// Create cache
 		cache = builder.throwOOME(true).build();
+
+		// Create counters
+		if (metrics != null) {
+			counterGet = metrics.increment(MOLECULER_CACHER_GET_TOTAL, MOLECULER_CACHER_GET_TOTAL_DESC, 0);
+			counterSet = metrics.increment(MOLECULER_CACHER_SET_TOTAL, MOLECULER_CACHER_SET_TOTAL_DESC, 0);
+			counterDel = metrics.increment(MOLECULER_CACHER_DEL_TOTAL, MOLECULER_CACHER_DEL_TOTAL_DESC, 0);
+			counterClean = metrics.increment(MOLECULER_CACHER_CLEAN_TOTAL, MOLECULER_CACHER_CLEAN_TOTAL_DESC, 0);
+			counterFound = metrics.increment(MOLECULER_CACHER_FOUND_TOTAL, MOLECULER_CACHER_FOUND_TOTAL_DESC, 0);
+			
+			// Expired entries
+			timer = scheduler.scheduleWithFixedDelay(new Runnable() {
+				
+				long prevExpired = -1;
+				
+				@Override
+				public final void run() {
+					long expired = cache.stats().getExpireCount();
+					if (expired != prevExpired) {
+						prevExpired = expired;
+						metrics.set(MOLECULER_CACHER_EXPIRED_TOTAL, MOLECULER_CACHER_EXPIRED_TOTAL_DESC, expired);
+					}
+				}
+				
+			}, 5, 5, TimeUnit.SECONDS);
+		}
 	}
 
 	// --- CLOSE CACHE INSTANCE ---
 
 	@Override
 	public void stopped() {
+		if (timer != null) {
+			timer.cancel(false);
+			timer = null;
+		}
 		if (cache != null) {
 			try {
 				cache.close();
@@ -252,19 +302,42 @@ public class OHCacher extends Cacher {
 
 	@Override
 	public Promise get(String key) {
+
+		// Metrics
+		StoppableTimer getTimer = null;
+		if (metrics != null) {
+			counterGet.increment();
+			getTimer = metrics.timer(MOLECULER_CACHER_GET_TIME, MOLECULER_CACHER_GET_TIME_DESC);
+		}
+
 		try {
 			byte[] bytes = cache.get(keyToBytes(key));
 			if (bytes != null) {
+				if (counterFound != null) {
+					counterFound.increment();
+				}				
 				return Promise.resolve(bytesToValue(bytes));
 			}
 		} catch (Throwable cause) {
 			logger.warn("Unable to read data from off-heap cache!", cause);
+		} finally {
+			if (getTimer != null) {
+				getTimer.stop();
+			}
 		}
 		return Promise.resolve((Object) null);
 	}
 
 	@Override
 	public Promise set(String key, Tree value, int ttl) {
+
+		// Metrics
+		StoppableTimer setTimer = null;
+		if (metrics != null) {
+			counterSet.increment();
+			setTimer = metrics.timer(MOLECULER_CACHER_SET_TIME, MOLECULER_CACHER_SET_TIME_DESC);
+		}
+
 		try {
 			if (value == null) {
 				cache.remove(keyToBytes(key));
@@ -282,22 +355,46 @@ public class OHCacher extends Cacher {
 			}
 		} catch (Throwable cause) {
 			logger.warn("Unable to write data to off-heap cache!", cause);
+		} finally {
+			if (setTimer != null) {
+				setTimer.stop();
+			}
 		}
 		return Promise.resolve();
 	}
 
 	@Override
 	public Promise del(String key) {
+
+		// Metrics
+		StoppableTimer delTimer = null;
+		if (metrics != null) {
+			counterDel.increment();
+			delTimer = metrics.timer(MOLECULER_CACHER_DEL_TIME, MOLECULER_CACHER_DEL_TIME_DESC);
+		}
+
 		try {
 			cache.remove(keyToBytes(key));
 		} catch (Throwable cause) {
 			logger.warn("Unable to delete data from off-heap cache!", cause);
+		} finally {
+			if (delTimer != null) {
+				delTimer.stop();
+			}
 		}
 		return Promise.resolve();
 	}
 
 	@Override
 	public Promise clean(String match) {
+
+		// Metrics
+		StoppableTimer cleanTimer = null;
+		if (metrics != null) {
+			counterClean.increment();
+			cleanTimer = metrics.timer(MOLECULER_CACHER_CLEAN_TIME, MOLECULER_CACHER_CLEAN_TIME_DESC);
+		}
+
 		try {
 			if (match.isEmpty() || match.startsWith("*")) {
 				cache.clear();
@@ -319,6 +416,10 @@ public class OHCacher extends Cacher {
 			}
 		} catch (Throwable cause) {
 			logger.warn("Unable to clean off-heap cache!", cause);
+		} finally {
+			if (cleanTimer != null) {
+				cleanTimer.stop();
+			}
 		}
 		return Promise.resolve();
 	}

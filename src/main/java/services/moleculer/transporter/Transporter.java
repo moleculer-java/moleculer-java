@@ -267,11 +267,11 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 		if (cfg.isMetricsEnabled()) {
 			metrics = cfg.getMetrics();
 			if (metrics != null) {
-				metrics.set(MOLECULER_TRANSIT_CONNECTED, "Transit is connected", 0);
-				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL, "Number of sent packets", 0);
-				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES, "Amount of total bytes sent", 0);				
-				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_TOTAL, "Number of received packets", 0);
-				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_BYTES, "Size of all received data in bytes", 0);				
+				metrics.set(MOLECULER_TRANSIT_CONNECTED, MOLECULER_TRANSIT_CONNECTED_DESC, 0);
+				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL, MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL_DESC, 0);
+				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES, MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES_DESC, 0);				
+				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_TOTAL, MOLECULER_TRANSPORTER_PACKETS_RECEIVED_TOTAL_DESC, 0);
+				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_BYTES, MOLECULER_TRANSPORTER_PACKETS_RECEIVED_BYTES_DESC, 0);				
 			}
 		}
 
@@ -682,8 +682,8 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 			
 			// Metrics
 			if (metrics != null) {
-				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_TOTAL, "Number of received packets");
-				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_BYTES, "Size of all received data in bytes", message.length);
+				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_TOTAL, MOLECULER_TRANSPORTER_PACKETS_RECEIVED_TOTAL_DESC);
+				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_BYTES, MOLECULER_TRANSPORTER_PACKETS_RECEIVED_BYTES_DESC, message.length);
 			}
 			
 			// Process parsed (JSON) request
@@ -944,7 +944,7 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 		
 		// Metrics
 		if (metrics != null) {
-			metrics.set(MOLECULER_TRANSIT_CONNECTED, "Transit is connected", 1); 
+			metrics.set(MOLECULER_TRANSIT_CONNECTED, MOLECULER_TRANSIT_CONNECTED_DESC, 1); 
 		}		
 	}
 
@@ -954,7 +954,7 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 		
 		// Metrics
 		if (metrics != null) {
-			metrics.set(MOLECULER_TRANSIT_CONNECTED, "Transit is connected", 0); 
+			metrics.set(MOLECULER_TRANSIT_CONNECTED, MOLECULER_TRANSIT_CONNECTED_DESC, 0); 
 		}		
 	}
 

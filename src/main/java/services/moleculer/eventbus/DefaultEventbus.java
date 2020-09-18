@@ -590,7 +590,7 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 				String groupList = String.join(".", groupArray);
 				tags = new String[] { "event", ctx.name, "groups", groupList };
 			}
-			metrics.increment(MOLECULER_EVENT_EMIT_TOTAL, "Number of emitted events", tags);
+			metrics.increment(MOLECULER_EVENT_EMIT_TOTAL, MOLECULER_EVENT_EMIT_TOTAL_DESC, tags);
 		}
 
 		// Invoke listeners
@@ -761,10 +761,10 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 			String name, desc;
 			if (local) {
 				name = MOLECULER_EVENT_BROADCASTLOCAL_TOTAL;
-				desc = "Number of local broadcast events";
+				desc = MOLECULER_EVENT_BROADCASTLOCAL_TOTAL_DESC;
 			} else {
 				name = MOLECULER_EVENT_BROADCAST_TOTAL;
-				desc = "Number of broadcast events";
+				desc = MOLECULER_EVENT_BROADCAST_TOTAL_DESC;
 			}
 			metrics.increment(name, desc, tags);
 		}
