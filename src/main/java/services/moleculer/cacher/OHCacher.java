@@ -52,6 +52,7 @@ import io.datatree.Tree;
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.Matcher;
 import services.moleculer.metrics.MetricCounter;
+import services.moleculer.metrics.MetricGauge;
 import services.moleculer.metrics.StoppableTimer;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
@@ -157,6 +158,7 @@ public class OHCacher extends Cacher {
 
 	// --- COUNTERS ---
 
+	protected MetricGauge gaugeExpired;
 	protected MetricCounter counterGet;
 	protected MetricCounter counterSet;
 	protected MetricCounter counterDel;
@@ -257,6 +259,7 @@ public class OHCacher extends Cacher {
 
 		// Create counters
 		if (metrics != null) {
+			gaugeExpired = metrics.set(MOLECULER_CACHER_EXPIRED_TOTAL, MOLECULER_CACHER_EXPIRED_TOTAL_DESC, 0);
 			counterGet = metrics.increment(MOLECULER_CACHER_GET_TOTAL, MOLECULER_CACHER_GET_TOTAL_DESC, 0);
 			counterSet = metrics.increment(MOLECULER_CACHER_SET_TOTAL, MOLECULER_CACHER_SET_TOTAL_DESC, 0);
 			counterDel = metrics.increment(MOLECULER_CACHER_DEL_TOTAL, MOLECULER_CACHER_DEL_TOTAL_DESC, 0);
@@ -273,7 +276,7 @@ public class OHCacher extends Cacher {
 					long expired = cache.stats().getExpireCount();
 					if (expired != prevExpired) {
 						prevExpired = expired;
-						metrics.set(MOLECULER_CACHER_EXPIRED_TOTAL, MOLECULER_CACHER_EXPIRED_TOTAL_DESC, expired);
+						gaugeExpired.set(expired);
 					}
 				}
 				

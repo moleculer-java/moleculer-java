@@ -152,11 +152,12 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 
 	@Override
 	public void run() {
+		long now = System.currentTimeMillis();
 		final long stamp = lock.writeLock();
 		try {
 			Iterator<ErrorCounter> i = errorCounters.values().iterator();
 			while (i.hasNext()) {
-				if (i.next().isEmpty()) {
+				if (i.next().canRemove(now)) {
 					i.remove();
 				}
 			}
@@ -218,19 +219,19 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 			final ErrorCounter currentCounter = errorCounter;
 			final EndpointKey currentKey = endpointKey;
 			return Promise.resolve(action.handler(ctx)).then(rsp -> {
-
+				
 				// Reset error counter
 				if (currentCounter != null) {
-					currentCounter.reset();
+					currentCounter.onSuccess();
 				}
 
 				// Return response
 				return rsp;
-
+				
 			}).catchError(cause -> {
 
 				// Increment error counter
-				increment(currentCounter, currentKey, cause, System.currentTimeMillis());
+				onError(currentCounter, currentKey, cause);
 
 				// Retry
 				return retry(ctx, targetID, remaining, cause);
@@ -239,7 +240,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 		} catch (Throwable cause) {
 
 			// Increment error counter
-			increment(errorCounter, endpointKey, cause, System.currentTimeMillis());
+			onError(errorCounter, endpointKey, cause);
 
 			// Retry
 			return retry(ctx, targetID, remaining, cause);
@@ -267,7 +268,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 		return counter;
 	}
 
-	protected void increment(ErrorCounter errorCounter, EndpointKey endpointKey, Throwable cause, long now) {
+	protected void onError(ErrorCounter errorCounter, EndpointKey endpointKey, Throwable cause) {
 		if (endpointKey != null) {
 
 			// Check error type
@@ -283,8 +284,9 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 			}
 
 			// Create new Error Counter
+			long now = System.currentTimeMillis();
 			if (errorCounter == null) {
-				ErrorCounter counter = new ErrorCounter(windowLength, lockTimeout, maxErrors, metrics);
+				ErrorCounter counter = new ErrorCounter(windowLength, lockTimeout, maxErrors);
 				ErrorCounter prev;
 				final long stamp = lock.writeLock();
 				try {
@@ -293,12 +295,12 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 					lock.unlockWrite(stamp);
 				}
 				if (prev == null) {
-					counter.increment(now);
+					counter.onError(now);
 				} else {
-					prev.increment(now);
+					prev.onError(now);
 				}
 			} else {
-				errorCounter.increment(now);
+				errorCounter.onError(now);
 			}
 		}
 	}

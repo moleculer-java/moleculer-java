@@ -25,74 +25,101 @@
  */
 package services.moleculer.breaker;
 
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-
-import services.moleculer.metrics.Metrics;
-
 public class ErrorCounter {
 
-	// --- METRICS ---
-	
-	protected final Metrics metrics;
-	
+	// --- STATUS CODES ---
+
+	protected enum Status {
+		STATUS_OPENED, STATUS_HALF_OPENED, STATUS_CLOSED
+	}
+
 	// --- PROPERTIES ---
 
 	protected final long windowLength;
 	protected final long lockTimeout;
-	protected final int maxErrors;
 	
+	protected final int lastPos;
+
 	// --- ERROR TIMESTAMPS ---
 
-	protected final AtomicInteger errorCounter = new AtomicInteger();
-	protected final AtomicLong lastError = new AtomicLong();
-	protected final AtomicLong lastTested = new AtomicLong();
+	protected final long[] errors;
 	
 	// --- CONSTRUCTOR ---
 
-	protected ErrorCounter(long windowLength, long lockTimeout, int maxErrors, Metrics metrics) {
+	protected ErrorCounter(long windowLength, long lockTimeout, int maxErrors) {
 		this.windowLength = windowLength;
 		this.lockTimeout = lockTimeout;
-		this.maxErrors = maxErrors;
-		this.metrics = metrics;
+		this.lastPos = maxErrors - 1;
+		
+		this.errors = new long[maxErrors];
 	}
 
-	// --- INCREMENT ERROR COUNTER ---
+	// --- INCREMENT/DECREMENT ERROR COUNTER ---
 
-	protected void increment(long now) {
-		errorCounter.incrementAndGet();
-		lastError.set(now);
+	protected synchronized void onError(long now) {
+		if (errors.length > 1) {
+			System.arraycopy(errors, 1, errors, 0, lastPos);
+		}
+		errors[lastPos] = now;
 	}
 
+	protected synchronized void onSuccess() {
+		errors[0] = 0;
+	}
+	
 	// --- FOR CLEANUP ---
 
-	protected boolean isEmpty() {
-		return errorCounter.get() == 0;
+	protected synchronized boolean canRemove(long now) {
+		for (long time: errors) {
+			if (now - time <= windowLength) {
+				return false;
+			}
+		}
+		return now - errors[lastPos] > lockTimeout;
 	}
 
 	// --- CHECK ENDPOINT STATUS ---
 
+	protected synchronized Status getStatus(long now) {
+		int count = 0;
+		for (long time: errors) {
+			if (now - time <= windowLength) {
+				count++;
+			}
+		}
+		if (count <= lastPos) {
+			return Status.STATUS_OPENED;
+		}
+		if (now - errors[lastPos] <= lockTimeout) {
+			return Status.STATUS_CLOSED;
+		}
+		return Status.STATUS_HALF_OPENED;
+	}
+	
 	protected boolean isAvailable(long now) {
-		int errors = errorCounter.get();
-		if (errors < maxErrors) {
-			return true;
+		return getStatus(now) != Status.STATUS_CLOSED;
+	}
+	
+	// --- TESTING ---
+	
+	protected synchronized int getErrorCounter(long now) {
+		int counter = 0;
+		for (long time: errors) {
+			if (now - time <= windowLength) {
+				counter++;
+			}
 		}
-		long last = lastError.get();
-		if (now - last <= lockTimeout) {
-			return false;
-		}
-		long tested = lastTested.get();
-		if (now - tested <= lockTimeout) {
-			return false;
-		}
-		lastTested.set(now);
-		return true;
+		return counter;
 	}
 
-	// --- RESET VARIABLES ---
-
-	protected void reset() {
-		errorCounter.set(0);
+	protected synchronized long getLastError() {
+		long max = 0;
+		for (long time: errors) {
+			if (time > max) {
+				max = time;
+			}
+		}
+		return max;
 	}
-
+	
 }

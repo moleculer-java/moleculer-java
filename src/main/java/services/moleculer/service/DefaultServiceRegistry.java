@@ -79,6 +79,8 @@ import services.moleculer.error.ServiceNotAvailableError;
 import services.moleculer.error.ServiceNotFoundError;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.metrics.MetricConstants;
+import services.moleculer.metrics.MetricCounter;
+import services.moleculer.metrics.MetricGauge;
 import services.moleculer.metrics.Metrics;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
@@ -206,12 +208,18 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 	 * Timestamp of the service descriptor of this Moleculer Node (~=
 	 * "generated at" timestamp)
 	 */
-	private AtomicLong timestamp = new AtomicLong();
+	protected AtomicLong timestamp = new AtomicLong();
 
 	// --- CACHED SERVICE DESCRIPTOR ---
 
-	private volatile FastBuildTree cachedDescriptor;
+	protected volatile FastBuildTree cachedDescriptor;
 
+	// --- METRICS ---
+	
+	protected MetricGauge gaugeRequestsActive;
+	protected MetricGauge gaugeStreamsReceiveActive;
+	protected MetricCounter counterOrphanResponseTotal;
+	
 	// --- CONSTRUCTORS ---
 
 	public DefaultServiceRegistry() {
@@ -263,9 +271,9 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		if (cfg.isMetricsEnabled()) {
 			metrics = cfg.getMetrics();
 			if (metrics != null) {
-				metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, MOLECULER_TRANSIT_REQUESTS_ACTIVE_DESC, 0);
-				metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE_DESC, 0);
-				metrics.increment(MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL, MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL_DESC, 0);
+				gaugeRequestsActive = metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, MOLECULER_TRANSIT_REQUESTS_ACTIVE_DESC, 0);
+				gaugeStreamsReceiveActive = metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE_DESC, 0);
+				counterOrphanResponseTotal = metrics.increment(MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL, MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL_DESC, 0);				
 			}
 		}
 	}
@@ -388,10 +396,9 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		}
 
 		// Metrics
-		if (metrics != null && removed) {
-			metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, MOLECULER_TRANSIT_REQUESTS_ACTIVE_DESC, promises.size());
-			metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE_DESC,
-					requestStreams.size() + responseStreams.size());
+		if (removed && metrics != null) {
+			gaugeRequestsActive.set(promises.size());
+			gaugeStreamsReceiveActive.set(requestStreams.size() + responseStreams.size());
 		}
 
 		// Reschedule
@@ -484,8 +491,8 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		promises.put(id, new PendingPromise(promise, timeoutAt, nodeID, action, req));
 
 		// Metrics
-		if (metrics != null) {
-			metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, MOLECULER_TRANSIT_REQUESTS_ACTIVE_DESC, promises.size());
+		if (gaugeRequestsActive != null) {
+			gaugeRequestsActive.set(promises.size());
 		}
 
 		// Reschedule
@@ -500,11 +507,11 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 	protected void deregister(String id) {
 
 		// Remove Promise
-		promises.remove(id);
+		PendingPromise removed = promises.remove(id);
 
 		// Metrics
-		if (metrics != null) {
-			metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, MOLECULER_TRANSIT_REQUESTS_ACTIVE_DESC, promises.size());
+		if (gaugeRequestsActive != null && removed != null) {
+			gaugeRequestsActive.set(promises.size());
 		}
 	}
 
@@ -598,9 +605,8 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		}
 
 		// Metrics
-		if (metrics != null && requestStream != null) {
-			metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE_DESC,
-					requestStreams.size() + responseStreams.size());
+		if (gaugeStreamsReceiveActive != null && requestStream != null) {
+			gaugeStreamsReceiveActive.set(requestStreams.size() + responseStreams.size());			
 		}
 
 		// Get action property
@@ -803,8 +809,8 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 			logger.warn("Unknown (maybe timeouted) response received!", message);
 
 			// Metrics
-			if (metrics != null) {
-				metrics.increment(MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL, MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL_DESC);
+			if (counterOrphanResponseTotal != null) {
+				counterOrphanResponseTotal.increment();
 			}
 			return;
 		}
@@ -889,9 +895,8 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		}
 
 		// Metrics
-		if (metrics != null && responseStream != null) {
-			metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE_DESC,
-					requestStreams.size() + responseStreams.size());
+		if (gaugeStreamsReceiveActive != null && responseStream != null) {
+			gaugeStreamsReceiveActive.set(requestStreams.size() + responseStreams.size());			
 		}
 
 		// Get stored promise
@@ -900,16 +905,16 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 			logger.warn("Unknown (maybe timeouted) response received!", message);
 
 			// Metrics
-			if (metrics != null) {
-				metrics.increment(MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL, MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL_DESC);
+			if (counterOrphanResponseTotal != null) {
+				counterOrphanResponseTotal.increment();
 			}
 			return;
 		}
 		try {
 
 			// Metrics
-			if (metrics != null) {
-				metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, MOLECULER_TRANSIT_REQUESTS_ACTIVE_DESC, promises.size());
+			if (gaugeRequestsActive != null) {
+				gaugeRequestsActive.set(promises.size());
 			}
 
 			// Get response status (successed or not?)

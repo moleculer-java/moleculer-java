@@ -230,9 +230,8 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 				// Metrics
 				byte[] bytes = serializer.write(message);
 				if (metrics != null) {
-					metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL, MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL_DESC);
-					metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES, MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES_DESC,
-							bytes.length);
+					counterTransporterPacketsSentTotal.increment();
+					counterTransporterPacketsSentBytes.increment(bytes.length);
 				}
 				
 				// Send

@@ -86,19 +86,22 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 		if (delta != 0) {
 			counter.increment(delta);
 		}
-		return (value) -> {
+		return value -> {
 			counter.increment(value);
 		};
 	}
 
 	@Override
-	public void set(String name, String description, double value, String... tags) {
+	public MetricGauge set(String name, String description, double value, String... tags) {
 		AtomicReference<Double> store = getMetric(name, tags, () -> {
 			AtomicReference<Double> ref = new AtomicReference<>(0d);
 			Gauge.builder(name, ref, d -> d.get()).description(description).tags(tags).register(this);
 			return ref;
 		});
 		store.set(value);
+		return newValue -> {
+			store.set(newValue);
+		};
 	}
 
 	@Override

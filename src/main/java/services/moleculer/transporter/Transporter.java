@@ -51,6 +51,8 @@ import services.moleculer.context.Context;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.eventbus.Groups;
 import services.moleculer.metrics.MetricConstants;
+import services.moleculer.metrics.MetricCounter;
+import services.moleculer.metrics.MetricGauge;
 import services.moleculer.metrics.Metrics;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.serializer.JsonSerializer;
@@ -91,7 +93,7 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 	public static final String PACKET_HEARTBEAT = "HEARTBEAT";
 	public static final String PACKET_PING = "PING";
 	public static final String PACKET_PONG = "PONG";
-	
+
 	// --- CHANNELS OF CURRENT NODE ---
 
 	public String eventChannel;
@@ -174,9 +176,9 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 	protected boolean usingJsonSerializer = true;
 
 	// --- INSTANCE ID ---
-	
+
 	protected final String instanceID;
-	
+
 	// --- COMPONENTS ---
 
 	protected ExecutorService executor;
@@ -208,11 +210,19 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 
 	protected final AtomicBoolean infoScheduled = new AtomicBoolean();
 	protected final AtomicLong infoScheduledAt = new AtomicLong();
-	
+
 	// --- FOR TESTING ONLY ---
-	
+
 	protected final AtomicLong lastReceivedMessageAt = new AtomicLong();
-	
+
+	// --- METRICS ---
+
+	protected MetricGauge gaugeTransitConnected;
+	protected MetricCounter counterTransporterPacketsSentTotal;
+	protected MetricCounter counterTransporterPacketsSentBytes;
+	protected MetricCounter counterTransporterPacketsReceivedTotal;
+	protected MetricCounter counterTransporterPacketsReceivedBytes;
+
 	// --- CONSTUCTORS ---
 
 	public Transporter() {
@@ -240,7 +250,7 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 		if (debug) {
 			serializer.setDebug(true);
 		}
-		
+
 		// Process config
 		ServiceBrokerConfig cfg = broker.getConfig();
 		namespace = cfg.getNamespace();
@@ -267,11 +277,15 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 		if (cfg.isMetricsEnabled()) {
 			metrics = cfg.getMetrics();
 			if (metrics != null) {
-				metrics.set(MOLECULER_TRANSIT_CONNECTED, MOLECULER_TRANSIT_CONNECTED_DESC, 0);
-				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL, MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL_DESC, 0);
-				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES, MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES_DESC, 0);				
-				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_TOTAL, MOLECULER_TRANSPORTER_PACKETS_RECEIVED_TOTAL_DESC, 0);
-				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_BYTES, MOLECULER_TRANSPORTER_PACKETS_RECEIVED_BYTES_DESC, 0);				
+				gaugeTransitConnected = metrics.set(MOLECULER_TRANSIT_CONNECTED, MOLECULER_TRANSIT_CONNECTED_DESC, 0);
+				counterTransporterPacketsSentTotal = metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL,
+						MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL_DESC, 0);
+				counterTransporterPacketsSentBytes = metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES,
+						MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES_DESC, 0);
+				counterTransporterPacketsReceivedTotal = metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_TOTAL,
+						MOLECULER_TRANSPORTER_PACKETS_RECEIVED_TOTAL_DESC, 0);
+				counterTransporterPacketsReceivedBytes = metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_BYTES,
+						MOLECULER_TRANSPORTER_PACKETS_RECEIVED_BYTES_DESC, 0);
 			}
 		}
 
@@ -287,7 +301,7 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 		heartbeatChannel = channel(PACKET_HEARTBEAT, null);
 		pingChannel = channel(PACKET_PING, nodeID);
 		pongChannel = channel(PACKET_PONG, nodeID);
-				
+
 	}
 
 	protected String channel(String cmd, String nodeID) {
@@ -327,13 +341,13 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 					subscribe(disconnectChannel), // DISCONNECT
 					subscribe(discoverBroadcastChannel), // DISCOVER
 					subscribe(infoBroadcastChannel), // INFO
-					subscribe(heartbeatChannel) // HEARTBEAT					
+					subscribe(heartbeatChannel) // HEARTBEAT
 			).then(in -> {
 				promise.complete();
 
 				// Redis transporter is ready for use
 				logger.info("All channels subscribed successfully.");
-				
+
 				// Do the discovery process
 				scheduler.schedule(() -> {
 					sendDiscoverPacket(discoverBroadcastChannel);
@@ -355,7 +369,7 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 
 				// Notify internal listeners
 				broadcastTransporterConnected();
-				
+
 			}).catchError(error -> {
 
 				logger.warn("Unable to subscribe channels!", error);
@@ -403,7 +417,7 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 	// --- GENERIC MOLECULER PACKETS ---
 
 	protected void sendInfoPacket(String channel) {
-		Tree msg = removeLocalEvents(registry.getDescriptor());		
+		Tree msg = removeLocalEvents(registry.getDescriptor());
 		msg.put("ver", protocolVersion);
 		msg.put("sender", nodeID);
 		msg.put("seq", registry.getTimestamp());
@@ -679,13 +693,13 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 	 */
 	protected void processReceivedMessage(String channel, byte[] message) {
 		try {
-			
+
 			// Metrics
 			if (metrics != null) {
-				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_TOTAL, MOLECULER_TRANSPORTER_PACKETS_RECEIVED_TOTAL_DESC);
-				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_RECEIVED_BYTES, MOLECULER_TRANSPORTER_PACKETS_RECEIVED_BYTES_DESC, message.length);
+				counterTransporterPacketsReceivedTotal.increment();
+				counterTransporterPacketsReceivedBytes.increment(message.length);
 			}
-			
+
 			// Process parsed (JSON) request
 			processReceivedMessage(channel, serializer.read(message));
 		} catch (Exception cause) {
@@ -941,21 +955,21 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 	protected void broadcastTransporterConnected() {
 		eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
 				"$transporter.connected", null, 1, null, null, null, null, nodeID), null, true);
-		
+
 		// Metrics
-		if (metrics != null) {
-			metrics.set(MOLECULER_TRANSIT_CONNECTED, MOLECULER_TRANSIT_CONNECTED_DESC, 1); 
-		}		
+		if (gaugeTransitConnected != null) {
+			gaugeTransitConnected.set(1);
+		}
 	}
 
 	protected void broadcastTransporterDisconnected() {
 		eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
 				"$transporter.disconnected", null, 1, null, null, null, null, nodeID), null, true);
-		
+
 		// Metrics
-		if (metrics != null) {
-			metrics.set(MOLECULER_TRANSIT_CONNECTED, MOLECULER_TRANSIT_CONNECTED_DESC, 0); 
-		}		
+		if (gaugeTransitConnected != null) {
+			gaugeTransitConnected.set(0);
+		}
 	}
 
 	protected void broadcastNodeConnected(Tree info, boolean reconnected) {
@@ -995,7 +1009,7 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 			scheduleInfoPacket();
 		}
 	}
-	
+
 	protected void scheduleInfoPacket() {
 		scheduler.schedule(() -> {
 			if (System.currentTimeMillis() - infoScheduledAt.get() >= 1000L) {
@@ -1004,7 +1018,7 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 			} else {
 				scheduleInfoPacket();
 			}
-		}, 1, TimeUnit.SECONDS);		
+		}, 1, TimeUnit.SECONDS);
 	}
 
 	// --- TIMEOUT PROCESS ---

@@ -54,8 +54,8 @@ public class NullTransporter extends Transporter {
 		if (metrics != null) {
 			try {
 				byte[] bytes = serializer.write(message);
-				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL, MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL_DESC);
-				metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES, MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES_DESC, bytes.length);
+				counterTransporterPacketsSentTotal.increment();
+				counterTransporterPacketsSentBytes.increment(bytes.length);
 			} catch (Exception cause) {
 				logger.error("Unable to serialize message!", cause);
 			}

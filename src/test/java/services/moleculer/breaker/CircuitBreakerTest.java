@@ -105,8 +105,8 @@ public class CircuitBreakerTest extends TestCase {
 		assertFalse(ok);
 		ErrorCounter ec = cb.errorCounters.get(new EndpointKey(nodeID, "test.test"));
 		assertNotNull(ec);
-		assertEquals(1, ec.errorCounter.get());
-		long now = ec.lastError.get();
+		long now = System.currentTimeMillis();
+		assertEquals(1, ec.getErrorCounter(now));
 		assertTrue(ec.isAvailable(now));
 
 		// Create faults2
@@ -121,7 +121,7 @@ public class CircuitBreakerTest extends TestCase {
 		assertFalse(ok);
 		ec = cb.errorCounters.get(new EndpointKey(nodeID, "test.test"));
 		assertNotNull(ec);
-		assertEquals(1, ec.errorCounter.get());
+		assertEquals(1, ec.getErrorCounter(now));
 
 		// Create fault
 		int node1Count = 0;
@@ -142,13 +142,13 @@ public class CircuitBreakerTest extends TestCase {
 				assertNotNull(ec);
 				if (node1Count < 3) {
 					if (node1Count == 1) {
-						assertTrue(ec.errorCounter.get() == 1);
+						assertTrue(ec.getErrorCounter(now) == 1);
 					} else if (node1Count == 2) {
-						assertTrue(ec.errorCounter.get() == 2);
+						assertTrue(ec.getErrorCounter(now) == 2);
 					}
 					assertTrue(ec.isAvailable(now));
 				} else {
-					assertTrue(ec.errorCounter.get() == 3);
+					assertTrue(ec.getErrorCounter(now) == 3);
 					assertFalse(ec.isAvailable(now));
 				}
 			}
@@ -163,27 +163,7 @@ public class CircuitBreakerTest extends TestCase {
 
 		// Retrying once
 		now += 10001;
-		assertTrue(ec.isAvailable(now));
-		assertFalse(ec.isAvailable(now));
-		assertFalse(ec.isAvailable(now));
-
-		// + 5 sec
-		now += 5000;
-		assertFalse(ec.isAvailable(now));
-		assertFalse(ec.isAvailable(now));
-		assertFalse(ec.isAvailable(now));
-
-		// + 10 sec (5000 + 5001)
-		now += 5001;
-		assertTrue(ec.isAvailable(now));
-		assertFalse(ec.isAvailable(now));
-		assertFalse(ec.isAvailable(now));
-		
-		// Avaliable
-		ec.reset();
-		assertTrue(ec.isAvailable(now));
-		assertTrue(ec.isAvailable(now));
-		assertTrue(ec.isAvailable(now));
+		assertTrue (ec.isAvailable(now));
 	}
 
 	public String createResponse(boolean success) throws Exception {
@@ -271,6 +251,7 @@ public class CircuitBreakerTest extends TestCase {
 			ok = false;
 		}
 		assertTrue(ok);
+		now = System.currentTimeMillis();
 		assertTrue(ec.isAvailable(now));
 	}
 
@@ -322,7 +303,6 @@ public class CircuitBreakerTest extends TestCase {
 			};
 
 		});
-		// cb.setEnabled(true);
 		long start = System.currentTimeMillis();
 		for (int i = 0; i < 50; i++) {
 			int rsp = br.call("math.add", "a", i, "b", 1).waitFor(20000).asInteger();

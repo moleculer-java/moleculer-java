@@ -722,9 +722,8 @@ public class TcpTransporter extends Transporter {
 
 				// Metrics
 				if (metrics != null) {
-					metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL, MOLECULER_TRANSPORTER_PACKETS_SENT_TOTAL_DESC);
-					metrics.increment(MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES, MOLECULER_TRANSPORTER_PACKETS_SENT_BYTES_DESC,
-							packet.length);
+					counterTransporterPacketsSentTotal.increment();
+					counterTransporterPacketsSentBytes.increment(packet.length);
 				}
 				
 				// Send packet to endpoint

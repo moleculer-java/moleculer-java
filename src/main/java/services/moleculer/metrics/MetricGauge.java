@@ -25,36 +25,9 @@
  */
 package services.moleculer.metrics;
 
-import java.time.Duration;
+@FunctionalInterface
+public interface MetricGauge {
 
-import services.moleculer.service.MoleculerLifecycle;
-import services.moleculer.service.Name;
-
-@Name("Metric Registry")
-public interface Metrics extends MoleculerLifecycle {
-
-	// --- CONSTANTS ---
-	
-	public static final Duration ONE_SECOND = Duration.ofSeconds(1);
-	
-	// --- COUNTER ---
-	
-	public default MetricCounter increment(String name, String description, String... tags) {
-		return increment(name, description, 1, tags);
-	}
-	
-	public MetricCounter increment(String name, String description, double delta, String... tags);
-
-	// --- GAUGE ---
-	
-	public MetricGauge set(String name, String description, double value, String... tags);
-
-	// --- TIMER ---
-	
-	public default StoppableTimer timer(String name, String description, String... tags) {
-		return timer(name, description, ONE_SECOND, tags);
-	}
-	
-	public StoppableTimer timer(String name, String description, Duration duration, String... tags);
+	public void set(double value);
 	
 }
