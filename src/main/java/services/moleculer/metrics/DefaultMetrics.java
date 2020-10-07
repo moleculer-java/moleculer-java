@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.binder.MeterBinder;
@@ -69,6 +70,29 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 	protected final StampedLock lock = new StampedLock();
 
 	protected DropwizardReporters reporters;
+
+	// --- PROPERTIES ---
+
+	protected boolean publishPercentileHistogram;
+
+	protected int percentilePrecision = 2;
+
+	protected int distributionStatisticBufferLength = 5;
+
+	protected double[] percentiles = { 0.75, 0.95, 0.98, 0.99, 0.999 };
+
+	// --- CONSTRUCTORS ---
+	
+	public DefaultMetrics() {
+	}
+
+	public DefaultMetrics(MeterRegistry... registries) {
+		if (registries != null && registries.length > 0) {
+			for (MeterRegistry registry: registries) {
+				add(registry);
+			}
+		}
+	}
 
 	// --- START METRICS ---
 
@@ -106,9 +130,10 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 
 	@Override
 	public StoppableTimer timer(String name, String description, Duration duration, String... tags) {
-		Timer timer = Timer.builder(name).description(description).tags(tags).publishPercentileHistogram(true)
-				.percentilePrecision(2).distributionStatisticBufferLength(5).distributionStatisticExpiry(duration)
-				.publishPercentiles(0.75, 0.95, 0.98, 0.99, 0.999).register(this);
+		Timer timer = Timer.builder(name).description(description).tags(tags)
+				.publishPercentileHistogram(publishPercentileHistogram).percentilePrecision(percentilePrecision)
+				.distributionStatisticBufferLength(distributionStatisticBufferLength)
+				.distributionStatisticExpiry(duration).publishPercentiles(percentiles).register(this);
 		long start = System.nanoTime();
 		AtomicBoolean submitted = new AtomicBoolean();
 		return () -> {
@@ -345,4 +370,38 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 		}
 	}
 
+	// --- GETTERS / SETTERS ---
+
+	public boolean isPublishPercentileHistogram() {
+		return publishPercentileHistogram;
+	}
+
+	public void setPublishPercentileHistogram(boolean publishPercentileHistogram) {
+		this.publishPercentileHistogram = publishPercentileHistogram;
+	}
+
+	public int getPercentilePrecision() {
+		return percentilePrecision;
+	}
+
+	public void setPercentilePrecision(int percentilePrecision) {
+		this.percentilePrecision = percentilePrecision;
+	}
+
+	public int getDistributionStatisticBufferLength() {
+		return distributionStatisticBufferLength;
+	}
+
+	public void setDistributionStatisticBufferLength(int distributionStatisticBufferLength) {
+		this.distributionStatisticBufferLength = distributionStatisticBufferLength;
+	}
+
+	public double[] getPercentiles() {
+		return percentiles;
+	}
+
+	public void setPercentiles(double[] percentiles) {
+		this.percentiles = percentiles;
+	}
+	
 }

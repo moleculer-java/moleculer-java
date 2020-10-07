@@ -404,7 +404,7 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 
 	@Override
 	public void addListeners(String serviceName, Service service) {
-
+		
 		// Service name with version
 		String name = (serviceName == null || serviceName.isEmpty()) ? service.getName() : serviceName;
 		Class<? extends Service> clazz = service.getClass();
@@ -456,7 +456,7 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 				// Register listener in EventBus
 				field.setAccessible(true);
 				Listener listener = (Listener) getFieldFromProxy(service, field);
-
+				
 				// Private (hidden) listener?
 				boolean privateAccess = Modifier.isPrivate(field.getModifiers());
 

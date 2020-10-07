@@ -89,21 +89,21 @@ dependencies {
     // --- DATATREE API ---
     	    
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-adapters
-	implementation group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.13'
+	implementation group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.14'
 
     // --- PROMISE API ---
     
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-promise
 	// implementation project(':datatree-promise')
-	implementation group: 'com.github.berkesa', name: 'datatree-promise', version: '1.0.6'
+	implementation group: 'com.github.berkesa', name: 'datatree-promise', version: '1.0.7'
 
     // --- SERIALIZER APIS ---
    
 	// https://mvnrepository.com/artifact/de.undercouch/bson4jackson
-	implementation group: 'de.undercouch', name: 'bson4jackson', version: '2.9.2'
+	implementation group: 'de.undercouch', name: 'bson4jackson', version: '2.11.0'
  
 	// https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
-	implementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: '2.10.1'
+	implementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: '2.11.3'
  
 	// https://mvnrepository.com/artifact/software.amazon.ion/ion-java
 	implementation group: 'software.amazon.ion', name: 'ion-java', version: '1.5.1'
@@ -112,7 +112,7 @@ dependencies {
 	implementation group: 'org.msgpack', name: 'msgpack', version: '0.6.12'
  
 	// https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/jackson-dataformat-smile
-	implementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-smile', version: '2.10.1'
+	implementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-smile', version: '2.11.3'
  
 	// =============== MONITORING ===============
 	
@@ -128,12 +128,12 @@ dependencies {
     // --- SPRING FRAMEWORK (REQUIRED FOR MOLECULER RUNNER) ---
 
 	// https://mvnrepository.com/artifact/org.springframework/spring-context
-	implementation group: 'org.springframework', name: 'spring-context', version: '5.2.3.RELEASE'
+	implementation group: 'org.springframework', name: 'spring-context', version: '5.2.9.RELEASE'
 
     // --- SPRING BOOT (OPTIONAL!) ---
     
 	// https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter
-	implementation (group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.2.4.RELEASE') {
+	implementation (group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.3.4.RELEASE') {
 		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
 	}
 
@@ -162,7 +162,7 @@ dependencies {
 	// --- DEPENDENCY OF THE NATS TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/io.nats/jnats
-	implementation group: 'io.nats', name: 'jnats', version: '2.6.6'
+	implementation group: 'io.nats', name: 'jnats', version: '2.8.0'
 
 	// --- DEPENDENCY OF THE NATS-STREAMING TRANSPORTER ---
 	
@@ -182,17 +182,17 @@ dependencies {
 	// --- ACTIVE QM CLIENT API FOR JMS TESTING ---
 
 	// https://mvnrepository.com/artifact/org.apache.activemq/activemq-client
-	implementation group: 'org.apache.activemq', name: 'activemq-client', version: '5.15.11'
+	implementation group: 'org.apache.activemq', name: 'activemq-client', version: '5.16.0'
 
 	// --- DEPENDENCY OF THE AMQP/RABBITMQ TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/com.rabbitmq/amqp-client
-	implementation group: 'com.rabbitmq', name: 'amqp-client', version: '5.8.0'
+	implementation group: 'com.rabbitmq', name: 'amqp-client', version: '5.9.0'
 
 	// --- DEPENDENCY OF THE KAFKA TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients
-	implementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.4.0'
+	implementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.6.0'
 
 	// =============== METRICS ===============
 
@@ -204,7 +204,18 @@ dependencies {
 	// --- DEPENDENCY OF THE MICROMETER METRIC REGISTRY ---
 	
 	// https://mvnrepository.com/artifact/io.micrometer/micrometer-core
-	compile group: 'io.micrometer', name: 'micrometer-core', version: '1.5.4'
+	compile group: 'io.micrometer', name: 'micrometer-core', version: '1.5.5'
+
+	// --- TEST MICROMETER METRIC REGISTRIES ---
+	
+	// https://mvnrepository.com/artifact/io.micrometer/micrometer-registry-new-relic
+	compile group: 'io.micrometer', name: 'micrometer-registry-new-relic', version: '1.5.5'
+
+	// https://mvnrepository.com/artifact/io.micrometer/micrometer-registry-jmx
+	compile group: 'io.micrometer', name: 'micrometer-registry-jmx', version: '1.5.5'
+
+	// https://mvnrepository.com/artifact/io.micrometer/micrometer-registry-datadog
+	compile group: 'io.micrometer', name: 'micrometer-registry-datadog', version: '1.5.5'
 
 }
 
@@ -214,8 +225,8 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-version = '1.2.13-SNAPSHOT'
-// version = '1.2.13'
+// version = '1.2.13-SNAPSHOT'
+version = '1.2.13'
 
 modifyPom {
     project {
@@ -243,15 +254,21 @@ modifyPom {
             dependency {
                 groupId 'com.github.berkesa'
                 artifactId 'datatree-adapters'
-                version '1.0.13'
+                version '1.0.14'
                 scope 'runtime'
             }
             dependency {
                 groupId 'com.github.berkesa'
                 artifactId 'datatree-promise'
-                version '1.0.6'
+                version '1.0.7'
                 scope 'runtime'
-            }            
+            }
+            dependency {
+                groupId 'io.micrometer'
+                artifactId 'micrometer-core'
+                version '1.5.5'
+                scope 'runtime'
+            }
             dependency {
                 groupId 'org.slf4j'
                 artifactId 'slf4j-api'
@@ -305,4 +322,6 @@ test {
     exclude '**/KafkaStreamTest.class'
     exclude '**/JmsStreamTest.class'
     exclude '**/NatsStreamingStreamTest.class'
+    
+    exclude '**/TransporterTestSuite.class'
 }

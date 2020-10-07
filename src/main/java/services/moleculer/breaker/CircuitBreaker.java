@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
@@ -39,6 +40,7 @@ import io.datatree.Promise;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.Context;
+import services.moleculer.metrics.MetricConstants;
 import services.moleculer.metrics.Metrics;
 import services.moleculer.service.ActionEndpoint;
 import services.moleculer.service.DefaultServiceInvoker;
@@ -49,7 +51,7 @@ import services.moleculer.service.ServiceRegistry;
  * Special service invoker with retry logic + circuit breaker.
  */
 @Name("Circuit Breaker")
-public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
+public class CircuitBreaker extends DefaultServiceInvoker implements Runnable, MetricConstants {
 
 	// --- PROPERTIES ---
 
@@ -101,6 +103,10 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 
 	protected final StampedLock lock = new StampedLock();
 
+	// --- OTHER VARIABLES ---
+
+	protected long lastCleanup;
+
 	// --- CLEANUP TIMER ---
 
 	/**
@@ -120,10 +126,11 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 		if (cfg.isMetricsEnabled()) {
 			metrics = cfg.getMetrics();
 		}
-		
+
 		// Start timer
-		if (cleanup > 0) {
-			timer = broker.getConfig().getScheduler().scheduleWithFixedDelay(this, cleanup, cleanup, TimeUnit.SECONDS);
+		if (cleanup > 0 || metrics != null) {
+			long period = metrics == null ? cleanup : 1;
+			timer = broker.getConfig().getScheduler().scheduleWithFixedDelay(this, period, period, TimeUnit.SECONDS);
 		}
 	}
 
@@ -153,19 +160,69 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 	@Override
 	public void run() {
 		long now = System.currentTimeMillis();
-		final long stamp = lock.writeLock();
-		try {
-			Iterator<ErrorCounter> i = errorCounters.values().iterator();
-			while (i.hasNext()) {
-				if (i.next().canRemove(now)) {
-					i.remove();
+
+		// Cleanup
+		if (cleanup > 0 && now - lastCleanup >= cleanup * 1000L) {
+			lastCleanup = now;
+			final long stamp = lock.writeLock();
+			try {
+				Iterator<ErrorCounter> i = errorCounters.values().iterator();
+				while (i.hasNext()) {
+					if (i.next().canRemove(now)) {
+						i.remove();
+					}
 				}
+			} finally {
+				lock.unlockWrite(stamp);
 			}
-		} finally {
-			lock.unlockWrite(stamp);
+		}
+
+		if (metrics != null) {
+			
+			// Metrics
+			EndpointKey endpointKey;
+			ErrorCounter.Status status;
+			ErrorCounter errorCounter;
+			long stamp = lock.readLock();
+			try {
+				for (Map.Entry<EndpointKey, ErrorCounter> entry : errorCounters.entrySet()) {
+					endpointKey = entry.getKey();
+					errorCounter = entry.getValue();
+					String[] tags = new String[] { "affectedNodeID", endpointKey.nodeID, "action", endpointKey.name };
+					status = errorCounter.getStatus(now);
+					if (status != errorCounter.prevStatus) {
+						if (status == ErrorCounter.Status.STATUS_OPENED) {
+							metrics.increment(MOLECULER_CIRCUIT_BREAKER_OPENED_TOTAL, MOLECULER_CIRCUIT_BREAKER_OPENED_TOTAL_DESC, tags);
+						}
+						errorCounter.prevStatus = status;
+						switch (status) {
+						case STATUS_CLOSED:
+							metrics.set(MOLECULER_CIRCUIT_BREAKER_OPENED_ACTIVE,
+									MOLECULER_CIRCUIT_BREAKER_OPENED_ACTIVE_DESC, 0, tags);
+							metrics.set(MOLECULER_CIRCUIT_BREAKER_HALF_OPENED_ACTIVE,
+									MOLECULER_CIRCUIT_BREAKER_HALF_OPENED_ACTIVE_DESC, 0, tags);
+							break;
+						case STATUS_OPENED:
+							metrics.set(MOLECULER_CIRCUIT_BREAKER_OPENED_ACTIVE,
+									MOLECULER_CIRCUIT_BREAKER_OPENED_ACTIVE_DESC, 1, tags);
+							metrics.set(MOLECULER_CIRCUIT_BREAKER_HALF_OPENED_ACTIVE,
+									MOLECULER_CIRCUIT_BREAKER_HALF_OPENED_ACTIVE_DESC, 0, tags);
+							break;
+						default:
+							metrics.set(MOLECULER_CIRCUIT_BREAKER_OPENED_ACTIVE,
+									MOLECULER_CIRCUIT_BREAKER_OPENED_ACTIVE_DESC, 0, tags);
+							metrics.set(MOLECULER_CIRCUIT_BREAKER_HALF_OPENED_ACTIVE,
+									MOLECULER_CIRCUIT_BREAKER_HALF_OPENED_ACTIVE_DESC, 1, tags);
+							break;
+						}
+					}
+				}
+			} finally {
+				lock.unlockRead(stamp);
+			}
 		}
 	}
- 
+
 	// --- CALL SERVICE ---
 
 	@Override
@@ -219,7 +276,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 			final ErrorCounter currentCounter = errorCounter;
 			final EndpointKey currentKey = endpointKey;
 			return Promise.resolve(action.handler(ctx)).then(rsp -> {
-				
+
 				// Reset error counter
 				if (currentCounter != null) {
 					currentCounter.onSuccess();
@@ -227,7 +284,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable {
 
 				// Return response
 				return rsp;
-				
+
 			}).catchError(cause -> {
 
 				// Increment error counter

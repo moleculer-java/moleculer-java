@@ -39,6 +39,8 @@ public class ErrorCounter {
 	protected final long lockTimeout;
 	
 	protected final int lastPos;
+	
+	protected Status prevStatus = Status.STATUS_CLOSED;
 
 	// --- ERROR TIMESTAMPS ---
 

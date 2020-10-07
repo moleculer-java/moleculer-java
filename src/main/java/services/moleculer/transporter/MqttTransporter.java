@@ -25,7 +25,6 @@
  */
 package services.moleculer.transporter;
 
-import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -47,10 +46,11 @@ import services.moleculer.service.Name;
  * a machine-to-machine (M2M)/"Internet of Things" connectivity protocol. It was
  * designed as an extremely lightweight publish/subscribe messaging transport
  * (website: http://mqtt.org). Usage:
+ * 
  * <pre>
- * ServiceBroker broker = ServiceBroker.builder().nodeID("node1")
- * .transporter(new MqttTransporter("localhost")).build();
+ * ServiceBroker broker = ServiceBroker.builder().nodeID("node1").transporter(new MqttTransporter("localhost")).build();
  * </pre>
+ * 
  * <b>Required dependency:</b><br>
  * <br>
  * // https://mvnrepository.com/artifact/net.sf.xenqtt/xenqtt<br>
@@ -194,7 +194,7 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 			} catch (Exception ignored) {
 			}
 		}
-		
+
 		// Notify internal listeners
 		if (notify) {
 			broadcastTransporterDisconnected();
@@ -207,7 +207,7 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 		if (cause != null) {
 			String msg = cause.getMessage();
 			if (msg == null || msg.isEmpty()) {
-				msg = "Unable to connect to MQTT server!";
+				msg = "Unable to connect to MQTT server (" + String.valueOf(cause) + ")!";
 			} else if (!msg.endsWith("!") && !msg.endsWith(".")) {
 				msg += "!";
 			}
@@ -291,14 +291,14 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 				if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
 				}
-				
+
 				// Metrics
 				byte[] bytes = serializer.write(message);
 				if (metrics != null) {
 					counterTransporterPacketsSentTotal.increment();
 					counterTransporterPacketsSentBytes.increment(bytes.length);
 				}
-				
+
 				// Send
 				client.publish(new PublishMessage(channel, qos, bytes, false));
 			} catch (Exception cause) {
@@ -309,9 +309,12 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 
 	@Override
 	public void published(MqttClient client, PublishMessage message) {
-		if (debugHeartbeats) {
-			logger.info(
-					"Submitted message received by the server at " + new Date(message.getReceivedTimestamp()) + ".");
+		if (debug || debugHeartbeats) {
+			String channel = message.getTopic();
+			if (heartbeatChannel.equals(channel) && !debugHeartbeats) {
+				return;
+			}
+			logger.info("Server received message from channel \"" + channel + "\".");
 		}
 	}
 
