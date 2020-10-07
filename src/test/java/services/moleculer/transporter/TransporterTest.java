@@ -52,7 +52,7 @@ public abstract class TransporterTest extends TestCase {
 
 	// --- VARIABLES ---
 
-	protected long min = 750;
+	protected long min = 1000;
 	protected long max = 10000;
 	protected long timeout = 800;
 	
