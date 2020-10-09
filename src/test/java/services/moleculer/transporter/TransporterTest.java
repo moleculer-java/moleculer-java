@@ -54,7 +54,7 @@ public abstract class TransporterTest extends TestCase {
 
 	protected long min = 1000;
 	protected long max = 10000;
-	protected long timeout = 800;
+	protected long timeout = 1500;
 	
 	protected Transporter tr1;
 	protected ServiceBroker br1;
