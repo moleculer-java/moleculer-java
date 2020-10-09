@@ -27,8 +27,6 @@ package services.moleculer.transporter;
 
 import java.io.ByteArrayOutputStream;
 import java.util.LinkedList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
@@ -732,9 +730,8 @@ public abstract class TransporterTest extends TestCase {
 		tr2.setDebug(true);
 		
 		// Create brokers
-		ExecutorService executor = Executors.newCachedThreadPool();
-		br1 = ServiceBroker.builder().transporter(tr1).executor(executor).monitor(new ConstantMonitor()).nodeID("node1").build();
-		br2 = ServiceBroker.builder().transporter(tr2).executor(executor).monitor(new ConstantMonitor()).nodeID("node2").build();
+		br1 = ServiceBroker.builder().transporter(tr1).monitor(new ConstantMonitor()).nodeID("node1").build();
+		br2 = ServiceBroker.builder().transporter(tr2).monitor(new ConstantMonitor()).nodeID("node2").build();
 
 		// Create "marker" service
 		br1.createService("marker", new Service() {
