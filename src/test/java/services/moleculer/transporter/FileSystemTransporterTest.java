@@ -35,7 +35,7 @@ public class FileSystemTransporterTest extends TransporterTest {
 	public Transporter createTransporter() {
 		try {
 			FileSystemTransporter t = new FileSystemTransporter();
-			t.setPollingDelay(3000);
+			t.setPollingDelay(500);
 			return t;
 		} catch (Exception e) {
 			e.printStackTrace();
