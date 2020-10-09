@@ -80,7 +80,7 @@ public class MqttTransporter extends Transporter implements MqttCallback {
 	protected String username;
 	protected String password;
 	protected String[] urls = { "localhost" };
-	protected int qos = 2;
+	protected int qos = 0;
 	protected boolean cleanSession = MqttConnectOptions.CLEAN_SESSION_DEFAULT;
 	protected MemoryPersistence persistence = new MemoryPersistence();
 	protected int connectionTimeout = MqttConnectOptions.CONNECTION_TIMEOUT_DEFAULT;
