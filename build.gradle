@@ -317,7 +317,7 @@ test {
     
     exclude '**/KafkaTransporterTest.class'
     exclude '**/JmsTransporterTest.class'
-	exclude '**/FileSystemTransporterTest.class'
+	// exclude '**/FileSystemTransporterTest.class'
     exclude '**/NatsStreamingTransporterTest.class'
 
     exclude '**/KafkaStreamTest.class'
