@@ -30,7 +30,7 @@ before_install:
 
 // script: ./gradlew -S check  
 // script: ./gradlew -i -s check
-script: ./gradlew check
+script: ./gradlew --stacktrace check
 
 after_success:
   - if [ -e ./gradlew ]; then ./gradlew jacocoTestReport;else gradle jacocoTestReport;fi
