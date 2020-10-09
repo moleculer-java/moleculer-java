@@ -30,8 +30,9 @@ import org.junit.runners.Suite;
 
 @RunWith(Suite.class)
 
-// NatsTransporterTest.class, RedisTransporterTest.class
-@Suite.SuiteClasses({ AmqpTransporterTest.class, MqttTransporterTest.class })
+@Suite.SuiteClasses({ AmqpTransporterTest.class, MqttTransporterTest.class, FileSystemTransporterTest.class,
+		InternalTransporterTest.class, NatsTransporterTest.class, RedisTransporterTest.class,
+		TcpTransporterTest.class })
 
 public class TransporterTestSuite {
 }

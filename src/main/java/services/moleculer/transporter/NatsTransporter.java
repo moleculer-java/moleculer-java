@@ -26,6 +26,7 @@
 package services.moleculer.transporter;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -637,8 +638,8 @@ public class NatsTransporter extends Transporter implements MessageHandler, Conn
 	 * @param urls
 	 *            the urls to set
 	 */
-	public void setUrls(String[] urls) {
-		this.urls = urls;
+	public void setUrls(String... urls) {
+		this.urls = Objects.requireNonNull(urls);
 	}
 
 	/**

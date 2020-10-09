@@ -26,14 +26,9 @@
 package services.moleculer;
 
 import io.datatree.Tree;
-import services.moleculer.cacher.Cache;
-import services.moleculer.cacher.OHCacher;
 import services.moleculer.config.ServiceBrokerConfig;
-import services.moleculer.metrics.DefaultMetrics;
 import services.moleculer.service.Action;
 import services.moleculer.service.Service;
-import services.moleculer.service.Version;
-import services.moleculer.transporter.NatsTransporter;
 
 public class Sample {
 
@@ -42,23 +37,6 @@ public class Sample {
 
 			// Create Service Broker config
 			ServiceBrokerConfig cfg = new ServiceBrokerConfig();
-
-			// Unique nodeID
-			cfg.setNodeID("node1");
-			
-			OHCacher c = new OHCacher();
-			c.setTtl(3);
-			cfg.setCacher(c);
-
-			cfg.setMetricsEnabled(true);
-			DefaultMetrics dm = (DefaultMetrics) cfg.getMetrics();
-			dm.startCsvReporter("/temp");
-			
-			NatsTransporter transporter = new NatsTransporter("localhost");
-			transporter.setVerbose(true);
-			transporter.setDebug(true);
-			transporter.setNoEcho(true);
-			cfg.setTransporter(transporter);
 
 			// Create Service Broker by config
 			ServiceBroker broker = new ServiceBroker(cfg);
@@ -70,27 +48,22 @@ public class Sample {
 			broker.start();
 
 			// Invoke service (blocking style)
-			for (int i = 0; i < 20000; i++) {
-				Tree response = broker.call("v2.myService.first").waitFor(5000);
+			Tree response = broker.call("myService.first").waitFor(5000);
 
-				// Print response
-				System.out.println(response);
-				Thread.sleep(1000);
-			}
+			// Print response
+			System.out.println(response);
 
 			// Stop Service Broker
-			// broker.stop();
+			broker.stop();
 
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
-	@Version("2")
 	public static class MyService extends Service {
 
 		// First action (which calls the second action)
-		@Cache()
 		Action first = ctx -> {
 
 			// Create input JSON structure
@@ -108,7 +81,6 @@ public class Sample {
 		};
 
 		// Second action
-		@Cache()
 		Action second = ctx -> {
 			return ctx.params.get("a", 0) + ctx.params.get("c.d", 0);
 		};

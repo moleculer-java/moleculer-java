@@ -25,20 +25,24 @@
  */
 package services.moleculer.transporter;
 
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Objects;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+
+import javax.net.SocketFactory;
+import javax.net.ssl.HostnameVerifier;
+
+import org.eclipse.paho.client.mqttv3.IMqttActionListener;
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
+import org.eclipse.paho.client.mqttv3.IMqttToken;
+import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
+import org.eclipse.paho.client.mqttv3.MqttCallback;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
-import net.sf.xenqtt.client.AsyncClientListener;
-import net.sf.xenqtt.client.AsyncMqttClient;
-import net.sf.xenqtt.client.MqttClient;
-import net.sf.xenqtt.client.MqttClientConfig;
-import net.sf.xenqtt.client.NullReconnectStrategy;
-import net.sf.xenqtt.client.PublishMessage;
-import net.sf.xenqtt.client.Subscription;
-import net.sf.xenqtt.message.ConnectReturnCode;
-import net.sf.xenqtt.message.QoS;
 import services.moleculer.service.Name;
 
 /**
@@ -48,13 +52,17 @@ import services.moleculer.service.Name;
  * (website: http://mqtt.org). Usage:
  * 
  * <pre>
- * ServiceBroker broker = ServiceBroker.builder().nodeID("node1").transporter(new MqttTransporter("localhost")).build();
+ * ServiceBroker broker = ServiceBroker.builder().nodeID("node1").transporter(new MqttTransporter("localhost"))
+ * 		.build();
  * </pre>
  * 
  * <b>Required dependency:</b><br>
  * <br>
- * // https://mvnrepository.com/artifact/net.sf.xenqtt/xenqtt<br>
- * compile group: 'net.sf.xenqtt', name: 'xenqtt', version: '0.9.7'
+ * //
+ * https://mvnrepository.com/artifact/org.eclipse.paho/org.eclipse.paho.client.
+ * mqttv3<br>
+ * compile group: 'org.eclipse.paho', name: 'org.eclipse.paho.client.mqttv3',
+ * version: '1.2.5'
  *
  * @see TcpTransporter
  * @see RedisTransporter
@@ -65,45 +73,44 @@ import services.moleculer.service.Name;
  * @see AmqpTransporter
  */
 @Name("MQTT Transporter")
-public class MqttTransporter extends Transporter implements AsyncClientListener {
+public class MqttTransporter extends Transporter implements MqttCallback {
 
 	// --- PROPERTIES ---
 
 	protected String username;
 	protected String password;
-	protected String url = "localhost";
-
-	// --- OTHER MQTT PROPERTIES ---
-
-	protected boolean cleanSession = true;
-	protected short keepAliveSeconds = 300;
-	protected int connectTimeoutSeconds = 30;
-	protected int messageResendIntervalSeconds = 30;
-	protected int blockingTimeoutSeconds = 0;
-	protected int maxInFlightMessages = 0xffff;
-	protected QoS qos = QoS.AT_MOST_ONCE;
-
-	// --- SUBSCRIPTIONS ---
-
-	protected final ConcurrentHashMap<String, Promise> subscriptions = new ConcurrentHashMap<>();
+	protected String[] urls = { "localhost" };
+	protected int qos = 2;
+	protected boolean cleanSession = MqttConnectOptions.CLEAN_SESSION_DEFAULT;
+	protected MemoryPersistence persistence = new MemoryPersistence();
+	protected int connectionTimeout = MqttConnectOptions.CONNECTION_TIMEOUT_DEFAULT;
+	protected int executorServiceTimeout = 1;
+	protected boolean httpsHostnameVerificationEnabled = true;
+	protected int keepAliveInterval = MqttConnectOptions.KEEP_ALIVE_INTERVAL_DEFAULT;
+	protected int maxInflight = MqttConnectOptions.MAX_INFLIGHT_DEFAULT;
+	protected int mqttVersion = MqttConnectOptions.MQTT_VERSION_DEFAULT;
+	protected SocketFactory socketFactory;
+	protected HostnameVerifier hostnameVerifier;
+	protected Properties sslClientProps;
+	protected Properties customWebSocketHeaders;
 
 	// --- MQTT CONNECTION ---
 
-	protected AsyncMqttClient client;
+	protected MqttAsyncClient client;
 
 	// --- CONSTUCTORS ---
 
 	public MqttTransporter() {
 	}
 
-	public MqttTransporter(String url) {
-		this.url = url;
+	public MqttTransporter(String... urls) {
+		this.urls = Objects.requireNonNull(urls);
 	}
 
-	public MqttTransporter(String username, String password, String url) {
+	public MqttTransporter(String username, String password, String... urls) {
 		this.username = username;
 		this.password = password;
-		this.url = url;
+		this.urls = Objects.requireNonNull(urls);
 	}
 
 	// --- CONNECT ---
@@ -112,86 +119,81 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 	public void connect() {
 		try {
 
-			// Create MQTT client config
-			final MqttClientConfig config = new MqttClientConfig();
-			String uri = url;
-			if (uri.indexOf(':') == -1) {
-				uri = uri + ":1883";
-			}
-			uri = uri.replace("mqtt://", "tcp://");
-			if (url.indexOf("://") == -1) {
-				uri = "tcp://" + uri;
+			// Format URLs
+			MqttConnectOptions opts = new MqttConnectOptions();
+			for (int i = 0; i < urls.length; i++) {
+				String uri = urls[i];
+				if (uri.indexOf(':') == -1) {
+					uri = uri + ":1883";
+				}
+				uri = uri.replace("mqtt://", "tcp://");
+				if (uri.indexOf("://") == -1) {
+					uri = "tcp://" + uri;
+				}
+				urls[i] = uri;
 			}
 
 			// Set properties
-			config.setReconnectionStrategy(new NullReconnectStrategy());
-			config.setKeepAliveSeconds(keepAliveSeconds);
-			config.setConnectTimeoutSeconds(connectTimeoutSeconds);
-			config.setMessageResendIntervalSeconds(messageResendIntervalSeconds);
-			config.setBlockingTimeoutSeconds(blockingTimeoutSeconds);
-			config.setMaxInFlightMessages(maxInFlightMessages);
+			opts.setCleanSession(cleanSession);
+			if (username != null) {
+				opts.setUserName(username);
+			}
+			if (password != null) {
+				opts.setPassword(password.toCharArray());
+			}
+			opts.setAutomaticReconnect(false);
+			opts.setConnectionTimeout(connectionTimeout);
+			opts.setExecutorServiceTimeout(executorServiceTimeout);
+			opts.setHttpsHostnameVerificationEnabled(httpsHostnameVerificationEnabled);
+			opts.setKeepAliveInterval(keepAliveInterval);
+			opts.setMaxInflight(maxInflight);
+			opts.setMqttVersion(mqttVersion);
+			opts.setServerURIs(urls);
+			opts.setSocketFactory(socketFactory);
+			opts.setSSLHostnameVerifier(hostnameVerifier);
+			opts.setSSLProperties(sslClientProps);
+			opts.setCustomWebSocketHeaders(customWebSocketHeaders);
 
 			// Create MQTT client
 			disconnect();
-			client = new AsyncMqttClient(uri, this, executor, config);
-			client.connect(nodeID + '-' + broker.getConfig().getUidGenerator().nextUID(), cleanSession, username,
-					password);
+			String url = urls.length == 0 ? "tcp://localhost:1883" : urls[0];
+			client = new MqttAsyncClient(url, nodeID, persistence);
+			client.setCallback(this);
+			MqttTransporter self = this;
+			client.connect(opts, null, new IMqttActionListener() {
+
+				@Override
+				public final void onSuccess(IMqttToken asyncActionToken) {
+					logger.info("MQTT pub-sub connection estabilished.");
+					scheduler.schedule(self::connected, 100, TimeUnit.MILLISECONDS);
+				}
+
+				@Override
+				public final void onFailure(IMqttToken asyncActionToken, Throwable cause) {
+					reconnect(cause);
+				}
+
+			});
 
 		} catch (Exception cause) {
 			reconnect(cause);
 		}
 	}
 
-	// --- CONNECTED ---
-
-	@Override
-	public void connected(MqttClient client, ConnectReturnCode returnCode) {
-		logger.info("MQTT pub-sub connection estabilished.");
-		scheduler.schedule(this::connected, 100, TimeUnit.MILLISECONDS);
-	}
-
 	// --- DISCONNECT ---
-
-	@Override
-	public void disconnected(MqttClient client, Throwable cause, boolean reconnecting) {
-		if (cause != null) {
-			String msg = String.valueOf(cause).toLowerCase();
-			if (!msg.contains("refused")) {
-				logger.info("MQTT pub-sub connection aborted.");
-			}
-			reconnect(cause);
-		}
-	}
 
 	protected void disconnect() {
 		boolean notify = false;
 		if (client != null) {
 			notify = true;
 			try {
-				if (!client.isClosed()) {
-					client.disconnect();
+				if (client.isConnected()) {
 					client.close();
 				}
 			} catch (Throwable cause) {
 				logger.warn("Unexpected error occurred while closing MQTT client!", cause);
 			} finally {
 				client = null;
-				subscriptions.clear();
-			}
-			try {
-				Thread.sleep(500);
-				ThreadGroup group = Thread.currentThread().getThreadGroup();
-				Thread[] list = new Thread[group.activeCount() + 10];
-				group.enumerate(list);
-				for (Thread t : list) {
-					if (t == null) {
-						continue;
-					}
-					if ("CommandCleanup".equals(t.getName())) {
-						t.interrupt();
-					}
-				}
-			} catch (Exception ignored) {
 			}
 		}
 
@@ -221,6 +223,11 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 	// --- ANY I/O ERROR ---
 
 	@Override
+	public void connectionLost(Throwable cause) {
+		reconnect(cause);
+	}
+
+	@Override
 	protected void error(Throwable cause) {
 		reconnect(cause);
 	}
@@ -244,49 +251,32 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 
 	@Override
 	public Promise subscribe(String channel) {
-		Promise promise = new Promise();
-		if (client != null) {
-			try {
-				client.subscribe(new Subscription[] { new Subscription(channel, qos) });
-				subscriptions.put(channel, promise);
-			} catch (Exception cause) {
-				promise.complete(cause);
-			}
-		} else {
-			promise.complete(new Throwable("Not connected!"));
-		}
-		return promise;
-	}
+		return new Promise(res -> {
+			if (client != null && client.isConnected()) {
+				client.subscribe(channel, qos).setActionCallback(new IMqttActionListener() {
 
-	@Override
-	public void subscribed(MqttClient client, Subscription[] requestedSubscriptions,
-			Subscription[] grantedSubscriptions, boolean requestsGranted) {
-		for (Subscription s : grantedSubscriptions) {
-			String channel = s.getTopic();
-			Promise promise = subscriptions.remove(channel);
-			if (promise != null) {
-				promise.complete();
-			}
-			if (debug) {
-				logger.info("Channel \"" + channel + "\" subscribed successfully.");
-			}
-		}
-	}
+					@Override
+					public final void onSuccess(IMqttToken asyncActionToken) {
+						res.resolve();
+					}
 
-	@Override
-	public void unsubscribed(MqttClient client, String[] topics) {
-		if (debug) {
-			for (String s : topics) {
-				logger.info("Channel \"" + s + "\" unsubscribed successfully.");
+					@Override
+					public final void onFailure(IMqttToken asyncActionToken, Throwable cause) {
+						res.reject(cause);
+					}
+
+				});
+			} else {
+				res.reject(new Throwable("Not connected!"));
 			}
-		}
+		});
 	}
 
 	// --- PUBLISH ---
 
 	@Override
 	public void publish(String channel, Tree message) {
-		if (client != null) {
+		if (client != null && client.isConnected()) {
 			try {
 				if (debug && (debugHeartbeats || !channel.endsWith(heartbeatChannel))) {
 					logger.info("Submitting message to channel \"" + channel + "\":\r\n" + message.toString());
@@ -300,7 +290,7 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 				}
 
 				// Send
-				client.publish(new PublishMessage(channel, qos, bytes, false));
+				client.publish(channel, bytes, qos, false);
 			} catch (Exception cause) {
 				logger.warn("Unable to send message to MQTT server!", cause);
 			}
@@ -308,9 +298,13 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 	}
 
 	@Override
-	public void published(MqttClient client, PublishMessage message) {
+	public void deliveryComplete(IMqttDeliveryToken token) {
 		if (debug || debugHeartbeats) {
-			String channel = message.getTopic();
+			String[] channels = token.getTopics();
+			if (channels == null || channels.length == 0) {
+				return;
+			}
+			String channel = channels[0];
 			if (heartbeatChannel.equals(channel) && !debugHeartbeats) {
 				return;
 			}
@@ -321,21 +315,21 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 	// --- RECEIVE ---
 
 	@Override
-	public void publishReceived(MqttClient client, PublishMessage message) {
+	public void messageArrived(String topic, MqttMessage message) throws Exception {
 
 		// We are running in the shared executor's pool,
 		// do not create new task.
-		processReceivedMessage(message.getTopic(), message.getPayload());
+		processReceivedMessage(topic, message.getPayload());
 	}
 
 	// --- GETTERS / SETTERS ---
 
-	public String getUrl() {
-		return url;
+	public String[] getUrls() {
+		return urls;
 	}
 
-	public void setUrl(String url) {
-		this.url = url;
+	public void setUrls(String... urls) {
+		this.urls = Objects.requireNonNull(urls);
 	}
 
 	public String getUsername() {
@@ -354,6 +348,14 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 		this.password = password;
 	}
 
+	public int getQos() {
+		return qos;
+	}
+
+	public void setQos(int qos) {
+		this.qos = qos;
+	}
+
 	public boolean isCleanSession() {
 		return cleanSession;
 	}
@@ -362,52 +364,92 @@ public class MqttTransporter extends Transporter implements AsyncClientListener 
 		this.cleanSession = cleanSession;
 	}
 
-	public short getKeepAliveSeconds() {
-		return keepAliveSeconds;
+	public MemoryPersistence getPersistence() {
+		return persistence;
 	}
 
-	public void setKeepAliveSeconds(short keepAliveInterval) {
-		this.keepAliveSeconds = keepAliveInterval;
+	public void setPersistence(MemoryPersistence persistence) {
+		this.persistence = persistence;
 	}
 
-	public int getConnectTimeoutSeconds() {
-		return connectTimeoutSeconds;
+	public int getConnectionTimeout() {
+		return connectionTimeout;
 	}
 
-	public void setConnectTimeoutSeconds(int connectTimeoutSeconds) {
-		this.connectTimeoutSeconds = connectTimeoutSeconds;
+	public void setConnectionTimeout(int connectionTimeout) {
+		this.connectionTimeout = connectionTimeout;
 	}
 
-	public int getMessageResendIntervalSeconds() {
-		return messageResendIntervalSeconds;
+	public int getExecutorServiceTimeout() {
+		return executorServiceTimeout;
 	}
 
-	public void setMessageResendIntervalSeconds(int messageResendIntervalSeconds) {
-		this.messageResendIntervalSeconds = messageResendIntervalSeconds;
+	public void setExecutorServiceTimeout(int executorServiceTimeout) {
+		this.executorServiceTimeout = executorServiceTimeout;
 	}
 
-	public int getBlockingTimeoutSeconds() {
-		return blockingTimeoutSeconds;
+	public boolean isHttpsHostnameVerificationEnabled() {
+		return httpsHostnameVerificationEnabled;
 	}
 
-	public void setBlockingTimeoutSeconds(int blockingTimeoutSeconds) {
-		this.blockingTimeoutSeconds = blockingTimeoutSeconds;
+	public void setHttpsHostnameVerificationEnabled(boolean httpsHostnameVerificationEnabled) {
+		this.httpsHostnameVerificationEnabled = httpsHostnameVerificationEnabled;
 	}
 
-	public int getMaxInFlightMessages() {
-		return maxInFlightMessages;
+	public int getKeepAliveInterval() {
+		return keepAliveInterval;
 	}
 
-	public void setMaxInFlightMessages(int maxInFlightMessages) {
-		this.maxInFlightMessages = maxInFlightMessages;
+	public void setKeepAliveInterval(int keepAliveInterval) {
+		this.keepAliveInterval = keepAliveInterval;
 	}
 
-	public QoS getQos() {
-		return qos;
+	public int getMaxInflight() {
+		return maxInflight;
 	}
 
-	public void setQos(QoS qos) {
-		this.qos = qos;
+	public void setMaxInflight(int maxInflight) {
+		this.maxInflight = maxInflight;
+	}
+
+	public int getMqttVersion() {
+		return mqttVersion;
+	}
+
+	public void setMqttVersion(int mqttVersion) {
+		this.mqttVersion = mqttVersion;
+	}
+
+	public SocketFactory getSocketFactory() {
+		return socketFactory;
+	}
+
+	public void setSocketFactory(SocketFactory socketFactory) {
+		this.socketFactory = socketFactory;
+	}
+
+	public HostnameVerifier getHostnameVerifier() {
+		return hostnameVerifier;
+	}
+
+	public void setHostnameVerifier(HostnameVerifier hostnameVerifier) {
+		this.hostnameVerifier = hostnameVerifier;
+	}
+
+	public Properties getSslClientProps() {
+		return sslClientProps;
+	}
+
+	public void setSslClientProps(Properties sslClientProps) {
+		this.sslClientProps = sslClientProps;
+	}
+
+	public Properties getCustomWebSocketHeaders() {
+		return customWebSocketHeaders;
+	}
+
+	public void setCustomWebSocketHeaders(Properties customWebSocketHeaders) {
+		this.customWebSocketHeaders = customWebSocketHeaders;
 	}
 
 }

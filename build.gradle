@@ -171,8 +171,8 @@ dependencies {
 
 	// --- DEPENDENCY OF THE MQTT TRANSPORTER ---
 	
-	// https://mvnrepository.com/artifact/net.sf.xenqtt/xenqtt
-	implementation group: 'net.sf.xenqtt', name: 'xenqtt', version: '0.9.7'
+	// https://mvnrepository.com/artifact/org.eclipse.paho/org.eclipse.paho.client.mqttv3
+	compile group: 'org.eclipse.paho', name: 'org.eclipse.paho.client.mqttv3', version: '1.2.5'
 
 	// --- DEPENDENCY OF THE JMS TRANSPORTER ---
 
@@ -225,8 +225,8 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-// version = '1.2.13-SNAPSHOT'
-version = '1.2.13'
+// version = '1.2.14-SNAPSHOT'
+version = '1.2.14'
 
 modifyPom {
     project {
@@ -307,7 +307,7 @@ compileJava {
 
 jar {
     baseName = 'moleculer'
-    version =  '1.2.13'
+    version =  '1.2.14'
 }
 
 // --- TESTING ---
