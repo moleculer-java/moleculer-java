@@ -28,15 +28,13 @@ package services.moleculer.transporter;
 public class FileSystemTransporterTest extends TransporterTest {
 
 	public FileSystemTransporterTest() {
-		min = 4000;
+		min = 1100;
 	}
 
 	@Override
 	public Transporter createTransporter() {
 		try {
-			FileSystemTransporter t = new FileSystemTransporter();
-			t.setPollingDelay(500);
-			return t;
+			return new FileSystemTransporter();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
