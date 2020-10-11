@@ -42,6 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.datatree.Promise;
+import io.datatree.Tree;
 import io.datatree.dom.TreeReader;
 import io.datatree.dom.TreeReaderRegistry;
 import io.datatree.dom.TreeWriter;
@@ -109,7 +110,7 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final String SOFTWARE_VERSION = "1.2.14";
+	public static final String SOFTWARE_VERSION = "1.2.15";
 
 	/**
 	 * Protocol version, replaced by {@link #getProtocolVersion()}. From the
@@ -342,8 +343,15 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 			for (Map.Entry<String, Service> entry : services.entrySet()) {
 				Service service = entry.getValue();
 				String serviceName = entry.getKey();
+				
+				// Add service...
 				serviceRegistry.addActions(serviceName, service).then(deployed -> {
+					
+					// Add listeners...
 					eventbus.addListeners(serviceName, service);
+					
+					// Notify local listeners about the new LOCAL service
+					broadcastServicesChanged();				
 				});
 			}
 
@@ -598,11 +606,28 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 			// Register and start service now
 			serviceRegistry.addActions(name, service).then(deployed -> {
 				eventbus.addListeners(name, service);
+				
+				// Notify local listeners about the new LOCAL service
+				broadcastServicesChanged();
+
+				// Notify other nodes
+				if (transporter != null) {
+					transporter.broadcastInfoPacket();
+				}				
 			});
 		}
 		return this;
 	}
 
+	// --- NOTIFY OTHER SERVICES ---
+
+	protected void broadcastServicesChanged() {
+		Tree msg = new Tree();
+		msg.put("localService", true);
+		eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
+				"$services.changed", msg, 1, null, null, null, null, nodeID), null, true);
+	}
+	
 	// --- GET LOCAL SERVICE ---
 
 	/**

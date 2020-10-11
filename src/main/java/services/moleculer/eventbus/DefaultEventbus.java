@@ -60,6 +60,7 @@ import services.moleculer.metrics.Metrics;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.service.ServiceInvoker;
+import services.moleculer.service.Visibility;
 import services.moleculer.strategy.Strategy;
 import services.moleculer.strategy.StrategyFactory;
 import services.moleculer.stream.IncomingStream;
@@ -459,6 +460,12 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 				
 				// Private (hidden) listener?
 				boolean privateAccess = Modifier.isPrivate(field.getModifiers());
+				if (!privateAccess) {
+					Visibility v = field.getAnnotation(Visibility.class);
+					if (v != null) {
+						privateAccess = "protected".equals(v.value());
+					}
+				}
 
 				// Get or create group map
 				HashMap<String, Strategy<ListenerEndpoint>> groups = listeners.get(subscribe);

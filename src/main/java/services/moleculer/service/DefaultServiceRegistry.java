@@ -1135,14 +1135,6 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 			lock.unlockWrite(nameStamp);
 		}
 
-		// Notify local listeners about the new LOCAL service
-		broadcastServicesChanged(true);
-
-		// Notify other nodes
-		if (transporter != null) {
-			transporter.broadcastInfoPacket();
-		}
-
 		// Write log about this service
 		StringBuilder msg = new StringBuilder(64);
 		msg.append("Local service \"");
@@ -1164,7 +1156,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 	protected void broadcastServicesChanged(boolean local) {
 		Tree msg = new Tree();
-		msg.put("localService", true);
+		msg.put("localService", local);
 		eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
 				"$services.changed", msg, 1, null, null, null, null, nodeID), null, true);
 	}

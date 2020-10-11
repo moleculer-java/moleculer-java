@@ -225,8 +225,8 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-// version = '1.2.14-SNAPSHOT'
-version = '1.2.14'
+// version = '1.2.15-SNAPSHOT'
+version = '1.2.15'
 
 modifyPom {
     project {
@@ -307,11 +307,11 @@ compileJava {
 
 jar {
     baseName = 'moleculer'
-    version =  '1.2.14'
+    version =  '1.2.15'
 }
 
 // --- TESTING ---
-
+1
 test {
 	systemProperty 'java.util.logging.SimpleFormatter.format', '%4$-7s %5$s %n'
     
