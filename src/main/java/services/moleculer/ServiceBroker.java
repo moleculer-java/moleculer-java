@@ -110,7 +110,7 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final String SOFTWARE_VERSION = "1.2.15";
+	public static final String SOFTWARE_VERSION = "1.2.16";
 
 	/**
 	 * Protocol version, replaced by {@link #getProtocolVersion()}. From the
@@ -340,19 +340,23 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 			}
 
 			// Register and start enqued services and listeners
-			for (Map.Entry<String, Service> entry : services.entrySet()) {
-				Service service = entry.getValue();
-				String serviceName = entry.getKey();
-				
-				// Add service...
-				serviceRegistry.addActions(serviceName, service).then(deployed -> {
-					
-					// Add listeners...
-					eventbus.addListeners(serviceName, service);
-					
-					// Notify local listeners about the new LOCAL service
-					broadcastServicesChanged();				
-				});
+			int serviceCount = services.size();
+			if (serviceCount > 0) {
+				Promise[] allLoaded = new Promise[serviceCount];
+				int index = 0;
+				for (Map.Entry<String, Service> entry : services.entrySet()) {
+					String serviceName = entry.getKey();
+					Service service = entry.getValue();
+					allLoaded[index++] = serviceRegistry.addActions(serviceName, service).then(deployed -> {
+
+						// Add listeners...
+						eventbus.addListeners(serviceName, service);
+
+						// Notify local listeners about the new LOCAL service
+						broadcastServicesChanged();
+					});
+				}
+				Promise.all(allLoaded).waitFor();
 			}
 
 			// Start transporter's connection loop
@@ -606,14 +610,14 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 			// Register and start service now
 			serviceRegistry.addActions(name, service).then(deployed -> {
 				eventbus.addListeners(name, service);
-				
+
 				// Notify local listeners about the new LOCAL service
 				broadcastServicesChanged();
 
 				// Notify other nodes
 				if (transporter != null) {
 					transporter.broadcastInfoPacket();
-				}				
+				}
 			});
 		}
 		return this;
@@ -627,7 +631,7 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 		eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
 				"$services.changed", msg, 1, null, null, null, null, nodeID), null, true);
 	}
-	
+
 	// --- GET LOCAL SERVICE ---
 
 	/**

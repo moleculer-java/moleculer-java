@@ -291,7 +291,7 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 	 *            name of the logger (eg. "moleculer.metrics" or null)
 	 */
 	public void startSlf4jReporter(long period, TimeUnit periodUnit, String loggerName) {
-		reporters().started(this, DropwizardReporters.TYPE_CSV, period, periodUnit,
+		reporters().started(this, DropwizardReporters.TYPE_SLF4J, period, periodUnit,
 				loggerName == null ? DefaultMetrics.class.getName() : loggerName);
 	}
 

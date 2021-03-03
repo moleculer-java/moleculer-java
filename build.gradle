@@ -225,8 +225,10 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-// version = '1.2.15-SNAPSHOT'
-version = '1.2.15'
+// version = '1.2.16-SNAPSHOT'
+version = '1.2.16'
+// + JAR version
+// + ServiceBroker.SOFTWARE_VERSION
 
 modifyPom {
     project {
@@ -307,7 +309,7 @@ compileJava {
 
 jar {
     baseName = 'moleculer'
-    version =  '1.2.15'
+    version =  '1.2.16'
 }
 
 // --- TESTING ---
