@@ -133,7 +133,7 @@ dependencies {
     // --- SPRING BOOT (OPTIONAL!) ---
     
 	// https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter
-	implementation (group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.4.3') {
+	implementation (group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.3.9.RELEASE') {
 		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
 	}
 
