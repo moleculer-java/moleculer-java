@@ -110,7 +110,7 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final String SOFTWARE_VERSION = "1.2.16";
+	public static final String SOFTWARE_VERSION = "1.2.17";
 
 	/**
 	 * Protocol version, replaced by {@link #getProtocolVersion()}. From the
@@ -848,7 +848,7 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 			return true;
 		} catch (ClassNotFoundException notFound) {
 			logger.error("Unable to start REPL console!");
-			suggestDependency("com.github.berkesa", "moleculer-java-repl", "1.2.1");
+			suggestDependency("com.github.berkesa", "moleculer-java-repl", "1.3.0");
 		} catch (Exception cause) {
 			logger.error("Unable to start REPL console!", cause);
 		}
