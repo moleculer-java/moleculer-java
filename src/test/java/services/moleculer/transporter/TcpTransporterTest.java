@@ -27,9 +27,16 @@ package services.moleculer.transporter;
 
 public class TcpTransporterTest extends TransporterTest {
 
+	private static final boolean UDP_TEST = true;
+	
+	private String[] urls = new String[]{"localhost:4001/node1", "localhost:4002/node2"}; 
+	
 	@Override
 	public Transporter createTransporter() {
-		return new TcpTransporter();
+		if (UDP_TEST) {
+			return new TcpTransporter();
+		}
+		return new TcpTransporter(urls);
 	}
 
 }
