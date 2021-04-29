@@ -108,7 +108,6 @@ public final class MoleculerRunner {
 						DatagramPacket packet = new DatagramPacket(bytes, bytes.length, InetAddress.getLocalHost(),
 								stopPort);
 						socket.send(packet);
-						return;
 					} finally {
 						try {
 							if (socket != null) {
@@ -117,6 +116,7 @@ public final class MoleculerRunner {
 						} catch (Exception ignored) {
 						}
 					}
+					return;
 				}
 			}
 			if (context.get() != null) {
