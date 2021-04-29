@@ -30,11 +30,10 @@ import static services.moleculer.util.CommonUtils.suggestDependency;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -110,7 +109,7 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final String SOFTWARE_VERSION = "1.2.17";
+	public static final String SOFTWARE_VERSION = "1.2.18";
 
 	/**
 	 * Protocol version, replaced by {@link #getProtocolVersion()}. From the
@@ -140,8 +139,13 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 	/**
 	 * Services which defined and added to the Broker before the boot process.
 	 */
-	protected final LinkedHashMap<String, Service> services = new LinkedHashMap<>();
+	protected final ConcurrentHashMap<String, Service> services = new ConcurrentHashMap<>();
 
+	/**
+	 * Service names (keys).
+	 */
+	protected final LinkedHashSet<String> serviceNames = new LinkedHashSet<>();
+	
 	// --- ENQUED MIDDLEWARES ---
 
 	/**
@@ -336,17 +340,19 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 
 			// Install internal services
 			if (config.isInternalServices()) {
-				services.put("$node", new NodeService());
+				createService("$node", new NodeService());
 			}
 
 			// Register and start enqued services and listeners
-			int serviceCount = services.size();
+			int serviceCount = serviceNames.size();
 			if (serviceCount > 0) {
 				Promise[] allLoaded = new Promise[serviceCount];
 				int index = 0;
-				for (Map.Entry<String, Service> entry : services.entrySet()) {
-					String serviceName = entry.getKey();
-					Service service = entry.getValue();
+				for (String serviceName: serviceNames) {
+					Service service = services.get(serviceName);
+					if (service == null) {
+						continue;
+					}
 					allLoaded[index++] = serviceRegistry.addActions(serviceName, service).then(deployed -> {
 
 						// Add listeners...
@@ -376,6 +382,7 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 			stop();
 		} finally {
 			middlewares.clear();
+			serviceNames.clear();
 			services.clear();
 		}
 		return this;
@@ -604,6 +611,7 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 		if (serviceRegistry == null) {
 
 			// Start service later
+			serviceNames.add(name);
 			services.put(name, service);
 		} else {
 
@@ -646,6 +654,10 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 	 *             if the service name is not valid
 	 */
 	public Service getLocalService(String serviceName) {
+		Service service = services.get(serviceName);
+		if (service != null) {
+			return service;
+		}
 		return serviceRegistry.getService(serviceName);
 	}
 
