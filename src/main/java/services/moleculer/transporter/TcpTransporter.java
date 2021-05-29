@@ -209,6 +209,11 @@ public class TcpTransporter extends Transporter {
 	 */
 	protected int currentPort;
 
+	/**
+	 * The local hostname specified in the "urls" parameter.
+	 */
+	protected String startupHost;
+	
 	// --- LOCAL NODE'S DESCRIPTOR ---
 
 	/**
@@ -303,14 +308,15 @@ public class TcpTransporter extends Transporter {
 								+ ")! Valid syntax is \"tcp://host:port/nodeID\" or \"host:port/nodeID\"!");
 						continue;
 					}
+					String host = parts[0];
 					String sender = parts[2];
 					if (sender.equals(nodeID)) {
 
 						// TCP server's port (port in URL list)
 						this.port = port;
+						this.startupHost = host;
 						continue;
 					}
-					String host = parts[0];
 					nodes.put(sender, new NodeDescriptor(sender, useHostname, host, port));
 				}
 			} else if (offlineTimeout > 0 && offlineTimeout < 15) {
@@ -1364,7 +1370,9 @@ public class TcpTransporter extends Transporter {
 			FastBuildTree root = new FastBuildTree(5);
 			root.putUnsafe("ver", protocolVersion);
 			root.putUnsafe("sender", nodeID);
-			if (useHostname) {
+			if (startupHost != null) {
+				root.putUnsafe("host", startupHost);
+			} else if (useHostname) {
 				root.putUnsafe("host", getHostName());
 			} else {
 				root.putUnsafe("host", InetAddress.getLocalHost().getHostAddress());

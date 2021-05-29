@@ -73,7 +73,7 @@ public class Sample {
 			params.put("c.d", 3);
 
 			// Invoke local action via EventBus
-			return ctx.call("v2.myService.second", params).then(in -> {
+			return ctx.call("myService.second", params).then(in -> {
 
 				// The result will be 10
 				return in.asLong() * 2;

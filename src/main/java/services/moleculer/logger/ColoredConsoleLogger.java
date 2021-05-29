@@ -121,13 +121,16 @@ public class ColoredConsoleLogger implements ConsoleLogger {
 
 			}
 			msg = record.getMessage();
-			if (msg == null) {
-				msg = "<null>";
-			} else {
+			if (msg != null) {
 				msg = msg.trim();
 			}
+			if (msg == null || msg.isEmpty()) {
+				msg = "<null>";
+			}
 			coloredPrinter.println(msg, Attribute.LIGHT, FColor.WHITE, BColor.NONE);
-			coloredPrinter.clear();
+			coloredPrinter.setAttribute(Attribute.NONE);
+			coloredPrinter.setBackgroundColor(BColor.NONE);
+			coloredPrinter.setForegroundColor(FColor.NONE);
 	        
 			cause = record.getThrown();
 			if (cause != null) {

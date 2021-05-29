@@ -30,11 +30,10 @@ import static services.moleculer.util.CommonUtils.suggestDependency;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -110,7 +109,7 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final String SOFTWARE_VERSION = "1.2.15";
+	public static final String SOFTWARE_VERSION = "1.2.18";
 
 	/**
 	 * Protocol version, replaced by {@link #getProtocolVersion()}. From the
@@ -140,8 +139,13 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 	/**
 	 * Services which defined and added to the Broker before the boot process.
 	 */
-	protected final LinkedHashMap<String, Service> services = new LinkedHashMap<>();
+	protected final ConcurrentHashMap<String, Service> services = new ConcurrentHashMap<>();
 
+	/**
+	 * Service names (keys).
+	 */
+	protected final LinkedHashSet<String> serviceNames = new LinkedHashSet<>();
+	
 	// --- ENQUED MIDDLEWARES ---
 
 	/**
@@ -336,23 +340,29 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 
 			// Install internal services
 			if (config.isInternalServices()) {
-				services.put("$node", new NodeService());
+				createService("$node", new NodeService());
 			}
 
 			// Register and start enqued services and listeners
-			for (Map.Entry<String, Service> entry : services.entrySet()) {
-				Service service = entry.getValue();
-				String serviceName = entry.getKey();
-				
-				// Add service...
-				serviceRegistry.addActions(serviceName, service).then(deployed -> {
-					
-					// Add listeners...
-					eventbus.addListeners(serviceName, service);
-					
-					// Notify local listeners about the new LOCAL service
-					broadcastServicesChanged();				
-				});
+			int serviceCount = serviceNames.size();
+			if (serviceCount > 0) {
+				Promise[] allLoaded = new Promise[serviceCount];
+				int index = 0;
+				for (String serviceName: serviceNames) {
+					Service service = services.get(serviceName);
+					if (service == null) {
+						continue;
+					}
+					allLoaded[index++] = serviceRegistry.addActions(serviceName, service).then(deployed -> {
+
+						// Add listeners...
+						eventbus.addListeners(serviceName, service);
+
+						// Notify local listeners about the new LOCAL service
+						broadcastServicesChanged();
+					});
+				}
+				Promise.all(allLoaded).waitFor();
 			}
 
 			// Start transporter's connection loop
@@ -372,6 +382,7 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 			stop();
 		} finally {
 			middlewares.clear();
+			serviceNames.clear();
 			services.clear();
 		}
 		return this;
@@ -600,20 +611,21 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 		if (serviceRegistry == null) {
 
 			// Start service later
+			serviceNames.add(name);
 			services.put(name, service);
 		} else {
 
 			// Register and start service now
 			serviceRegistry.addActions(name, service).then(deployed -> {
 				eventbus.addListeners(name, service);
-				
+
 				// Notify local listeners about the new LOCAL service
 				broadcastServicesChanged();
 
 				// Notify other nodes
 				if (transporter != null) {
 					transporter.broadcastInfoPacket();
-				}				
+				}
 			});
 		}
 		return this;
@@ -627,7 +639,7 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 		eventbus.broadcast(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(),
 				"$services.changed", msg, 1, null, null, null, null, nodeID), null, true);
 	}
-	
+
 	// --- GET LOCAL SERVICE ---
 
 	/**
@@ -642,6 +654,10 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 	 *             if the service name is not valid
 	 */
 	public Service getLocalService(String serviceName) {
+		Service service = services.get(serviceName);
+		if (service != null) {
+			return service;
+		}
 		return serviceRegistry.getService(serviceName);
 	}
 
@@ -844,7 +860,7 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 			return true;
 		} catch (ClassNotFoundException notFound) {
 			logger.error("Unable to start REPL console!");
-			suggestDependency("com.github.berkesa", "moleculer-java-repl", "1.2.1");
+			suggestDependency("com.github.berkesa", "moleculer-java-repl", "1.3.0");
 		} catch (Exception cause) {
 			logger.error("Unable to start REPL console!", cause);
 		}

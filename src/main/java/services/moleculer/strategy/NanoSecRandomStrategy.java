@@ -53,7 +53,8 @@ public class NanoSecRandomStrategy<T extends Endpoint> extends ArrayBasedStrateg
 
 	@Override
 	public Endpoint next(Context ctx, Endpoint[] array) {
-		return array[(int) (System.nanoTime() % array.length)];
+		int idx = Math.abs(Long.hashCode(System.nanoTime())) % array.length;
+		return array[idx];
 	}
 
 }
