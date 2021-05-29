@@ -33,7 +33,9 @@ import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.StampedLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
@@ -101,7 +103,8 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 	// --- READ/WRITE LOCK ---
 
-	protected final StampedLock lock = new StampedLock();
+	protected final ReadLock readLock;
+	protected final WriteLock writeLock;
 
 	// --- PARTITIONS / CACHE REGIONS ---
 
@@ -126,7 +129,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 	protected MetricCounter counterDel;
 	protected MetricCounter counterClean;
 	protected MetricCounter counterFound;
-	
+
 	// --- CONSTUCTORS ---
 
 	public MemoryCacher() {
@@ -149,6 +152,11 @@ public class MemoryCacher extends Cacher implements Runnable {
 		// Set other properties
 		this.ttl = defaultTtl;
 		this.cleanup = cleanupSeconds;
+
+		// Create locks
+		ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+		readLock = lock.readLock();
+		writeLock = lock.writeLock();
 	}
 
 	// --- START CACHER ---
@@ -200,13 +208,13 @@ public class MemoryCacher extends Cacher implements Runnable {
 	@Override
 	public void run() {
 		long now = System.currentTimeMillis();
-		final long stamp = lock.readLock();
+		readLock.lock();
 		try {
 			for (MemoryPartition partition : partitions.values()) {
 				partition.removeOldEntries(now);
 			}
 		} finally {
-			lock.unlockRead(stamp);
+			readLock.unlock();
 		}
 	}
 
@@ -223,11 +231,11 @@ public class MemoryCacher extends Cacher implements Runnable {
 		}
 
 		// Clear partitions
-		final long stamp = lock.writeLock();
+		writeLock.lock();
 		try {
 			partitions.clear();
 		} finally {
-			lock.unlockWrite(stamp);
+			writeLock.unlock();
 		}
 	}
 
@@ -253,21 +261,11 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 	protected MemoryPartition getPartition(String prefix) {
 		MemoryPartition partition = null;
-		long stamp = lock.tryOptimisticRead();
-		if (stamp != 0) {
-			try {
-				partition = partitions.get(prefix);
-			} catch (Exception modified) {
-				stamp = 0;
-			}
-		}
-		if (!lock.validate(stamp) || stamp == 0) {
-			stamp = lock.readLock();
-			try {
-				partition = partitions.get(prefix);
-			} finally {
-				lock.unlockRead(stamp);
-			}
+		readLock.lock();
+		try {
+			partition = partitions.get(prefix);
+		} finally {
+			readLock.unlock();
 		}
 		return partition;
 	}
@@ -284,11 +282,11 @@ public class MemoryCacher extends Cacher implements Runnable {
 			if (partition == null) {
 				partition = new MemoryPartition(this);
 				MemoryPartition previous;
-				final long stamp = lock.writeLock();
+				writeLock.lock();
 				try {
 					previous = partitions.putIfAbsent(prefix, partition);
 				} finally {
-					lock.unlockWrite(stamp);
+					writeLock.unlock();
 				}
 				if (previous != null) {
 					partition = previous;
@@ -358,7 +356,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 			} else {
 
 				// Remove entire partitions
-				final long stamp = lock.writeLock();
+				writeLock.lock();
 				try {
 					if (match.isEmpty() || match.startsWith("*")) {
 						partitions.clear();
@@ -378,7 +376,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 						}
 					}
 				} finally {
-					lock.unlockWrite(stamp);
+					writeLock.unlock();
 				}
 			}
 		} catch (Throwable cause) {
@@ -406,22 +404,23 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 		// --- READ/WRITE LOCK ---
 
-		protected final StampedLock lock = new StampedLock();
+		protected final ReadLock readLock;
+		protected final WriteLock writeLock;
 
 		// --- MEMORY CACHE PARTITION ---
 
-		protected final LinkedHashMap<String, PartitionEntry> cache;
+		protected final LinkedHashMap<PartitionKey, PartitionEntry> cache;
 
 		// --- CONSTUCTORS ---
 
 		protected MemoryPartition(MemoryCacher parent) {
 
 			// Create cache
-			cache = new LinkedHashMap<String, PartitionEntry>(parent.capacity, 1.0f, parent.accessOrder) {
+			cache = new LinkedHashMap<PartitionKey, PartitionEntry>(parent.capacity, 1.0f, parent.accessOrder) {
 
 				private static final long serialVersionUID = 5994447707758047152L;
 
-				protected final boolean removeEldestEntry(Map.Entry<String, PartitionEntry> entry) {
+				protected final boolean removeEldestEntry(Map.Entry<PartitionKey, PartitionEntry> entry) {
 					boolean remove = size() > parent.capacity;
 
 					// Metrics
@@ -433,28 +432,22 @@ public class MemoryCacher extends Cacher implements Runnable {
 				};
 			};
 			this.parent = parent;
+
+			// Create locks
+			ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+			readLock = lock.readLock();
+			writeLock = lock.writeLock();
 		}
 
 		// --- REMOVE OLD ENTRIES ---
 
 		protected void removeOldEntries(long now) {
-			LinkedList<String> expiredKeys = new LinkedList<>();
-			long stamp = lock.tryOptimisticRead();
-			if (stamp != 0) {
-				try {
-					collectExpiredEntries(now, expiredKeys);
-				} catch (Exception modified) {
-					stamp = 0;
-					expiredKeys.clear();
-				}
-			}
-			if (!lock.validate(stamp) || stamp == 0) {
-				stamp = lock.readLock();
-				try {
-					collectExpiredEntries(now, expiredKeys);
-				} finally {
-					lock.unlockRead(stamp);
-				}
+			LinkedList<PartitionKey> expiredKeys = new LinkedList<>();
+			readLock.lock();
+			try {
+				collectExpiredEntries(now, expiredKeys);
+			} finally {
+				readLock.unlock();
 			}
 			if (expiredKeys.isEmpty()) {
 				return;
@@ -466,21 +459,21 @@ public class MemoryCacher extends Cacher implements Runnable {
 			}
 
 			// Remove elements
-			stamp = lock.writeLock();
+			writeLock.lock();
 			try {
-				for (String key : expiredKeys) {
-					cache.remove(key);
+				for (PartitionKey partitionKey : expiredKeys) {
+					cache.remove(partitionKey);
 				}
 			} finally {
-				lock.unlockWrite(stamp);
+				writeLock.unlock();
 			}
 		}
 
-		protected void collectExpiredEntries(long now, LinkedList<String> expiredKeys) {
-			PartitionEntry pEntry;
-			for (Map.Entry<String, PartitionEntry> entry : cache.entrySet()) {
-				pEntry = entry.getValue();
-				if (pEntry.expireAt > 0 && pEntry.expireAt <= now) {
+		protected void collectExpiredEntries(long now, LinkedList<PartitionKey> expiredKeys) {
+			PartitionEntry partitionEntry;
+			for (Map.Entry<PartitionKey, PartitionEntry> entry : cache.entrySet()) {
+				partitionEntry = entry.getValue();
+				if (partitionEntry.expireAt > 0 && partitionEntry.expireAt <= now) {
 					expiredKeys.addLast(entry.getKey());
 				}
 			}
@@ -498,21 +491,12 @@ public class MemoryCacher extends Cacher implements Runnable {
 			}
 
 			PartitionEntry entry = null;
-			long stamp = lock.tryOptimisticRead();
-			if (stamp != 0) {
-				try {
-					entry = cache.get(key);
-				} catch (Exception modified) {
-					stamp = 0;
-				}
-			}
-			if (!lock.validate(stamp) || stamp == 0) {
-				stamp = lock.readLock();
-				try {
-					entry = cache.get(key);
-				} finally {
-					lock.unlockRead(stamp);
-				}
+			PartitionKey partitionKey = new PartitionKey(key);
+			readLock.lock();
+			try {
+				entry = cache.get(partitionKey);
+			} finally {
+				readLock.unlock();
 			}
 			try {
 				if (entry == null || entry.value == null) {
@@ -521,7 +505,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 				if (parent.counterFound != null) {
 					parent.counterFound.increment();
 				}
-				if (parent.useCloning) {
+				if (parent.useCloning && entry.value != null) {
 					return entry.value.clone();
 				}
 				return entry.value;
@@ -540,11 +524,11 @@ public class MemoryCacher extends Cacher implements Runnable {
 				parent.counterSet.increment();
 				setTimer = parent.metrics.timer(MOLECULER_CACHER_SET_TIME, MOLECULER_CACHER_SET_TIME_DESC);
 			}
-
-			final long stamp = lock.writeLock();
+			PartitionKey partitionKey = new PartitionKey(key);
+			writeLock.lock();
 			try {
 				if (value == null) {
-					cache.remove(key);
+					cache.remove(partitionKey);
 				} else {
 					long expireAt;
 					if (ttl > 0) {
@@ -552,10 +536,10 @@ public class MemoryCacher extends Cacher implements Runnable {
 					} else {
 						expireAt = 0;
 					}
-					cache.put(key, new PartitionEntry(value, expireAt));
+					cache.put(partitionKey, new PartitionEntry(value, expireAt));
 				}
 			} finally {
-				lock.unlockWrite(stamp);
+				writeLock.unlock();
 				if (setTimer != null) {
 					setTimer.stop();
 				}
@@ -570,12 +554,12 @@ public class MemoryCacher extends Cacher implements Runnable {
 				parent.counterDel.increment();
 				delTimer = parent.metrics.timer(MOLECULER_CACHER_DEL_TIME, MOLECULER_CACHER_DEL_TIME_DESC);
 			}
-
-			final long stamp = lock.writeLock();
+			PartitionKey partitionKey = new PartitionKey(key);
+			writeLock.lock();
 			try {
-				cache.remove(key);
+				cache.remove(partitionKey);
 			} finally {
-				lock.unlockWrite(stamp);
+				writeLock.unlock();
 				if (delTimer != null) {
 					delTimer.stop();
 				}
@@ -591,28 +575,62 @@ public class MemoryCacher extends Cacher implements Runnable {
 				cleanTimer = parent.metrics.timer(MOLECULER_CACHER_CLEAN_TIME, MOLECULER_CACHER_CLEAN_TIME_DESC);
 			}
 
-			final long stamp = lock.writeLock();
+			writeLock.lock();
 			try {
 				if (match.isEmpty() || "**".equals(match)) {
 					cache.clear();
 				} else if (match.indexOf('*') == -1) {
 					cache.remove(match);
 				} else {
-					Iterator<String> i = cache.keySet().iterator();
-					String key;
+					Iterator<PartitionKey> i = cache.keySet().iterator();
+					PartitionKey partitionKey;
 					while (i.hasNext()) {
-						key = i.next();
-						if (Matcher.matches(key, match)) {
+						partitionKey = i.next();
+						if (Matcher.matches(partitionKey.key, match)) {
 							i.remove();
 						}
 					}
 				}
 			} finally {
-				lock.unlockWrite(stamp);
+				writeLock.unlock();
 				if (cleanTimer != null) {
 					cleanTimer.stop();
 				}
 			}
+		}
+
+	}
+
+	// --- PARTITION KEY ---
+
+	protected static class PartitionKey {
+
+		protected final String key;
+		protected final int hashCode;
+
+		protected PartitionKey(String key) {
+			this.key = key;
+			this.hashCode = key.hashCode();
+		}
+
+		@Override
+		public int hashCode() {
+			return hashCode;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj) {
+				return true;
+			}
+			if (obj == null) {
+				return false;
+			}
+			if (getClass() != obj.getClass()) {
+				return false;
+			}
+			PartitionKey other = (PartitionKey) obj;
+			return other.key.equals(key);
 		}
 
 	}

@@ -29,7 +29,7 @@ public class MemoryCacherTest extends CacherTest {
 
 	@Override
 	protected Cacher createCacher() throws Exception {
-		return new MemoryCacher(15, 5000, 5000);
+		return new MemoryCacher(3000, 10000, 10000);
 	}
-
+	
 }

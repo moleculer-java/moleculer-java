@@ -31,7 +31,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.StampedLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
@@ -67,9 +69,13 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 
 	protected final HashMap<Class<? extends MeterBinder>, MeterBinder> binders = new HashMap<>();
 
-	protected final StampedLock lock = new StampedLock();
-
 	protected DropwizardReporters reporters;
+
+	// --- LOCKS ---
+
+	protected final ReadLock readLock;
+
+	protected final WriteLock writeLock;
 
 	// --- PROPERTIES ---
 
@@ -82,16 +88,22 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 	protected double[] percentiles = { 0.75, 0.95, 0.98, 0.99, 0.999 };
 
 	// --- CONSTRUCTORS ---
-	
+
 	public DefaultMetrics() {
+		this((MeterRegistry[]) null);
 	}
 
 	public DefaultMetrics(MeterRegistry... registries) {
 		if (registries != null && registries.length > 0) {
-			for (MeterRegistry registry: registries) {
+			for (MeterRegistry registry : registries) {
 				add(registry);
 			}
 		}
+
+		// Create locks
+		ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+		readLock = lock.readLock();
+		writeLock = lock.writeLock();
 	}
 
 	// --- START METRICS ---
@@ -167,31 +179,21 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 
 		// Find in registry
 		Object metric = null;
-		long stamp = lock.tryOptimisticRead();
-		if (stamp != 0) {
-			try {
-				metric = registry.get(key);
-			} catch (Exception modified) {
-				stamp = 0;
-			}
-		}
-		if (!lock.validate(stamp) || stamp == 0) {
-			stamp = lock.readLock();
-			try {
-				metric = registry.get(key);
-			} finally {
-				lock.unlockRead(stamp);
-			}
+		readLock.lock();
+		try {
+			metric = registry.get(key);
+		} finally {
+			readLock.unlock();
 		}
 		if (metric == null) {
-			stamp = lock.writeLock();
+			writeLock.lock();
 			try {
 				if (!registry.containsKey(key)) {
 					metric = factory.get();
 					registry.put(key, metric);
 				}
 			} finally {
-				lock.unlockWrite(stamp);
+				writeLock.unlock();
 			}
 		}
 
@@ -403,5 +405,5 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 	public void setPercentiles(double[] percentiles) {
 		this.percentiles = percentiles;
 	}
-	
+
 }

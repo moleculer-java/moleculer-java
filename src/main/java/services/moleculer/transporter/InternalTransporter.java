@@ -32,7 +32,6 @@ import java.util.WeakHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
-import java.util.concurrent.locks.StampedLock;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
@@ -65,9 +64,9 @@ public class InternalTransporter extends Transporter {
 	protected static final Subscriptions sharedInstance = new Subscriptions();
 
 	// --- SUBSCRIPTION HANDLER ---
-	
+
 	protected final Subscriptions subscriptions;
-	
+
 	// --- REGISTERED CHANNELS ---
 
 	protected HashSet<String> channels = new HashSet<>();
@@ -81,7 +80,7 @@ public class InternalTransporter extends Transporter {
 	public InternalTransporter(Subscriptions subscriptions) {
 		this.subscriptions = Objects.requireNonNull(subscriptions);
 	}
-	
+
 	// --- CONNECT ---
 
 	@Override
@@ -106,7 +105,7 @@ public class InternalTransporter extends Transporter {
 	public void stopped() {
 		boolean notify = deregister();
 		super.stopped();
-		
+
 		// Notify internal listeners
 		if (notify) {
 			broadcastTransporterDisconnected();
@@ -136,14 +135,14 @@ public class InternalTransporter extends Transporter {
 	@Override
 	public void publish(String channel, Tree message) {
 		try {
-			
+
 			// Metrics
 			byte[] bytes = serializer.write(message);
 			if (metrics != null) {
 				counterTransporterPacketsSentTotal.increment();
 				counterTransporterPacketsSentBytes.increment(bytes.length);
-			}			
-			
+			}
+
 			// Send bytes
 			subscriptions.send(channel, bytes);
 		} catch (Exception cause) {
@@ -161,13 +160,19 @@ public class InternalTransporter extends Transporter {
 
 		// --- READ/WRITE LOCK ---
 
-		protected final StampedLock lock = new StampedLock();
+		protected final ReadLock readLock;
+		protected final WriteLock writeLock;
 
 		// --- CONSTRUCTOR ---
-		
-		public Subscriptions() {			
+
+		public Subscriptions() {
+
+			// Create locks
+			ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+			readLock = lock.readLock();
+			writeLock = lock.writeLock();
 		}
-		
+
 		// --- METHODS ---
 
 		protected void register(String channel, InternalTransporter transporter) {
@@ -175,11 +180,11 @@ public class InternalTransporter extends Transporter {
 			if (set == null) {
 				set = new SubscriptionSet(channel);
 				SubscriptionSet previous;
-				final long stamp = lock.writeLock();
+				writeLock.lock();
 				try {
 					previous = sets.putIfAbsent(channel, set);
 				} finally {
-					lock.unlockWrite(stamp);
+					writeLock.unlock();
 				}
 				if (previous != null) {
 					set = previous;
@@ -196,11 +201,11 @@ public class InternalTransporter extends Transporter {
 			if (shared) {
 				set.deregister(transporter);
 			} else {
-				final long stamp = lock.writeLock();
+				writeLock.lock();
 				try {
 					sets.remove(channel);
 				} finally {
-					lock.unlockWrite(stamp);
+					writeLock.unlock();
 				}
 			}
 		}
@@ -214,21 +219,11 @@ public class InternalTransporter extends Transporter {
 
 		protected SubscriptionSet getSubscriptionSet(String channel) {
 			SubscriptionSet set = null;
-			long stamp = lock.tryOptimisticRead();
-			if (stamp != 0) {
-				try {
-					set = sets.get(channel);
-				} catch (Exception modified) {
-					stamp = 0;
-				}
-			}
-			if (!lock.validate(stamp) || stamp == 0) {
-				stamp = lock.readLock();
-				try {
-					set = sets.get(channel);
-				} finally {
-					lock.unlockRead(stamp);
-				}
+			readLock.lock();
+			try {
+				set = sets.get(channel);
+			} finally {
+				readLock.unlock();
 			}
 			return set;
 		}

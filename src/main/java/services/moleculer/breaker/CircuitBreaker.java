@@ -34,7 +34,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.StampedLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 import io.datatree.Promise;
 import services.moleculer.ServiceBroker;
@@ -101,7 +103,8 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable, M
 
 	// --- READ/WRITE LOCK OF COUNTERS ---
 
-	protected final StampedLock lock = new StampedLock();
+	protected final ReadLock readLock;
+	protected final WriteLock writeLock;
 
 	// --- OTHER VARIABLES ---
 
@@ -113,6 +116,16 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable, M
 	 * Cancelable timer
 	 */
 	protected volatile ScheduledFuture<?> timer;
+
+	// --- CONSTRUCTOR ---
+
+	public CircuitBreaker() {
+
+		// Create locks
+		ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+		readLock = lock.readLock();
+		writeLock = lock.writeLock();
+	}
 
 	// --- START BREAKER ---
 
@@ -146,11 +159,11 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable, M
 		}
 
 		// Remove counters and types
-		final long stamp = lock.writeLock();
+		writeLock.lock();
 		try {
 			errorCounters.clear();
 		} finally {
-			lock.unlockWrite(stamp);
+			writeLock.unlock();
 		}
 		ignoredTypes.clear();
 	}
@@ -164,7 +177,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable, M
 		// Cleanup
 		if (cleanup > 0 && now - lastCleanup >= cleanup * 1000L) {
 			lastCleanup = now;
-			final long stamp = lock.writeLock();
+			writeLock.lock();
 			try {
 				Iterator<ErrorCounter> i = errorCounters.values().iterator();
 				while (i.hasNext()) {
@@ -173,17 +186,17 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable, M
 					}
 				}
 			} finally {
-				lock.unlockWrite(stamp);
+				writeLock.unlock();
 			}
 		}
 
 		if (metrics != null) {
-			
+
 			// Metrics
 			EndpointKey endpointKey;
 			ErrorCounter.Status status;
 			ErrorCounter errorCounter;
-			long stamp = lock.readLock();
+			readLock.lock();
 			try {
 				for (Map.Entry<EndpointKey, ErrorCounter> entry : errorCounters.entrySet()) {
 					endpointKey = entry.getKey();
@@ -192,7 +205,8 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable, M
 					status = errorCounter.getStatus(now);
 					if (status != errorCounter.prevStatus) {
 						if (status == ErrorCounter.Status.STATUS_OPENED) {
-							metrics.increment(MOLECULER_CIRCUIT_BREAKER_OPENED_TOTAL, MOLECULER_CIRCUIT_BREAKER_OPENED_TOTAL_DESC, tags);
+							metrics.increment(MOLECULER_CIRCUIT_BREAKER_OPENED_TOTAL,
+									MOLECULER_CIRCUIT_BREAKER_OPENED_TOTAL_DESC, tags);
 						}
 						errorCounter.prevStatus = status;
 						switch (status) {
@@ -218,7 +232,7 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable, M
 					}
 				}
 			} finally {
-				lock.unlockRead(stamp);
+				readLock.unlock();
 			}
 		}
 	}
@@ -306,21 +320,11 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable, M
 
 	protected ErrorCounter getErrorCounter(EndpointKey endpointKey) {
 		ErrorCounter counter = null;
-		long stamp = lock.tryOptimisticRead();
-		if (stamp != 0) {
-			try {
-				counter = errorCounters.get(endpointKey);
-			} catch (Exception modified) {
-				stamp = 0;
-			}
-		}
-		if (!lock.validate(stamp) || stamp == 0) {
-			stamp = lock.readLock();
-			try {
-				counter = errorCounters.get(endpointKey);
-			} finally {
-				lock.unlockRead(stamp);
-			}
+		readLock.lock();
+		try {
+			counter = errorCounters.get(endpointKey);
+		} finally {
+			readLock.unlock();
 		}
 		return counter;
 	}
@@ -345,11 +349,11 @@ public class CircuitBreaker extends DefaultServiceInvoker implements Runnable, M
 			if (errorCounter == null) {
 				ErrorCounter counter = new ErrorCounter(windowLength, lockTimeout, maxErrors);
 				ErrorCounter prev;
-				final long stamp = lock.writeLock();
+				writeLock.lock();
 				try {
 					prev = errorCounters.putIfAbsent(endpointKey, counter);
 				} finally {
-					lock.unlockWrite(stamp);
+					writeLock.unlock();
 				}
 				if (prev == null) {
 					counter.onError(now);

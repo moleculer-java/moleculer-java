@@ -25,7 +25,12 @@
  */
 package services.moleculer.cacher;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.Test;
 
@@ -42,6 +47,8 @@ public abstract class CacherTest extends TestCase {
 
 	protected ServiceBroker br;
 	protected Cacher cr;
+
+	protected ExecutorService executor;
 
 	// --- CREATE CACHER ---
 
@@ -333,6 +340,72 @@ public abstract class CacherTest extends TestCase {
 
 	}
 
+	@Test
+	public void testClean() throws Exception {
+
+		// Number of threads
+		int maxThreads = 10;
+
+		// Do tests
+		if (maxThreads < 1) {
+			return;
+		}
+		AtomicReference<Throwable> error = new AtomicReference<>();
+		CountDownLatch latch = new CountDownLatch(maxThreads);
+
+		// Create ThreadPool
+		executor = Executors.newCachedThreadPool();
+		for (int i = 0; i < maxThreads; i++) {
+			final int t = i;
+			executor.execute(() -> {
+				int n = 0;
+				try {
+					System.out.println("Starting " + Thread.currentThread().getName() + "...");
+					for (n = 0; n < 10; n++) {
+
+						// Write
+						for (int m = 0; m < 100; m++) {
+							cr.set("prefix.path-" + t + "-" + n + "-" + m, new Tree().put("v", m), 0);
+						}
+
+						// Sleeping...
+						Thread.sleep(100);
+
+						// Checking (1)
+						for (int m = 0; m < 100; m++) {
+							Tree tx = cr.get("prefix.path-" + t + "-" + n + "-" + m).waitFor(5000);
+							int test = tx.get("v", -1);
+							assertEquals(m, test);
+						}
+
+						// Sleeping...
+						Thread.sleep(100);
+
+						// Clear cache
+						cr.clean("prefix.path-" + t + "-" + n + "**").waitFor(1000);
+
+						// Checking (2)
+						for (int m = 0; m < 100; m++) {
+							Tree tx = cr.get("prefix.path-" + t + "-" + n + "-" + m).waitFor(5000);
+							assertNull(tx);
+						}
+					}
+				} catch (Throwable tx) {
+					error.set(tx);
+				} finally {
+					System.out.println(Thread.currentThread().getName() + " stopped.");
+					latch.countDown();
+				}
+			});
+		}
+		latch.await(5, TimeUnit.MINUTES);
+		Throwable t = error.get();
+		if (t != null) {
+			t.printStackTrace();
+			fail(t.getMessage());
+		}
+	}
+
 	// --- START BROKER ---
 
 	@Override
@@ -350,6 +423,10 @@ public abstract class CacherTest extends TestCase {
 		if (br != null) {
 			br.stop();
 			br = null;
+		}
+		if (executor != null) {
+			executor.shutdownNow();
+			executor = null;
 		}
 	}
 

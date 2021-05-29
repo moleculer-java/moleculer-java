@@ -61,7 +61,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
-import java.util.concurrent.locks.StampedLock;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
@@ -123,6 +122,11 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 	protected final HashMap<String, IncomingStream> requestStreams = new HashMap<>(1024);
 	protected final HashMap<String, IncomingStream> responseStreams = new HashMap<>(1024);
 
+	// --- CONTENT LOCKS ---
+
+	protected final ReadLock readLock;
+	protected final WriteLock writeLock;
+
 	// --- STREAM LOCKS ---
 
 	protected final ReadLock requestStreamReadLock;
@@ -158,10 +162,6 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 	 * be useful if you want to remove the wrong packages from the memory.
 	 */
 	protected long streamTimeout;
-
-	// --- READ/WRITE LOCK ---
-
-	protected final StampedLock lock = new StampedLock();
 
 	// --- LOCAL NODE ID ---
 
@@ -215,11 +215,11 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 	protected volatile FastBuildTree cachedDescriptor;
 
 	// --- METRICS ---
-	
+
 	protected MetricGauge gaugeRequestsActive;
 	protected MetricGauge gaugeStreamsReceiveActive;
 	protected MetricCounter counterOrphanResponseTotal;
-	
+
 	// --- CONSTRUCTORS ---
 
 	public DefaultServiceRegistry() {
@@ -239,6 +239,11 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		ReentrantReadWriteLock responseStreamLock = new ReentrantReadWriteLock(false);
 		responseStreamReadLock = responseStreamLock.readLock();
 		responseStreamWriteLock = responseStreamLock.writeLock();
+
+		// Create content locks
+		ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+		readLock = lock.readLock();
+		writeLock = lock.writeLock();
 	}
 
 	// --- INIT SERVICE REGISTRY ---
@@ -271,9 +276,12 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		if (cfg.isMetricsEnabled()) {
 			metrics = cfg.getMetrics();
 			if (metrics != null) {
-				gaugeRequestsActive = metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE, MOLECULER_TRANSIT_REQUESTS_ACTIVE_DESC, 0);
-				gaugeStreamsReceiveActive = metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE, MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE_DESC, 0);
-				counterOrphanResponseTotal = metrics.increment(MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL, MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL_DESC, 0);				
+				gaugeRequestsActive = metrics.set(MOLECULER_TRANSIT_REQUESTS_ACTIVE,
+						MOLECULER_TRANSIT_REQUESTS_ACTIVE_DESC, 0);
+				gaugeStreamsReceiveActive = metrics.set(MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE,
+						MOLECULER_TRANSIT_STREAMS_RECEIVE_ACTIVE_DESC, 0);
+				counterOrphanResponseTotal = metrics.increment(MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL,
+						MOLECULER_TRANSIT_ORPHAN_RESPONSE_TOTAL_DESC, 0);
 			}
 		}
 	}
@@ -314,7 +322,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		stopAllLocalServices();
 
 		// Clear registries
-		final long stamp = lock.writeLock();
+		writeLock.lock();
 		try {
 
 			// Delete strategies (and registered actions)
@@ -330,7 +338,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 			clearDescriptorCache();
 
 		} finally {
-			lock.unlockWrite(stamp);
+			writeLock.unlock();
 		}
 	}
 
@@ -606,7 +614,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 		// Metrics
 		if (gaugeStreamsReceiveActive != null && requestStream != null) {
-			gaugeStreamsReceiveActive.set(requestStreams.size() + responseStreams.size());			
+			gaugeStreamsReceiveActive.set(requestStreams.size() + responseStreams.size());
 		}
 
 		// Get action property
@@ -627,21 +635,11 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 		// Get strategy (action endpoint array) by action name
 		Strategy<ActionEndpoint> strategy = null;
-		long stamp = lock.tryOptimisticRead();
-		if (stamp != 0) {
-			try {
-				strategy = strategies.get(action);
-			} catch (Exception modified) {
-				stamp = 0;
-			}
-		}
-		if (!lock.validate(stamp) || stamp == 0) {
-			stamp = lock.readLock();
-			try {
-				strategy = strategies.get(action);
-			} finally {
-				lock.unlockRead(stamp);
-			}
+		readLock.lock();
+		try {
+			strategy = strategies.get(action);
+		} finally {
+			readLock.unlock();
 		}
 		if (strategy == null) {
 			logger.warn("Invalid action name (" + action + ")!");
@@ -896,7 +894,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 		// Metrics
 		if (gaugeStreamsReceiveActive != null && responseStream != null) {
-			gaugeStreamsReceiveActive.set(requestStreams.size() + responseStreams.size());			
+			gaugeStreamsReceiveActive.set(requestStreams.size() + responseStreams.size());
 		}
 
 		// Get stored promise
@@ -960,7 +958,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 	@Override
 	public void use(Collection<Middleware> middlewares) {
 		LinkedList<Middleware> newMiddlewares = new LinkedList<>();
-		final long stamp = lock.writeLock();
+		writeLock.lock();
 		try {
 
 			// Register middlewares
@@ -983,7 +981,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 			}
 
 		} finally {
-			lock.unlockWrite(stamp);
+			writeLock.unlock();
 		}
 
 		// Start new middlewares
@@ -1070,7 +1068,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		}
 		int actionCounter = 0;
 
-		final long stamp = lock.writeLock();
+		writeLock.lock();
 		try {
 
 			// Initialize actions in service
@@ -1117,7 +1115,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 			logger.error("Unable to register local service!", cause);
 			return;
 		} finally {
-			lock.unlockWrite(stamp);
+			writeLock.unlock();
 		}
 
 		// Start service
@@ -1128,11 +1126,11 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		}
 
 		// Add to "names" (listened by "waitForServices")
-		final long nameStamp = lock.writeLock();
+		writeLock.lock();
 		try {
 			names.add(serviceName);
 		} finally {
-			lock.unlockWrite(nameStamp);
+			writeLock.unlock();
 		}
 
 		// Write log about this service
@@ -1169,7 +1167,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		String serviceName = config.get("name", "");
 		int actionCounter = 0;
 
-		final long stamp = lock.writeLock();
+		writeLock.lock();
 		try {
 			if (actions != null && actions.isMap()) {
 				for (Tree actionConfig : actions) {
@@ -1199,7 +1197,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 			}
 			names.add(serviceName);
 		} finally {
-			lock.unlockWrite(stamp);
+			writeLock.unlock();
 		}
 
 		// Write log about this service
@@ -1236,7 +1234,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		}
 
 		// Remove actions
-		final long stamp = lock.writeLock();
+		writeLock.lock();
 		try {
 			Iterator<Strategy<ActionEndpoint>> endpoints = strategies.values().iterator();
 			while (endpoints.hasNext()) {
@@ -1261,7 +1259,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 			}
 
 		} finally {
-			lock.unlockWrite(stamp);
+			writeLock.unlock();
 		}
 
 		// Reject promises
@@ -1315,11 +1313,11 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		}
 
 		// Delete services
-		final long stamp = lock.writeLock();
+		writeLock.lock();
 		try {
 			services.clear();
 		} finally {
-			lock.unlockWrite(stamp);
+			writeLock.unlock();
 		}
 	}
 
@@ -1328,21 +1326,11 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 	@Override
 	public Service getService(String name) {
 		Service service = null;
-		long stamp = lock.tryOptimisticRead();
-		if (stamp != 0) {
-			try {
-				service = services.get(name);
-			} catch (Exception modified) {
-				stamp = 0;
-			}
-		}
-		if (!lock.validate(stamp) || stamp == 0) {
-			stamp = lock.readLock();
-			try {
-				service = services.get(name);
-			} finally {
-				lock.unlockRead(stamp);
-			}
+		readLock.lock();
+		try {
+			service = services.get(name);
+		} finally {
+			readLock.unlock();
 		}
 		if (service == null) {
 			throw new ServiceNotFoundError(nodeID, name);
@@ -1355,21 +1343,11 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 	@Override
 	public Action getAction(String name, String nodeID) {
 		Strategy<ActionEndpoint> strategy = null;
-		long stamp = lock.tryOptimisticRead();
-		if (stamp != 0) {
-			try {
-				strategy = strategies.get(name);
-			} catch (Exception modified) {
-				stamp = 0;
-			}
-		}
-		if (!lock.validate(stamp) || stamp == 0) {
-			stamp = lock.readLock();
-			try {
-				strategy = strategies.get(name);
-			} finally {
-				lock.unlockRead(stamp);
-			}
+		readLock.lock();
+		try {
+			strategy = strategies.get(name);
+		} finally {
+			readLock.unlock();
 		}
 		if (strategy == null) {
 			throw new ServiceNotFoundError(nodeID, name);
@@ -1462,21 +1440,11 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 	protected boolean isServicesOnline(Collection<String> requiredServices) {
 		int foundCounter = 0;
-		long stamp = lock.tryOptimisticRead();
-		if (stamp != 0) {
-			try {
-				foundCounter = countOnlineServices(requiredServices);
-			} catch (Exception modified) {
-				stamp = 0;
-			}
-		}
-		if (!lock.validate(stamp) || stamp == 0) {
-			stamp = lock.readLock();
-			try {
-				foundCounter = countOnlineServices(requiredServices);
-			} finally {
-				lock.unlockRead(stamp);
-			}
+		readLock.lock();
+		try {
+			foundCounter = countOnlineServices(requiredServices);
+		} finally {
+			readLock.unlock();
 		}
 		return foundCounter == requiredServices.size();
 	}
@@ -1558,7 +1526,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 	protected Tree currentDescriptor() {
 		FastBuildTree descriptor;
-		final long stamp = lock.readLock();
+		readLock.lock();
 		try {
 			descriptor = cachedDescriptor;
 			if (descriptor == null) {
@@ -1671,7 +1639,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 				cachedDescriptor = descriptor;
 			}
 		} finally {
-			lock.unlockRead(stamp);
+			readLock.unlock();
 		}
 		return descriptor;
 	}

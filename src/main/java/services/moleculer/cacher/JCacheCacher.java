@@ -33,7 +33,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.locks.StampedLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 import javax.cache.Cache.Entry;
 import javax.cache.CacheManager;
@@ -114,7 +116,8 @@ public class JCacheCacher extends DistributedCacher {
 
 	// --- READ/WRITE LOCK ---
 
-	protected final StampedLock lock = new StampedLock();
+	protected final ReadLock readLock;
+	protected final WriteLock writeLock;
 
 	// --- COUNTERS ---
 
@@ -158,6 +161,11 @@ public class JCacheCacher extends DistributedCacher {
 			}
 
 		};
+
+		// Create locks
+		ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+		readLock = lock.readLock();
+		writeLock = lock.writeLock();
 	}
 
 	// --- START CACHER ---
@@ -199,11 +207,11 @@ public class JCacheCacher extends DistributedCacher {
 		}
 
 		// Clear partitions
-		final long stamp = lock.writeLock();
+		writeLock.lock();
 		try {
 			partitions.clear();
 		} finally {
-			lock.unlockWrite(stamp);
+			writeLock.unlock();
 		}
 	}
 
@@ -252,21 +260,11 @@ public class JCacheCacher extends DistributedCacher {
 
 	protected javax.cache.Cache<String, byte[]> getPartition(String prefix) {
 		javax.cache.Cache<String, byte[]> partition = null;
-		long stamp = lock.tryOptimisticRead();
-		if (stamp != 0) {
-			try {
-				partition = partitions.get(prefix);
-			} catch (Exception modified) {
-				stamp = 0;
-			}
-		}
-		if (!lock.validate(stamp) || stamp == 0) {
-			stamp = lock.readLock();
-			try {
-				partition = partitions.get(prefix);
-			} finally {
-				lock.unlockRead(stamp);
-			}
+		readLock.lock();
+		try {
+			partition = partitions.get(prefix);
+		} finally {
+			readLock.unlock();
 		}
 		return partition;
 	}
@@ -289,22 +287,22 @@ public class JCacheCacher extends DistributedCacher {
 			String prefix = key.substring(0, pos);
 			javax.cache.Cache<String, byte[]> partition = getPartition(prefix);
 			if (partition == null) {
-				partition = cacheManager.getCache(prefix, String.class, byte[].class);
-				if (partition == null) {
-
-					// Find partition-specific config
-					Configuration<String, byte[]> cfg = cacheConfigurations.get(prefix);
-					if (cfg == null) {
-
-						// Use default config
-						cfg = defaultConfiguration;
-					}
-
-					// Create new cache
-					partition = cacheManager.createCache(prefix, cfg);
-				}
-				final long stamp = lock.writeLock();
+				writeLock.lock();
 				try {
+					partition = cacheManager.getCache(prefix, String.class, byte[].class);
+					if (partition == null) {
+
+						// Find partition-specific config
+						Configuration<String, byte[]> cfg = cacheConfigurations.get(prefix);
+						if (cfg == null) {
+
+							// Use default config
+							cfg = defaultConfiguration;
+						}
+
+						// Create new cache
+						partition = cacheManager.createCache(prefix, cfg);
+					}
 					javax.cache.Cache<String, byte[]> prev = partitions.get(prefix);
 					if (prev == null) {
 						partitions.put(prefix, partition);
@@ -312,7 +310,7 @@ public class JCacheCacher extends DistributedCacher {
 						partition = prev;
 					}
 				} finally {
-					lock.unlockWrite(stamp);
+					writeLock.unlock();
 				}
 			}
 			if (value == null) {
@@ -384,7 +382,7 @@ public class JCacheCacher extends DistributedCacher {
 			} else {
 
 				// Remove entire partitions
-				final long stamp = lock.writeLock();
+				writeLock.lock();
 				try {
 					if (match.isEmpty() || "**".equals(match)) {
 						if (closeEmptyPartitions) {
@@ -416,7 +414,7 @@ public class JCacheCacher extends DistributedCacher {
 						}
 					}
 				} finally {
-					lock.unlockWrite(stamp);
+					writeLock.unlock();
 				}
 			}
 		} catch (Throwable cause) {
