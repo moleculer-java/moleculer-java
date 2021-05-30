@@ -95,12 +95,6 @@ public class MemoryCacher extends Cacher implements Runnable {
 	 */
 	protected boolean useCloning = true;
 
-	/**
-	 * The ordering mode - <tt>true</tt> for access-order (LRU cache),
-	 * <tt>false</tt> for insertion-order
-	 */
-	protected boolean accessOrder = true;
-
 	// --- READ/WRITE LOCK ---
 
 	protected final ReadLock readLock;
@@ -409,18 +403,18 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 		// --- MEMORY CACHE PARTITION ---
 
-		protected final LinkedHashMap<PartitionKey, PartitionEntry> cache;
+		protected final LinkedHashMap<String, PartitionEntry> cache;
 
 		// --- CONSTUCTORS ---
 
 		protected MemoryPartition(MemoryCacher parent) {
 
-			// Create cache
-			cache = new LinkedHashMap<PartitionKey, PartitionEntry>(parent.capacity, 1.0f, parent.accessOrder) {
+			// Insertion-order is thread safe, access-order is not
+			cache = new LinkedHashMap<String, PartitionEntry>(parent.capacity, 1.0f, false) {
 
 				private static final long serialVersionUID = 5994447707758047152L;
 
-				protected final boolean removeEldestEntry(Map.Entry<PartitionKey, PartitionEntry> entry) {
+				protected final boolean removeEldestEntry(Map.Entry<String, PartitionEntry> entry) {
 					boolean remove = size() > parent.capacity;
 
 					// Metrics
@@ -442,7 +436,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 		// --- REMOVE OLD ENTRIES ---
 
 		protected void removeOldEntries(long now) {
-			LinkedList<PartitionKey> expiredKeys = new LinkedList<>();
+			LinkedList<String> expiredKeys = new LinkedList<>();
 			readLock.lock();
 			try {
 				collectExpiredEntries(now, expiredKeys);
@@ -461,17 +455,17 @@ public class MemoryCacher extends Cacher implements Runnable {
 			// Remove elements
 			writeLock.lock();
 			try {
-				for (PartitionKey partitionKey : expiredKeys) {
-					cache.remove(partitionKey);
+				for (String String : expiredKeys) {
+					cache.remove(String);
 				}
 			} finally {
 				writeLock.unlock();
 			}
 		}
 
-		protected void collectExpiredEntries(long now, LinkedList<PartitionKey> expiredKeys) {
+		protected void collectExpiredEntries(long now, LinkedList<String> expiredKeys) {
 			PartitionEntry partitionEntry;
-			for (Map.Entry<PartitionKey, PartitionEntry> entry : cache.entrySet()) {
+			for (Map.Entry<String, PartitionEntry> entry : cache.entrySet()) {
 				partitionEntry = entry.getValue();
 				if (partitionEntry.expireAt > 0 && partitionEntry.expireAt <= now) {
 					expiredKeys.addLast(entry.getKey());
@@ -491,10 +485,10 @@ public class MemoryCacher extends Cacher implements Runnable {
 			}
 
 			PartitionEntry entry = null;
-			PartitionKey partitionKey = new PartitionKey(key);
+
 			readLock.lock();
 			try {
-				entry = cache.get(partitionKey);
+				entry = cache.get(key);
 			} finally {
 				readLock.unlock();
 			}
@@ -524,11 +518,11 @@ public class MemoryCacher extends Cacher implements Runnable {
 				parent.counterSet.increment();
 				setTimer = parent.metrics.timer(MOLECULER_CACHER_SET_TIME, MOLECULER_CACHER_SET_TIME_DESC);
 			}
-			PartitionKey partitionKey = new PartitionKey(key);
+
 			writeLock.lock();
 			try {
 				if (value == null) {
-					cache.remove(partitionKey);
+					cache.remove(key);
 				} else {
 					long expireAt;
 					if (ttl > 0) {
@@ -536,7 +530,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 					} else {
 						expireAt = 0;
 					}
-					cache.put(partitionKey, new PartitionEntry(value, expireAt));
+					cache.put(key, new PartitionEntry(value, expireAt));
 				}
 			} finally {
 				writeLock.unlock();
@@ -554,10 +548,10 @@ public class MemoryCacher extends Cacher implements Runnable {
 				parent.counterDel.increment();
 				delTimer = parent.metrics.timer(MOLECULER_CACHER_DEL_TIME, MOLECULER_CACHER_DEL_TIME_DESC);
 			}
-			PartitionKey partitionKey = new PartitionKey(key);
+
 			writeLock.lock();
 			try {
-				cache.remove(partitionKey);
+				cache.remove(key);
 			} finally {
 				writeLock.unlock();
 				if (delTimer != null) {
@@ -582,13 +576,18 @@ public class MemoryCacher extends Cacher implements Runnable {
 				} else if (match.indexOf('*') == -1) {
 					cache.remove(match);
 				} else {
-					Iterator<PartitionKey> i = cache.keySet().iterator();
-					PartitionKey partitionKey;
+					Iterator<String> i = cache.keySet().iterator();
+					LinkedList<String> r = new LinkedList<>();
+					String key;
 					while (i.hasNext()) {
-						partitionKey = i.next();
-						if (Matcher.matches(partitionKey.key, match)) {
-							i.remove();
+						key = i.next();
+						if (Matcher.matches(key, match)) {
+							// i.remove();
+							r.add(key);
 						}
+					}
+					for (String rx: r) {
+						cache.remove(rx);
 					}
 				}
 			} finally {
@@ -597,40 +596,6 @@ public class MemoryCacher extends Cacher implements Runnable {
 					cleanTimer.stop();
 				}
 			}
-		}
-
-	}
-
-	// --- PARTITION KEY ---
-
-	protected static class PartitionKey {
-
-		protected final String key;
-		protected final int hashCode;
-
-		protected PartitionKey(String key) {
-			this.key = key;
-			this.hashCode = key.hashCode();
-		}
-
-		@Override
-		public int hashCode() {
-			return hashCode;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj) {
-				return true;
-			}
-			if (obj == null) {
-				return false;
-			}
-			if (getClass() != obj.getClass()) {
-				return false;
-			}
-			PartitionKey other = (PartitionKey) obj;
-			return other.key.equals(key);
 		}
 
 	}
@@ -681,14 +646,6 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 	public void setUseCloning(boolean useCloning) {
 		this.useCloning = useCloning;
-	}
-
-	public boolean isAccessOrder() {
-		return accessOrder;
-	}
-
-	public void setAccessOrder(boolean accessOrder) {
-		this.accessOrder = accessOrder;
 	}
 
 }

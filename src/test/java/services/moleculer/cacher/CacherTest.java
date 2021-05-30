@@ -344,7 +344,7 @@ public abstract class CacherTest extends TestCase {
 	public void testClean() throws Exception {
 
 		// Number of threads
-		int maxThreads = 10;
+		int maxThreads = 30;
 
 		// Do tests
 		if (maxThreads < 1) {
@@ -361,7 +361,7 @@ public abstract class CacherTest extends TestCase {
 				int n = 0;
 				try {
 					System.out.println("Starting " + Thread.currentThread().getName() + "...");
-					for (n = 0; n < 10; n++) {
+					for (n = 0; n < 100; n++) {
 
 						// Write
 						for (int m = 0; m < 100; m++) {
