@@ -89,7 +89,7 @@ dependencies {
     // --- DATATREE API ---
     	    
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-adapters
-	implementation group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.14'
+	implementation group: 'com.github.berkesa', name: 'datatree-adapters', version: '1.0.15'
 
     // --- PROMISE API ---
     
@@ -103,7 +103,7 @@ dependencies {
 	implementation group: 'de.undercouch', name: 'bson4jackson', version: '2.12.0'
  
 	// https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
-	implementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: '2.12.2'
+	implementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: '2.12.3'
  
 	// https://mvnrepository.com/artifact/software.amazon.ion/ion-java
 	implementation group: 'software.amazon.ion', name: 'ion-java', version: '1.5.1'
@@ -112,7 +112,7 @@ dependencies {
 	implementation group: 'org.msgpack', name: 'msgpack', version: '0.6.12'
  
 	// https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/jackson-dataformat-smile
-	implementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-smile', version: '2.12.2'
+	implementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-smile', version: '2.12.3'
  
 	// =============== MONITORING ===============
 	
@@ -128,12 +128,12 @@ dependencies {
     // --- SPRING FRAMEWORK (REQUIRED FOR MOLECULER RUNNER) ---
 
 	// https://mvnrepository.com/artifact/org.springframework/spring-context
-	implementation group: 'org.springframework', name: 'spring-context', version: '5.3.4'
+	implementation group: 'org.springframework', name: 'spring-context', version: '5.3.7'
 
     // --- SPRING BOOT (OPTIONAL!) ---
     
 	// https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter
-	implementation (group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.3.9.RELEASE') {
+	implementation (group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.5.0') {
 		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
 	}
 
@@ -162,7 +162,7 @@ dependencies {
 	// --- DEPENDENCY OF THE NATS TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/io.nats/jnats
-	implementation group: 'io.nats', name: 'jnats', version: '2.8.0'
+	implementation group: 'io.nats', name: 'jnats', version: '2.11.3'
 
 	// --- DEPENDENCY OF THE NATS-STREAMING TRANSPORTER ---
 	
@@ -182,17 +182,17 @@ dependencies {
 	// --- ACTIVE QM CLIENT API FOR JMS TESTING ---
 
 	// https://mvnrepository.com/artifact/org.apache.activemq/activemq-client
-	implementation group: 'org.apache.activemq', name: 'activemq-client', version: '5.16.1'
+	implementation group: 'org.apache.activemq', name: 'activemq-client', version: '5.16.2'
 
 	// --- DEPENDENCY OF THE AMQP/RABBITMQ TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/com.rabbitmq/amqp-client
-	implementation group: 'com.rabbitmq', name: 'amqp-client', version: '5.11.0'
+	implementation group: 'com.rabbitmq', name: 'amqp-client', version: '5.12.0'
 
 	// --- DEPENDENCY OF THE KAFKA TRANSPORTER ---
 	
 	// https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients
-	implementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.7.0'
+	implementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.8.0'
 
 	// =============== METRICS ===============
 
@@ -204,18 +204,18 @@ dependencies {
 	// --- DEPENDENCY OF THE MICROMETER METRIC REGISTRY ---
 	
 	// https://mvnrepository.com/artifact/io.micrometer/micrometer-core
-	compile group: 'io.micrometer', name: 'micrometer-core', version: '1.6.4'
+	compile group: 'io.micrometer', name: 'micrometer-core', version: '1.7.0'
 
 	// --- TEST MICROMETER METRIC REGISTRIES ---
 	
 	// https://mvnrepository.com/artifact/io.micrometer/micrometer-registry-new-relic
-	compile group: 'io.micrometer', name: 'micrometer-registry-new-relic', version: '1.6.4'
+	compile group: 'io.micrometer', name: 'micrometer-registry-new-relic', version: '1.7.0'
 
 	// https://mvnrepository.com/artifact/io.micrometer/micrometer-registry-jmx
-	compile group: 'io.micrometer', name: 'micrometer-registry-jmx', version: '1.6.4'
+	compile group: 'io.micrometer', name: 'micrometer-registry-jmx', version: '1.7.0'
 
 	// https://mvnrepository.com/artifact/io.micrometer/micrometer-registry-datadog
-	compile group: 'io.micrometer', name: 'micrometer-registry-datadog', version: '1.6.4'
+	compile group: 'io.micrometer', name: 'micrometer-registry-datadog', version: '1.7.0'
 
 }
 
@@ -256,7 +256,7 @@ modifyPom {
             dependency {
                 groupId 'com.github.berkesa'
                 artifactId 'datatree-adapters'
-                version '1.0.14'
+                version '1.0.15'
                 scope 'runtime'
             }
             dependency {
@@ -268,7 +268,7 @@ modifyPom {
             dependency {
                 groupId 'io.micrometer'
                 artifactId 'micrometer-core'
-                version '1.6.4'
+                version '1.7.0'
                 scope 'runtime'
             }
             dependency {
@@ -313,7 +313,7 @@ jar {
 }
 
 // --- TESTING ---
-1
+
 test {
 	systemProperty 'java.util.logging.SimpleFormatter.format', '%4$-7s %5$s %n'
     

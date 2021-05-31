@@ -111,13 +111,6 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 	 */
 	public static final String SOFTWARE_VERSION = "1.2.18";
 
-	/**
-	 * Protocol version, replaced by {@link #getProtocolVersion()}. From the
-	 * future implementations this constant will be removed.
-	 */
-	@Deprecated
-	public static final String PROTOCOL_VERSION = System.getProperty("moleculer.protocol.version", "4");
-
 	// --- LOGGER ---
 
 	/**

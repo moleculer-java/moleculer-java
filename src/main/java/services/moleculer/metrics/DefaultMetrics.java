@@ -186,14 +186,16 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 			readLock.unlock();
 		}
 		if (metric == null) {
+			Object previous;
+			metric = factory.get();
 			writeLock.lock();
 			try {
-				if (!registry.containsKey(key)) {
-					metric = factory.get();
-					registry.put(key, metric);
-				}
+				previous = registry.putIfAbsent(key, metric);
 			} finally {
 				writeLock.unlock();
+			}
+			if (previous != null) {
+				metric = previous;
 			}
 		}
 
