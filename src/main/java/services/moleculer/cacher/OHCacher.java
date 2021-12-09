@@ -265,12 +265,12 @@ public class OHCacher extends Cacher {
 			counterDel = metrics.increment(MOLECULER_CACHER_DEL_TOTAL, MOLECULER_CACHER_DEL_TOTAL_DESC, 0);
 			counterClean = metrics.increment(MOLECULER_CACHER_CLEAN_TOTAL, MOLECULER_CACHER_CLEAN_TOTAL_DESC, 0);
 			counterFound = metrics.increment(MOLECULER_CACHER_FOUND_TOTAL, MOLECULER_CACHER_FOUND_TOTAL_DESC, 0);
-			
+
 			// Expired entries
 			timer = scheduler.scheduleWithFixedDelay(new Runnable() {
-				
+
 				long prevExpired = -1;
-				
+
 				@Override
 				public final void run() {
 					long expired = cache.stats().getExpireCount();
@@ -279,7 +279,7 @@ public class OHCacher extends Cacher {
 						gaugeExpired.set(expired);
 					}
 				}
-				
+
 			}, 5, 5, TimeUnit.SECONDS);
 		}
 	}
@@ -318,7 +318,7 @@ public class OHCacher extends Cacher {
 			if (bytes != null) {
 				if (counterFound != null) {
 					counterFound.increment();
-				}				
+				}
 				return Promise.resolve(bytesToValue(bytes));
 			}
 		} catch (Throwable cause) {
@@ -425,6 +425,26 @@ public class OHCacher extends Cacher {
 			}
 		}
 		return Promise.resolve();
+	}
+
+	/**
+	 * Lists all keys of cached entries.
+	 * 
+	 * @return a Tree object with a "keys" array.
+	 */
+	@Override
+	public Promise getCacheKeys() {
+		Tree result = new Tree();
+		Tree keys = result.putList("keys");
+		try {
+			Iterator<byte[]> i = cache.keyIterator();
+			while (i.hasNext()) {
+				keys.add(bytesToKey(i.next()));
+			}
+		} catch (Throwable cause) {
+			logger.warn("Unable to list keys from off-heap cache!", cause);
+		}
+		return Promise.resolve(result);
 	}
 
 	// --- CACHE SERIALIZER ---

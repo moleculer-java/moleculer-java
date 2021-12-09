@@ -451,6 +451,36 @@ public class JCacheCacher extends DistributedCacher {
 		return i;
 	}
 
+	/**
+	 * Lists all keys of cached entries.
+	 * 
+	 * @return a Tree object with a "keys" array. 
+	 */
+	@Override
+	public Promise getCacheKeys() {
+		Tree result = new Tree();
+		Tree keys = result.putList("keys");
+		writeLock.lock();
+		try {
+			Iterator<Map.Entry<String, javax.cache.Cache<String, byte[]>>> i = partitions.entrySet()
+					.iterator();
+			Map.Entry<String, javax.cache.Cache<String, byte[]>> entry;
+			Iterator<Entry<String, byte[]>> entries;
+			String partitionPrefix;
+			while (i.hasNext()) {
+				entry = i.next();
+				partitionPrefix = entry.getKey();
+				entries =  entry.getValue().iterator();
+				while (entries.hasNext()) {
+					keys.add(partitionPrefix + '.' + entries.next().getKey());
+				}
+			}
+		} finally {
+			writeLock.unlock();
+		}
+		return Promise.resolve(result); 
+	}
+	
 	// --- ADD / REMOVE CACHE CONFIGURATIONS BY CACHE REGION / PARTITION ---
 
 	public void addCacheConfiguration(String partition, Configuration<String, byte[]> configuration) {

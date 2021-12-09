@@ -54,6 +54,7 @@ import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.Context;
 import services.moleculer.error.ListenerNotAvailableError;
 import services.moleculer.error.MaxCallLevelError;
+import services.moleculer.error.MoleculerClientError;
 import services.moleculer.error.RequestTimeoutError;
 import services.moleculer.metrics.MetricConstants;
 import services.moleculer.metrics.Metrics;
@@ -662,11 +663,11 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 					return;
 				}
 				endpoint.on(ctx, groups, false);
-			} catch (Exception cause) {
+			} catch (Throwable cause) {
 				if (ctx.stream != null) {
 					ctx.stream.sendError(cause);
 				}
-				logger.error("Unable to invoke event listener!", cause);
+				logUnableToInvokeListener(cause);
 			}
 			return;
 		}
@@ -680,8 +681,8 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 						continue;
 					}
 					endpoint.on(ctx, groups, false);
-				} catch (Exception cause) {
-					logger.error("Unable to invoke event listener!", cause);
+				} catch (Throwable cause) {
+					logUnableToInvokeListener(cause);
 				}
 			}
 			return;
@@ -705,8 +706,8 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 						}
 						foundLocal = true;
 						endpoint.on(ctx, groups, false);
-					} catch (Exception cause) {
-						logger.error("Unable to invoke event listener!", cause);
+					} catch (Throwable cause) {
+						logUnableToInvokeListener(cause);
 					}
 					continue;
 				}
@@ -735,8 +736,8 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 							groupSet.toArray(array);
 							endpoint.on(ctx, Groups.of(array), false);
 						}
-					} catch (Exception cause) {
-						logger.error("Unable to invoke event listener!", cause);
+					} catch (Throwable cause) {
+						logUnableToInvokeListener(cause);
 					}
 				}
 			}
@@ -858,11 +859,11 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 					return;
 				}
 				endpoints[0].on(ctx, groups, true);
-			} catch (Exception cause) {
+			} catch (Throwable cause) {
 				if (ctx.stream != null) {
 					ctx.stream.sendError(cause);
 				}
-				logger.error("Unable to invoke event listener!", cause);
+				logUnableToInvokeListener(cause);
 			}
 			return;
 		}
@@ -879,12 +880,18 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 					continue;
 				}
 				endpoint.on(ctx, groups, true);
-			} catch (Exception cause) {
-				logger.error("Unable to invoke event listener!", cause);
+			} catch (Throwable cause) {
+				logUnableToInvokeListener(cause);
 			}
 		}
 	}
 
+	protected void logUnableToInvokeListener(Throwable cause) {
+		if (cause != null && !(cause instanceof MoleculerClientError)) {
+			logger.error("Unable to invoke event listener!", cause);
+		}
+	}
+	
 	// --- CREATE CACHE KEY ---
 
 	protected String getCacheKey(String name, Groups groups) {

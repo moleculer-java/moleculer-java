@@ -113,6 +113,13 @@ public abstract class Cacher extends Middleware implements MetricConstants {
 
 				@Override
 				public Object handler(Context ctx) throws Exception {
+					
+					// Cache is disabled by the request
+					if (isCachingDisabledByTheContext(ctx)) {
+						return action.handler(ctx);
+					}
+					
+					// Use cache
 					String key = getCacheKey(ctx.name, ctx.params, keys);
 					return new Promise(resolver -> {
 						get(key).then(in -> {
@@ -140,7 +147,14 @@ public abstract class Cacher extends Middleware implements MetricConstants {
 		return new Action() {
 
 			@Override
-			public Object handler(Context ctx) throws Exception {			
+			public Object handler(Context ctx) throws Exception {
+
+				// Cache is disabled by the request
+				if (isCachingDisabledByTheContext(ctx)) {
+					return action.handler(ctx);
+				}
+				
+				// Use cache
 				String key = getCacheKey(ctx.name, ctx.params, keys);
 				return new Promise(resolver -> {
 					get(key).then(in -> {
@@ -294,6 +308,23 @@ public abstract class Cacher extends Middleware implements MetricConstants {
 		key.append(DataConverterRegistry.convert(String.class, source));
 	}
 
+	/**
+	 * Is the request disables caching?
+	 * 
+	 * @param ctx Input Context
+	 * 
+	 * @return true, if the caching is disabled at the request level
+	 */
+	protected boolean isCachingDisabledByTheContext(Context ctx) {
+		if (ctx.params != null) {
+			Tree meta = ctx.params.getMeta(false);
+			if (meta != null) {
+				return !meta.get("$cache", true);
+			}
+		}
+		return false;
+	}
+	
 	// --- CACHE METHODS ---
 
 	/**
@@ -342,4 +373,11 @@ public abstract class Cacher extends Middleware implements MetricConstants {
 	 */
 	public abstract Promise clean(String match);
 
+	/**
+	 * Lists all keys of cached entries.
+	 * 
+	 * @return a Tree object with a "keys" array. 
+	 */
+	public abstract Promise getCacheKeys();
+	
 }

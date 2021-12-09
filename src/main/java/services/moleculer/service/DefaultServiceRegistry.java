@@ -69,6 +69,7 @@ import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.CallOptions;
 import services.moleculer.context.Context;
 import services.moleculer.error.InvalidPacketDataError;
+import services.moleculer.error.MoleculerClientError;
 import services.moleculer.error.MoleculerError;
 import services.moleculer.error.MoleculerErrorUtils;
 import services.moleculer.error.ProtocolVersionMismatchError;
@@ -761,10 +762,7 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 				transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, nodeID, protocolVersion, error));
 
 				// Write error to log file
-				if (writeErrorsToLog) {
-					logger.error("Unexpected error occurred while invoking \"" + action + "\" action!", error);
-				}
-
+				logUnableToInvokeAction(action, error);
 			});
 		} catch (Throwable error) {
 
@@ -772,12 +770,15 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 			transporter.publish(PACKET_RESPONSE, sender, throwableToTree(id, nodeID, protocolVersion, error));
 
 			// Write error to log file
-			if (writeErrorsToLog) {
-				logger.error("Unexpected error occurred while invoking \"" + action + "\" action!", error);
-			}
-
+			logUnableToInvokeAction(action, error);
 		}
 
+	}
+
+	protected void logUnableToInvokeAction(String action, Throwable cause) {
+		if (writeErrorsToLog && cause != null && !(cause instanceof MoleculerClientError)) {
+			logger.error("Unexpected error occurred while invoking \"" + action + "\" action!", cause);
+		}
 	}
 
 	// --- RECEIVE PING-PONG RESPONSE ---

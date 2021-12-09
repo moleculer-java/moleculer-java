@@ -318,6 +318,27 @@ public abstract class CacherTest extends TestCase {
 			assertEquals(12, (int) rsp.asInteger());
 		}
 		assertEquals(2, testService.counter.get());
+		
+		// Disable caching
+		params.getMeta().put("$cache", false);
+		for (int i = 0; i < 10; i++) {
+			rsp = br.call("test.test", params).waitFor(20000);
+			assertEquals(12, (int) rsp.asInteger());
+		}
+		assertEquals(12, testService.counter.get());
+		
+		// Cache keys
+		cr.clean("**").waitFor(20000);
+		for (int i = 0; i < 150; i++) {
+			cr.set("nums.value" + i, new Tree().put("x", i), 0).waitFor(20000);
+		}
+		rsp = cr.getCacheKeys().waitFor(20000);
+		Tree keys = rsp.get("keys");
+		assertNotNull(keys);
+		assertEquals(150, keys.size());
+		for (int i = 0; i < 150; i++) {
+			assertNotNull(cr.get("nums.value" + i));
+		}
 	}
 
 	@Name("test")

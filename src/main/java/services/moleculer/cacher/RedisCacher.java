@@ -396,6 +396,24 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 		return Promise.resolve();
 	}
 
+
+	/**
+	 * Lists all keys of cached entries.
+	 * 
+	 * @return a Tree object with a "keys" array.
+	 */
+	@Override
+	public Promise getCacheKeys() {
+		Tree result = new Tree();
+		Tree keys = result.putList("keys");
+		if (status.get() == STATUS_CONNECTED) {
+			return client.getCacheKeys(keys).then(finished -> {
+				return result;
+			});
+		}
+		return Promise.resolve(result);
+	}
+		
 	// --- REDIS EVENT LISTENER METHODS ---
 
 	@Override

@@ -34,6 +34,7 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.Context;
 import services.moleculer.error.MaxCallLevelError;
+import services.moleculer.error.MoleculerClientError;
 import services.moleculer.error.MoleculerError;
 import services.moleculer.eventbus.Eventbus;
 import services.moleculer.metrics.MetricConstants;
@@ -141,7 +142,7 @@ public class DefaultServiceInvoker extends ServiceInvoker implements MetricConst
 	protected Promise retry(Context ctx, String targetID, int remaining, Throwable cause) {
 
 		// Write error to log file
-		if (writeErrorsToLog) {
+		if (writeErrorsToLog && cause != null && !(cause instanceof MoleculerClientError)) {
 			logger.error("Unexpected error occurred while invoking \"" + ctx.name + "\" action!", cause);
 		}
 

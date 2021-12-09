@@ -388,6 +388,30 @@ public class MemoryCacher extends Cacher implements Runnable {
 		return i;
 	}
 
+	/**
+	 * Lists all keys of cached entries.
+	 * 
+	 * @return a Tree object with a "keys" array. 
+	 */
+	@Override
+	public Promise getCacheKeys() {
+		Tree result = new Tree();
+		Tree keys = result.putList("keys");
+		writeLock.lock();
+		try {
+			Iterator<Map.Entry<String, MemoryPartition>> i = partitions.entrySet()
+					.iterator();
+			Map.Entry<String, MemoryPartition> entry;
+			while (i.hasNext()) {
+				entry = i.next();
+				entry.getValue().addKeysTo(keys, entry.getKey());
+			}
+		} finally {
+			writeLock.unlock();
+		}
+		return Promise.resolve(result); 
+	}
+	
 	// --- MEMORY PARTITION ---
 
 	protected static class MemoryPartition {
@@ -598,6 +622,17 @@ public class MemoryCacher extends Cacher implements Runnable {
 			}
 		}
 
+		protected void addKeysTo(Tree list, String prefix) {
+			writeLock.lock();
+			try {
+				for (String key : cache.keySet()) {
+					list.add(prefix + '.' + key);
+				}
+			} finally {
+				writeLock.unlock();
+			}				
+		}
+		
 	}
 
 	// --- PARTITION ENTRY ---

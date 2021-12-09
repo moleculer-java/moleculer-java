@@ -46,6 +46,7 @@ import com.lambdaworks.redis.codec.ByteArrayCodec;
 import com.lambdaworks.redis.event.EventBus;
 
 import io.datatree.Promise;
+import io.datatree.Tree;
 import services.moleculer.eventbus.Matcher;
 
 /**
@@ -211,15 +212,15 @@ public final class RedisGetSetClient extends AbstractRedisClient {
 			keys.toArray(array);
 			return client.del(array).thenApply(nul -> keyScanCursor);
 		}).thenApply(keyScanCursor -> {
-			if (((KeyScanCursor<byte[]>) keyScanCursor).isFinished()) {
+			if (keyScanCursor.isFinished()) {
 				return null;
 			}
-			return ((KeyScanCursor<byte[]>) keyScanCursor).getCursor();
+			return keyScanCursor.getCursor();
 		}).thenCompose(currentCursor -> {
 			if (currentCursor == null) {
 				return CompletableFuture.completedFuture(null);
 			}
-			return clean(new ScanCursor((String) currentCursor, false), args, match);
+			return clean(new ScanCursor(currentCursor, false), args, match);
 		});
 	}
 
@@ -230,6 +231,47 @@ public final class RedisGetSetClient extends AbstractRedisClient {
 		return clean(clusteredClient.scan(cursor, args), args, match);
 	}
 
+	public Promise getCacheKeys(Tree keys) {
+		ScanArgs args = new ScanArgs();
+		args.limit(100);
+		if (client != null) {
+			return new Promise(getCacheKeys(client.scan(args), args, keys));
+		}
+		if (clusteredClient != null) {
+			return new Promise(getCacheKeys(clusteredClient.scan(args), args, keys));
+		}
+		return Promise.resolve();
+	}
+
+	private final CompletionStage<Object> getCacheKeys(RedisFuture<KeyScanCursor<byte[]>> future, ScanArgs args, Tree keys) {
+		return future.thenCompose(keyScanCursor -> {
+			List<byte[]> list = keyScanCursor.getKeys();
+			if (list == null || list.isEmpty()) {
+				return CompletableFuture.completedFuture(null);
+			}
+			Iterator<byte[]> i = list.iterator();
+			while (i.hasNext()) {
+				new String(i.next(), StandardCharsets.UTF_8);
+			}
+			if (keyScanCursor.isFinished()) {
+				return null;
+			}
+			return CompletableFuture.completedFuture(keyScanCursor.getCursor());
+		}).thenCompose(currentCursor -> {
+			if (currentCursor == null) {
+				return CompletableFuture.completedFuture(null);
+			}
+			return getCacheKeys(new ScanCursor(currentCursor, false), args, keys);
+		});
+	}
+	
+	private final CompletionStage<Object> getCacheKeys(ScanCursor cursor, ScanArgs args, Tree keys) {
+		if (client != null) {
+			return getCacheKeys(client.scan(cursor, args), args, keys);
+		}
+		return getCacheKeys(clusteredClient.scan(cursor, args), args, keys);
+	}
+	
 	// --- DISCONNECT ---
 
 	@Override

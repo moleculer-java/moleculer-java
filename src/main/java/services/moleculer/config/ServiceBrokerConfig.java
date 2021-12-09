@@ -193,9 +193,7 @@ public class ServiceBrokerConfig {
 		}
 
 		// Set cacher
-		if (cacher != null) {
-			setCacher(cacher);
-		}
+		setCacher(cacher);
 
 		// Set transporter
 		setTransporter(transporter);

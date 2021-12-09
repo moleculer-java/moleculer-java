@@ -91,7 +91,7 @@ public abstract class ActionEndpoint extends Endpoint implements Action {
 		if (checkedMiddlewares.add(middleware)) {
 			Action action = middleware.install(current, config);
 			if (action != null) {
-				logger.info("Middleware \"" + middleware.getName() + "\" installed to action \"" + name + "\".");
+				logger.debug("Middleware \"" + middleware.getName() + "\" installed to action \"" + name + "\".");
 				current = action;
 				return true;
 			}
