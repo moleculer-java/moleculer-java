@@ -125,7 +125,7 @@ public abstract class Cacher extends Middleware implements MetricConstants {
 						get(key).then(in -> {
 							if (in == null || in.isNull()) {
 								new Promise(action.handler(ctx)).then(tree -> {
-									if (tree != null) {
+									if (tree != null && !tree.isNull()) {
 										set(key, tree, ttl);
 									}
 									resolver.resolve(tree);
