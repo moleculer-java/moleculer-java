@@ -1,4 +1,3 @@
-[![Build Status](https://travis-ci.org/moleculer-java/moleculer-java.svg?branch=master)](https://travis-ci.org/moleculer-java/moleculer-java)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/a18722bf26f14e72946d1ae761fa7b5b)](https://www.codacy.com/manual/berkesa/moleculer-java?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=moleculer-java/moleculer-java&amp;utm_campaign=Badge_Grade)
 [![codecov](https://codecov.io/gh/moleculer-java/moleculer-java/branch/master/graph/badge.svg)](https://codecov.io/gh/moleculer-java/moleculer-java)
 [![Javadocs](https://www.javadoc.io/badge/com.github.berkesa/moleculer-java.svg)](https://www.javadoc.io/doc/com.github.berkesa/moleculer-java)
