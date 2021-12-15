@@ -1378,8 +1378,8 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		synchronized (serviceListeners) {
 			serviceListeners.addLast(listener);
 			if (servicesOnlineTimer == null) {
-				servicesOnlineTimer = scheduler.scheduleWithFixedDelay(this::checkServicesOnline, 1, 1,
-						TimeUnit.SECONDS);
+				servicesOnlineTimer = scheduler.scheduleWithFixedDelay(this::checkServicesOnline, 200, 200,
+						TimeUnit.MILLISECONDS);
 			}
 		}
 		return promise;
