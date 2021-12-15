@@ -245,18 +245,17 @@ public final class RedisGetSetClient extends AbstractRedisClient {
 
 	private final CompletionStage<Object> getCacheKeys(RedisFuture<KeyScanCursor<byte[]>> future, ScanArgs args, Tree keys) {
 		return future.thenCompose(keyScanCursor -> {
-			List<byte[]> list = keyScanCursor.getKeys();
-			if (list == null || list.isEmpty()) {
+			if (keyScanCursor == null) {
 				return CompletableFuture.completedFuture(null);
 			}
-			Iterator<byte[]> i = list.iterator();
-			while (i.hasNext()) {
-				new String(i.next(), StandardCharsets.UTF_8);
+			List<byte[]> list = keyScanCursor.getKeys();
+			if (list != null) {
+				Iterator<byte[]> i = list.iterator();
+				while (i.hasNext()) {
+					keys.add(new String(i.next(), StandardCharsets.UTF_8));
+				}
 			}
-			if (keyScanCursor.isFinished()) {
-				return null;
-			}
-			return CompletableFuture.completedFuture(keyScanCursor.getCursor());
+			return CompletableFuture.completedFuture(keyScanCursor.isFinished() ? null : keyScanCursor.getCursor());
 		}).thenCompose(currentCursor -> {
 			if (currentCursor == null) {
 				return CompletableFuture.completedFuture(null);
