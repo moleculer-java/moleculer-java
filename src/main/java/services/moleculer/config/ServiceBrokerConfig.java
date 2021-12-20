@@ -112,13 +112,13 @@ public class ServiceBrokerConfig {
 	protected StrategyFactory strategyFactory = new RoundRobinStrategyFactory();
 	protected Eventbus eventbus = new DefaultEventbus();
 	protected ServiceRegistry serviceRegistry = new DefaultServiceRegistry();
-	protected Cacher cacher = new MemoryCacher();
-	protected ServiceInvoker serviceInvoker = new DefaultServiceInvoker();	
-	protected Metrics metrics = new DefaultMetrics();	
-	
+	protected ServiceInvoker serviceInvoker = new DefaultServiceInvoker();
+	protected Metrics metrics = new DefaultMetrics();
+
+	protected Cacher cacher;
 	protected Transporter transporter;
 	protected Monitor monitor;
-	
+
 	protected boolean metricsEnabled;
 
 	// --- SET DEFAULT CPU MONITOR ---
@@ -145,7 +145,7 @@ public class ServiceBrokerConfig {
 					// Not found
 				}
 			}
-			
+
 			// Try to get "SystemCpuLoad" JMX attribute
 			if (defaultMonitor == null) {
 				MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
@@ -157,7 +157,7 @@ public class ServiceBrokerConfig {
 			}
 		} catch (Throwable ignored) {
 		} finally {
-			
+
 			// Fallback to constant-based "monitor"
 			if (defaultMonitor == null) {
 				defaultMonitor = new ConstantMonitor();
@@ -168,7 +168,7 @@ public class ServiceBrokerConfig {
 	// --- CONSTRUCTORS ---
 
 	public ServiceBrokerConfig() {
-		this(null, null, null);
+		this(null, new MemoryCacher(), null);
 	}
 
 	public ServiceBrokerConfig(String nodeID, Cacher cacher, Transporter transporter) {

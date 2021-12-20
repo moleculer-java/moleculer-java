@@ -159,6 +159,11 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 	protected boolean writeErrorsToLog = true;
 
 	/**
+	 * Write Service and Action registrations into the log file
+	 */
+	protected boolean writeRegistrations = true;
+
+	/**
 	 * Stream inactivity/read timeout in MILLISECONDS (0 = no timeout). It may
 	 * be useful if you want to remove the wrong packages from the memory.
 	 */
@@ -776,8 +781,12 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 	}
 
 	protected void logUnableToInvokeAction(String action, Throwable cause) {
-		if (writeErrorsToLog && cause != null && !(cause instanceof MoleculerClientError)) {
-			logger.error("Unexpected error occurred while invoking \"" + action + "\" action!", cause);
+		if (writeErrorsToLog && cause != null) {
+			if (cause instanceof MoleculerClientError) {
+				logger.warn("Unexpected client error occurred while invoking \"" + action + "\" action!", cause);
+			} else {
+				logger.error("Unexpected error occurred while invoking \"" + action + "\" action!", cause);				
+			}
 		}
 	}
 
@@ -1017,25 +1026,27 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 			if (services != null && services.length > 0) {
 				Promise deployed = new Promise();
 				waitForServices(0, Arrays.asList(services)).then(ok -> {
-					StringBuilder msg = new StringBuilder(64);
-					msg.append("Starting \"");
-					msg.append(name);
-					msg.append("\" service because ");
-					for (int i = 0; i < services.length; i++) {
-						msg.append('\"');
-						msg.append(services[i]);
-						msg.append('\"');
-						if (i < services.length - 1) {
-							msg.append(", ");
+					if (writeRegistrations) {
+						StringBuilder msg = new StringBuilder(64);
+						msg.append("Starting \"");
+						msg.append(name);
+						msg.append("\" service because ");
+						for (int i = 0; i < services.length; i++) {
+							msg.append('\"');
+							msg.append(services[i]);
+							msg.append('\"');
+							if (i < services.length - 1) {
+								msg.append(", ");
+							}
 						}
+						if (services.length == 1) {
+							msg.append(" service is");
+						} else {
+							msg.append(" services are");
+						}
+						msg.append(" available...");
+						logger.info(msg.toString());
 					}
-					if (services.length == 1) {
-						msg.append(" service is");
-					} else {
-						msg.append(" services are");
-					}
-					msg.append(" available...");
-					logger.info(msg.toString());
 					addOnlineActions(name, service);
 					deployed.complete();
 				}).catchError(cause -> {
@@ -1104,7 +1115,9 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 				}
 
 				// Write log about this action
-				logger.info("Local action \"" + actionName + "\" registered.");
+				if (writeRegistrations) {
+					logger.info("Local action \"" + actionName + "\" registered.");
+				}
 				actionCounter++;
 			}
 			services.put(serviceName, service);
@@ -1135,20 +1148,22 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		}
 
 		// Write log about this service
-		StringBuilder msg = new StringBuilder(64);
-		msg.append("Local service \"");
-		msg.append(serviceName);
-		msg.append("\" started ");
-		if (actionCounter == 0) {
-			msg.append("without any actions.");
-		} else if (actionCounter == 1) {
-			msg.append("with 1 action.");
-		} else {
-			msg.append("with ");
-			msg.append(actionCounter);
-			msg.append(" actions.");
+		if (writeRegistrations) {
+			StringBuilder msg = new StringBuilder(64);
+			msg.append("Local service \"");
+			msg.append(serviceName);
+			msg.append("\" started ");
+			if (actionCounter == 0) {
+				msg.append("without any actions.");
+			} else if (actionCounter == 1) {
+				msg.append("with 1 action.");
+			} else {
+				msg.append("with ");
+				msg.append(actionCounter);
+				msg.append(" actions.");
+			}
+			logger.info(msg.toString());
 		}
-		logger.info(msg.toString());
 	}
 
 	// --- NOTIFY OTHER SERVICES ---
@@ -1192,7 +1207,9 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 					}
 
 					// Write log about this action
-					logger.info("Action \"" + actionName + "\" on node \"" + nodeID + "\" registered.");
+					if (writeRegistrations) {
+						logger.info("Action \"" + actionName + "\" on node \"" + nodeID + "\" registered.");
+					}
 					actionCounter++;
 				}
 			}
@@ -1202,23 +1219,25 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		}
 
 		// Write log about this service
-		StringBuilder msg = new StringBuilder(64);
-		msg.append("Remote service \"");
-		msg.append(serviceName);
-		msg.append("\" registered ");
-		if (actionCounter == 0) {
-			msg.append("without any actions");
-		} else if (actionCounter == 1) {
-			msg.append("with 1 action");
-		} else {
-			msg.append("with ");
-			msg.append(actionCounter);
-			msg.append(" actions");
+		if (writeRegistrations) {
+			StringBuilder msg = new StringBuilder(64);
+			msg.append("Remote service \"");
+			msg.append(serviceName);
+			msg.append("\" registered ");
+			if (actionCounter == 0) {
+				msg.append("without any actions");
+			} else if (actionCounter == 1) {
+				msg.append("with 1 action");
+			} else {
+				msg.append("with ");
+				msg.append(actionCounter);
+				msg.append(" actions");
+			}
+			msg.append(" on node \"");
+			msg.append(nodeID);
+			msg.append("\".");
+			logger.info(msg.toString());
 		}
-		msg.append(" on node \"");
-		msg.append(nodeID);
-		msg.append("\".");
-		logger.info(msg.toString());
 
 		// Notify local listeners about the new REMOTE service
 		broadcastServicesChanged(false);
@@ -1307,7 +1326,9 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 			String name = serviceEntry.getKey();
 			try {
 				serviceEntry.getValue().stopped();
-				logger.info("Service \"" + name + "\" stopped.");
+				if (writeRegistrations) {
+					logger.info("Service \"" + name + "\" stopped.");
+				}
 			} catch (Throwable cause) {
 				logger.warn("Unable to stop \"" + name + "\" service!", cause);
 			}
@@ -1677,6 +1698,14 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 	public void setStreamTimeout(long streamTimeout) {
 		this.streamTimeout = streamTimeout;
+	}
+
+	public boolean isWriteRegistrations() {
+		return writeRegistrations;
+	}
+
+	public void setWriteRegistrations(boolean writeRegistrations) {
+		this.writeRegistrations = writeRegistrations;
 	}
 
 }
