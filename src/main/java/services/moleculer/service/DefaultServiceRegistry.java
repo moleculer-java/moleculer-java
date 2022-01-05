@@ -1056,11 +1056,16 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 				return deployed;
 			}
 		}
-		addOnlineActions(name, service);
-		return Promise.resolve();
+		try {
+			addOnlineActions(name, service);			
+			return Promise.resolve();
+		} catch (Throwable cause) {
+			logger.error("Unable to deploy service!", cause);
+			return Promise.reject(cause);
+		}
 	}
 
-	protected void addOnlineActions(String serviceName, Service service) {
+	protected void addOnlineActions(String serviceName, Service service) throws Exception {
 		Class<?> clazz = service.getClass();
 		LinkedHashMap<String, Field> fields = new LinkedHashMap<>(64);
 		while (clazz != null) {
@@ -1121,10 +1126,6 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 				actionCounter++;
 			}
 			services.put(serviceName, service);
-
-			// Delete cached node descriptor
-			clearDescriptorCache();
-
 		} catch (Exception cause) {
 			logger.error("Unable to register local service!", cause);
 			return;
@@ -1133,20 +1134,20 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		}
 
 		// Start service
-		try {
-			service.started(broker);
-		} catch (Exception cause) {
-			logger.error("Unable to start local service!", cause);
-		}
+		service.started(broker);
 
 		// Add to "names" (listened by "waitForServices")
 		writeLock.lock();
 		try {
 			names.add(serviceName);
+
+			// Delete cached node descriptor
+			clearDescriptorCache();
+			
 		} finally {
 			writeLock.unlock();
 		}
-
+		
 		// Write log about this service
 		if (writeRegistrations) {
 			StringBuilder msg = new StringBuilder(64);
