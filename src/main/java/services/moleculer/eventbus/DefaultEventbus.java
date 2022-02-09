@@ -801,7 +801,7 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 			endpoints = broadcasterCache.get(key);
 		}
 		if (endpoints == null) {
-			HashSet<ListenerEndpoint> list = new HashSet<>();
+			LinkedList<ListenerEndpoint> list = new LinkedList<>();
 			registryReadLock.lock();
 			try {
 				for (Map.Entry<String, HashMap<String, Strategy<ListenerEndpoint>>> entry : listeners.entrySet()) {
