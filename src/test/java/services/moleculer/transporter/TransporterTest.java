@@ -50,6 +50,11 @@ import services.moleculer.util.CheckedTree;
 
 public abstract class TransporterTest extends TestCase {
 
+	// --- CONSTANTS ---
+	
+	private static final String NODE_1 = "test.node.id1"; 
+	private static final String NODE_2 = "node.id2"; 
+	
 	// --- VARIABLES ---
 
 	protected long min = 1000;
@@ -73,14 +78,14 @@ public abstract class TransporterTest extends TestCase {
 	public void testTransporters() throws Exception {
 
 		// NodeIDs
-		assertEquals("node1", br1.getNodeID());
-		assertEquals("node2", br2.getNodeID());
+		assertEquals(NODE_1, br1.getNodeID());
+		assertEquals(NODE_2, br2.getNodeID());
 
 		// Ping
-		checkPing(br1, "node2");
-		checkPing(br1, "node1");
-		checkPing(br2, "node2");
-		checkPing(br2, "node1");
+		checkPing(br1, NODE_2);
+		checkPing(br1, NODE_1);
+		checkPing(br2, NODE_2);
+		checkPing(br2, NODE_1);
 
 		// Install "math" service to node1
 		br1.createService("math", new TestService());
@@ -494,7 +499,7 @@ public abstract class TransporterTest extends TestCase {
 			fail();
 		} catch (Exception e) {
 			String msg = e.getMessage();
-			assertEquals("Request is rejected when call 'slowService.slowAction' action on 'node2' node.", msg);
+			assertEquals("Request is rejected when call 'slowService.slowAction' action on '" + NODE_2 + "' node.", msg);
 		}
 		br2 = null;
 	}
@@ -627,7 +632,7 @@ public abstract class TransporterTest extends TestCase {
 		Listener evt = ctx -> {
 			logger.info("Level1EventService invoked.");
 			assertEquals(2, ctx.level);
-			assertEquals("node2", ctx.nodeID);
+			assertEquals(NODE_2, ctx.nodeID);
 			ctx.broadcast("level2.xyz", "a", 4);
 		};
 
@@ -635,7 +640,7 @@ public abstract class TransporterTest extends TestCase {
 			Tree req = new Tree();
 			req.getMeta().put("l1", "v1");
 			assertEquals(1, ctx.level);
-			assertEquals("node2", ctx.nodeID);
+			assertEquals(NODE_2, ctx.nodeID);
 			assertEquals("v0", ctx.params.getMeta().get("l0", ""));
 			return ctx.call("level2EventService.level2Action", req).then(rsp -> {
 				assertEquals("v0", rsp.getMeta().get("l0", ""));
@@ -655,7 +660,7 @@ public abstract class TransporterTest extends TestCase {
 			logger.info("Level2EventService invoked.");
 			assertEquals(3, ctx.level);
 			ctx.broadcast("level3.xyz", "a", 5);
-			assertEquals("node1", ctx.nodeID);
+			assertEquals(NODE_1, ctx.nodeID);
 			ctx.call("level3EventService.level3ActionB", "X", "Y");
 		};
 
@@ -664,7 +669,7 @@ public abstract class TransporterTest extends TestCase {
 			assertEquals(2, ctx.level);
 			req.getMeta().put("l2", "v2");
 			assertEquals("v0", ctx.params.getMeta().get("l0", ""));
-			assertEquals("node1", ctx.nodeID);
+			assertEquals(NODE_1, ctx.nodeID);
 			return ctx.call("level3EventService.level3Action", req).then(rsp -> {
 				assertEquals("v0", rsp.getMeta().get("l0", ""));
 				assertEquals("v1", rsp.getMeta().get("l1", ""));
@@ -683,12 +688,12 @@ public abstract class TransporterTest extends TestCase {
 		@Subscribe("level3.*")
 		Listener evt = ctx -> {
 			logger.info("Level3EventService invoked.");
-			assertEquals("node2", ctx.nodeID);
+			assertEquals(NODE_2, ctx.nodeID);
 			this.ctx = ctx;
 		};
 
 		Action level3Action = ctx -> {
-			assertEquals("node2", ctx.nodeID);
+			assertEquals(NODE_2, ctx.nodeID);
 			assertEquals(3, ctx.level);
 			assertEquals("v0", ctx.params.getMeta().get("l0", ""));
 			assertEquals("v1", ctx.params.getMeta().get("l1", ""));
@@ -699,7 +704,7 @@ public abstract class TransporterTest extends TestCase {
 		};
 
 		Action level3ActionB = ctx -> {
-			assertEquals("node2", ctx.nodeID);
+			assertEquals(NODE_2, ctx.nodeID);
 			assertEquals(4, ctx.level);
 			this.ctxB = ctx;
 			return null;
@@ -730,8 +735,8 @@ public abstract class TransporterTest extends TestCase {
 		tr2.setDebug(true);
 		
 		// Create brokers
-		br1 = ServiceBroker.builder().transporter(tr1).monitor(new ConstantMonitor()).nodeID("node1").build();
-		br2 = ServiceBroker.builder().transporter(tr2).monitor(new ConstantMonitor()).nodeID("node2").build();
+		br1 = ServiceBroker.builder().transporter(tr1).monitor(new ConstantMonitor()).nodeID(NODE_1).build();
+		br2 = ServiceBroker.builder().transporter(tr2).monitor(new ConstantMonitor()).nodeID(NODE_2).build();
 
 		// Create "marker" service
 		br1.createService("marker", new Service() {

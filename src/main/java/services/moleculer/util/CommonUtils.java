@@ -289,23 +289,25 @@ public final class CommonUtils {
 	// --- GET ALL NODE INFO STRUCTURES OF ALL NODES ---
 
 	public static final Tree getNodeInfos(ServiceBroker broker, Transporter transporter) {
-		Tree infos = new Tree();
+		LinkedHashMap<String, Object> infosByNodeID;
 		if (transporter == null) {
-			infos.putObject(broker.getNodeID(), broker.getConfig().getServiceRegistry().getDescriptor());
+			infosByNodeID = new LinkedHashMap<>(4);
+			infosByNodeID.put(broker.getNodeID(), broker.getConfig().getServiceRegistry().getDescriptor().asObject());
 		} else {
 			Set<String> nodeIDset = transporter.getAllNodeIDs();
 			String[] nodeIDarray = new String[nodeIDset.size()];
 			nodeIDset.toArray(nodeIDarray);
 			Arrays.sort(nodeIDarray, String.CASE_INSENSITIVE_ORDER);
+			infosByNodeID = new LinkedHashMap<>((nodeIDarray.length + 1) * 2);
 			for (String nodeID : nodeIDarray) {
 				Tree info = transporter.getDescriptor(nodeID);
 				if (info == null) {
 					continue;
 				}
-				infos.putObject(nodeID, info);
+				infosByNodeID.put(nodeID, info.asObject());
 			}
 		}
-		return infos;
+		return new Tree(infosByNodeID);
 	}
 
 	public static final Tree removeLocalEvents(Tree descriptor) {

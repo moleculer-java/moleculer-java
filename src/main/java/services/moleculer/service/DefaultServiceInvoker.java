@@ -142,8 +142,21 @@ public class DefaultServiceInvoker extends ServiceInvoker implements MetricConst
 	protected Promise retry(Context ctx, String targetID, int remaining, Throwable cause) {
 
 		// Write error to log file
-		if (writeErrorsToLog && cause != null && !(cause instanceof MoleculerClientError)) {
-			logger.error("Unexpected error occurred while invoking \"" + ctx.name + "\" action!", cause);
+		if (writeErrorsToLog && cause != null) {
+			boolean clientError = false;
+			Throwable err = cause;
+			while (err != null) {
+				if (err instanceof MoleculerClientError) {
+					clientError = true;
+					break;
+				}
+				err = err.getCause();
+			}
+			if (clientError) {
+				logger.warn("Unexpected client error occurred while invoking \"" + ctx.name + "\" action!", err);
+			} else {
+				logger.error("Unexpected error occurred while invoking \"" + ctx.name + "\" action!", cause);				
+			}
 		}
 
 		// Check error type and error counter

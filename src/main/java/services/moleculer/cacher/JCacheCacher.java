@@ -236,11 +236,18 @@ public class JCacheCacher extends DistributedCacher {
 			javax.cache.Cache<String, byte[]> partition = getPartition(prefix);
 			if (partition != null) {
 				byte[] bytes = partition.get(key.substring(pos + 1));
-				if (bytes != null) {
+				if (bytes == null) {
+					if (debug) {
+						logger.info("Cache: Data not found in JCache by key \"" + key + "\".");
+					}					
+				} else {
 					Tree root = serializer.read(bytes);
 					Tree content = root.get(CONTENT);
 					if (counterFound != null) {
 						counterFound.increment();
+					}
+					if (debug) {
+						logger.info("Cache: Data found in JCache by key \"" + key + "\": " + content);
 					}
 					if (content != null) {
 						return Promise.resolve(content);
@@ -278,7 +285,6 @@ public class JCacheCacher extends DistributedCacher {
 			counterSet.increment();
 			setTimer = metrics.timer(MOLECULER_CACHER_SET_TIME, MOLECULER_CACHER_SET_TIME_DESC);
 		}
-
 		try {
 			int pos = partitionPosition(key, true);
 
@@ -326,6 +332,9 @@ public class JCacheCacher extends DistributedCacher {
 			if (setTimer != null) {
 				setTimer.stop();
 			}
+			if (debug) {
+				logger.info("Cache: Data stored in JCache by key \"" + key + "\": " + value);
+			}
 		}
 		return Promise.resolve();
 	}
@@ -348,7 +357,10 @@ public class JCacheCacher extends DistributedCacher {
 			String prefix = key.substring(0, pos);
 			javax.cache.Cache<String, byte[]> partition = getPartition(prefix);
 			if (partition != null) {
-				partition.remove(key.substring(pos + 1));
+				boolean deleted = partition.remove(key.substring(pos + 1));
+				if (debug && deleted) {
+					logger.info("Cache: Data removed from JCache by key \"" + key + "\".");
+				}				
 			}
 		} finally {
 			if (delTimer != null) {
@@ -367,7 +379,7 @@ public class JCacheCacher extends DistributedCacher {
 			counterClean.increment();
 			cleanTimer = metrics.timer(MOLECULER_CACHER_CLEAN_TIME, MOLECULER_CACHER_CLEAN_TIME_DESC);
 		}
-
+		long count = -1;
 		try {
 			int pos = partitionPosition(match, false);
 			if (pos > 0) {
@@ -376,7 +388,7 @@ public class JCacheCacher extends DistributedCacher {
 				String prefix = match.substring(0, pos);
 				javax.cache.Cache<String, byte[]> partition = getPartition(prefix);
 				if (partition != null) {
-					clean(partition, match.substring(pos + 1));
+					count = clean(partition, match.substring(pos + 1));
 				}
 
 			} else {
@@ -410,6 +422,7 @@ public class JCacheCacher extends DistributedCacher {
 									}
 								}
 								i.remove();
+								count++;
 							}
 						}
 					}
@@ -423,23 +436,29 @@ public class JCacheCacher extends DistributedCacher {
 			if (cleanTimer != null) {
 				cleanTimer.stop();
 			}
+			logClean("JCache", match, count);
 		}
 		return Promise.resolve();
 	}
 
-	protected static final void clean(javax.cache.Cache<String, byte[]> partition, String match) throws Exception {
+	protected static final long clean(javax.cache.Cache<String, byte[]> partition, String match) throws Exception {
+		long count;
 		if (match.isEmpty() || "**".equals(match)) {
 			partition.clear();
+			count = -1;
 		} else {
+			count = 0;
 			Iterator<Entry<String, byte[]>> i = partition.iterator();
 			Entry<String, byte[]> entry;
 			while (i.hasNext()) {
 				entry = i.next();
 				if (Matcher.matches(entry.getKey(), match)) {
 					i.remove();
+					count++;
 				}
 			}
 		}
+		return count;
 	}
 
 	protected int partitionPosition(String key, boolean throwErrorIfMissing) {

@@ -57,6 +57,10 @@ public abstract class Cacher extends Middleware implements MetricConstants {
 
 	protected Metrics metrics;
 
+	// --- INTERNAL PROPERTIES ---
+	
+	protected boolean debug;
+	
 	// --- START MIDDLEWARE ---
 
 	@Override
@@ -158,7 +162,7 @@ public abstract class Cacher extends Middleware implements MetricConstants {
 				String key = getCacheKey(ctx.name, ctx.params, keys);
 				return new Promise(resolver -> {
 					get(key).then(in -> {
-						if (in == null || in.isNull()) {
+						if (in == null) {
 							new Promise(action.handler(ctx)).then(tree -> {
 								if (tree != null) {
 									set(key, tree, ttl);
@@ -325,6 +329,16 @@ public abstract class Cacher extends Middleware implements MetricConstants {
 		return false;
 	}
 	
+	protected void logClean(String cacheName, String match, long count) {
+		if (debug) {
+			if (count > -1) {
+				logger.info("Cache: " + count + " record(s) deleted from " + cacheName + " by pattern \"" + match + "\".");				
+			} else {
+				logger.info("Cache: Data cleaned from " + cacheName + " by pattern \"" + match + "\".");				
+			}
+		}
+	}
+
 	// --- CACHE METHODS ---
 
 	/**
@@ -379,5 +393,25 @@ public abstract class Cacher extends Middleware implements MetricConstants {
 	 * @return a Tree object with a "keys" array. 
 	 */
 	public abstract Promise getCacheKeys();
+
+	// --- PROPERTY GETTERS / SETTERS ---
+	
+	/**
+	 * Is debug enabled?
+	 * 
+	 * @return debug flag
+	 */
+	public boolean isDebug() {
+		return debug;
+	}
+
+	/**
+	 * Enable debug messages.
+	 * 
+	 * @param debug debug mode
+	 */
+	public void setDebug(boolean debug) {
+		this.debug = debug;
+	}
 	
 }

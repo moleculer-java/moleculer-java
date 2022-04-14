@@ -315,11 +315,19 @@ public class OHCacher extends Cacher {
 
 		try {
 			byte[] bytes = cache.get(keyToBytes(key));
-			if (bytes != null) {
+			if (bytes == null) {
+				if (debug) {
+					logger.info("Cache: Data not found in OHCache by key \"" + key + "\".");
+				}
+			} else {
 				if (counterFound != null) {
 					counterFound.increment();
 				}
-				return Promise.resolve(bytesToValue(bytes));
+				Tree content = bytesToValue(bytes);
+				if (debug) {
+					logger.info("Cache: Data found in OHCache by key \"" + key + "\": " + content);
+				}
+				return Promise.resolve(content);
 			}
 		} catch (Throwable cause) {
 			logger.warn("Unable to read data from off-heap cache!", cause);
@@ -362,6 +370,9 @@ public class OHCacher extends Cacher {
 			if (setTimer != null) {
 				setTimer.stop();
 			}
+			if (debug) {
+				logger.info("Cache: Data stored in OHCache by key \"" + key + "\": " + value);
+			}
 		}
 		return Promise.resolve();
 	}
@@ -377,7 +388,10 @@ public class OHCacher extends Cacher {
 		}
 
 		try {
-			cache.remove(keyToBytes(key));
+			boolean deleted = cache.remove(keyToBytes(key));
+			if (debug && deleted) {
+				logger.info("Cache: Data removed from OHCache by key \"" + key + "\".");
+			}
 		} catch (Throwable cause) {
 			logger.warn("Unable to delete data from off-heap cache!", cause);
 		} finally {
@@ -397,11 +411,13 @@ public class OHCacher extends Cacher {
 			counterClean.increment();
 			cleanTimer = metrics.timer(MOLECULER_CACHER_CLEAN_TIME, MOLECULER_CACHER_CLEAN_TIME_DESC);
 		}
-
+		long count = -1;
 		try {
 			if (match.isEmpty() || match.startsWith("*")) {
+				count = cache.size();
 				cache.clear();
 			} else {
+				count = 0;
 				String pattern;
 				if (match.indexOf('.') == -1 && (match.endsWith("*") && !match.endsWith("**"))) {
 					pattern = match + '*';
@@ -414,6 +430,7 @@ public class OHCacher extends Cacher {
 					key = bytesToKey(i.next());
 					if (Matcher.matches(key, pattern)) {
 						i.remove();
+						count++;
 					}
 				}
 			}
@@ -423,6 +440,7 @@ public class OHCacher extends Cacher {
 			if (cleanTimer != null) {
 				cleanTimer.stop();
 			}
+			logClean("OHCache", match, count);
 		}
 		return Promise.resolve();
 	}

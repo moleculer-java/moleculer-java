@@ -40,6 +40,7 @@ import services.moleculer.ServiceBroker;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
+import services.moleculer.util.CheckedTree;
 
 public abstract class CacherTest extends TestCase {
 
@@ -271,6 +272,13 @@ public abstract class CacherTest extends TestCase {
 
 		assertNull(cr.get("xxx.y1").waitFor(20000));
 		assertNull(cr.get("xxx.y2").waitFor(20000));
+		
+		// 11. Tree with null value
+		val = new CheckedTree(null);
+		cr.set("x.nullValue", val, 0).waitFor(20000);
+		
+		rsp = cr.get("x.nullValue").waitFor(20000);
+		assertTrue(rsp.isNull());
 	}
 
 	@Test
@@ -432,6 +440,7 @@ public abstract class CacherTest extends TestCase {
 	@Override
 	protected void setUp() throws Exception {
 		cr = createCacher();
+		// cr.setDebug(true);
 		br = ServiceBroker.builder().cacher(cr).build();
 		br.start();
 		cr.clean("**").waitFor(20000);

@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.lambdaworks.redis.SetArgs;
 import com.lambdaworks.redis.event.Event;
@@ -112,7 +113,7 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 	protected MetricCounter counterDel;
 	protected MetricCounter counterClean;
 	protected MetricCounter counterFound;
-	
+
 	// --- CONSTUCTORS ---
 
 	public RedisCacher() {
@@ -163,7 +164,7 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 			counterClean = metrics.increment(MOLECULER_CACHER_CLEAN_TOTAL, MOLECULER_CACHER_CLEAN_TOTAL_DESC, 0);
 			counterFound = metrics.increment(MOLECULER_CACHER_FOUND_TOTAL, MOLECULER_CACHER_FOUND_TOTAL_DESC, 0);
 		}
-		
+
 		// Connect to Redis server
 		connect();
 	}
@@ -235,7 +236,7 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 	@Override
 	public Promise get(String key) {
 		if (status.get() == STATUS_CONNECTED) {
-			
+
 			// Metrics
 			StoppableTimer getTimer;
 			if (metrics == null) {
@@ -244,38 +245,48 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 				counterGet.increment();
 				getTimer = metrics.timer(MOLECULER_CACHER_GET_TIME, MOLECULER_CACHER_GET_TIME_DESC);
 			}
-			
+
 			try {
 				return client.get(key).then(in -> {
-					if (in != null) {
-						byte[] source = in.asBytes();
-						if (source != null) {
-							try {
-								Tree root = serializer.read(source);
-								Tree content = root.get(CONTENT);
-								if (content != null) {
-									return content;
+					try {
+						if (in != null) {
+							byte[] source = in.asBytes();
+							if (source == null) {
+								if (debug) {
+									logger.info("Cache: Data not found in RedisCache by key \"" + key + "\".");
 								}
-								return root;
-							} catch (Exception cause) {
-								logger.warn("Unable to deserialize cached data!", cause);
+							} else {
+								try {
+									Tree root = serializer.read(source);
+									Tree content = root.get(CONTENT);
+									if (debug) {
+										logger.info("Cache: Data found in RedisCache by key \"" + key + "\": " + content);
+									}
+									if (content != null) {
+										return content;
+									}
+									return root;
+								} catch (Exception cause) {
+									logger.warn("Unable to deserialize cached data!", cause);
+								}
 							}
 						}
-					}
-					if (getTimer != null) {
-						getTimer.stop();
+					} finally {
+						if (getTimer != null) {
+							getTimer.stop();
+						}
 					}
 					return Promise.resolve((Object) null);
 				}).catchError(err -> {
 					if (getTimer != null) {
 						getTimer.stop();
-					}					
+					}
 					return err;
 				});
 			} catch (Exception cause) {
 				if (getTimer != null) {
 					getTimer.stop();
-				}				
+				}
 				logger.warn("Unable to get data from Redis!", cause);
 			}
 		}
@@ -313,6 +324,9 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 				}
 				return client.set(key, bytes, args).then(rsp -> {
 					setTimer.stop();
+					if (debug) {
+						logger.info("Cache: Data stored in RedisCache by key \"" + key + "\": " + value);
+					}
 					return rsp;
 				}).catchError(err -> {
 					setTimer.stop();
@@ -331,7 +345,7 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 	@Override
 	public Promise del(String key) {
 		if (status.get() == STATUS_CONNECTED) {
-			
+
 			// Metrics
 			StoppableTimer delTimer;
 			if (metrics == null) {
@@ -340,18 +354,28 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 				counterDel.increment();
 				delTimer = metrics.timer(MOLECULER_CACHER_DEL_TIME, "Response time for cache DEL operations");
 			}
-			
+
 			try {
-				if (delTimer == null) {
+				if (delTimer == null && !debug) {
 					return client.del(key);
 				}
 				return client.del(key).then(rsp -> {
-					delTimer.stop();
+					if (delTimer != null) {
+						delTimer.stop();
+					}
+					if (debug) {
+						boolean deleted = rsp.asLong() > 0;
+						if (deleted) {
+							logger.info("Cache: Data removed from RedisCache by key \"" + key + "\".");
+						}
+					}
 					return rsp;
 				}).catchError(err -> {
-					delTimer.stop();
+					if (delTimer != null) {
+						delTimer.stop();
+					}
 					return err;
-				});				
+				});
 			} catch (Exception cause) {
 				if (delTimer != null) {
 					delTimer.stop();
@@ -365,7 +389,7 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 	@Override
 	public Promise clean(String match) {
 		if (status.get() == STATUS_CONNECTED) {
-			
+
 			// Metrics
 			StoppableTimer cleanTimer;
 			if (metrics == null) {
@@ -374,18 +398,25 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 				counterClean.increment();
 				cleanTimer = metrics.timer(MOLECULER_CACHER_CLEAN_TIME, "Response time for cache CLEAN operations");
 			}
-			
+			AtomicLong counter = new AtomicLong();
 			try {
 				if (cleanTimer == null) {
-					return client.clean(match);
+					Promise rsp = client.clean(match, counter);
+					logClean("RedisCache", match, counter.get());
+					return rsp;
 				}
-				return client.clean(match).then(rsp -> {
-					cleanTimer.stop();
+				return client.clean(match, counter).then(rsp -> {
+					if (cleanTimer != null) {
+						cleanTimer.stop();
+					}
+					logClean("RedisCache", match, counter.get());
 					return rsp;
 				}).catchError(err -> {
-					cleanTimer.stop();
+					if (cleanTimer != null) {
+						cleanTimer.stop();
+					}
 					return err;
-				});	
+				});
 			} catch (Exception cause) {
 				if (cleanTimer != null) {
 					cleanTimer.stop();
@@ -395,7 +426,6 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 		}
 		return Promise.resolve();
 	}
-
 
 	/**
 	 * Lists all keys of cached entries.
@@ -413,7 +443,7 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 		}
 		return Promise.resolve(result);
 	}
-		
+
 	// --- REDIS EVENT LISTENER METHODS ---
 
 	@Override

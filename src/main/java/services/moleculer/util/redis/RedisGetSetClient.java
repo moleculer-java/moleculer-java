@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.lambdaworks.redis.KeyScanCursor;
 import com.lambdaworks.redis.RedisClient;
@@ -160,12 +161,14 @@ public final class RedisGetSetClient extends AbstractRedisClient {
 	 *
 	 * @param match
 	 *            regex
+	 * @param counter
+	 *            counter of deleted records
 	 * 
 	 * @return Promise with empty value
 	 */
-	public final Promise clean(String match) {
+	public final Promise clean(String match, AtomicLong counter) {
 		ScanArgs args = new ScanArgs();
-		args.limit(100);
+		args.limit(500);
 		boolean singleStar = match.indexOf('*') > -1;
 		boolean doubleStar = match.contains("**");
 		if (doubleStar) {
@@ -182,16 +185,16 @@ public final class RedisGetSetClient extends AbstractRedisClient {
 			match = null;
 		}
 		if (client != null) {
-			return new Promise(clean(client.scan(args), args, match));
+			return new Promise(clean(client.scan(args), args, match, counter));
 		}
 		if (clusteredClient != null) {
-			return new Promise(clean(clusteredClient.scan(args), args, match));
+			return new Promise(clean(clusteredClient.scan(args), args, match, counter));
 		}
 		return Promise.resolve();
 	}
 
 	private final CompletionStage<Object> clean(RedisFuture<KeyScanCursor<byte[]>> future, ScanArgs args,
-			String match) {
+			String match, AtomicLong counter) {
 		return future.thenCompose(keyScanCursor -> {
 			List<byte[]> keys = keyScanCursor.getKeys();
 			if (keys == null || keys.isEmpty()) {
@@ -202,6 +205,7 @@ public final class RedisGetSetClient extends AbstractRedisClient {
 				while (i.hasNext()) {
 					if (!Matcher.matches(new String(i.next(), StandardCharsets.UTF_8), match)) {
 						i.remove();
+						counter.incrementAndGet();
 					}
 				}
 			}
@@ -220,15 +224,15 @@ public final class RedisGetSetClient extends AbstractRedisClient {
 			if (currentCursor == null) {
 				return CompletableFuture.completedFuture(null);
 			}
-			return clean(new ScanCursor(currentCursor, false), args, match);
+			return clean(new ScanCursor(currentCursor, false), args, match, counter);
 		});
 	}
 
-	private final CompletionStage<Object> clean(ScanCursor cursor, ScanArgs args, String match) {
+	private final CompletionStage<Object> clean(ScanCursor cursor, ScanArgs args, String match, AtomicLong counter) {
 		if (client != null) {
-			return clean(client.scan(cursor, args), args, match);
+			return clean(client.scan(cursor, args), args, match, counter);
 		}
-		return clean(clusteredClient.scan(cursor, args), args, match);
+		return clean(clusteredClient.scan(cursor, args), args, match, counter);
 	}
 
 	public Promise getCacheKeys(Tree keys) {

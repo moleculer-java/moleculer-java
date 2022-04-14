@@ -782,8 +782,17 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 
 	protected void logUnableToInvokeAction(String action, Throwable cause) {
 		if (writeErrorsToLog && cause != null) {
-			if (cause instanceof MoleculerClientError) {
-				logger.warn("Unexpected client error occurred while invoking \"" + action + "\" action!", cause);
+			boolean clientError = false;
+			Throwable err = cause;
+			while (err != null) {
+				if (err instanceof MoleculerClientError) {
+					clientError = true;
+					break;
+				}
+				err = err.getCause();
+			}
+			if (clientError) {
+				logger.warn("Unexpected client error occurred while invoking \"" + action + "\" action!", err);
 			} else {
 				logger.error("Unexpected error occurred while invoking \"" + action + "\" action!", cause);				
 			}

@@ -201,15 +201,19 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 	@Override
 	public void run() {
+		long count = 0;
 		long now = System.currentTimeMillis();
 		readLock.lock();
 		try {
 			for (MemoryPartition partition : partitions.values()) {
-				partition.removeOldEntries(now);
+				count += partition.removeOldEntries(now);
 			}
 		} finally {
 			readLock.unlock();
 		}
+		if (debug) {
+			logger.info("Cache: " + count + " record(s) timeouted and removed from MemoryCache.");				
+		}		
 	}
 
 	// --- STOP CACHER ---
@@ -245,7 +249,15 @@ public class MemoryCacher extends Cacher implements Runnable {
 			String prefix = key.substring(0, pos);
 			MemoryPartition partition = getPartition(prefix);
 			if (partition != null) {
-				return Promise.resolve(partition.get(key.substring(pos + 1)));
+				Tree content = partition.get(key.substring(pos + 1));
+				if (debug) {
+					if (content == null) {
+						logger.info("Cache: Data not found in MemoryCache by key \"" + key + "\".");					
+					} else {
+						logger.info("Cache: Data found in MemoryCache by key \"" + key + "\": " + content);						
+					}
+				}			
+				return Promise.resolve(content);
 			}
 		} catch (Throwable cause) {
 			logger.warn("Unable to get data from the cache!", cause);
@@ -307,9 +319,13 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 			// Store value
 			partition.set(key.substring(pos + 1), v, entryTTL);
+			
 		} catch (Throwable cause) {
 			logger.warn("Unable to set data to the cache!", cause);
 		}
+		if (debug) {
+			logger.info("Cache: Data stored in MemoryCache by key \"" + key + "\": " + value);
+		}		
 		return Promise.resolve();
 	}
 
@@ -323,7 +339,10 @@ public class MemoryCacher extends Cacher implements Runnable {
 			String prefix = key.substring(0, pos);
 			MemoryPartition partition = getPartition(prefix);
 			if (partition != null) {
-				partition.del(key.substring(pos + 1));
+				boolean deleted = partition.del(key.substring(pos + 1));
+				if (debug && deleted) {
+					logger.info("Cache: Data removed from MemoryCache by key \"" + key + "\".");
+				}
 			}
 		} catch (Throwable cause) {
 			logger.warn("Unable to delete data from the cache!", cause);
@@ -333,6 +352,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 	@Override
 	public Promise clean(String match) {
+		long count = -1;
 		try {
 
 			// Prefix is the name of the partition / region (eg.
@@ -344,7 +364,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 				String prefix = match.substring(0, pos);
 				MemoryPartition partition = getPartition(prefix);
 				if (partition != null) {
-					partition.clean(match.substring(pos + 1));
+					count = partition.clean(match.substring(pos + 1));
 				}
 
 			} else {
@@ -376,6 +396,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 		} catch (Throwable cause) {
 			logger.warn("Unable to clean cache!", cause);
 		}
+		logClean("MemoryCache", match, count);
 		return Promise.resolve();
 	}
 
@@ -459,7 +480,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 		// --- REMOVE OLD ENTRIES ---
 
-		protected void removeOldEntries(long now) {
+		protected int removeOldEntries(long now) {
 			LinkedList<String> expiredKeys = new LinkedList<>();
 			readLock.lock();
 			try {
@@ -468,7 +489,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 				readLock.unlock();
 			}
 			if (expiredKeys.isEmpty()) {
-				return;
+				return 0;
 			}
 
 			// Metrics
@@ -485,6 +506,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 			} finally {
 				writeLock.unlock();
 			}
+			return expiredKeys.size();
 		}
 
 		protected void collectExpiredEntries(long now, LinkedList<String> expiredKeys) {
@@ -560,11 +582,11 @@ public class MemoryCacher extends Cacher implements Runnable {
 				writeLock.unlock();
 				if (setTimer != null) {
 					setTimer.stop();
-				}
+				}		
 			}
 		}
 
-		protected void del(String key) {
+		protected boolean del(String key) {
 
 			// Metrics
 			StoppableTimer delTimer = null;
@@ -575,7 +597,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 
 			writeLock.lock();
 			try {
-				cache.remove(key);
+				return cache.remove(key) != null;
 			} finally {
 				writeLock.unlock();
 				if (delTimer != null) {
@@ -584,7 +606,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 			}
 		}
 
-		protected void clean(String match) {
+		protected long clean(String match) {
 
 			// Metrics
 			StoppableTimer cleanTimer = null;
@@ -592,13 +614,16 @@ public class MemoryCacher extends Cacher implements Runnable {
 				parent.counterClean.increment();
 				cleanTimer = parent.metrics.timer(MOLECULER_CACHER_CLEAN_TIME, MOLECULER_CACHER_CLEAN_TIME_DESC);
 			}
-
+			long count = -1;
 			writeLock.lock();
 			try {
 				if (match.isEmpty() || "**".equals(match)) {
+					count = cache.size();
 					cache.clear();
 				} else if (match.indexOf('*') == -1) {
-					cache.remove(match);
+					if (cache.remove(match) != null) {
+						count = 1;	
+					}
 				} else {
 					Iterator<String> i = cache.keySet().iterator();
 					LinkedList<String> r = new LinkedList<>();
@@ -606,13 +631,13 @@ public class MemoryCacher extends Cacher implements Runnable {
 					while (i.hasNext()) {
 						key = i.next();
 						if (Matcher.matches(key, match)) {
-							// i.remove();
 							r.add(key);
 						}
 					}
 					for (String rx: r) {
 						cache.remove(rx);
 					}
+					count = r.size();
 				}
 			} finally {
 				writeLock.unlock();
@@ -620,6 +645,7 @@ public class MemoryCacher extends Cacher implements Runnable {
 					cleanTimer.stop();
 				}
 			}
+			return count;
 		}
 
 		protected void addKeysTo(Tree list, String prefix) {
