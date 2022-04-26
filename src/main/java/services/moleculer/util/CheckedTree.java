@@ -39,7 +39,10 @@ public final class CheckedTree extends Tree {
 	}
 
 	public CheckedTree(Object checkedValue, Object checkedMeta) {
-		super(checkedValue, checkedMeta);
+		super(checkedValue == null ? serialVersionUID : checkedValue, checkedMeta);
+		if (checkedValue == null) {
+			setObjectInternal(null);
+		}
 	}
 
 }

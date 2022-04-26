@@ -92,15 +92,15 @@ public final class CommonUtils {
 		if (reqMeta == null) {
 			return rsp;
 		}
-		if (rsp == null || rsp.isNull()) {
-			return new CheckedTree(null, reqMeta.asObject());
+		if (rsp == null) {
+			return new CheckedTree(null, reqMeta.asObject());			
 		}
-		Tree rspMeta = rsp.getMeta(false);
+		Tree rspMeta = rsp.getMeta(false);		
 		if (rspMeta == null) {
 			return new CheckedTree(rsp.asObject(), reqMeta.asObject());
 		}
 		rspMeta.copyFrom(reqMeta, false);
-		return rsp;
+		return new CheckedTree(rsp.asObject(), rspMeta.asObject());
 	}
 
 	// --- SPRING HELPER ---

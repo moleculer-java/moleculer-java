@@ -173,8 +173,9 @@ public class Context extends ContextSource {
 				opts = opts.timeout(distTimeout);
 			}
 		}
+		Tree merged = mergeMeta(params);
 		return serviceInvoker.call(new Context(serviceInvoker, eventbus, uidGenerator, uidGenerator.nextUID(), name,
-				mergeMeta(params), level + 1, id, requestID, stream, opts, nodeID));
+				merged, level + 1, id, requestID, stream, opts, nodeID));
 	}
 
 	protected Tree mergeMeta(Tree newParams) {
