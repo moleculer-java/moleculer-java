@@ -42,6 +42,7 @@ import services.moleculer.metrics.Metrics;
 import services.moleculer.service.Action;
 import services.moleculer.service.Middleware;
 import services.moleculer.service.Name;
+import services.moleculer.stream.PacketStream;
 
 /**
  * Base superclass of all Cacher implementations.
@@ -119,7 +120,7 @@ public abstract class Cacher extends Middleware implements MetricConstants {
 				public Object handler(Context ctx) throws Exception {
 					
 					// Cache is disabled by the request
-					if (isCachingDisabledByTheContext(ctx)) {
+					if (isCachingDisabledByTheContext(ctx) || ctx.stream != null) {
 						return action.handler(ctx);
 					}
 					
@@ -129,7 +130,7 @@ public abstract class Cacher extends Middleware implements MetricConstants {
 						get(key).then(in -> {
 							if (in == null || in.isNull()) {
 								new Promise(action.handler(ctx)).then(tree -> {
-									if (tree != null && !tree.isNull()) {
+									if (tree != null && !tree.isNull() && !(tree.asObject() instanceof PacketStream)) {
 										set(key, tree, ttl);
 									}
 									resolver.resolve(tree);
@@ -154,7 +155,7 @@ public abstract class Cacher extends Middleware implements MetricConstants {
 			public Object handler(Context ctx) throws Exception {
 
 				// Cache is disabled by the request
-				if (isCachingDisabledByTheContext(ctx)) {
+				if (isCachingDisabledByTheContext(ctx) || ctx.stream != null) {
 					return action.handler(ctx);
 				}
 				
@@ -164,7 +165,7 @@ public abstract class Cacher extends Middleware implements MetricConstants {
 					get(key).then(in -> {
 						if (in == null) {
 							new Promise(action.handler(ctx)).then(tree -> {
-								if (tree != null) {
+								if (tree != null && !tree.isNull() && !(tree.asObject() instanceof PacketStream)) {
 									set(key, tree, ttl);
 								}
 								resolver.resolve(tree);
