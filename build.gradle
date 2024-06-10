@@ -95,7 +95,7 @@ dependencies {
     
 	// https://mvnrepository.com/artifact/com.github.berkesa/datatree-promise
 	// implementation project(':datatree-promise')
-	implementation group: 'com.github.berkesa', name: 'datatree-promise', version: '1.0.7'
+	implementation group: 'com.github.berkesa', name: 'datatree-promise', version: '1.0.10'
 
     // --- SERIALIZER APIS ---
    
@@ -225,8 +225,8 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-version = '1.2.25'
-// version = '1.2.25-SNAPSHOT'
+version = '1.2.26'
+// version = '1.2.26-SNAPSHOT'
 // + JAR version
 // + ServiceBroker.SOFTWARE_VERSION
 
@@ -262,7 +262,7 @@ modifyPom {
             dependency {
                 groupId 'com.github.berkesa'
                 artifactId 'datatree-promise'
-                version '1.0.7'
+                version '1.0.10'
                 scope 'runtime'
             }
             dependency {
@@ -309,7 +309,7 @@ compileJava {
 
 jar {
     baseName = 'moleculer'
-    version =  '1.2.25'
+    version =  '1.2.26'
 }
 
 // --- TESTING ---

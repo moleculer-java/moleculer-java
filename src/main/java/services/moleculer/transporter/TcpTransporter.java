@@ -335,6 +335,7 @@ public class TcpTransporter extends Transporter {
 			Tree info = removeLocalEvents(registry.getDescriptor());
 			info.put("port", currentPort);
 			info.put("seq", "0");
+			info.put("instanceID", instanceID);
 			cachedDescriptor = new NodeDescriptor(nodeID, useHostname, true, info);
 			
 			// Start data writer (TCP client)
@@ -677,6 +678,11 @@ public class TcpTransporter extends Transporter {
 				String command = channel.substring(s + 1, e);
 				String nodeID = channel.substring(e + 1);
 
+				// Check it in full TCP mode
+				if (urls != null && !isOnline(nodeID)) {
+					return;
+				}
+				
 				// Switch by packet type
 				byte packetID;
 				switch (command) {
@@ -784,6 +790,7 @@ public class TcpTransporter extends Transporter {
 				cachedDescriptor.seq++;
 				cachedDescriptor.info.put("seq", cachedDescriptor.seq);
 				cachedDescriptor.info.put("port", reader.getCurrentPort());
+				cachedDescriptor.info.put("instanceID", instanceID);
 			}
 
 		} finally {
