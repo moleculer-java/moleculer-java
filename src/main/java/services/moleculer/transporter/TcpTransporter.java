@@ -615,7 +615,7 @@ public class TcpTransporter extends Transporter {
 								if (id == null || id.isEmpty()) {
 
 									// Not a request
-									return;
+									continue;
 								}
 
 								// Create response message
@@ -677,12 +677,7 @@ public class TcpTransporter extends Transporter {
 				}
 				String command = channel.substring(s + 1, e);
 				String nodeID = channel.substring(e + 1);
-
-				// Check it in full TCP mode
-				if (urls != null && !isOnline(nodeID)) {
-					return;
-				}
-				
+			
 				// Switch by packet type
 				byte packetID;
 				switch (command) {

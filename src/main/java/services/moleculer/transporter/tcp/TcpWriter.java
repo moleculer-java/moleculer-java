@@ -52,7 +52,7 @@ import services.moleculer.transporter.TcpTransporter;
 /**
  * Packet sender Thread of the TCP Transporter.
  */
-public class TcpWriter implements Runnable {
+public class TcpWriter {
 
 	// --- LOGGER ---
 
@@ -104,8 +104,9 @@ public class TcpWriter implements Runnable {
 		selector = Selector.open();
 
 		// Start selector's loop
-		executor = Executors.newSingleThreadExecutor();
-		executor.execute(this);
+		executor = Executors.newFixedThreadPool(2);
+		executor.execute(this::openConnections);
+		executor.execute(this::sendPackets);
 	}
 
 	// --- DISCONNECT ---
@@ -224,6 +225,9 @@ public class TcpWriter implements Runnable {
 
 				// Add to opened buffers
 				opened.add(buffer);
+				synchronized (opened) {
+					opened.notifyAll();
+				}
 
 			} else if (buffer.key != null) {
 
@@ -269,26 +273,20 @@ public class TcpWriter implements Runnable {
 
 	// --- WRITER LOOP ---
 
-	@Override
-	public void run() {
+	public void openConnections() {
 		try {
 
 			// Loop
+			SelectionKey key = null;
 			while (true) {
-
-				// Waiting for sockets
-				int n;
-				try {
-					n = selector.select(3000);
-				} catch (NullPointerException nullPointer) {
-					continue;
-				} catch (Exception cause) {
-					break;
+			
+				// Wait for connection
+				synchronized (opened) {
+					opened.wait(1000);
 				}
-
+				
 				// Open new connections
 				SendBuffer buffer = opened.poll();
-				SelectionKey key = null;
 				while (buffer != null) {
 					try {
 						InetSocketAddress address;
@@ -335,6 +333,30 @@ public class TcpWriter implements Runnable {
 					}
 					buffer = opened.poll();
 				}
+				
+			}
+		
+		} catch (Exception fatal) {
+			logger.debug("TCP socket opener thread closed!", fatal);
+		}
+	}
+	
+	public void sendPackets() {
+		try {
+
+			// Loop
+			SelectionKey key = null;
+			while (true) {
+
+				// Waiting for sockets
+				int n;
+				try {
+					n = selector.select(1000);
+				} catch (NullPointerException nullPointer) {
+					continue;
+				} catch (Exception cause) {
+					break;
+				}
 
 				if (n < 1) {
 					continue;
@@ -352,7 +374,7 @@ public class TcpWriter implements Runnable {
 					if (key.isWritable()) {
 
 						// Write data
-						buffer = null;
+						SendBuffer buffer = null;
 						try {
 							buffer = (SendBuffer) key.attachment();
 							if (buffer != null) {
