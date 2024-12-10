@@ -145,6 +145,11 @@ public class PacketStream {
 	 */
 	protected long packetDelay = 100;
 
+	/**
+	 * Max number of buffered chunks in memory.
+	 */
+	protected int maxBufferSize = 512;
+	
 	// --- CONSTRUCTOR ---
 
 	public PacketStream(String nodeID, ScheduledExecutorService scheduler) {
@@ -216,6 +221,10 @@ public class PacketStream {
 		return false;
 	}
 
+	public synchronized int getBufferSize() {
+		return buffer.size();
+	}
+	
 	// --- SEND ERROR ---
 
 	public synchronized boolean sendError(Throwable cause) {
@@ -270,54 +279,14 @@ public class PacketStream {
 	// --- ACT AS OUTPUT STREAM ---
 
 	public OutputStream asOutputStream() {
-		OutputStream out = new OutputStream() {
-
-			@Override
-			public final void write(int b) throws IOException {
-				checkError();
-				sendData(new byte[] { (byte) b });
-			}
-
-			@Override
-			public final void write(byte[] b) throws IOException {
-				write(b, 0, b.length);
-			}
-
-			@Override
-			public final void write(byte[] b, int off, int len) throws IOException {
-				checkError();
-				byte[] copy = new byte[len];
-				System.arraycopy(b, 0, copy, 0, len);
-				sendData(copy);
-			}
-
-			@Override
-			public final void flush() {
-
-				// Do nothing
-			}
-
-			@Override
-			public final void close() {
-				sendClose();
-			}
-
-			private final void checkError() throws IOException {
-				if (cause != null) {
-					if (cause instanceof MoleculerError) {
-						throw (MoleculerError) cause;
-					}
-					if (cause instanceof IOException) {
-						throw (IOException) cause;
-					}
-					throw new IOException(cause);
-				}
-			}
-
-		};
+		return asOutputStream(false);
+	}
+	
+	public OutputStream asOutputStream(boolean unbuffered) {
+		OutputStream out = new PacketOutputStream(this);
 
 		// Bufferless/direct output
-		if (packetSize < 2) {
+		if (unbuffered || packetSize < 2) {
 			return out;
 		}
 
@@ -328,59 +297,18 @@ public class PacketStream {
 	// --- ACT AS BYTE CHANNEL ---
 
 	public WritableByteChannel asWritableByteChannel() {
+		return asWritableByteChannel(false);
+	}
+	
+	public WritableByteChannel asWritableByteChannel(boolean unbuffered) {
 
 		// Bufferless/direct output
-		if (packetSize < 2) {
-			return new WritableByteChannel() {
-
-				@Override
-				public final boolean isOpen() {
-					return !closed.get();
-				}
-
-				@Override
-				public final void close() {
-					sendClose();
-				}
-
-				@Override
-				public final int write(ByteBuffer src) throws IOException {
-					if (cause != null) {
-						if (cause instanceof MoleculerError) {
-							throw (MoleculerError) cause;
-						}
-						if (cause instanceof IOException) {
-							throw (IOException) cause;
-						}
-						throw new IOException(cause);
-					}
-					try {
-						int len = src.remaining();
-						if (len > 0) {
-							byte[] packet = new byte[len];
-							src.get(packet);
-							sendData(packet);
-						}
-						return len;
-					} catch (Throwable cause) {
-						try {
-							sendError(cause);
-						} catch (Throwable ignored) {
-						}
-						throw cause;
-					}
-				}
-
-				@Override
-				protected final void finalize() throws Throwable {
-					close();
-				}
-
-			};
+		if (unbuffered || packetSize < 2) {
+			return new PacketByteChannel(this);
 		}
 
 		// Buffered output
-		final OutputStream out = asOutputStream();
+		final OutputStream out = asOutputStream(false);
 		return new WritableByteChannel() {
 
 			@Override
@@ -443,7 +371,7 @@ public class PacketStream {
 	public Promise transferFrom(InputStream source) {
 		byte[] packet = new byte[packetSize < 1 ? DEFAULT_MIN_PACKET_SIZE : packetSize];
 		Promise promise = new Promise();
-		OutputStream destination = asOutputStream();
+		OutputStream destination = asOutputStream(true);
 		scheduleNextPacket(source, destination, promise, packet);
 		return promise;
 	}
@@ -451,7 +379,7 @@ public class PacketStream {
 	public Promise transferFrom(ReadableByteChannel source) {
 		ByteBuffer packet = ByteBuffer.allocate(packetSize < 1 ? DEFAULT_MIN_PACKET_SIZE : packetSize);
 		Promise promise = new Promise();
-		OutputStream destination = asOutputStream();
+		OutputStream destination = asOutputStream(true);
 		scheduleNextPacket(source, destination, promise, packet);
 		return promise;
 	}
@@ -460,6 +388,13 @@ public class PacketStream {
 			ByteBuffer packet) {
 		scheduler.schedule(() -> {
 			try {
+				if (maxBufferSize > 0 && destination instanceof PacketOutputStream) {
+					PacketOutputStream target = (PacketOutputStream) destination;
+					if (target.getBufferSize() >= maxBufferSize) {
+						scheduleNextPacket(source, destination, promise, packet);
+						return;
+					}
+				}				
 				int len = -1;
 				if (!promise.isDone()) {
 					packet.rewind();
@@ -510,6 +445,13 @@ public class PacketStream {
 	protected void scheduleNextPacket(InputStream source, OutputStream destination, Promise promise, byte[] packet) {
 		scheduler.schedule(() -> {
 			try {
+				if (maxBufferSize > 0 && destination instanceof PacketOutputStream) {
+					PacketOutputStream target = (PacketOutputStream) destination;
+					if (target.getBufferSize() >= maxBufferSize) {
+						scheduleNextPacket(source, destination, promise, packet);
+						return;
+					}
+				}
 				int len = promise.isDone() ? -1 : source.read(packet);
 				if (len < 0) {
 					try {
@@ -524,6 +466,7 @@ public class PacketStream {
 					} finally {
 						promise.complete();
 					}
+					
 				} else if (len == 0) {
 					scheduleNextPacket(source, destination, promise, packet);
 				} else {
@@ -717,6 +660,14 @@ public class PacketStream {
 
 	public Throwable getCause() {
 		return cause;
+	}
+
+	public int getMaxBufferSize() {
+		return maxBufferSize;
+	}
+
+	public void setMaxBufferSize(int maxBufferSize) {
+		this.maxBufferSize = maxBufferSize;
 	}
 
 }
