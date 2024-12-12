@@ -41,6 +41,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,6 +146,11 @@ public class PacketStream {
 	 */
 	protected long packetDelay = 100;
 
+	/**
+	 * Blocks "transferTo" method.
+	 */
+	protected BooleanSupplier blocker;
+	
 	// --- CONSTRUCTOR ---
 
 	public PacketStream(String nodeID, ScheduledExecutorService scheduler) {
@@ -460,6 +466,10 @@ public class PacketStream {
 			ByteBuffer packet) {
 		scheduler.schedule(() -> {
 			try {
+				if (blocker.getAsBoolean()) {
+					scheduleNextPacket(source, destination, promise, packet);
+					return;
+				}				
 				int len = -1;
 				if (!promise.isDone()) {
 					packet.rewind();
@@ -510,6 +520,10 @@ public class PacketStream {
 	protected void scheduleNextPacket(InputStream source, OutputStream destination, Promise promise, byte[] packet) {
 		scheduler.schedule(() -> {
 			try {
+				if (blocker.getAsBoolean()) {
+					scheduleNextPacket(source, destination, promise, packet);
+					return;
+				}
 				int len = promise.isDone() ? -1 : source.read(packet);
 				if (len < 0) {
 					try {
@@ -717,6 +731,14 @@ public class PacketStream {
 
 	public Throwable getCause() {
 		return cause;
+	}
+
+	public BooleanSupplier getBlocker() {
+		return blocker;
+	}
+
+	public void setBlocker(BooleanSupplier blocker) {
+		this.blocker = blocker;
 	}
 
 }
