@@ -109,7 +109,7 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 	/**
 	 * Version of the Java ServiceBroker API.
 	 */
-	public static final String SOFTWARE_VERSION = "1.2.27";
+	public static final String SOFTWARE_VERSION = "1.2.28";
 
 	// --- LOGGER ---
 

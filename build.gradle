@@ -225,8 +225,8 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-version = '1.2.27'
-// version = '1.2.27-SNAPSHOT'
+// version = '1.2.28'
+version = '1.2.28-SNAPSHOT'
 // + JAR version
 // + ServiceBroker.SOFTWARE_VERSION
 
@@ -309,7 +309,7 @@ compileJava {
 
 jar {
     baseName = 'moleculer'
-    version =  '1.2.27'
+    version =  '1.2.28'
 }
 
 // --- TESTING ---
