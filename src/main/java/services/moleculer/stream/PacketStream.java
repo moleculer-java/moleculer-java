@@ -146,11 +146,6 @@ public class PacketStream {
 	 */
 	protected long packetDelay = 100;
 
-	/**
-	 * Blocks "transferTo" method.
-	 */
-	protected BooleanSupplier blocker;
-	
 	// --- CONSTRUCTOR ---
 
 	public PacketStream(String nodeID, ScheduledExecutorService scheduler) {
@@ -431,43 +426,59 @@ public class PacketStream {
 	// --- "TRANSFER FROM" METHODS ---
 
 	public Promise transferFrom(URL source) {
+		return transferFrom(source, null);
+	}
+	
+	public Promise transferFrom(URL source, BooleanSupplier blocker) {
 		try {
-			return transferFrom(source.openStream());
+			return transferFrom(source.openStream(), blocker);
 		} catch (Throwable cause) {
 			return Promise.reject(cause);
 		}
 	}
 
 	public Promise transferFrom(File source) {
+		return transferFrom(source, null);
+	}
+	
+	public Promise transferFrom(File source, BooleanSupplier blocker) {
 		try {
-			return transferFrom(new FileInputStream(source));
+			return transferFrom(new FileInputStream(source), blocker);
 		} catch (Throwable cause) {
 			return Promise.reject(cause);
 		}
 	}
 
 	public Promise transferFrom(InputStream source) {
+		return transferFrom(source, null);
+	}
+	
+	public Promise transferFrom(InputStream source, BooleanSupplier blocker) {
 		byte[] packet = new byte[packetSize < 1 ? DEFAULT_MIN_PACKET_SIZE : packetSize];
 		Promise promise = new Promise();
 		OutputStream destination = asOutputStream();
-		scheduleNextPacket(source, destination, promise, packet);
+		scheduleNextPacket(source, destination, promise, packet, blocker);
 		return promise;
 	}
-
+	
 	public Promise transferFrom(ReadableByteChannel source) {
+		return transferFrom(source, null);
+	}
+	
+	public Promise transferFrom(ReadableByteChannel source, BooleanSupplier blocker) {
 		ByteBuffer packet = ByteBuffer.allocate(packetSize < 1 ? DEFAULT_MIN_PACKET_SIZE : packetSize);
 		Promise promise = new Promise();
 		OutputStream destination = asOutputStream();
-		scheduleNextPacket(source, destination, promise, packet);
+		scheduleNextPacket(source, destination, promise, packet, blocker);
 		return promise;
 	}
 
 	protected void scheduleNextPacket(ReadableByteChannel source, OutputStream destination, Promise promise,
-			ByteBuffer packet) {
+			ByteBuffer packet, BooleanSupplier blocker) {
 		scheduler.schedule(() -> {
 			try {
-				if (blocker.getAsBoolean()) {
-					scheduleNextPacket(source, destination, promise, packet);
+				if (blocker != null && blocker.getAsBoolean()) {
+					scheduleNextPacket(source, destination, promise, packet, blocker);
 					return;
 				}				
 				int len = -1;
@@ -489,12 +500,12 @@ public class PacketStream {
 						promise.complete();
 					}
 				} else if (len == 0) {
-					scheduleNextPacket(source, destination, promise, packet);
+					scheduleNextPacket(source, destination, promise, packet, blocker);
 				} else {
 					byte[] copy = new byte[len];
 					System.arraycopy(packet.array(), 0, copy, 0, len);
 					destination.write(copy);
-					scheduleNextPacket(source, destination, promise, packet);
+					scheduleNextPacket(source, destination, promise, packet, blocker);
 				}
 			} catch (Throwable cause) {
 				try {
@@ -517,11 +528,11 @@ public class PacketStream {
 		}, packetDelay, TimeUnit.MILLISECONDS);
 	}
 
-	protected void scheduleNextPacket(InputStream source, OutputStream destination, Promise promise, byte[] packet) {
+	protected void scheduleNextPacket(InputStream source, OutputStream destination, Promise promise, byte[] packet, BooleanSupplier blocker) {
 		scheduler.schedule(() -> {
 			try {
-				if (blocker.getAsBoolean()) {
-					scheduleNextPacket(source, destination, promise, packet);
+				if (blocker != null && blocker.getAsBoolean()) {
+					scheduleNextPacket(source, destination, promise, packet, blocker);
 					return;
 				}
 				int len = promise.isDone() ? -1 : source.read(packet);
@@ -539,12 +550,12 @@ public class PacketStream {
 						promise.complete();
 					}
 				} else if (len == 0) {
-					scheduleNextPacket(source, destination, promise, packet);
+					scheduleNextPacket(source, destination, promise, packet, blocker);
 				} else {
 					byte[] copy = new byte[len];
 					System.arraycopy(packet, 0, copy, 0, len);
 					destination.write(copy);
-					scheduleNextPacket(source, destination, promise, packet);
+					scheduleNextPacket(source, destination, promise, packet, blocker);
 				}
 			} catch (Throwable cause) {
 				try {
@@ -732,13 +743,5 @@ public class PacketStream {
 	public Throwable getCause() {
 		return cause;
 	}
-
-	public BooleanSupplier getBlocker() {
-		return blocker;
-	}
-
-	public void setBlocker(BooleanSupplier blocker) {
-		this.blocker = blocker;
-	}
-
+	
 }
