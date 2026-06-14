@@ -25,8 +25,6 @@
  */
 package services.moleculer.eventbus;
 
-import com.lambdaworks.redis.event.DefaultEventBus;
-
 import io.datatree.Tree;
 import services.moleculer.context.Context;
 import services.moleculer.service.MoleculerComponent;
@@ -35,8 +33,6 @@ import services.moleculer.service.Service;
 
 /**
  * Base superclass of all Event Bus implementations.
- *
- * @see DefaultEventBus
  */
 @Name("Event Bus")
 public abstract class Eventbus extends MoleculerComponent {

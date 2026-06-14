@@ -64,7 +64,6 @@ import services.moleculer.service.Name;
  * <br>
  *
  * @see RedisCacher
- * @see OHCacher
  */
 @Name("On-heap Memory Cacher")
 public class MemoryCacher extends Cacher implements Runnable {

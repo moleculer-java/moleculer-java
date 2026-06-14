@@ -25,17 +25,20 @@
  */
 package services.moleculer.stream;
 
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+
 import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
-import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.service.Action;
@@ -44,7 +47,7 @@ import services.moleculer.service.Service;
 import services.moleculer.transporter.Transporter;
 import services.moleculer.uid.IncrementalUidGenerator;
 
-public class SequenceTest extends TestCase {
+public class SequenceTest {
 
 	// --- VARIABLES ---
 
@@ -57,7 +60,7 @@ public class SequenceTest extends TestCase {
 
 	// --- SET UP ---
 
-	@Override
+	@BeforeEach
 	protected void setUp() throws Exception {
 		scheduler = Executors.newSingleThreadScheduledExecutor();
 		incomingStream = new IncomingStream("node1", scheduler, 0);
@@ -339,7 +342,7 @@ public class SequenceTest extends TestCase {
 
 	// --- TEAR DOWN ---
 
-	@Override
+	@AfterEach
 	protected void tearDown() throws Exception {
 		if (scheduler != null) {
 			scheduler.shutdownNow();

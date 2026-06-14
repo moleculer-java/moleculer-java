@@ -306,7 +306,7 @@ public class DefaultMetrics extends CompositeMeterRegistry implements Metrics {
 						.newInstance();
 			} catch (Throwable cause) {
 				logger.error("Unable to create Dropwizard Reporter!", cause);
-				CommonUtils.suggestDependency("com.codahale.metrics", "metrics-core", "3.0.2");
+				CommonUtils.suggestDependency("io.dropwizard.metrics", "metrics-core", "4.2.33");
 			}
 		}
 		return reporters;

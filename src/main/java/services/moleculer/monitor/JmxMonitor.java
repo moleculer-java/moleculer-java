@@ -35,10 +35,8 @@ import javax.management.ObjectName;
 import services.moleculer.service.Name;
 
 /**
- * JMX-based System Monitor. {@link SigarMonitor} is more accurate than this
- * monitor.
- *
- * @see SigarMonitor
+ * JMX-based System Monitor (queries the "SystemCpuLoad" attribute of the
+ * operating-system MXBean).
  */
 @Name("JMX System Monitor")
 public class JmxMonitor extends Monitor {

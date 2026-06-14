@@ -25,6 +25,8 @@
  */
 package services.moleculer.serializer;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 public class ChainedSerializerTest extends SerializerTest {
 
 	@Override

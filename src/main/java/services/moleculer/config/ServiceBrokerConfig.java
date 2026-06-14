@@ -45,6 +45,7 @@ import services.moleculer.eventbus.Eventbus;
 import services.moleculer.metrics.DefaultMetrics;
 import services.moleculer.metrics.Metrics;
 import services.moleculer.monitor.ConstantMonitor;
+import services.moleculer.monitor.JmxMonitor;
 import services.moleculer.monitor.Monitor;
 import services.moleculer.service.DefaultServiceInvoker;
 import services.moleculer.service.DefaultServiceRegistry;
@@ -128,32 +129,13 @@ public class ServiceBrokerConfig {
 	static {
 		try {
 
-			// Try to load native library (for Windows and Linux)
-			String[] libs = { "sigar-x86-winnt", "sigar-amd64-winnt", "libsigar-x86-linux", "libsigar-amd64-linux" };
-			ClassLoader loader = ServiceBrokerConfig.class.getClassLoader();
-			String pkg = "services.moleculer.monitor.";
-			for (String lib : libs) {
-				try {
-					System.loadLibrary(lib);
-
-					// Found!
-					Class.forName("org.hyperic.sigar.Sigar");
-					defaultMonitor = (Monitor) loader.loadClass(pkg + "SigarMonitor").newInstance();
-					break;
-				} catch (Throwable notFound) {
-
-					// Not found
-				}
-			}
-
-			// Try to get "SystemCpuLoad" JMX attribute
-			if (defaultMonitor == null) {
-				MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-				ObjectName name = ObjectName.getInstance("java.lang:type=OperatingSystem");
-				AttributeList list = mbs.getAttributes(name, new String[] { "SystemCpuLoad" });
-				if (list != null && !list.isEmpty()) {
-					defaultMonitor = (Monitor) loader.loadClass(pkg + "JmxMonitor").newInstance();
-				}
+			// Use the JMX-based monitor if the "SystemCpuLoad" attribute is
+			// available (the native Sigar monitor was removed in 2.0.0)
+			MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+			ObjectName name = ObjectName.getInstance("java.lang:type=OperatingSystem");
+			AttributeList list = mbs.getAttributes(name, new String[] { "SystemCpuLoad" });
+			if (list != null && !list.isEmpty()) {
+				defaultMonitor = new JmxMonitor();
 			}
 		} catch (Throwable ignored) {
 		} finally {

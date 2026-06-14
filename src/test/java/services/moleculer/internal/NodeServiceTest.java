@@ -25,10 +25,13 @@
  */
 package services.moleculer.internal;
 
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+
+import org.junit.jupiter.api.Test;
 
 import io.datatree.Tree;
-import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 import services.moleculer.eventbus.Listener;
 import services.moleculer.eventbus.Subscribe;
@@ -37,7 +40,7 @@ import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 
-public class NodeServiceTest extends TestCase {
+public class NodeServiceTest {
 
 	// --- VARIABLES ---
 
@@ -438,7 +441,7 @@ public class NodeServiceTest extends TestCase {
 
 	// --- SET UP ---
 
-	@Override
+	@BeforeEach
 	protected void setUp() throws Exception {
 		br = ServiceBroker.builder().monitor(new ConstantMonitor()).nodeID("local").build();
 		br.start();
@@ -446,7 +449,7 @@ public class NodeServiceTest extends TestCase {
 
 	// --- TEAR DOWN ---
 
-	@Override
+	@AfterEach
 	protected void tearDown() throws Exception {
 		if (br != null) {
 			br.stop();

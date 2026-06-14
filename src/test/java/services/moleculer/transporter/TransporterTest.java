@@ -25,15 +25,18 @@
  */
 package services.moleculer.transporter;
 
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+
 import java.io.ByteArrayOutputStream;
 import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
-import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 import services.moleculer.context.Context;
 import services.moleculer.eventbus.Group;
@@ -48,7 +51,7 @@ import services.moleculer.service.Service;
 import services.moleculer.stream.PacketStream;
 import services.moleculer.util.CheckedTree;
 
-public abstract class TransporterTest extends TestCase {
+public abstract class TransporterTest {
 
 	// --- CONSTANTS ---
 	
@@ -719,7 +722,7 @@ public abstract class TransporterTest extends TestCase {
 	protected AtomicInteger connected = new AtomicInteger();
 	protected AtomicInteger disconnected = new AtomicInteger();
 	
-	@Override
+	@BeforeEach
 	protected void setUp() throws Exception {
 		started.set(0);
 		stopped.set(0);
@@ -785,7 +788,7 @@ public abstract class TransporterTest extends TestCase {
 		assertEquals(0, disconnected.get());		
 	}
 
-	@Override
+	@AfterEach
 	protected void tearDown() throws Exception {
 		if (br1 != null) {	
 			br1.stop();

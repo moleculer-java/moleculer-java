@@ -25,11 +25,12 @@
  */
 package services.moleculer.util;
 
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
-public class FastBuildTreeTest extends TestCase {
+
+public class FastBuildTreeTest {
 
 	@Test
 	public void testCreate() throws Exception {

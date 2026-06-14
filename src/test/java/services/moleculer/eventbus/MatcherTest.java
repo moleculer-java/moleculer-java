@@ -25,11 +25,12 @@
  */
 package services.moleculer.eventbus;
 
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
-public class MatcherTest extends TestCase {
+
+public class MatcherTest {
 
 	@Test
 	public void testMatcher() throws Exception {

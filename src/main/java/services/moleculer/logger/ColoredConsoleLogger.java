@@ -25,17 +25,14 @@
  */
 package services.moleculer.logger;
 
-import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.Writer;
+import java.io.StringWriter;
 import java.util.LinkedList;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 
-import com.diogonunes.jcdp.color.ColoredPrinter;
-import com.diogonunes.jcdp.color.api.Ansi.Attribute;
-import com.diogonunes.jcdp.color.api.Ansi.BColor;
-import com.diogonunes.jcdp.color.api.Ansi.FColor;
+import com.diogonunes.jcolor.Ansi;
+import com.diogonunes.jcolor.Attribute;
 
 /**
  * "Colorized" ANSI logger.
@@ -52,35 +49,13 @@ public class ColoredConsoleLogger implements ConsoleLogger {
 	protected static final String FINER = "FINER   ";
 	protected static final String FINEST = "FINEST  ";
 
-	// --- ANSI CONSOLE ---
+	// --- MESSAGE COLOR ---
 
-	protected final ColoredPrinter coloredPrinter;
-	protected final PrintWriter errorWriter;
+	protected static final Attribute MESSAGE_COLOR = Attribute.BRIGHT_WHITE_TEXT();
 
 	// --- CONSTRUCTOR ---
 
 	public ColoredConsoleLogger() {
-		coloredPrinter = new ColoredPrinter.Builder(1, false).build();
-		errorWriter = new PrintWriter(new Writer() {
-
-			@Override
-			public void write(char[] cbuf, int off, int len) throws IOException {
-				coloredPrinter.print(new String(cbuf, off, len));
-			}
-
-			@Override
-			public void flush() throws IOException {
-
-				// Do nothing
-			}
-
-			@Override
-			public void close() throws IOException {
-
-				// Do nothing
-			}
-
-		});
 	}
 
 	// --- LOGGER ---
@@ -91,34 +66,29 @@ public class ColoredConsoleLogger implements ConsoleLogger {
 		String msg;
 		for (LogRecord record : records) {
 			final Level l = record.getLevel();
+			final String label;
+			final Attribute labelColor;
 			if (l == Level.SEVERE) {
-
-				coloredPrinter.print(SEVERE, Attribute.LIGHT, FColor.RED, BColor.NONE);
-
+				label = SEVERE;
+				labelColor = Attribute.BRIGHT_RED_TEXT();
 			} else if (l == Level.WARNING) {
-
-				coloredPrinter.print(WARNING, Attribute.LIGHT, FColor.YELLOW, BColor.NONE);
-
+				label = WARNING;
+				labelColor = Attribute.BRIGHT_YELLOW_TEXT();
 			} else if (l == Level.INFO) {
-
-				coloredPrinter.print(INFO, Attribute.LIGHT, FColor.GREEN, BColor.NONE);
-
+				label = INFO;
+				labelColor = Attribute.BRIGHT_GREEN_TEXT();
 			} else if (l == Level.CONFIG) {
-
-				coloredPrinter.print(CONFIG, Attribute.CLEAR, FColor.CYAN, BColor.NONE);
-
+				label = CONFIG;
+				labelColor = Attribute.CYAN_TEXT();
 			} else if (l == Level.FINE) {
-
-				coloredPrinter.print(FINE, Attribute.CLEAR, FColor.MAGENTA, BColor.NONE);
-
+				label = FINE;
+				labelColor = Attribute.MAGENTA_TEXT();
 			} else if (l == Level.FINER) {
-
-				coloredPrinter.print(FINER, Attribute.CLEAR, FColor.BLUE, BColor.NONE);
-
+				label = FINER;
+				labelColor = Attribute.BLUE_TEXT();
 			} else {
-
-				coloredPrinter.print(FINEST, Attribute.CLEAR, FColor.RED, BColor.NONE);
-
+				label = FINEST;
+				labelColor = Attribute.RED_TEXT();
 			}
 			msg = record.getMessage();
 			if (msg != null) {
@@ -127,17 +97,16 @@ public class ColoredConsoleLogger implements ConsoleLogger {
 			if (msg == null || msg.isEmpty()) {
 				msg = "<null>";
 			}
-			coloredPrinter.println(msg, Attribute.LIGHT, FColor.WHITE, BColor.NONE);
-			coloredPrinter.setAttribute(Attribute.NONE);
-			coloredPrinter.setBackgroundColor(BColor.NONE);
-			coloredPrinter.setForegroundColor(FColor.NONE);
-	        
+			System.out.println(Ansi.colorize(label, labelColor) + Ansi.colorize(msg, MESSAGE_COLOR));
+
 			cause = record.getThrown();
 			if (cause != null) {
-				cause.printStackTrace(errorWriter);
+				StringWriter sw = new StringWriter();
+				cause.printStackTrace(new PrintWriter(sw));
+				System.out.print(sw.toString());
+				System.out.flush();
 			}
 		}
-
 	}
 
 }

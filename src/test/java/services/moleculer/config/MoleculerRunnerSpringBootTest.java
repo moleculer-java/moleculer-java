@@ -25,18 +25,21 @@
  */
 package services.moleculer.config;
 
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+
+import org.junit.jupiter.api.Test;
 import org.springframework.context.ConfigurableApplicationContext;
 
 import io.datatree.Tree;
-import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 
 /**
  * Run MoleculerRunner.main(args), when "args" is the main Spring Boot class
  * (the "SpringBootSample").
  */
-public class MoleculerRunnerSpringBootTest extends TestCase {
+public class MoleculerRunnerSpringBootTest {
 
 	// --- SPRING CONTEXT ---
 
@@ -57,7 +60,7 @@ public class MoleculerRunnerSpringBootTest extends TestCase {
 
 	// --- START INSTANCE ---
 
-	@Override
+	@BeforeEach
 	protected void setUp() throws Exception {
 
 		// Main class
@@ -79,7 +82,7 @@ public class MoleculerRunnerSpringBootTest extends TestCase {
 
 	// --- STOP INSTANCE ---
 
-	@Override
+	@AfterEach
 	protected void tearDown() throws Exception {
 		if (ctx != null) {
 			ctx.stop();

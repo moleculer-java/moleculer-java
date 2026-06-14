@@ -25,6 +25,10 @@
  */
 package services.moleculer.breaker;
 
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -38,11 +42,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
-import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 import services.moleculer.context.CallOptions;
 import services.moleculer.error.MoleculerRetryableError;
@@ -52,7 +55,7 @@ import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 
-public class CircuitBreakerTest extends TestCase {
+public class CircuitBreakerTest {
 
 	// --- VARIABLES ---
 
@@ -314,7 +317,7 @@ public class CircuitBreakerTest extends TestCase {
 	// --- SET UP ---
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	@Override
+	@BeforeEach
 	protected void setUp() throws Exception {
 		sr = new DefaultServiceRegistry();
 		tr = new TestTransporter();
@@ -414,7 +417,7 @@ public class CircuitBreakerTest extends TestCase {
 
 	// --- TEAR DOWN ---
 
-	@Override
+	@AfterEach
 	protected void tearDown() throws Exception {
 		if (br != null) {
 			br.stop();

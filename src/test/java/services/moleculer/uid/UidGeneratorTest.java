@@ -25,14 +25,15 @@
  */
 package services.moleculer.uid;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import java.util.HashSet;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 
-public class UidGeneratorTest extends TestCase {
+public class UidGeneratorTest {
 
 	@Test
 	public void testUidGenerators() throws Exception {

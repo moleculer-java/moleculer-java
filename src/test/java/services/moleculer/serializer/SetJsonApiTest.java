@@ -25,15 +25,16 @@
  */
 package services.moleculer.serializer;
 
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
+
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.transporter.TcpTransporter;
 
-public class SetJsonApiTest extends TestCase {
+public class SetJsonApiTest {
 
 	@Test
 	public void testJsonApi() throws Exception {

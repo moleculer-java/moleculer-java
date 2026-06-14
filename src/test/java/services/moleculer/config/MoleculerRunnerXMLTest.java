@@ -25,22 +25,25 @@
  */
 package services.moleculer.config;
 
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.springframework.context.ConfigurableApplicationContext;
 
 import io.datatree.Tree;
-import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 
 /**
  * Run MoleculerRunner.main(args), when "args" is the location of the Spring
  * configuration file (the "test.xml").
  */
-public class MoleculerRunnerXMLTest extends TestCase {
+public class MoleculerRunnerXMLTest {
 
 	// --- SPRING CONTEXT ---
 
@@ -61,7 +64,7 @@ public class MoleculerRunnerXMLTest extends TestCase {
 
 	// --- START INSTANCE ---
 
-	@Override
+	@BeforeEach
 	protected void setUp() throws Exception {
 		StringBuilder xml = new StringBuilder(512);
 		xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n");
@@ -115,7 +118,7 @@ public class MoleculerRunnerXMLTest extends TestCase {
 
 	// --- STOP INSTANCE ---
 
-	@Override
+	@AfterEach
 	protected void tearDown() throws Exception {
 		if (ctx != null) {
 			ctx.stop();

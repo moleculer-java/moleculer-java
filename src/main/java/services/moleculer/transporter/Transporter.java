@@ -73,7 +73,6 @@ import services.moleculer.util.FastBuildTree;
  * @see TcpTransporter
  * @see RedisTransporter
  * @see NatsTransporter
- * @see NatsStreamingTransporter
  * @see MqttTransporter
  * @see JmsTransporter
  * @see KafkaTransporter

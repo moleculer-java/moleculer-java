@@ -48,7 +48,6 @@ import services.moleculer.stream.PacketStream;
  * Base superclass of all Cacher implementations.
  *
  * @see MemoryCacher
- * @see OHCacher
  * @see RedisCacher
  */
 @Name("Cacher")

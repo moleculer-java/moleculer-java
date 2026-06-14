@@ -25,12 +25,14 @@
  */
 package services.moleculer;
 
+import org.junit.jupiter.api.BeforeEach;
+
 import java.util.Collection;
 import java.util.LinkedList;
 
 import javax.net.ssl.SSLContext;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.openpojo.random.RandomGenerator;
 import com.openpojo.random.service.RandomGeneratorService;
@@ -42,16 +44,15 @@ import com.openpojo.validation.ValidatorBuilder;
 import com.openpojo.validation.test.impl.GetterTester;
 import com.openpojo.validation.test.impl.SetterTester;
 
-import junit.framework.TestCase;
 import services.moleculer.serializer.JsonSerializer;
 import services.moleculer.serializer.Serializer;
 
-public class PojoTest extends TestCase {
+public class PojoTest {
 
 	private Validator validator;
 	private PojoClassFilter filterTestClasses = new FilterTestClasses();
 
-	@Override
+	@BeforeEach
 	protected void setUp() throws Exception {
 		validator = ValidatorBuilder.create().with(new SetterTester()).with(new GetterTester()).build();
 		RandomGeneratorService service = ServiceRegistrar.getInstance().getRandomGeneratorService();

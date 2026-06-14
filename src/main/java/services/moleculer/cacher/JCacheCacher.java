@@ -57,8 +57,8 @@ import services.moleculer.util.CheckedTree;
 /**
  * JSR-107 JCache is a standardized caching API that is Java 6 compatible and
  * introduced in JEE 8. WARNING! Core JCache API does NOT support entry-level
- * TTL parameter! If you need this feature use {@link RedisCacher},
- * {@link MemoryCacher}, or {@link OHCacher}. JCache is implemented by various
+ * TTL parameter! If you need this feature use {@link RedisCacher} or
+ * {@link MemoryCacher}. JCache is implemented by various
  * caching solutions:
  * <ul>
  * <li>Apache Ignite
@@ -79,7 +79,6 @@ import services.moleculer.util.CheckedTree;
  * <br>
  *
  * @see MemoryCacher
- * @see OHCacher
  * @see RedisCacher
  */
 @Name("JCache-based Cacher")

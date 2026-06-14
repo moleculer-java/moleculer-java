@@ -67,7 +67,6 @@ import services.moleculer.service.Name;
  * @see TcpTransporter
  * @see RedisTransporter
  * @see NatsTransporter
- * @see NatsStreamingTransporter
  * @see JmsTransporter
  * @see KafkaTransporter
  * @see AmqpTransporter
@@ -165,7 +164,7 @@ public class MqttTransporter extends Transporter implements MqttCallback {
 				@Override
 				public final void onSuccess(IMqttToken asyncActionToken) {
 					logger.info("MQTT pub-sub connection estabilished.");
-					scheduler.schedule(self::connected, 100, TimeUnit.MILLISECONDS);
+					scheduler.schedule((Runnable) self::connected, 100, TimeUnit.MILLISECONDS);
 				}
 
 				@Override

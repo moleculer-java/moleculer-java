@@ -25,6 +25,10 @@
  */
 package services.moleculer.stream;
 
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -41,11 +45,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.fusesource.hawtbuf.ByteArrayInputStream;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import junit.framework.TestCase;
 
-public class InternalStreamTest extends TestCase {
+public class InternalStreamTest {
 
 	// --- VARIABLES ---
 
@@ -54,7 +57,7 @@ public class InternalStreamTest extends TestCase {
 
 	// --- SET UP ---
 
-	@Override
+	@BeforeEach
 	protected void setUp() throws Exception {
 		scheduler = Executors.newSingleThreadScheduledExecutor();
 	}
@@ -488,7 +491,7 @@ public class InternalStreamTest extends TestCase {
 
 	// --- TEAR DOWN ---
 
-	@Override
+	@AfterEach
 	protected void tearDown() throws Exception {
 		if (scheduler != null) {
 			scheduler.shutdownNow();

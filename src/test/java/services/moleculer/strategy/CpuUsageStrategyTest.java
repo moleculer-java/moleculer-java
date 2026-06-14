@@ -25,7 +25,9 @@
  */
 package services.moleculer.strategy;
 
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+import org.junit.jupiter.api.Test;
 
 import services.moleculer.ServiceBroker;
 import services.moleculer.breaker.TestTransporter;

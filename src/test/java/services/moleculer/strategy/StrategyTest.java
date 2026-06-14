@@ -25,12 +25,15 @@
  */
 package services.moleculer.strategy;
 
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+
 import java.util.HashSet;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.datatree.Tree;
-import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 import services.moleculer.breaker.TestTransporter;
 import services.moleculer.context.Context;
@@ -39,7 +42,7 @@ import services.moleculer.service.Action;
 import services.moleculer.service.DefaultServiceRegistry;
 import services.moleculer.service.LocalActionEndpoint;
 
-public abstract class StrategyTest extends TestCase {
+public abstract class StrategyTest {
 
 	// --- PROPERTIES ---
 
@@ -133,7 +136,7 @@ public abstract class StrategyTest extends TestCase {
 
 	// --- START BROKER ---
 
-	@Override
+	@BeforeEach
 	protected void setUp() throws Exception {
 		TestTransporter tr = new TestTransporter();
 		br = ServiceBroker.builder().nodeID("node1").transporter(tr).monitor(new ConstantMonitor()).build();
@@ -142,7 +145,7 @@ public abstract class StrategyTest extends TestCase {
 
 	// --- STOP BROKER ---
 
-	@Override
+	@AfterEach
 	protected void tearDown() throws Exception {
 		if (br != null) {
 			br.stop();

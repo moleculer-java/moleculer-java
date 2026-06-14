@@ -25,6 +25,10 @@
  */
 package services.moleculer.cacher;
 
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,17 +36,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.datatree.Tree;
-import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 import services.moleculer.service.Action;
 import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.util.CheckedTree;
 
-public abstract class CacherTest extends TestCase {
+public abstract class CacherTest {
 
 	// --- PROPERTIES ---
 
@@ -437,7 +440,7 @@ public abstract class CacherTest extends TestCase {
 
 	// --- START BROKER ---
 
-	@Override
+	@BeforeEach
 	protected void setUp() throws Exception {
 		cr = createCacher();
 		// cr.setDebug(true);
@@ -448,7 +451,7 @@ public abstract class CacherTest extends TestCase {
 
 	// --- STOP BROKER ---
 
-	@Override
+	@AfterEach
 	protected void tearDown() throws Exception {
 		if (br != null) {
 			br.stop();

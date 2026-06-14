@@ -25,16 +25,19 @@
  */
 package services.moleculer.transporter;
 
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+
+import org.junit.jupiter.api.Test;
 
 import io.datatree.Tree;
-import junit.framework.AssertionFailedError;
-import junit.framework.TestCase;
+import org.opentest4j.AssertionFailedError;
 import services.moleculer.ServiceBroker;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.transporter.tcp.NodeDescriptor;
 
-public class GossiperTest extends TestCase {
+public class GossiperTest {
 
 	// --- VARIABLES ---
 
@@ -392,7 +395,7 @@ public class GossiperTest extends TestCase {
 		}
 	}
 
-	@Override
+	@BeforeEach
 	protected void setUp() throws Exception {
 		tr = new TcpTransporter();
 		tr.setGossipPeriod(Integer.MAX_VALUE);
@@ -402,7 +405,7 @@ public class GossiperTest extends TestCase {
 		tr.writer.disconnect();
 	}
 
-	@Override
+	@AfterEach
 	protected void tearDown() throws Exception {
 		if (br != null) {
 			br.stop();

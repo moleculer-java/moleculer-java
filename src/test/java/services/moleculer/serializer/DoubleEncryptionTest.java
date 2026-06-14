@@ -1,5 +1,7 @@
 package services.moleculer.serializer;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 public class DoubleEncryptionTest extends SerializerTest {
 
 	@Override

@@ -35,15 +35,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.lambdaworks.redis.SetArgs;
-import com.lambdaworks.redis.event.Event;
-import com.lambdaworks.redis.event.EventBus;
-import com.lambdaworks.redis.event.connection.ConnectedEvent;
-import com.lambdaworks.redis.event.connection.DisconnectedEvent;
+import io.lettuce.core.SetArgs;
+import io.lettuce.core.event.Event;
+import io.lettuce.core.event.EventBus;
+import io.lettuce.core.event.connection.ConnectedEvent;
+import io.lettuce.core.event.connection.DisconnectedEvent;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
-import rx.Observable;
+import reactor.core.publisher.Flux;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.metrics.MetricCounter;
@@ -65,7 +65,6 @@ import services.moleculer.util.redis.RedisGetSetClient;
  * compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.5.0.Final'
  *
  * @see MemoryCacher
- * @see OHCacher
  */
 @Name("Redis Cacher")
 public class RedisCacher extends DistributedCacher implements EventBus {
@@ -476,8 +475,8 @@ public class RedisCacher extends DistributedCacher implements EventBus {
 	}
 
 	@Override
-	public Observable<Event> get() {
-		return null;
+	public Flux<Event> get() {
+		return Flux.empty();
 	}
 
 	// --- GETTERS / SETTERS ---

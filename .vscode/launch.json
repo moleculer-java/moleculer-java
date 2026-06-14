@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "MoleculerRunner",
+      "request": "launch",
+      "mainClass": "services.moleculer.config.MoleculerRunner",
+      "projectName": "moleculer-java",
+      "args": ""
+    }
+  ]
+}

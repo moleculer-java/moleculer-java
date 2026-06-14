@@ -25,11 +25,12 @@
  */
 package services.moleculer.util;
 
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
-public class CommonUtilsTest extends TestCase {
+
+public class CommonUtilsTest {
 
 	@Test
 	public void testUtils() throws Exception {

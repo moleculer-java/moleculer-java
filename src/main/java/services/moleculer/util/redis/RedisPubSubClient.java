@@ -29,14 +29,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
-import com.lambdaworks.redis.RedisClient;
-import com.lambdaworks.redis.RedisURI;
-import com.lambdaworks.redis.cluster.RedisClusterClient;
-import com.lambdaworks.redis.codec.ByteArrayCodec;
-import com.lambdaworks.redis.event.EventBus;
-import com.lambdaworks.redis.pubsub.RedisPubSubListener;
-import com.lambdaworks.redis.pubsub.StatefulRedisPubSubConnection;
-import com.lambdaworks.redis.pubsub.api.async.RedisPubSubAsyncCommands;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisURI;
+import io.lettuce.core.cluster.RedisClusterClient;
+import io.lettuce.core.codec.ByteArrayCodec;
+import io.lettuce.core.event.EventBus;
+import io.lettuce.core.pubsub.RedisPubSubListener;
+import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
+import io.lettuce.core.pubsub.api.async.RedisPubSubAsyncCommands;
 
 import io.datatree.Promise;
 
@@ -102,7 +102,7 @@ public final class RedisPubSubClient extends AbstractRedisClient {
 	@Override
 	public final Promise disconnect() {
 		if (client != null) {
-			client.close();
+			client.getStatefulConnection().close();
 			client = null;
 		}
 		return super.disconnect();

@@ -1,0 +1,489 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>com.github.berkesa</groupId>
+	<artifactId>moleculer-java</artifactId>
+	<version>2.0.0-SNAPSHOT</version>
+	<packaging>jar</packaging>
+
+	<name>Moleculer Microservices Framework</name>
+	<description>Fast &amp; powerful microservices framework for Java and Node.js.</description>
+	<url>https://moleculer-java.github.io/moleculer-java/</url>
+	<inceptionYear>2018</inceptionYear>
+
+	<licenses>
+		<license>
+			<name>The MIT License</name>
+			<url>http://www.opensource.org/licenses/MIT</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<id>berkesa</id>
+			<name>Andras Berkes</name>
+			<email>andras.berkes@programmer.net</email>
+		</developer>
+	</developers>
+
+	<scm>
+		<url>https://github.com/moleculer-java/moleculer-java</url>
+		<connection>scm:git:https://github.com/moleculer-java/moleculer-java.git</connection>
+		<developerConnection>scm:git:git://github.com/moleculer-java/moleculer-java.git</developerConnection>
+	</scm>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<maven.compiler.release>21</maven.compiler.release>
+
+		<!-- Inter-project dependencies (lockstep 2.0.0) -->
+		<datatree.version>2.0.0-SNAPSHOT</datatree.version>
+
+		<!-- Shared dependency versions (kept in sync across the workspace) -->
+		<slf4j.version>2.0.18</slf4j.version>
+		<jackson.version>2.19.0</jackson.version>
+		<junit.version>5.14.4</junit.version>
+		<openpojo.version>0.9.1</openpojo.version>
+
+		<!-- Serializer backend versions (lockstep with datatree-adapters) -->
+		<bson4jackson.version>2.18.0</bson4jackson.version>
+		<ion-java.version>1.11.10</ion-java.version>
+		<msgpack.version>0.9.9</msgpack.version>
+
+		<!-- Logging / DI -->
+		<jcolor.version>5.5.1</jcolor.version>
+		<spring.version>6.2.8</spring.version>
+		<spring-boot.version>3.5.3</spring-boot.version>
+
+		<!-- Caches -->
+		<cache-api.version>1.1.1</cache-api.version>
+		<cache-ri.version>1.1.1</cache-ri.version>
+
+		<!-- Transporters (optional backends) -->
+		<lettuce.version>6.7.1.RELEASE</lettuce.version>
+		<jnats.version>2.21.1</jnats.version>
+		<paho.version>1.2.5</paho.version>
+		<jakarta-jms.version>3.1.0</jakarta-jms.version>
+		<activemq.version>6.2.6</activemq.version>
+		<amqp-client.version>5.25.0</amqp-client.version>
+		<kafka.version>4.3.0</kafka.version>
+
+		<!-- Metrics (optional backends) -->
+		<micrometer.version>1.15.0</micrometer.version>
+		<dropwizard.version>4.2.33</dropwizard.version>
+
+		<!-- Build plugin versions (lockstep; see DEPENDENCY-MATRIX.md) -->
+		<maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
+		<maven-surefire-plugin.version>3.5.4</maven-surefire-plugin.version>
+		<maven-source-plugin.version>3.3.1</maven-source-plugin.version>
+		<maven-javadoc-plugin.version>3.11.2</maven-javadoc-plugin.version>
+		<maven-gpg-plugin.version>3.2.7</maven-gpg-plugin.version>
+		<central-publishing-plugin.version>0.9.0</central-publishing-plugin.version>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+
+			<!-- Unify every com.fasterxml.jackson.* module on one version -->
+			<dependency>
+				<groupId>com.fasterxml.jackson</groupId>
+				<artifactId>jackson-bom</artifactId>
+				<version>${jackson.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+
+			<!-- Align all io.micrometer.* artifacts -->
+			<dependency>
+				<groupId>io.micrometer</groupId>
+				<artifactId>micrometer-bom</artifactId>
+				<version>${micrometer.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+
+			<!-- Align all org.junit.* artifacts -->
+			<dependency>
+				<groupId>org.junit</groupId>
+				<artifactId>junit-bom</artifactId>
+				<version>${junit.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+
+		</dependencies>
+	</dependencyManagement>
+
+	<dependencies>
+
+		<!-- ====================== DATATREE (Tree + Promise) ====================== -->
+
+		<dependency>
+			<groupId>com.github.berkesa</groupId>
+			<artifactId>datatree-adapters</artifactId>
+			<version>${datatree.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.berkesa</groupId>
+			<artifactId>datatree-promise</artifactId>
+			<version>${datatree.version}</version>
+		</dependency>
+
+		<!-- ====================== LOGGING ====================== -->
+
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-jdk14</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>log4j-over-slf4j</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>jcl-over-slf4j</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+
+		<!-- Colored console logger (ColoredConsoleLogger) -->
+		<dependency>
+			<groupId>com.diogonunes</groupId>
+			<artifactId>JColor</artifactId>
+			<version>${jcolor.version}</version>
+		</dependency>
+
+		<!-- ====================== SERIALIZER FORMATS ====================== -->
+
+		<!-- CBOR (CborSerializer) -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.dataformat</groupId>
+			<artifactId>jackson-dataformat-cbor</artifactId>
+		</dependency>
+
+		<!-- SMILE (SmileSerializer) -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.dataformat</groupId>
+			<artifactId>jackson-dataformat-smile</artifactId>
+		</dependency>
+
+		<!-- BSON (BsonSerializer) -->
+		<dependency>
+			<groupId>de.undercouch</groupId>
+			<artifactId>bson4jackson</artifactId>
+			<version>${bson4jackson.version}</version>
+		</dependency>
+
+		<!-- Amazon ION (IonSerializer) -->
+		<dependency>
+			<groupId>com.amazon.ion</groupId>
+			<artifactId>ion-java</artifactId>
+			<version>${ion-java.version}</version>
+		</dependency>
+
+		<!-- MessagePack (MsgPackSerializer); pulls msgpack-core transitively -->
+		<dependency>
+			<groupId>org.msgpack</groupId>
+			<artifactId>jackson-dataformat-msgpack</artifactId>
+			<version>${msgpack.version}</version>
+		</dependency>
+
+		<!-- ====================== CDI / SPRING ====================== -->
+
+		<!-- Spring Framework (required by MoleculerRunner + SpringRegistrator) -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-context</artifactId>
+			<version>${spring.version}</version>
+		</dependency>
+
+		<!-- Spring Boot (optional; loaded reflectively by MoleculerRunner) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter</artifactId>
+			<version>${spring-boot.version}</version>
+			<optional>true</optional>
+			<exclusions>
+				<exclusion>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-logging</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- ====================== CACHES ====================== -->
+
+		<!-- JCache API (JCacheCacher) -->
+		<dependency>
+			<groupId>javax.cache</groupId>
+			<artifactId>cache-api</artifactId>
+			<version>${cache-api.version}</version>
+		</dependency>
+
+		<!-- JCache reference implementation (optional backend) -->
+		<dependency>
+			<groupId>org.jsr107.ri</groupId>
+			<artifactId>cache-ri-impl</artifactId>
+			<version>${cache-ri.version}</version>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- ====================== TRANSPORTERS (optional backends) ====================== -->
+
+		<!-- Redis (RedisTransporter + RedisCacher) -->
+		<dependency>
+			<groupId>io.lettuce</groupId>
+			<artifactId>lettuce-core</artifactId>
+			<version>${lettuce.version}</version>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- NATS (NatsTransporter) -->
+		<dependency>
+			<groupId>io.nats</groupId>
+			<artifactId>jnats</artifactId>
+			<version>${jnats.version}</version>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- MQTT (MqttTransporter) -->
+		<dependency>
+			<groupId>org.eclipse.paho</groupId>
+			<artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+			<version>${paho.version}</version>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- JMS API (JmsTransporter) -->
+		<dependency>
+			<groupId>jakarta.jms</groupId>
+			<artifactId>jakarta.jms-api</artifactId>
+			<version>${jakarta-jms.version}</version>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- ActiveMQ client (JMS driver for tests) -->
+		<dependency>
+			<groupId>org.apache.activemq</groupId>
+			<artifactId>activemq-client</artifactId>
+			<version>${activemq.version}</version>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- AMQP / RabbitMQ (AmqpTransporter) -->
+		<dependency>
+			<groupId>com.rabbitmq</groupId>
+			<artifactId>amqp-client</artifactId>
+			<version>${amqp-client.version}</version>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- Kafka (KafkaTransporter) -->
+		<dependency>
+			<groupId>org.apache.kafka</groupId>
+			<artifactId>kafka-clients</artifactId>
+			<version>${kafka.version}</version>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- ====================== METRICS ====================== -->
+
+		<!-- Micrometer core (DefaultMetrics) -->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-core</artifactId>
+		</dependency>
+
+		<!-- Dropwizard metrics (DropwizardReportersImpl; optional) -->
+		<dependency>
+			<groupId>io.dropwizard.metrics</groupId>
+			<artifactId>metrics-core</artifactId>
+			<version>${dropwizard.version}</version>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>io.dropwizard.metrics</groupId>
+			<artifactId>metrics-jmx</artifactId>
+			<version>${dropwizard.version}</version>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- Micrometer reporter registries (optional backends) -->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-new-relic</artifactId>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-jmx</artifactId>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-datadog</artifactId>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- ====================== TESTS (JUNIT 5 / JUPITER) ====================== -->
+
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.platform</groupId>
+			<artifactId>junit-platform-suite</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- POJO tester (PojoTest) -->
+		<dependency>
+			<groupId>com.openpojo</groupId>
+			<artifactId>openpojo</artifactId>
+			<version>${openpojo.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+	</dependencies>
+
+	<build>
+		<plugins>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>${maven-compiler-plugin.version}</version>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>${maven-surefire-plugin.version}</version>
+				<configuration>
+					<!-- openpojo (PojoTest) uses deep reflection on JDK types
+					     (e.g. java.util.Properties); open the modules it needs
+					     so it works under the Java 17+ module system. -->
+					<argLine>--add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/javax.net=ALL-UNNAMED --add-opens java.base/javax.net.ssl=ALL-UNNAMED</argLine>
+					<systemPropertyVariables>
+						<java.util.logging.SimpleFormatter.format>%4$-7s %5$s %n</java.util.logging.SimpleFormatter.format>
+					</systemPropertyVariables>
+					<!-- Integration tests requiring an external broker/server are
+					     excluded so 'mvn test' is green offline (mirrors the old
+					     Gradle 'test { exclude ... }' list, expanded to cover all
+					     network-dependent transporter/stream/cacher tests). -->
+					<excludes>
+						<!-- JUnit Platform suite aggregator -->
+						<exclude>**/TransporterTestSuite.java</exclude>
+						<!-- Transporter integration tests (need a running broker) -->
+						<exclude>**/AmqpTransporterTest.java</exclude>
+						<exclude>**/FileSystemTransporterTest.java</exclude>
+						<exclude>**/JmsTransporterTest.java</exclude>
+						<exclude>**/KafkaTransporterTest.java</exclude>
+						<exclude>**/MqttTransporterTest.java</exclude>
+						<exclude>**/NatsTransporterTest.java</exclude>
+						<exclude>**/RedisTransporterTest.java</exclude>
+						<exclude>**/TcpTransporterTest.java</exclude>
+						<exclude>**/ClusterTest.java</exclude>
+						<exclude>**/GossiperTest.java</exclude>
+						<!-- Cacher integration tests (need a running broker) -->
+						<exclude>**/RedisCacherTest.java</exclude>
+						<!-- Stream integration tests (need a running broker) -->
+						<exclude>**/AmqpStreamTest.java</exclude>
+						<exclude>**/JmsStreamTest.java</exclude>
+						<exclude>**/KafkaStreamTest.java</exclude>
+						<exclude>**/MqttStreamTest.java</exclude>
+						<exclude>**/NatsStreamTest.java</exclude>
+						<exclude>**/RedisStreamTest.java</exclude>
+						<exclude>**/TcpStreamTest.java</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+
+		</plugins>
+	</build>
+
+	<profiles>
+
+		<!-- Release profile: sources + javadoc + GPG signing + Central Portal publishing -->
+		<profile>
+			<id>release</id>
+			<build>
+				<plugins>
+
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-source-plugin</artifactId>
+						<version>${maven-source-plugin.version}</version>
+						<executions>
+							<execution>
+								<id>attach-sources</id>
+								<goals>
+									<goal>jar-no-fork</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<version>${maven-javadoc-plugin.version}</version>
+						<executions>
+							<execution>
+								<id>attach-javadocs</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<doclint>none</doclint>
+						</configuration>
+					</plugin>
+
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-gpg-plugin</artifactId>
+						<version>${maven-gpg-plugin.version}</version>
+						<executions>
+							<execution>
+								<id>sign-artifacts</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>sign</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+
+					<plugin>
+						<groupId>org.sonatype.central</groupId>
+						<artifactId>central-publishing-maven-plugin</artifactId>
+						<version>${central-publishing-plugin.version}</version>
+						<extensions>true</extensions>
+						<configuration>
+							<publishingServerId>central</publishingServerId>
+						</configuration>
+					</plugin>
+
+				</plugins>
+			</build>
+		</profile>
+
+	</profiles>
+
+</project>

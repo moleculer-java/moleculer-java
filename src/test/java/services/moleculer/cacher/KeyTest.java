@@ -25,15 +25,16 @@
  */
 package services.moleculer.cacher;
 
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+import org.junit.jupiter.api.Test;
 
 import io.datatree.Tree;
-import junit.framework.TestCase;
 
 /**
  * Generated test methods for testing the key generator of distributed cachers.
  */
-public class KeyTest extends TestCase {
+public class KeyTest {
 
 	@Test
 	public void testA() throws Exception {

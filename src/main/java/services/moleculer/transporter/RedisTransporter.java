@@ -29,15 +29,15 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.lambdaworks.redis.event.Event;
-import com.lambdaworks.redis.event.EventBus;
-import com.lambdaworks.redis.event.connection.ConnectedEvent;
-import com.lambdaworks.redis.event.connection.DisconnectedEvent;
-import com.lambdaworks.redis.pubsub.RedisPubSubListener;
+import io.lettuce.core.event.Event;
+import io.lettuce.core.event.EventBus;
+import io.lettuce.core.event.connection.ConnectedEvent;
+import io.lettuce.core.event.connection.DisconnectedEvent;
+import io.lettuce.core.pubsub.RedisPubSubListener;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
-import rx.Observable;
+import reactor.core.publisher.Flux;
 import services.moleculer.service.Name;
 import services.moleculer.util.redis.RedisPubSubClient;
 
@@ -56,7 +56,6 @@ import services.moleculer.util.redis.RedisPubSubClient;
  *
  * @see TcpTransporter
  * @see NatsTransporter
- * @see NatsStreamingTransporter
  * @see MqttTransporter
  * @see JmsTransporter
  * @see KafkaTransporter
@@ -314,8 +313,8 @@ public class RedisTransporter extends Transporter implements EventBus, RedisPubS
 	}
 
 	@Override
-	public Observable<Event> get() {
-		return null;
+	public Flux<Event> get() {
+		return Flux.empty();
 	}
 
 	// --- GETTERS / SETTERS ---

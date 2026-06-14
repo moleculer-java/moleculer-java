@@ -36,7 +36,6 @@ import services.moleculer.service.Name;
 /**
  * Base superclass of all System Monitor implementations.
  *
- * @see SigarMonitor
  * @see JmxMonitor
  */
 @Name("Monitor")

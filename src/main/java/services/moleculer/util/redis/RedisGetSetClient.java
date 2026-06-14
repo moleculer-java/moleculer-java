@@ -33,18 +33,18 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.lambdaworks.redis.KeyScanCursor;
-import com.lambdaworks.redis.RedisClient;
-import com.lambdaworks.redis.RedisFuture;
-import com.lambdaworks.redis.RedisURI;
-import com.lambdaworks.redis.ScanArgs;
-import com.lambdaworks.redis.ScanCursor;
-import com.lambdaworks.redis.SetArgs;
-import com.lambdaworks.redis.api.async.RedisAsyncCommands;
-import com.lambdaworks.redis.cluster.RedisClusterClient;
-import com.lambdaworks.redis.cluster.api.async.RedisAdvancedClusterAsyncCommands;
-import com.lambdaworks.redis.codec.ByteArrayCodec;
-import com.lambdaworks.redis.event.EventBus;
+import io.lettuce.core.KeyScanCursor;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisFuture;
+import io.lettuce.core.RedisURI;
+import io.lettuce.core.ScanArgs;
+import io.lettuce.core.ScanCursor;
+import io.lettuce.core.SetArgs;
+import io.lettuce.core.api.async.RedisAsyncCommands;
+import io.lettuce.core.cluster.RedisClusterClient;
+import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands;
+import io.lettuce.core.codec.ByteArrayCodec;
+import io.lettuce.core.event.EventBus;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
@@ -280,10 +280,10 @@ public final class RedisGetSetClient extends AbstractRedisClient {
 	@Override
 	public final Promise disconnect() {
 		if (client != null) {
-			client.close();
+			client.getStatefulConnection().close();
 			client = null;
 		} else if (clusteredClient != null) {
-			clusteredClient.close();
+			clusteredClient.getStatefulConnection().close();
 			clusteredClient = null;
 		}
 		return super.disconnect();

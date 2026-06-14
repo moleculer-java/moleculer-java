@@ -25,7 +25,6 @@
  */
 package services.moleculer.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -37,9 +36,6 @@ import services.moleculer.ServiceBroker;
  */
 @SpringBootApplication(scanBasePackages = { "services.moleculer.config" })
 public class SpringBootSample {
-
-	@Autowired
-	protected ServiceBroker broker;
 
 	public static void main(String[] args) {
 		SpringApplication.run(SpringBootSample.class, args);

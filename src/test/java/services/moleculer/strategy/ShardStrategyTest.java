@@ -25,9 +25,11 @@
  */
 package services.moleculer.strategy;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import java.util.HashSet;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.datatree.Tree;
 import services.moleculer.context.Context;

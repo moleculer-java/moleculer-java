@@ -25,6 +25,10 @@
  */
 package services.moleculer.stream;
 
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -36,12 +40,11 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.datatree.Promise;
 import io.datatree.Tree;
 import io.datatree.dom.BASE64;
-import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 import services.moleculer.error.MoleculerError;
 import services.moleculer.monitor.ConstantMonitor;
@@ -50,7 +53,7 @@ import services.moleculer.service.Name;
 import services.moleculer.service.Service;
 import services.moleculer.transporter.Transporter;
 
-public abstract class StreamTest extends TestCase {
+public abstract class StreamTest {
 
 	// --- VARIABLES ---
 
@@ -599,7 +602,7 @@ public abstract class StreamTest extends TestCase {
 		return bytes;
 	}
 
-	@Override
+	@BeforeEach
 	protected void setUp() throws Exception {
 
 		// Create transporters
@@ -625,7 +628,7 @@ public abstract class StreamTest extends TestCase {
 		br1.waitForServices("stream-receiver").waitFor(100000);
 	}
 
-	@Override
+	@AfterEach
 	protected void tearDown() throws Exception {
 		if (br1 != null) {
 			br1.stop();

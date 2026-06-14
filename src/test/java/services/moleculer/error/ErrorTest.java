@@ -25,10 +25,13 @@
  */
 package services.moleculer.error;
 
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+
+import org.junit.jupiter.api.Test;
 
 import io.datatree.Tree;
-import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.service.Action;
@@ -36,7 +39,7 @@ import services.moleculer.service.Service;
 import services.moleculer.transporter.TcpTransporter;
 import services.moleculer.transporter.Transporter;
 
-public class ErrorTest extends TestCase {
+public class ErrorTest {
 
 	// --- BUILT-IN / STANDARD ERROR TYPES ---
 
@@ -471,56 +474,56 @@ public class ErrorTest extends TestCase {
 
 		// --- CHECK ERROR TRANSFER BETWEEN NODES ---
 
-		assertEquals(createMoleculerError2(), invoke(MOLECULER_ERROR, 2));
-		assertEquals(createMoleculerError3(), invoke(MOLECULER_ERROR, 3));
-		assertEquals(createMoleculerError4(), invoke(MOLECULER_ERROR, 4));
-		assertEquals(createMoleculerError5(), invoke(MOLECULER_ERROR, 5));
-		assertEquals(createMoleculerError6(), invoke(MOLECULER_ERROR, 6));
-		assertEquals(createMoleculerError(), invoke(MOLECULER_ERROR));
+		assertErrorEquals(createMoleculerError2(), invoke(MOLECULER_ERROR, 2));
+		assertErrorEquals(createMoleculerError3(), invoke(MOLECULER_ERROR, 3));
+		assertErrorEquals(createMoleculerError4(), invoke(MOLECULER_ERROR, 4));
+		assertErrorEquals(createMoleculerError5(), invoke(MOLECULER_ERROR, 5));
+		assertErrorEquals(createMoleculerError6(), invoke(MOLECULER_ERROR, 6));
+		assertErrorEquals(createMoleculerError(), invoke(MOLECULER_ERROR));
 
-		assertEquals(createMoleculerRetryableError2(), invoke(MOLECULER_RETRYABLE_ERROR, 2));
-		assertEquals(createMoleculerRetryableError3(), invoke(MOLECULER_RETRYABLE_ERROR, 3));
-		assertEquals(createMoleculerRetryableError4(), invoke(MOLECULER_RETRYABLE_ERROR, 4));
-		assertEquals(createMoleculerRetryableError5(), invoke(MOLECULER_RETRYABLE_ERROR, 5));
-		assertEquals(createMoleculerRetryableError6(), invoke(MOLECULER_RETRYABLE_ERROR, 6));
-		assertEquals(createMoleculerRetryableError(), invoke(MOLECULER_RETRYABLE_ERROR));
+		assertErrorEquals(createMoleculerRetryableError2(), invoke(MOLECULER_RETRYABLE_ERROR, 2));
+		assertErrorEquals(createMoleculerRetryableError3(), invoke(MOLECULER_RETRYABLE_ERROR, 3));
+		assertErrorEquals(createMoleculerRetryableError4(), invoke(MOLECULER_RETRYABLE_ERROR, 4));
+		assertErrorEquals(createMoleculerRetryableError5(), invoke(MOLECULER_RETRYABLE_ERROR, 5));
+		assertErrorEquals(createMoleculerRetryableError6(), invoke(MOLECULER_RETRYABLE_ERROR, 6));
+		assertErrorEquals(createMoleculerRetryableError(), invoke(MOLECULER_RETRYABLE_ERROR));
 
-		assertEquals(createMoleculerServerError2(), invoke(MOLECULER_SERVER_ERROR, 2));
-		assertEquals(createMoleculerServerError3(), invoke(MOLECULER_SERVER_ERROR, 3));
-		assertEquals(createMoleculerServerError(), invoke(MOLECULER_SERVER_ERROR));
+		assertErrorEquals(createMoleculerServerError2(), invoke(MOLECULER_SERVER_ERROR, 2));
+		assertErrorEquals(createMoleculerServerError3(), invoke(MOLECULER_SERVER_ERROR, 3));
+		assertErrorEquals(createMoleculerServerError(), invoke(MOLECULER_SERVER_ERROR));
 
-		assertEquals(createMoleculerClientError2(), invoke(MOLECULER_CLIENT_ERROR, 2));
-		assertEquals(createMoleculerClientError3(), invoke(MOLECULER_CLIENT_ERROR, 3));
-		assertEquals(createMoleculerClientError4(), invoke(MOLECULER_CLIENT_ERROR, 4));
-		assertEquals(createMoleculerClientError(), invoke(MOLECULER_CLIENT_ERROR));
+		assertErrorEquals(createMoleculerClientError2(), invoke(MOLECULER_CLIENT_ERROR, 2));
+		assertErrorEquals(createMoleculerClientError3(), invoke(MOLECULER_CLIENT_ERROR, 3));
+		assertErrorEquals(createMoleculerClientError4(), invoke(MOLECULER_CLIENT_ERROR, 4));
+		assertErrorEquals(createMoleculerClientError(), invoke(MOLECULER_CLIENT_ERROR));
 
-		assertEquals(createServiceNotFoundError(), invoke(SERVICE_NOT_FOUND_ERROR));
+		assertErrorEquals(createServiceNotFoundError(), invoke(SERVICE_NOT_FOUND_ERROR));
 
-		assertEquals(createServiceNotAvailableError(), invoke(SERVICE_NOT_AVAILABLE_ERROR));
+		assertErrorEquals(createServiceNotAvailableError(), invoke(SERVICE_NOT_AVAILABLE_ERROR));
 
-		assertEquals(createValidationError(), invoke(VALIDATION_ERROR));
+		assertErrorEquals(createValidationError(), invoke(VALIDATION_ERROR));
 
-		assertEquals(createRequestTimeoutError(), invoke(REQUEST_TIMEOUT_ERROR));
+		assertErrorEquals(createRequestTimeoutError(), invoke(REQUEST_TIMEOUT_ERROR));
 
-		assertEquals(createRequestSkippedError(), invoke(REQUEST_SKIPPED_ERROR));
+		assertErrorEquals(createRequestSkippedError(), invoke(REQUEST_SKIPPED_ERROR));
 
-		assertEquals(createRequestRejectedError(), invoke(REQUEST_REJECTED_ERROR));
+		assertErrorEquals(createRequestRejectedError(), invoke(REQUEST_REJECTED_ERROR));
 
-		assertEquals(createQueueIsFullError(), invoke(QUEUE_IS_FULL_ERROR));
+		assertErrorEquals(createQueueIsFullError(), invoke(QUEUE_IS_FULL_ERROR));
 
-		assertEquals(createMaxCallLevelError(), invoke(MAX_CALL_LEVEL_ERROR));
+		assertErrorEquals(createMaxCallLevelError(), invoke(MAX_CALL_LEVEL_ERROR));
 
-		assertEquals(createServiceSchemaError(), invoke(SERVICE_SCHEMA_ERROR));
+		assertErrorEquals(createServiceSchemaError(), invoke(SERVICE_SCHEMA_ERROR));
 
-		assertEquals(createBrokerOptionsError(), invoke(BROKER_OPTIONS_ERROR));
+		assertErrorEquals(createBrokerOptionsError(), invoke(BROKER_OPTIONS_ERROR));
 
-		assertEquals(createGracefulStopTimeoutError(), invoke(GRACEFUL_STOP_TIMEOUT_ERROR));
+		assertErrorEquals(createGracefulStopTimeoutError(), invoke(GRACEFUL_STOP_TIMEOUT_ERROR));
 
-		assertEquals(createProtocolVersionMismatchError(), invoke(PROTOCOL_VERSION_MISMATCH_ERROR));
+		assertErrorEquals(createProtocolVersionMismatchError(), invoke(PROTOCOL_VERSION_MISMATCH_ERROR));
 
-		assertEquals(createInvalidPacketDataError(), invoke(INVALID_PACKET_DATA_ERROR));
+		assertErrorEquals(createInvalidPacketDataError(), invoke(INVALID_PACKET_DATA_ERROR));
 
-		assertEquals(new CustomError("My Error Message", "CurrentNode"), invoke("CustomError"));
+		assertErrorEquals(new CustomError("My Error Message", "CurrentNode"), invoke("CustomError"));
 	}
 
 	public void checkConvert(MoleculerError e) {
@@ -534,7 +537,7 @@ public class ErrorTest extends TestCase {
 		assertEquals(s1, s2);
 	}
 
-	public void assertEquals(Throwable e1, Throwable e2) {
+	public void assertErrorEquals(Throwable e1, Throwable e2) {
 		String s1;
 		if (e1 != null && e1 instanceof MoleculerError) {
 			Tree t = ((MoleculerError) e1).toTree().clone();
@@ -841,7 +844,7 @@ public class ErrorTest extends TestCase {
 
 	// --- UTILITIES ---
 
-	@Override
+	@BeforeEach
 	protected void setUp() throws Exception {
 
 		// Create transporters
@@ -867,7 +870,7 @@ public class ErrorTest extends TestCase {
 		br2.waitForServices(15000, "test").waitFor(20000);
 	}
 
-	@Override
+	@AfterEach
 	protected void tearDown() throws Exception {
 		if (br1 != null) {
 			br1.stop();

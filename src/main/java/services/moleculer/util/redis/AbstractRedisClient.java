@@ -31,11 +31,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import com.lambdaworks.redis.RedisURI;
-import com.lambdaworks.redis.event.Event;
-import com.lambdaworks.redis.event.EventBus;
-import com.lambdaworks.redis.resource.DefaultClientResources;
-import com.lambdaworks.redis.resource.EventLoopGroupProvider;
+import io.lettuce.core.RedisURI;
+import io.lettuce.core.event.Event;
+import io.lettuce.core.event.EventBus;
+import io.lettuce.core.resource.DefaultClientResources;
+import io.lettuce.core.resource.EventLoopGroupProvider;
 
 import io.datatree.Promise;
 import io.netty.channel.EventLoopGroup;
@@ -43,7 +43,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.DefaultEventExecutor;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.netty.util.concurrent.Future;
-import rx.Observable;
+import reactor.core.publisher.Flux;
 
 /**
  * Promise-based abstract Redis client.
@@ -121,8 +121,8 @@ public abstract class AbstractRedisClient {
 				}
 
 				@Override
-				public final Observable<Event> get() {
-					return null;
+				public final Flux<Event> get() {
+					return Flux.empty();
 				}
 
 			});

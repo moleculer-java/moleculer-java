@@ -25,14 +25,12 @@
  */
 package services.moleculer.transporter;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Suite;
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 
-@RunWith(Suite.class)
-
-@Suite.SuiteClasses({ AmqpTransporterTest.class, MqttTransporterTest.class, FileSystemTransporterTest.class,
+@Suite
+@SelectClasses({ AmqpTransporterTest.class, MqttTransporterTest.class, FileSystemTransporterTest.class,
 		InternalTransporterTest.class, NatsTransporterTest.class, RedisTransporterTest.class,
 		TcpTransporterTest.class })
-
 public class TransporterTestSuite {
 }

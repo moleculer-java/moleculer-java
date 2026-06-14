@@ -1,4 +1,21 @@
-/bin/
-/log/
-/build/
-/.gradle/
+# --- Maven ---
+target/
+
+# --- Gradle (legacy) ---
+.gradle/
+build/
+
+# --- Eclipse ---
+bin/
+.settings/
+.classpath
+.project
+*.launch
+*.jardesc
+
+# --- Runtime / logs ---
+log/
+*.log
+
+# --- Compiled output ---
+*.class

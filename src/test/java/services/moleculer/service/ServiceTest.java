@@ -25,6 +25,10 @@
  */
 package services.moleculer.service;
 
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -36,17 +40,16 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.datatree.Tree;
-import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 import services.moleculer.breaker.TestTransporter;
 import services.moleculer.context.Context;
 import services.moleculer.monitor.ConstantMonitor;
 import services.moleculer.util.FastBuildTree;
 
-public class ServiceTest extends TestCase {
+public class ServiceTest {
 
 	// --- VARIABLES ---
 
@@ -237,7 +240,7 @@ public class ServiceTest extends TestCase {
 	// --- SET UP ---
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	@Override
+	@BeforeEach
 	protected void setUp() throws Exception {
 		sr = new DefaultServiceRegistry();
 		tr = new TestTransporter();
@@ -326,7 +329,7 @@ public class ServiceTest extends TestCase {
 
 	// --- TEAR DOWN ---
 
-	@Override
+	@AfterEach
 	protected void tearDown() throws Exception {
 		if (br != null) {
 			br.stop();

@@ -25,6 +25,8 @@
  */
 package services.moleculer.serializer;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import io.datatree.Tree;
 import io.datatree.dom.TreeWriter;
 import io.datatree.dom.TreeWriterRegistry;

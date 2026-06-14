@@ -111,13 +111,13 @@ public class AsyncFileLogger extends Handler implements Runnable {
 				try {
 
 					// Create ANSI console for "colorized" logging
-					Class.forName("com.diogonunes.jcdp.color.ColoredPrinter");
+					Class.forName("com.diogonunes.jcolor.Ansi");
 					console = (ConsoleLogger) Class.forName("services.moleculer.logger.ColoredConsoleLogger")
 							.newInstance();
 				} catch (Throwable ignored) {
 
 					// Required dependency:
-					// https://mvnrepository.com/artifact/com.diogonunes/JCDP
+					// https://mvnrepository.com/artifact/com.diogonunes/JColor
 
 				}
 			}

@@ -28,15 +28,15 @@ package services.moleculer.transporter;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 
-import javax.jms.BytesMessage;
-import javax.jms.DeliveryMode;
-import javax.jms.JMSContext;
-import javax.jms.Topic;
-import javax.jms.TopicConnection;
-import javax.jms.TopicConnectionFactory;
-import javax.jms.TopicPublisher;
-import javax.jms.TopicSession;
-import javax.jms.TopicSubscriber;
+import jakarta.jms.BytesMessage;
+import jakarta.jms.DeliveryMode;
+import jakarta.jms.JMSContext;
+import jakarta.jms.Topic;
+import jakarta.jms.TopicConnection;
+import jakarta.jms.TopicConnectionFactory;
+import jakarta.jms.TopicPublisher;
+import jakarta.jms.TopicSession;
+import jakarta.jms.TopicSubscriber;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 
@@ -65,7 +65,6 @@ import services.moleculer.service.Name;
  * @see TcpTransporter
  * @see RedisTransporter
  * @see NatsTransporter
- * @see NatsStreamingTransporter
  * @see MqttTransporter
  * @see KafkaTransporter
  * @see AmqpTransporter
