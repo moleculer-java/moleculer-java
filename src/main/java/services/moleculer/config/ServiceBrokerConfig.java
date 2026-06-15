@@ -80,6 +80,24 @@ public class ServiceBrokerConfig {
 	protected String nodeID;
 
 	/**
+	 * Default Moleculer wire-protocol version stamped onto outgoing packets.
+	 * Moleculer JS 0.15 speaks "5" (and silently drops packets with a different
+	 * "ver"); 0.14 spoke "4". The two are wire-compatible for the JSON
+	 * serializer, so "5" is the default to interoperate with current Moleculer
+	 * JS out of the box. Set {@link #setProtocolVersion(String)} to "4" when
+	 * talking to legacy 0.14 nodes.
+	 */
+	public static final String DEFAULT_PROTOCOL_VERSION = "5";
+
+	/**
+	 * Moleculer wire-protocol version ("ver" field). Seeded from the
+	 * "moleculer.protocol.version" System Property, falling back to
+	 * {@link #DEFAULT_PROTOCOL_VERSION}; override per broker via
+	 * {@link #setProtocolVersion(String)}.
+	 */
+	protected String protocolVersion = System.getProperty("moleculer.protocol.version", DEFAULT_PROTOCOL_VERSION);
+
+	/**
 	 * Install internal ($node) services?
 	 */
 	protected boolean internalServices = true;
@@ -221,6 +239,14 @@ public class ServiceBrokerConfig {
 
 	public void setNodeID(String nodeID) {
 		this.nodeID = Objects.requireNonNull(nodeID);
+	}
+
+	public String getProtocolVersion() {
+		return protocolVersion;
+	}
+
+	public void setProtocolVersion(String protocolVersion) {
+		this.protocolVersion = Objects.requireNonNull(protocolVersion);
 	}
 
 	public boolean isInternalServices() {

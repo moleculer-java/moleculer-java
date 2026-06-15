@@ -70,6 +70,11 @@ public class ServiceBrokerBuilder {
 		return this;
 	}
 
+	public ServiceBrokerBuilder protocolVersion(String protocolVersion) {
+		config.setProtocolVersion(protocolVersion);
+		return this;
+	}
+
 	public ServiceBrokerBuilder internalServices(boolean internalServices) {
 		config.setInternalServices(internalServices);
 		return this;

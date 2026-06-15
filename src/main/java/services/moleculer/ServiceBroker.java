@@ -234,13 +234,18 @@ public class ServiceBroker extends ContextSource implements MetricConstants {
 	// --- PROTOCOL VERSION ---
 
 	/**
-	 * Returns the version of the implemented Moleculer Protocol. Can be
-	 * configured with the "moleculer.protocol.version" System Property.
-	 * 
-	 * @return version of the implemented protocol (eg. "4")
+	 * Returns the version of the implemented Moleculer Protocol. The value comes
+	 * from {@link ServiceBrokerConfig#getProtocolVersion()} (configurable via
+	 * {@link ServiceBrokerBuilder#protocolVersion(String)} or
+	 * {@link ServiceBrokerConfig#setProtocolVersion(String)}), which is seeded
+	 * from the "moleculer.protocol.version" System Property and otherwise
+	 * defaults to {@link ServiceBrokerConfig#DEFAULT_PROTOCOL_VERSION} ("5",
+	 * matching Moleculer JS 0.15).
+	 *
+	 * @return version of the implemented protocol (eg. "5")
 	 */
 	public String getProtocolVersion() {
-		return System.getProperty("moleculer.protocol.version", "4");
+		return config.getProtocolVersion();
 	}
 
 	// --- GET CONFIGURATION ---

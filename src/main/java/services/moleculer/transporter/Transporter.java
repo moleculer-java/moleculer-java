@@ -125,9 +125,12 @@ public abstract class Transporter extends MoleculerComponent implements MetricCo
 	protected String nodeID;
 
 	/**
-	 * ServiceBroker's protocol version
+	 * ServiceBroker's protocol version. Placeholder only: overwritten in
+	 * {@link #started(services.moleculer.ServiceBroker)} from
+	 * {@code broker.getProtocolVersion()}. The authoritative default lives in
+	 * {@code ServiceBrokerConfig.DEFAULT_PROTOCOL_VERSION} ("5").
 	 */
-	protected String protocolVersion = "4";
+	protected String protocolVersion = "5";
 
 	/**
 	 * Heartbeat sending period in SECONDS.

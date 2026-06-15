@@ -149,9 +149,12 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 	protected boolean checkVersion;
 
 	/**
-	 * ServiceBroker's protocol version
+	 * ServiceBroker's protocol version. Placeholder only: overwritten in
+	 * {@code started(broker)} from {@code broker.getProtocolVersion()}. The
+	 * authoritative default lives in
+	 * {@code ServiceBrokerConfig.DEFAULT_PROTOCOL_VERSION} ("5").
 	 */
-	protected String protocolVersion = "4";
+	protected String protocolVersion = "5";
 
 	/**
 	 * Write exceptions into the log file
@@ -680,8 +683,13 @@ public class DefaultServiceRegistry extends ServiceRegistry implements MetricCon
 		String requestID = message.get("requestID", id);
 
 		// Create context
+		// NOTE: the context's name must be the invoked ACTION name (e.g.
+		// "dataJava.getCachedSeq"), not this component's name. Passing the
+		// registry's own "name" field here gave every remotely-invoked action a
+		// ctx.name of "Default Service Registry", which (among other things)
+		// produced a bogus Cacher key, so clustered @Cache actions never hit.
 		PacketStream stream = requestStream == null ? null : requestStream.getPacketStream();
-		Context ctx = new Context(serviceInvoker, eventbus, uidGenerator, id, name, params, level, parentID, requestID,
+		Context ctx = new Context(serviceInvoker, eventbus, uidGenerator, id, action, params, level, parentID, requestID,
 				stream, opts, sender);
 
 		// Get local action endpoint (with cache handling)

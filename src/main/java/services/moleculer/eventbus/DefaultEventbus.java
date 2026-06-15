@@ -94,9 +94,12 @@ public class DefaultEventbus extends Eventbus implements MetricConstants {
 	protected boolean checkVersion;
 
 	/**
-	 * ServiceBroker's protocol version
+	 * ServiceBroker's protocol version. Placeholder only: overwritten in
+	 * {@code started(broker)} from {@code broker.getProtocolVersion()}. The
+	 * authoritative default lives in
+	 * {@code ServiceBrokerConfig.DEFAULT_PROTOCOL_VERSION} ("5").
 	 */
-	protected String protocolVersion = "4";
+	protected String protocolVersion = "5";
 
 	/**
 	 * Local Node ID

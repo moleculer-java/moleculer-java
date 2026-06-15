@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Moleculer for Java — a JVM implementation of the [Moleculer microservices framework](https://moleculer.services/).
-It is wire-compatible with the Node.js implementation (Moleculer **Protocol v4**), so Java and Node.js nodes can form one cluster. The library is non-blocking and Promise-based throughout. It is published to Maven Central as `com.github.berkesa:moleculer-java`.
+It is wire-compatible with the Node.js implementation, so Java and Node.js nodes can form one cluster. The default wire-protocol version is **"5"** (Moleculer JS **0.15**); v4 and v5 are wire-compatible for the JSON serializer, so set `ServiceBroker.builder().protocolVersion("4")` (or `ServiceBrokerConfig.setProtocolVersion("4")`) to talk to legacy 0.14 nodes. The library is non-blocking and Promise-based throughout. It is published to Maven Central as `com.github.berkesa:moleculer-java`.
 
 ## Build & test
 
@@ -27,7 +27,7 @@ mvn test "-Dtest=ServiceTest#testCall"
 
 Gotchas that will bite you:
 
-- **Java 21 baseline** (`maven.compiler.release=21`); compilation is plain **`javac`** (the old Eclipse ECJ fork is gone). Java 9+/17+/21 APIs are fine.
+- **Java 21 baseline** (`maven.compiler.release=21`); compilation is plain **`javac`**. Java 9+/17+/21 APIs are fine.
 - **Integration tests needing an external broker are excluded** in the Surefire `<excludes>` (Kafka, JMS, FileSystem, AMQP, MQTT, NATS, Redis, TCP transporter & stream tests, the Redis cacher test, `ClusterTest`/`GossiperTest`, and `TransporterTestSuite`) so `mvn test` is green offline. Remove a class from `<excludes>` (and start the matching broker) to run it.
 - **`PojoTest` (openpojo)** needs the `--add-opens` flags in the Surefire `argLine` to deep-reflect JDK types under the Java module system — keep them.
 
@@ -37,7 +37,7 @@ When changing the release version, update **both** or the cluster handshake will
 1. `pom.xml` → `<version>`
 2. `ServiceBroker.SOFTWARE_VERSION` (in `src/main/java/services/moleculer/ServiceBroker.java`)
 
-(The old Gradle `jar { version }` is gone — Maven derives the JAR file name from `<version>`, so the artifact is now `moleculer-java-<version>.jar`; the published `groupId:artifactId` is unchanged.)
+(Maven derives the JAR file name from `<version>`, so the artifact is `moleculer-java-<version>.jar`; the published `groupId:artifactId` is unchanged.)
 
 ## Core architecture
 
@@ -115,10 +115,3 @@ Other internal components: `ServiceRegistry` (`DefaultServiceRegistry`), `Servic
 - Tests use **JUnit 5 (Jupiter)**: `@Test`, `@BeforeEach`/`@AfterEach`, and static `Assertions.*` methods (originally JUnit 3 `TestCase` — migrated in 2.0.0).
 - Typical pattern: build a broker, `createService(...)`, then `broker.call(...).waitFor(timeout)` and assert on the returned `Tree`.
 - `breaker/TestTransporter` and `stream/WrongOrderTransporter` are in-memory fake transporters used to simulate cluster/network behavior and inspect emitted protocol messages without real infrastructure.
-
-## 2.0.0 modernization notes
-
-Migrated from **Gradle 4.2 / Java 8 / JUnit 3-4** to **Maven / JDK 21 / JUnit 5**. Dependency highlights for anyone touching the affected code paths:
-
-- **Dropped backends (public classes removed):** the **Sigar** CPU monitor (`SigarMonitor` + the `native/` binaries — the monitor now auto-selects JMX→Constant); the **OHC** off-heap cacher (`OHCacher` — use `MemoryCacher` or `RedisCacher`); the **NATS-Streaming** transporter (`NatsStreamingTransporter` — NATS Streaming is EOL).
-- **Re-coordinated / upgraded:** Redis client `biz.paluch.redis:lettuce` 4 → **`io.lettuce:lettuce-core` 6** (`com.lambdaworks.redis.*` → `io.lettuce.core.*`, RxJava `Observable` → Reactor `Flux`); colored logger **JCDP → JColor** (`com.diogonunes.jcdp` → `com.diogonunes.jcolor`, `ColoredPrinter` → `Ansi.colorize`); Ion **`software.amazon.ion` → `com.amazon.ion`**; Dropwizard metrics **`com.codahale.metrics` → `io.dropwizard.metrics`** (`JmxReporter` moved to the `metrics-jmx` artifact / `com.codahale.metrics.jmx` package); JMS **`javax.jms` → `jakarta.jms`** (Jakarta JMS 3 + ActiveMQ 6); **Spring 5 → 6.2**, **Spring Boot 2 → 3.5** (circular bean references are now rejected by default); MsgPack via `jackson-dataformat-msgpack`. Shared lockstep versions: SLF4J 2.0.18, Jackson 2.19 (BOM), micrometer 1.15, kafka-clients 4.x, jnats 2.21, JUnit 5.14.4.
