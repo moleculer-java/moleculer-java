@@ -13,7 +13,7 @@ The build uses **Maven** with a **Java 17** bytecode target (`<release>17</relea
 
 ```powershell
 mvn clean verify                 # compile + test + jar (the definition-of-done gate)
-mvn clean install                # same, then installs 2.0.0-SNAPSHOT to ~/.m2 for downstream projects
+mvn clean install                # same, then installs 2.0.0 to ~/.m2 for downstream projects
 mvn test                         # run tests only
 mvn -Prelease deploy             # sources + javadoc + GPG-signed publish to Maven Central (Central Portal)
 ```
