@@ -9,7 +9,7 @@ It is wire-compatible with the Node.js implementation, so Java and Node.js nodes
 
 ## Build & test
 
-The build uses **Maven** with a **JDK 21** baseline:
+The build uses **Maven** with a **Java 17** bytecode target (`<release>17</release>`) and a JDK 17+ build environment (JDK 25 in use). Minimum consumer runtime: **JDK 17** (forced by Spring Framework 6.2.x).
 
 ```powershell
 mvn clean verify                 # compile + test + jar (the definition-of-done gate)
@@ -27,7 +27,7 @@ mvn test "-Dtest=ServiceTest#testCall"
 
 Gotchas that will bite you:
 
-- **Java 21 baseline** (`maven.compiler.release=21`); compilation is plain **`javac`**. Java 9+/17+/21 APIs are fine.
+- **Java 17 baseline** (`maven.compiler.release=17`); compilation is plain **`javac`**. Java 17-era APIs are fine; avoid Java 18–21 APIs (not in the bytecode contract).
 - **Integration tests needing an external broker are excluded** in the Surefire `<excludes>` (Kafka, JMS, FileSystem, AMQP, MQTT, NATS, Redis, TCP transporter & stream tests, the Redis cacher test, `ClusterTest`/`GossiperTest`, and `TransporterTestSuite`) so `mvn test` is green offline. Remove a class from `<excludes>` (and start the matching broker) to run it.
 - **`PojoTest` (openpojo)** needs the `--add-opens` flags in the Surefire `argLine` to deep-reflect JDK types under the Java module system — keep them.
 

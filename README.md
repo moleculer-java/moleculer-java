@@ -61,7 +61,7 @@ from any other node in the cluster — including Node.js nodes.
 
 ## Requirements
 
-Java 21 or newer.
+Java 17 or newer.
 
 ## License
 
