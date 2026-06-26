@@ -53,8 +53,20 @@ public class NanoSecRandomStrategy<T extends Endpoint> extends ArrayBasedStrateg
 
 	@Override
 	public Endpoint next(Context ctx, Endpoint[] array) {
-		int idx = Math.abs(Long.hashCode(System.nanoTime())) % array.length;
-		return array[idx];
+
+		// Mix the nanosecond clock with the SplitMix64 finalizer so the
+		// quasi-regular, low-entropy lower bits of System.nanoTime() avalanche
+		// into a uniformly distributed index. The previous Long.hashCode() fold
+		// kept consecutive draws strongly correlated, which on some platforms
+		// (e.g. Windows/JDK 25) skewed the distribution badly enough that some
+		// endpoints were never selected.
+		long z = System.nanoTime() * 0x9E3779B97F4A7C15L;
+		z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
+		z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
+		z = z ^ (z >>> 31);
+
+		// floorMod yields a non-negative index without the Math.abs(MIN_VALUE) trap.
+		return array[(int) Math.floorMod(z, array.length)];
 	}
 
 }
