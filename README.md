@@ -27,7 +27,7 @@ to a distributed system.
 <dependency>
     <groupId>com.github.berkesa</groupId>
     <artifactId>moleculer-java</artifactId>
-    <version>2.1.0</version>
+    <version>2.1.1</version>
 </dependency>
 ```
 
