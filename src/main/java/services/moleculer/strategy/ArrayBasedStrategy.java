@@ -77,8 +77,7 @@ public abstract class ArrayBasedStrategy<T extends Endpoint> extends Strategy<T>
 			endpoints[0] = endpoint;
 		} else {
 			for (int i = 0; i < endpoints.length; i++) {
-				if (endpoints[i].equals(endpoints)) {
-
+				if (endpoints[i].equals(endpoint)) {
 					// Already registered
 					return;
 				}

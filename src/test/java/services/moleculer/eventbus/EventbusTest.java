@@ -384,6 +384,50 @@ public class EventbusTest {
 		tr.received(tr.eventChannel, msg);
 	}
 
+	// --- MULTIPLE LISTENERS ON THE SAME EVENT IN ONE SERVICE ---
+
+	/**
+	 * A service may subscribe more than one Listener field to the same event -
+	 * typically one in a superclass and one in the subclass. All of them must
+	 * be registered (the endpoint de-duplication of the strategy must not
+	 * collapse them), and a broadcast must reach every one of them.
+	 */
+	@Test
+	public void testInheritedListenersOnSameEvent() throws Exception {
+		br.createService("dup", new SubclassListener());
+		SubclassListener s = (SubclassListener) br.getLocalService("dup");
+
+		br.broadcast("dup.event", new Tree());
+		assertEquals(1, s.baseCounter);
+		assertEquals(1, s.subCounter);
+
+		br.broadcast("dup.event", new Tree());
+		assertEquals(2, s.baseCounter);
+		assertEquals(2, s.subCounter);
+	}
+
+	protected static class BaseListener extends Service {
+
+		protected int baseCounter;
+
+		@Subscribe("dup.event")
+		public Listener baseListener = ctx -> {
+			baseCounter++;
+		};
+
+	}
+
+	protected static final class SubclassListener extends BaseListener {
+
+		protected int subCounter;
+
+		@Subscribe("dup.event")
+		public Listener subListener = ctx -> {
+			subCounter++;
+		};
+
+	}
+
 	// --- GROUPED LISTENERS ---
 
 	@Test

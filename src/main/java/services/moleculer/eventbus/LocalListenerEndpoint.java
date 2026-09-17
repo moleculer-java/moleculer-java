@@ -55,6 +55,23 @@ public class LocalListenerEndpoint extends ListenerEndpoint implements MetricCon
 		this.metrics = metrics;
 	}
 
+	// --- COLLECTION HELPERS ---
+
+	/**
+	 * Two local endpoints are equal only if they wrap the very same Listener
+	 * instance. A service (or its superclass) may subscribe more than one
+	 * Listener field to the same event - those are distinct endpoints and all
+	 * of them must stay registered. The inherited hashCode stays consistent
+	 * with this (equal endpoints share the same nodeID/service/group/event).
+	 */
+	@Override
+	public boolean equals(Object obj) {
+		if (!super.equals(obj)) {
+			return false;
+		}
+		return listener == ((LocalListenerEndpoint) obj).listener;
+	}
+
 	// --- INVOKE LOCAL LISTENER ---
 
 	@Override

@@ -98,6 +98,34 @@ public abstract class StrategyTest {
 		assertEquals(0, s.getAllEndpoints().size());
 	}
 
+	/**
+	 * Registering the very same endpoint (same nodeID + action name) twice must
+	 * be idempotent. The duplicate filter in ArrayBasedStrategy#addEndpoint used
+	 * to compare the element against the <b>array</b> instead of the parameter, so
+	 * it never matched and every repeated INFO packet appended another copy of the
+	 * same endpoint - skewing load balancing towards that node.
+	 */
+	@Test
+	public void testDuplicateEndpointIsIgnored() throws Exception {
+		Strategy<LocalActionEndpoint> s = createStrategy(false);
+
+		s.addEndpoint(createEndpoint(br, "node1", "e", "e1"));
+		s.addEndpoint(createEndpoint(br, "node1", "e", "e1"));
+		assertEquals(1, s.getAllEndpoints().size());
+
+		// A different action name on the same node is NOT a duplicate
+		s.addEndpoint(createEndpoint(br, "node1", "e", "e2"));
+		assertEquals(2, s.getAllEndpoints().size());
+
+		// ...and neither is the same action name on another node
+		s.addEndpoint(createEndpoint(br, "node2", "e", "e1"));
+		assertEquals(3, s.getAllEndpoints().size());
+
+		// Removing a node must drop exactly its own endpoints
+		s.remove("node2");
+		assertEquals(2, s.getAllEndpoints().size());
+	}
+
 	protected void simpleTest(boolean preferLocal) throws Exception {
 		Strategy<LocalActionEndpoint> s = createStrategy(preferLocal);
 		for (int i = 1; i <= 5; i++) {
