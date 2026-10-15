@@ -71,7 +71,7 @@
 		<paho.version>1.2.5</paho.version>
 		<jakarta-jms.version>3.1.0</jakarta-jms.version>
 		<activemq.version>6.2.9</activemq.version>
-		<amqp-client.version>5.35.0</amqp-client.version>
+		<amqp-client.version>5.37.0</amqp-client.version>
 		<kafka.version>4.3.1</kafka.version>
 
 		<!-- Metrics (optional backends) -->
